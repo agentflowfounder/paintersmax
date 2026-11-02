@@ -1,0 +1,17 @@
+{
+  "name": "paintersmax",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "db:local": "wrangler d1 migrations apply paintersmax-db --local",
+    "db:remote": "wrangler d1 migrations apply paintersmax-db --remote",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261102.1",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.0.0"
+  }
+}

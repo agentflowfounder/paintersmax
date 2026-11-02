@@ -1,6 +1,29 @@
 {
-  // PaintersMax marketing site, served as static files by a Cloudflare Worker.
+  // PaintersMax: static site plus /api/* backend on one Cloudflare Worker.
   "name": "paintersmax-site",
+  "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
-  "assets": { "directory": "./public" }
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "paintersmax-db",
+      "database_id": "8b4e1193-87f2-4c81-a936-0f5f9d07ab79",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    // Lead alerts go here until each company has its own notify_email.
+    "NOTIFY_EMAIL": "",
+    "FROM_EMAIL": "PaintersMax <leads@mail.paintersmax.app>",
+    // Change model names here if a provider retires or renames one.
+    "MODEL_ANTHROPIC": "claude-sonnet-5-5",
+    "MODEL_OPENAI": "gpt-4.1-mini",
+    "MODEL_GEMINI": "gemini-2.5-flash"
+  },
+  "observability": { "enabled": true }
 }

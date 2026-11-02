@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get a Free Painting Estimate</title>
+<style>
+  body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0;padding:32px 16px}
+  main{max-width:520px;margin:0 auto;background:#fff;padding:28px;border-radius:8px;border:1px solid rgba(15,27,45,.1)}
+  h1{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 6px}
+  p.sub{color:#4A5568;margin:0 0 20px}
+  label{display:block;font-size:14px;font-weight:600;margin:14px 0 4px}
+  input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cfd5dc;border-radius:6px;font:inherit}
+  button{margin-top:20px;width:100%;padding:14px;border:0;border-radius:6px;background:#E8A33D;color:#0F1B2D;font-weight:700;font-size:16px;cursor:pointer}
+  button:disabled{opacity:.6;cursor:wait}
+  .hp{position:absolute;left:-9999px}
+  #result{margin-top:20px;padding:16px;border-radius:6px;background:#0F1B2D;color:#fff;display:none}
+  #result .range{font-size:28px;font-family:Newsreader,Georgia,serif;color:#E8A33D}
+  #err{color:#b42318;margin-top:12px;display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Get your free estimate</h1>
+  <p class="sub">Tell us about the job and see a price range in seconds.</p>
+  <form id="f">
+    <label for="name">Your name</label><input id="name" name="name" required>
+    <label for="email">Email</label><input id="email" name="email" type="email" required>
+    <label for="phone">Phone (optional)</label><input id="phone" name="phone" type="tel">
+    <label for="zip">ZIP code</label><input id="zip" name="zip" inputmode="numeric" maxlength="10">
+    <label for="jobType">Type of job</label>
+    <select id="jobType" name="jobType">
+      <option value="interior">Interior</option>
+      <option value="exterior">Exterior</option>
+      <option value="both">Interior and exterior</option>
+      <option value="commercial">Commercial building</option>
+      <option value="multifamily">Apartment complex</option>
+    </select>
+    <label for="sqft">Approximate square feet</label><input id="sqft" name="sqft" type="number" min="100" max="500000" required>
+    <label for="details">Anything else we should know? (optional)</label><textarea id="details" name="details" rows="3"></textarea>
+    <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <button id="go" type="submit">See my estimate</button>
+    <div id="err"></div>
+  </form>
+  <div id="result"><div class="range" id="range"></div><p id="summary"></p></div>
+</main>
+<script>
+const f=document.getElementById('f'),err=document.getElementById('err'),go=document.getElementById('go');
+f.addEventListener('submit',async e=>{
+  e.preventDefault(); err.style.display='none'; go.disabled=true; go.textContent='Working...';
+  const body=Object.fromEntries(new FormData(f)); body.sqft=Number(body.sqft);
+  try{
+    const r=await fetch('/api/quote',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json();
+    if(!r.ok||!j.ok) throw new Error(j.error||'Something went wrong.');
+    const fmt=c=>'$'+Math.round(c/100).toLocaleString('en-US');
+    document.getElementById('range').textContent=fmt(j.lowCents)+' - '+fmt(j.highCents);
+    document.getElementById('summary').textContent=j.summary;
+    document.getElementById('result').style.display='block'; f.style.display='none';
+  }catch(x){ err.textContent=x.message; err.style.display='block'; }
+  go.disabled=false; go.textContent='See my estimate';
+});
+</script>
+</body>
+</html>
