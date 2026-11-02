@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PaintersMax — Homepage Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0F1B2D;
+    --navy-2: #16273D;
+    --white: #FFFFFF;
+    --paper: #F7F5F1;
+    --slate: #4A5568;
+    --slate-light: #8592A3;
+    --gold: #E8A33D;
+    --gold-dark: #C6822A;
+    --line: rgba(15,27,45,0.10);
+    --radius: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    color: var(--navy);
+    background: var(--white);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { font-family: 'Newsreader', serif; font-weight: 500; line-height: 1.12; letter-spacing: -0.01em; }
+
+  a { color: inherit; text-decoration: none; }
+
+  button, .btn { font-family: 'Inter', sans-serif; cursor: pointer; border: none; }
+
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold-dark);
+    font-weight: 600;
+  }
+
+  /* ---------- HEADER ---------- */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-row { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+  .logo { font-family: 'Newsreader', serif; font-size: 22px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .logo-mark { width: 12px; height: 26px; background: linear-gradient(180deg, var(--gold) 0%, var(--gold-dark) 100%); border-radius: 2px; display: inline-block; transform: rotate(-8deg); }
+  nav ul { list-style: none; display: flex; gap: 36px; }
+  nav a { font-size: 14.5px; font-weight: 500; color: var(--slate); }
+  nav a:hover { color: var(--navy); }
+  .nav-actions { display: flex; align-items: center; gap: 20px; }
+  .link-signin { font-size: 14.5px; font-weight: 500; }
+  .btn-primary {
+    background: var(--navy); color: var(--white); padding: 10px 22px; border-radius: var(--radius);
+    font-size: 14.5px; font-weight: 600; transition: background .15s ease;
+  }
+  .btn-primary:hover { background: var(--navy-2); }
+  .btn-gold { background: var(--gold); color: var(--navy); }
+  .btn-gold:hover { background: var(--gold-dark); }
+
+  @media (max-width: 860px) { nav ul { display: none; } }
+
+  /* ---------- HERO ---------- */
+  .hero { padding: 88px 0 72px; }
+  .hero-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 64px; align-items: center; }
+  .hero h1 { font-size: 46px; margin: 18px 0 20px; }
+  .hero h1 em { font-style: normal; color: var(--gold-dark); }
+  .hero p.sub { font-size: 17px; color: var(--slate); max-width: 460px; margin-bottom: 30px; }
+  .hero-ctas { display: flex; align-items: center; gap: 22px; margin-bottom: 34px; }
+  .btn-lg { padding: 14px 26px; border-radius: var(--radius); font-size: 15.5px; font-weight: 600; }
+  .link-demo { font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--navy); }
+  .link-demo .ring { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--navy); display: flex; align-items: center; justify-content: center; font-size: 11px; }
+
+  .hero-stat-row { display: flex; gap: 28px; padding-top: 22px; border-top: 1px solid var(--line); }
+  .hero-stat b { font-family: 'IBM Plex Mono', monospace; font-size: 21px; display: block; color: var(--navy); }
+  .hero-stat span { font-size: 12.5px; color: var(--slate-light); }
+
+  /* video mock */
+  .video-frame {
+    background: var(--navy);
+    border-radius: 12px;
+    padding: 10px 10px 0;
+    box-shadow: 0 30px 60px -20px rgba(15,27,45,0.35);
+    transform: rotate(1.2deg);
+  }
+  .chrome-dots { display: flex; gap: 6px; padding: 10px 8px; }
+  .chrome-dots span { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.25); }
+  .video-inner {
+    aspect-ratio: 16/10.4;
+    background: linear-gradient(160deg, #1A2C46 0%, #0F1B2D 70%);
+    border-radius: 6px 6px 0 0;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .video-inner::after {
+    content: "PRODUCT DEMO — LOOPING VIDEO PLACEHOLDER";
+    position: absolute; bottom: 16px; left: 16px; right: 16px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.45);
+  }
+  .play-btn {
+    width: 58px; height: 58px; border-radius: 50%; background: var(--gold);
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px rgba(232,163,61,0.4);
+  }
+  .play-btn::after { content: ""; border-style: solid; border-width: 9px 0 9px 15px; border-color: transparent transparent transparent var(--navy); margin-left: 4px; }
+
+  @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } .hero h1 { font-size: 34px; } }
+
+  /* ---------- PROOF STRIP ---------- */
+  .proof { background: var(--paper); padding: 26px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .proof .wrap { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .proof-line { font-size: 14px; color: var(--slate); font-weight: 500; }
+  .proof-line strong { color: var(--navy); }
+
+  /* ---------- SECTION SHELL ---------- */
+  section.block { padding: 92px 0; }
+  .section-head { max-width: 620px; margin-bottom: 52px; }
+  .section-head h2 { font-size: 32px; margin-top: 14px; }
+  .section-head p { color: var(--slate); margin-top: 14px; font-size: 15.5px; }
+
+  /* ---------- ROI GRID ---------- */
+  .roi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+  .roi-card { padding: 26px 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); }
+  .roi-icon { width: 38px; height: 38px; border-radius: 8px; background: var(--navy); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
+  .roi-icon svg { width: 18px; height: 18px; stroke: var(--gold); }
+  .roi-card h3 { font-size: 17px; font-weight: 600; font-family: 'Inter', sans-serif; margin-bottom: 8px; }
+  .roi-card p { font-size: 13.8px; color: var(--slate); margin-bottom: 16px; }
+
+  /* coverage gauge — signature element */
+  .gauge { height: 7px; border-radius: 20px; background: rgba(15,27,45,0.08); overflow: hidden; position: relative; }
+  .gauge-fill { position: absolute; inset: 0; width: 0%; border-radius: 20px; background: linear-gradient(90deg, var(--gold-dark), var(--gold)); animation: fillbar 1.4s ease forwards; }
+  .gauge-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--slate-light); margin-top: 8px; display: block; }
+  @keyframes fillbar { to { width: var(--fill); } }
+  @media (prefers-reduced-motion: reduce) { .gauge-fill { animation: none; width: var(--fill); } }
+
+  @media (max-width: 1000px) { .roi-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .roi-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- HOW IT WORKS ---------- */
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
+  .steps::before { content: ""; position: absolute; top: 22px; left: 6%; right: 6%; height: 1px; background: var(--line); z-index: 0; }
+  .step { position: relative; z-index: 1; padding-right: 20px; }
+  .step-num { width: 44px; height: 44px; border-radius: 50%; background: var(--white); border: 1.5px solid var(--navy); display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600; margin-bottom: 20px; }
+  .step h3 { font-size: 16px; font-weight: 600; font-family: 'Inter', sans-serif; margin-bottom: 8px; }
+  .step p { font-size: 13.5px; color: var(--slate); }
+  @media (max-width: 800px) { .steps { grid-template-columns: 1fr 1fr; gap: 32px; } .steps::before { display: none; } }
+
+  /* ---------- PRODUCT TOUR ---------- */
+  .tour-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .tour-card { border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+  .tour-shot { aspect-ratio: 4/3; background: var(--paper); display: flex; align-items: center; justify-content: center; }
+  .tour-shot span { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--slate-light); letter-spacing: 0.06em; }
+  .tour-caption { padding: 14px 16px; font-size: 13.5px; font-weight: 500; }
+  @media (max-width: 800px) { .tour-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- TIERS ---------- */
+  .tier-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .tier-card { border: 1px solid var(--line); border-radius: 12px; padding: 30px 26px; background: var(--white); }
+  .tier-card.featured { border-color: var(--gold); box-shadow: 0 20px 40px -24px rgba(232,163,61,0.5); position: relative; }
+  .tier-card.featured::before { content: "MOST POPULAR"; position: absolute; top: -12px; left: 26px; background: var(--gold); color: var(--navy); font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 4px; }
+  .tier-name { font-family: 'Newsreader', serif; font-size: 22px; margin-bottom: 6px; }
+  .tier-for { font-size: 13px; color: var(--slate-light); margin-bottom: 20px; }
+  .tier-list { list-style: none; margin-bottom: 26px; }
+  .tier-list li { font-size: 13.8px; color: var(--slate); padding: 7px 0; border-top: 1px solid var(--line); }
+  .tier-list li:first-child { border-top: none; }
+  .tier-cta { display: block; text-align: center; padding: 11px; border-radius: var(--radius); font-size: 14px; font-weight: 600; border: 1.5px solid var(--navy); }
+  .tier-card.featured .tier-cta { background: var(--navy); color: var(--white); border-color: var(--navy); }
+  @media (max-width: 900px) { .tier-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- FOUNDER ---------- */
+  .founder { background: var(--navy); color: var(--white); }
+  .founder-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 56px; align-items: center; }
+  .founder-photo { aspect-ratio: 4/5; background: linear-gradient(160deg, #24385A, #0F1B2D); border-radius: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.1); }
+  .founder-photo span { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: rgba(255,255,255,0.35); }
+  .founder h2 { color: var(--white); font-size: 30px; }
+  .founder p { color: rgba(255,255,255,0.72); font-size: 15.5px; margin-top: 16px; max-width: 480px; }
+  .founder .eyebrow { color: var(--gold); }
+  @media (max-width: 800px) { .founder-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- TESTIMONIALS ---------- */
+  .test-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .test-card { background: var(--paper); border-radius: 10px; padding: 26px; position: relative; }
+  .placeholder-badge {
+    position: absolute; top: 16px; right: 16px; font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px; letter-spacing: 0.06em; color: var(--slate-light); border: 1px solid var(--line); padding: 3px 7px; border-radius: 4px;
+  }
+  .test-quote { font-size: 14.5px; color: var(--navy); margin: 8px 0 18px; line-height: 1.6; }
+  .test-name { font-size: 13px; font-weight: 600; }
+  .test-role { font-size: 12px; color: var(--slate-light); }
+  @media (max-width: 800px) { .test-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- FINAL CTA ---------- */
+  .final-cta { text-align: center; padding: 96px 0; background: linear-gradient(180deg, var(--paper), var(--white)); }
+  .final-cta h2 { font-size: 36px; max-width: 620px; margin: 16px auto 30px; }
+  .final-cta-btns { display: flex; justify-content: center; gap: 18px; }
+
+  /* ---------- FOOTER ---------- */
+  footer { background: var(--navy); color: rgba(255,255,255,0.6); padding: 56px 0 32px; }
+  .foot-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 40px; padding-bottom: 40px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .foot-grid h4 { color: var(--white); font-size: 13px; font-weight: 600; margin-bottom: 14px; letter-spacing: 0.02em; }
+  .foot-grid ul { list-style: none; }
+  .foot-grid li { font-size: 13.5px; padding: 6px 0; }
+  .foot-grid li a:hover { color: var(--white); }
+  .foot-bottom { padding-top: 24px; font-size: 12.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  @media (max-width: 800px) { .foot-grid { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav-row">
+    <div class="logo"><span class="logo-mark"></span>PaintersMax</div>
+    <nav><ul>
+      <li><a href="#">Features</a></li>
+      <li><a href="#tiers">Pricing</a></li>
+      <li><a href="#how">How It Works</a></li>
+      <li><a href="#proof-section">Success Stories</a></li>
+    </ul></nav>
+    <div class="nav-actions">
+      <a class="link-signin" href="#">Sign In</a>
+      <a class="btn-primary" href="#">Start Free</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">For Painting Business Owners</span>
+      <h1>Painters using PaintersMax book <em>18–27% more work</em> in their first year.</h1>
+      <p class="sub">One platform for your website, your leads, and your customers — built by a painter who spent 20 years holding the brush, not a software company guessing at your business.</p>
+      <div class="hero-ctas">
+        <a class="btn-lg btn-gold" href="#tiers">See Your Price</a>
+        <a class="link-demo" href="#"><span class="ring">▸</span> Watch 90-Second Demo</a>
+      </div>
+      <div class="hero-stat-row">
+        <div class="hero-stat"><b>18–27%</b><span>avg. revenue lift, PCA 2026 benchmark</span></div>
+        <div class="hero-stat"><b>24/7</b><span>AI lead capture, never miss a call</span></div>
+        <div class="hero-stat"><b>4 langs</b><span>EN · ES · VI · HI built in</span></div>
+      </div>
+    </div>
+    <div class="video-frame">
+      <div class="chrome-dots"><span></span><span></span><span></span></div>
+      <div class="video-inner"><div class="play-btn"></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="proof" id="proof-section">
+  <div class="wrap">
+    <div class="proof-line">Built by <strong>a painter with 20+ years in the trade</strong> — not a software company guessing at yours.</div>
+    <div class="proof-line">Backed by <strong>PCA 2026 industry benchmarks</strong></div>
+  </div>
+</div>
+
+<section class="block">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Why It Works</span>
+      <h2>Every feature translates to money in your pocket.</h2>
+      <p>Not a checklist of software features — a direct line from what PaintersMax does to what it's worth to your business.</p>
+    </div>
+    <div class="roi-grid">
+      <div class="roi-card">
+        <div class="roi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 12v6a2 2 0 002 2h12a2 2 0 002-2v-6M16 6l-4-4-4 4M12 2v14"/></svg></div>
+        <h3>Never miss a lead</h3>
+        <p>Your AI chatbot answers homeowners at 2am, in their own language.</p>
+        <div class="gauge"><div class="gauge-fill" style="--fill:92%"></div></div>
+        <span class="gauge-label">92% of after-hours leads captured</span>
+      </div>
+      <div class="roi-card">
+        <div class="roi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+        <h3>Win more estimates</h3>
+        <p>Instant AI quotes and professional proposals close deals faster.</p>
+        <div class="gauge"><div class="gauge-fill" style="--fill:74%"></div></div>
+        <span class="gauge-label">74% faster quote turnaround</span>
+      </div>
+      <div class="roi-card">
+        <div class="roi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        <h3>Rank #1 in your city</h3>
+        <p>SEO-built pages for every service and every town you cover.</p>
+        <div class="gauge"><div class="gauge-fill" style="--fill:88%"></div></div>
+        <span class="gauge-label">88% score on Core Web Vitals</span>
+      </div>
+      <div class="roi-card">
+        <div class="roi-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/></svg></div>
+        <h3>Get paid faster</h3>
+        <p>Online deposits and automated invoicing, no more chasing checks.</p>
+        <div class="gauge"><div class="gauge-fill" style="--fill:65%"></div></div>
+        <span class="gauge-label">65% fewer late payments</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="how" style="background:var(--paper); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">How It Works</span>
+      <h2>From sign-up to your first lead, in one afternoon.</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">01</div><h3>Sign up free</h3><p>Tell us about your business — takes about five minutes.</p></div>
+      <div class="step"><div class="step-num">02</div><h3>Choose your website</h3><p>Pick a design built for painters, populated with your real business.</p></div>
+      <div class="step"><div class="step-num">03</div><h3>Start getting leads</h3><p>Your site goes live, your AI assistant starts answering homeowners.</p></div>
+      <div class="step"><div class="step-num">04</div><h3>Grow with data</h3><p>Track leads, revenue, and reviews from one dashboard.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">See It In Action</span>
+      <h2>Your business, running on one dashboard.</h2>
+    </div>
+    <div class="tour-grid">
+      <div class="tour-card"><div class="tour-shot"><span>DASHBOARD SCREENSHOT — PLACEHOLDER</span></div><div class="tour-caption">Lead pipeline &amp; scoring</div></div>
+      <div class="tour-card"><div class="tour-shot"><span>AI ESTIMATE SCREENSHOT — PLACEHOLDER</span></div><div class="tour-caption">Instant AI-generated estimates</div></div>
+      <div class="tour-card"><div class="tour-shot"><span>CUSTOMER PORTAL — PLACEHOLDER</span></div><div class="tour-caption">Customer portal &amp; project tracker</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="tiers" style="background:var(--paper); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Simple Pricing</span>
+      <h2>Pick the tier that fits where you are today.</h2>
+    </div>
+    <div class="tier-grid">
+      <div class="tier-card">
+        <div class="tier-name">Starter</div>
+        <div class="tier-for">Solo painters &amp; small local shops</div>
+        <ul class="tier-list">
+          <li>1-page website, up to 5 services</li>
+          <li>AI instant estimate widget</li>
+          <li>Simplified customer portal</li>
+        </ul>
+        <a class="tier-cta" href="#">Start Free</a>
+      </div>
+      <div class="tier-card featured">
+        <div class="tier-name">Pro</div>
+        <div class="tier-for">Established companies, $500K–$2M revenue</div>
+        <ul class="tier-list">
+          <li>10 pages + 6 city landing pages</li>
+          <li>Detailed AI estimates w/ cost breakdown</li>
+          <li>Full customer portal + AI blog</li>
+        </ul>
+        <a class="tier-cta" href="#">Start Free</a>
+      </div>
+      <div class="tier-card">
+        <div class="tier-name">Max</div>
+        <div class="tier-for">Large commercial &amp; fast-growing companies</div>
+        <ul class="tier-list">
+          <li>Custom-built to your business</li>
+          <li>Dedicated onboarding call</li>
+          <li>Priority support</li>
+        </ul>
+        <a class="tier-cta" href="#">Book a Call</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block founder">
+  <div class="wrap founder-grid">
+    <div class="founder-photo"><span>FOUNDER PHOTO — PLACEHOLDER</span></div>
+    <div>
+      <span class="eyebrow">The Founder</span>
+      <h2>Built by a painter. Not a software company.</h2>
+      <p>Twenty years on the ladder, in the heat, dealing with homeowners, crews, and every tool that promised to make it easier but never understood the job. PaintersMax exists because the software everyone else sells was built by people who never picked up a brush.</p>
+    </div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Results</span>
+      <h2>What painting business owners are saying.</h2>
+    </div>
+    <div class="test-grid">
+      <div class="test-card"><span class="placeholder-badge">SAMPLE CONTENT</span><p class="test-quote">"Our lead response time went from hours to seconds. The AI assistant alone paid for the subscription."</p><div class="test-name">Sample Owner Name</div><div class="test-role">Residential Painting Co., Sample City TX</div></div>
+      <div class="test-card"><span class="placeholder-badge">SAMPLE CONTENT</span><p class="test-quote">"I finally have a website that looks as good as the work we do. Clients notice immediately."</p><div class="test-name">Sample Owner Name</div><div class="test-role">Sample Painting Company</div></div>
+      <div class="test-card"><span class="placeholder-badge">SAMPLE CONTENT</span><p class="test-quote">"The estimate tool alone has changed how fast we close jobs."</p><div class="test-name">Sample Owner Name</div><div class="test-role">Sample Painting Company</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="final-cta">
+  <div class="wrap">
+    <span class="eyebrow">Ready When You Are</span>
+    <h2>Get your painting business online — and start capturing leads — in one afternoon.</h2>
+    <div class="final-cta-btns">
+      <a class="btn-lg btn-primary" href="#">Start Free</a>
+      <a class="btn-lg" style="border:1.5px solid var(--navy); color:var(--navy);" href="#">See Pricing</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div><div class="logo" style="color:var(--white)"><span class="logo-mark"></span>PaintersMax</div><p style="font-size:13px; margin-top:14px; max-width:280px;">A product of Agent Flow LLC — Dallas, TX. Built by a painter, for painters.</p></div>
+      <div><h4>Product</h4><ul><li><a href="#">Features</a></li><li><a href="#">Pricing</a></li><li><a href="#">Templates</a></li></ul></div>
+      <div><h4>Company</h4><ul><li><a href="#">About</a></li><li><a href="#">Contact</a></li></ul></div>
+      <div><h4>Legal</h4><ul><li><a href="#">Terms</a></li><li><a href="#">Privacy</a></li></ul></div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 Agent Flow LLC. All rights reserved.</span>
+      <span>support@paintersmax.app</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

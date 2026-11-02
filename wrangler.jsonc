@@ -1,0 +1,6 @@
+{
+  // PaintersMax marketing site, served as static files by a Cloudflare Worker.
+  "name": "paintersmax-site",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./public" }
+}
