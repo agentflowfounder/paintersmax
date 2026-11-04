@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard - PaintersMax</title>
+<style>
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+header b{font-family:Newsreader,Georgia,serif;font-size:20px;font-weight:500}
+header button{background:transparent;color:#fff;border:1px solid #fff5;border-radius:6px;padding:6px 12px;cursor:pointer}
+main{max-width:1000px;margin:24px auto;padding:0 16px}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid rgba(15,27,45,.08);font-size:14px;vertical-align:top}
+th{background:#eceae4;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.wrap{overflow-x:auto} .empty{padding:32px;text-align:center;color:#4A5568;background:#fff;border-radius:8px}
+</style></head><body>
+<header><div><b>PaintersMax</b> <span id="co"></span></div><div><span id="me"></span> <button id="out">Sign out</button></div></header>
+<main><h2>Leads</h2><div id="box" class="empty">Loading...</div></main>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
+(async()=>{
+  const r=await fetch('/api/leads');
+  if(r.status===401){location.href='/login';return;}
+  const j=await r.json();
+  document.getElementById('co').textContent=j.company;
+  const me=await (await fetch('/api/me')).json(); document.getElementById('me').textContent=me.email;
+  const box=document.getElementById('box');
+  if(!j.leads.length){box.textContent='No leads yet. Share your quote page: /quote';return;}
+  box.className='wrap';
+  box.innerHTML='<table><thead><tr><th>Date</th><th>Name</th><th>Contact</th><th>Job</th><th>Estimate</th><th>Status</th></tr></thead><tbody>'+
+    j.leads.map(l=>`<tr><td>${esc(l.createdAt)}</td><td>${esc(l.name)}</td><td>${esc(l.email)}<br>${esc(l.phone)} ${esc(l.zip)}</td><td>${esc(l.jobType)} ${l.sqft?esc(l.sqft)+' sq ft':''}</td><td>${usd(l.lowCents)} - ${usd(l.highCents)}</td><td>${esc(l.status)}</td></tr>`).join('')+'</tbody></table>';
+})();
+document.getElementById('out').onclick=async()=>{await fetch('/api/auth/logout',{method:'POST'});location.href='/login';};
+</script></body></html>

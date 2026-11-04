@@ -12,6 +12,7 @@ export interface Env {
   MODEL_ANTHROPIC?: string;
   MODEL_OPENAI?: string;
   MODEL_GEMINI?: string;
+  DEV_LOG_LINKS?: string; // local development only
 }
 
 export type JobType = "interior" | "exterior" | "both" | "commercial" | "multifamily";

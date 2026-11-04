@@ -1,4 +1,5 @@
 import { writeSummary } from "./ai.ts";
+import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import type { Env } from "./types.ts";
@@ -81,6 +82,45 @@ export default {
         console.error("quote failed", String(err));
         return json({ error: "Something went wrong. Please try again." }, 500);
       }
+    }
+    if (pathname === "/api/auth/request" && request.method === "POST") {
+      let body: any = {};
+      try {
+        body = await request.json();
+      } catch {}
+      try {
+        await requestLoginLink(env, new URL(request.url).origin, body?.email);
+      } catch (err) {
+        console.error("login link failed", String(err));
+      }
+      return json({ ok: true }); // same answer whether or not the email exists
+    }
+    if (pathname === "/api/auth/verify") {
+      const result = await verifyLoginLink(env, new URL(request.url).searchParams.get("token"));
+      if (!result) return new Response("This sign-in link is invalid or expired. Please request a new one.", { status: 400 });
+      return new Response(null, { status: 302, headers: { location: "/dashboard", "set-cookie": result.cookie } });
+    }
+    if (pathname === "/api/auth/logout" && request.method === "POST") {
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { "content-type": "application/json", "set-cookie": await endSession(env, request) },
+      });
+    }
+    if (pathname === "/api/me") {
+      const user = await getSessionUser(env, request);
+      return user ? json({ email: user.email, company: user.companyName }) : json({ error: "Not signed in." }, 401);
+    }
+    if (pathname === "/api/leads") {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: "Not signed in." }, 401);
+      const rows = await env.DB.prepare(
+        `SELECT l.id, l.name, l.email, l.phone, l.zip, l.status, l.created_at AS createdAt,
+                q.job_type AS jobType, q.sqft, q.low_cents AS lowCents, q.high_cents AS highCents, q.provider
+           FROM leads l LEFT JOIN quotes q ON q.lead_id = l.id
+          WHERE l.company_id = ? ORDER BY l.id DESC LIMIT 200`,
+      )
+        .bind(user.companyId)
+        .all();
+      return json({ company: user.companyName, leads: rows.results });
     }
     if (pathname.startsWith("/api/")) return json({ error: "Not found." }, 404);
     return env.ASSETS.fetch(request);

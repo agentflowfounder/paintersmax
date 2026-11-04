@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in - PaintersMax</title>
+<style>
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0;padding:48px 16px}
+main{max-width:400px;margin:0 auto;background:#fff;padding:28px;border-radius:8px;border:1px solid rgba(15,27,45,.1)}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 8px}
+p{color:#4A5568} label{display:block;font-weight:600;font-size:14px;margin:16px 0 4px}
+input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cfd5dc;border-radius:6px;font:inherit}
+button{margin-top:16px;width:100%;padding:12px;border:0;border-radius:6px;background:#0F1B2D;color:#fff;font-weight:600;font-size:16px;cursor:pointer}
+#done{display:none;color:#0F1B2D}
+</style></head><body><main>
+<h1>Sign in</h1>
+<form id="f"><p>Enter your email and we'll send you a one-click sign-in link.</p>
+<label for="email">Email</label><input id="email" type="email" required autocomplete="email">
+<button type="submit">Email me a link</button></form>
+<p id="done">If that email has an account, a sign-in link is on its way. It works for 15 minutes.</p>
+</main>
+<script>
+document.getElementById('f').addEventListener('submit',async e=>{
+  e.preventDefault();
+  await fetch('/api/auth/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value})});
+  e.target.style.display='none'; document.getElementById('done').style.display='block';
+});
+</script></body></html>
