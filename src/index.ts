@@ -60,6 +60,27 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   return json({ ok: true, lowCents, highCents, summary });
 }
 
+async function handleLead(request: Request, env: Env): Promise<Response> {
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON." }, 400);
+  }
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const name = str(body?.name, 120);
+  const email = str(body?.email, 200);
+  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Name and a valid email are required." }, 400);
+  const company = await env.DB.prepare("SELECT id FROM companies WHERE slug = ?")
+    .bind(str(body?.companySlug, 60) || "dfw-painters")
+    .first<{ id: number }>();
+  if (!company) return json({ error: "Unknown company." }, 404);
+  await env.DB.prepare("INSERT INTO leads (company_id, name, email, phone, zip, source, notes) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .bind(company.id, name, email, str(body?.phone, 40) || null, str(body?.zip, 10) || null, str(body?.source, 60) || "website", str(body?.details, 2000) || null)
+    .run();
+  return json({ ok: true });
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { pathname } = new URL(request.url);
@@ -81,6 +102,14 @@ export default {
       } catch (err) {
         console.error("quote failed", String(err));
         return json({ error: "Something went wrong. Please try again." }, 500);
+      }
+    }
+    if (pathname === "/api/lead" && request.method === "POST") {
+      try {
+        return await handleLead(request, env);
+      } catch (err) {
+        console.error("lead failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
       }
     }
     if (pathname === "/api/auth/request" && request.method === "POST") {
@@ -113,7 +142,7 @@ export default {
       const user = await getSessionUser(env, request);
       if (!user) return json({ error: "Not signed in." }, 401);
       const rows = await env.DB.prepare(
-        `SELECT l.id, l.name, l.email, l.phone, l.zip, l.status, l.created_at AS createdAt,
+        `SELECT l.id, l.name, l.email, l.phone, l.zip, l.status, l.source, l.notes, l.created_at AS createdAt,
                 q.job_type AS jobType, q.sqft, q.low_cents AS lowCents, q.high_cents AS highCents, q.provider
            FROM leads l LEFT JOIN quotes q ON q.lead_id = l.id
           WHERE l.company_id = ? ORDER BY l.id DESC LIMIT 200`,
