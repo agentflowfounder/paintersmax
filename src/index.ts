@@ -1,6 +1,6 @@
 import { writeSummary } from "./ai.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
-import { sendLeadEmail } from "./email.ts";
+import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import type { Env } from "./types.ts";
 import { parseQuoteRequest } from "./validate.ts";
@@ -53,6 +53,33 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
         `Job: ${q.jobType}, ${q.sqft} sq ft`,
         `Range shown: $${Math.round(lowCents / 100)} to $${Math.round(highCents / 100)}`,
         `Notes: ${q.details ?? "none"}`,
+      ].join("\n"),
+    ),
+  );
+
+  // Confirmation to the customer (replies go to the company).
+  const lowD = Math.round(lowCents / 100).toLocaleString("en-US");
+  const highD = Math.round(highCents / 100).toLocaleString("en-US");
+  ctx.waitUntil(
+    sendCustomerEmail(
+      env,
+      q.email,
+      company.name,
+      company.notify_email || env.NOTIFY_EMAIL,
+      `Your painting estimate from ${company.name}`,
+      [
+        `Hi ${q.name.split(" ")[0]},`,
+        "",
+        `Thanks for requesting an estimate from ${company.name}.`,
+        "",
+        `Your ballpark range for ${q.jobType.replace(/_/g, " ")} (${q.sqft} sq ft): $${lowD} to $${highD}.`,
+        "",
+        summary,
+        "",
+        "This is a ballpark only. We will follow up to confirm details and give you a firm written quote.",
+        "You can reply to this email with questions or photos.",
+        "",
+        company.name,
       ].join("\n"),
     ),
   );
