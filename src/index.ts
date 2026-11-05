@@ -87,7 +87,43 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   return json({ ok: true, lowCents, highCents, summary });
 }
 
-async function handleLead(request: Request, env: Env): Promise<Response> {
+/** Adds a note (for example from the website chat) to the newest lead with this email, and alerts the owner. */
+async function handleLeadNote(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON." }, 400);
+  }
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const email = str(body?.email, 200).toLowerCase();
+  const note = str(body?.note, 1500);
+  if (!note || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Email and note are required." }, 400);
+  const company = await env.DB.prepare("SELECT id, name, notify_email FROM companies WHERE slug = ?")
+    .bind(str(body?.companySlug, 60) || "dfw-painters")
+    .first<{ id: number; name: string; notify_email: string | null }>();
+  if (!company) return json({ error: "Unknown company." }, 404);
+  const lead = await env.DB.prepare(
+    "SELECT id, name, phone, notes FROM leads WHERE company_id = ? AND lower(email) = ? ORDER BY id DESC LIMIT 1",
+  )
+    .bind(company.id, email)
+    .first<{ id: number; name: string; phone: string | null; notes: string | null }>();
+  if (!lead) return json({ error: "No matching lead." }, 404);
+  const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+  const merged = `${lead.notes ? lead.notes + "\n\n" : ""}[Chat ${stamp} UTC] ${note}`.slice(0, 6000);
+  await env.DB.prepare("UPDATE leads SET notes = ? WHERE id = ?").bind(merged, lead.id).run();
+  ctx.waitUntil(
+    sendLeadEmail(
+      env,
+      company.notify_email,
+      `Chat update from ${lead.name}`,
+      [`Name: ${lead.name}`, `Email: ${email}`, `Phone: ${lead.phone ?? "n/a"}`, "", note].join("\n"),
+    ),
+  );
+  return json({ ok: true });
+}
+
+async function handleLead(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   let body: any;
   try {
     body = await request.json();
@@ -98,13 +134,25 @@ async function handleLead(request: Request, env: Env): Promise<Response> {
   const name = str(body?.name, 120);
   const email = str(body?.email, 200);
   if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Name and a valid email are required." }, 400);
-  const company = await env.DB.prepare("SELECT id FROM companies WHERE slug = ?")
+  const company = await env.DB.prepare("SELECT id, name, notify_email FROM companies WHERE slug = ?")
     .bind(str(body?.companySlug, 60) || "dfw-painters")
-    .first<{ id: number }>();
+    .first<{ id: number; name: string; notify_email: string | null }>();
   if (!company) return json({ error: "Unknown company." }, 404);
+  const source = str(body?.source, 60) || "website";
   await env.DB.prepare("INSERT INTO leads (company_id, name, email, phone, zip, source, notes) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .bind(company.id, name, email, str(body?.phone, 40) || null, str(body?.zip, 10) || null, str(body?.source, 60) || "website", str(body?.details, 2000) || null)
+    .bind(company.id, name, email, str(body?.phone, 40) || null, str(body?.zip, 10) || null, source, str(body?.details, 2000) || null)
     .run();
+  // The contact form emails the owner itself; other sources (like the chat) are alerted here.
+  if (ctx && source !== "website-contact-form") {
+    ctx.waitUntil(
+      sendLeadEmail(
+        env,
+        company.notify_email,
+        `New ${source} lead for ${company.name}: ${name}`,
+        [`Name: ${name}`, `Email: ${email}`, `Phone: ${str(body?.phone, 40) || "n/a"}`, `ZIP: ${str(body?.zip, 10) || "n/a"}`, "", str(body?.details, 2000)].join("\n"),
+      ),
+    );
+  }
   return json({ ok: true });
 }
 
@@ -133,9 +181,17 @@ export default {
     }
     if (pathname === "/api/lead" && request.method === "POST") {
       try {
-        return await handleLead(request, env);
+        return await handleLead(request, env, ctx);
       } catch (err) {
         console.error("lead failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/lead/note" && request.method === "POST") {
+      try {
+        return await handleLeadNote(request, env, ctx);
+      } catch (err) {
+        console.error("lead note failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

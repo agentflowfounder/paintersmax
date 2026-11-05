@@ -21,7 +21,7 @@
     // Change model names here if a provider retires or renames one.
     "MODEL_ANTHROPIC": "claude-sonnet-5-5",
     "MODEL_OPENAI": "gpt-4.1-mini",
-    "MODEL_GEMINI": "gemini-2.5-flash"
+    "MODEL_GEMINI": "gemini-flash-latest"
   },
   // Keep variables and secrets added in the Cloudflare dashboard (like NOTIFY_EMAIL) when we deploy from GitHub.
   "keep_vars": true,

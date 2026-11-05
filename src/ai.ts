@@ -24,7 +24,7 @@ function prompt(req: QuoteRequest, low: number, high: number): string {
 }
 
 async function callGemini(env: Env, text: string): Promise<string> {
-  const model = env.MODEL_GEMINI ?? "gemini-2.5-flash";
+  const model = env.MODEL_GEMINI ?? "gemini-flash-latest";
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY! },
