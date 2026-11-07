@@ -89,3 +89,13 @@ export async function usageSummary(env: Env, company: { id: number; plan: string
     features: FEATURES.map((f) => ({ feature: f, used: by.get(f) ?? 0, limit: limits[f], missed: by.get(`${f}:missed`) ?? 0 })),
   };
 }
+
+/** Gives back one use after an AI call failed, so a failed render does not cost the client or the visitor. */
+export async function refund(env: Env, company: { id: number }, feature: Feature, visitorHash?: string) {
+  const dec = (f: string, period: string) =>
+    env.DB.prepare("UPDATE usage_counters SET count = MAX(count - 1, 0) WHERE company_id = ? AND feature = ? AND period = ?")
+      .bind(company.id, f, period)
+      .run();
+  await dec(feature, monthKey());
+  if (visitorHash) await dec(`${feature}:v:${visitorHash}`, dayKey());
+}

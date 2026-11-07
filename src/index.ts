@@ -2,7 +2,7 @@ import { writeSummary } from "./ai.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
-import { consume, isFeature, usageSummary } from "./usage.ts";
+import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
 import { parseQuoteRequest } from "./validate.ts";
 
@@ -174,6 +174,10 @@ async function handleConsume(request: Request, env: Env): Promise<Response> {
     .first<{ id: number; plan: string }>();
   if (!company) return json({ error: "Unknown company." }, 404);
   const visitor = typeof body?.visitor === "string" && body.visitor ? body.visitor.slice(0, 64) : undefined;
+  if (body.refund === true) {
+    await refund(env, company, body.feature, visitor);
+    return json({ ok: true });
+  }
   const result = await consume(env, company, body.feature, visitor);
   return json(result, result.allowed ? 200 : 429);
 }
