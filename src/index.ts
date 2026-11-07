@@ -2,6 +2,7 @@ import { writeSummary } from "./ai.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
+import { consume, isFeature, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
 import { parseQuoteRequest } from "./validate.ts";
 
@@ -156,6 +157,27 @@ async function handleLead(request: Request, env: Env, ctx?: ExecutionContext): P
   return json({ ok: true });
 }
 
+/** Client websites call this (server to server) before running a metered AI feature. */
+async function handleConsume(request: Request, env: Env): Promise<Response> {
+  const token = request.headers.get("x-site-token") ?? "";
+  if (!env.SITE_TOKEN) return json({ error: "Not configured." }, 503);
+  if (token.length !== env.SITE_TOKEN.length || token !== env.SITE_TOKEN) return json({ error: "Forbidden." }, 403);
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON." }, 400);
+  }
+  if (!isFeature(body?.feature)) return json({ error: "Unknown feature." }, 400);
+  const company = await env.DB.prepare("SELECT id, plan FROM companies WHERE slug = ?")
+    .bind(typeof body?.companySlug === "string" ? body.companySlug.slice(0, 60) : "")
+    .first<{ id: number; plan: string }>();
+  if (!company) return json({ error: "Unknown company." }, 404);
+  const visitor = typeof body?.visitor === "string" && body.visitor ? body.visitor.slice(0, 64) : undefined;
+  const result = await consume(env, company, body.feature, visitor);
+  return json(result, result.allowed ? 200 : 429);
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { pathname } = new URL(request.url);
@@ -220,6 +242,20 @@ export default {
     if (pathname === "/api/me") {
       const user = await getSessionUser(env, request);
       return user ? json({ email: user.email, company: user.companyName }) : json({ error: "Not signed in." }, 401);
+    }
+    if (pathname === "/api/usage/consume" && request.method === "POST") {
+      try {
+        return await handleConsume(request, env);
+      } catch (err) {
+        console.error("consume failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/usage") {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: "Not signed in." }, 401);
+      const c = await env.DB.prepare("SELECT id, plan FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string }>();
+      return c ? json(await usageSummary(env, c)) : json({ error: "Not found." }, 404);
     }
     if (pathname === "/api/leads") {
       const user = await getSessionUser(env, request);

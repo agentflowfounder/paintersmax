@@ -12,6 +12,8 @@ export interface Env {
   MODEL_ANTHROPIC?: string;
   MODEL_OPENAI?: string;
   MODEL_GEMINI?: string;
+  SITE_TOKEN?: string; // shared secret that client websites send to /api/usage/consume
+  AI_KILL_SWITCH?: string; // set to "1" to stop all metered AI features at once
   DEV_LOG_LINKS?: string; // local development only
 }
 
