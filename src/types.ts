@@ -29,5 +29,7 @@ export interface QuoteRequest {
   sqft: number;
   details?: string;
   photoUrls?: string[];
+  /** Customer photos as base64 (no data: prefix), already resized by the website. */
+  photos?: { mime: string; data: string }[];
   companySlug: string;
 }

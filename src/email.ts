@@ -6,6 +6,7 @@ export async function sendLeadEmail(
   to: string | null | undefined,
   subject: string,
   text: string,
+  attachments?: { filename: string; content: string }[],
 ): Promise<"sent" | "skipped"> {
   const recipient = to || env.NOTIFY_EMAIL;
   if (!env.RESEND_API_KEY || !recipient) return "skipped";
@@ -17,6 +18,7 @@ export async function sendLeadEmail(
       to: [recipient],
       subject,
       text,
+      ...(attachments?.length ? { attachments } : {}),
     }),
   });
   if (!r.ok) console.error("Resend failed", r.status);

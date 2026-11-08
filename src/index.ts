@@ -1,4 +1,5 @@
 import { writeSummary } from "./ai.ts";
+import { ownerBriefText, writeBrief } from "./brief.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
@@ -23,22 +24,32 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   if (!parsed.ok) return json({ error: parsed.error }, 400);
   const q = parsed.value;
 
-  const company = await env.DB.prepare("SELECT id, name, notify_email FROM companies WHERE slug = ?")
+  const company = await env.DB.prepare("SELECT id, name, notify_email, plan FROM companies WHERE slug = ?")
     .bind(q.companySlug)
-    .first<{ id: number; name: string; notify_email: string | null }>();
+    .first<{ id: number; name: string; notify_email: string | null; plan: string }>();
   if (!company) return json({ error: "Unknown company." }, 404);
 
   const { lowCents, highCents } = priceRange(q.jobType, q.sqft);
   const { provider, summary } = await writeSummary(env, q, lowCents, highCents);
+
+  // Photo brief: metered under ai_estimate. If the plan is used up or the AI fails, the normal quote still goes out.
+  let brief: Awaited<ReturnType<typeof writeBrief>> = null;
+  if (q.photos?.length) {
+    const use = await consume(env, company, "ai_estimate");
+    if (use.allowed) {
+      brief = await writeBrief(env, q, lowCents, highCents);
+      if (!brief) await refund(env, company, "ai_estimate");
+    }
+  }
 
   const lead = await env.DB.prepare("INSERT INTO leads (company_id, name, email, phone, zip) VALUES (?, ?, ?, ?, ?)")
     .bind(company.id, q.name, q.email, q.phone ?? null, q.zip ?? null)
     .run();
   const leadId = lead.meta.last_row_id;
   await env.DB.prepare(
-    "INSERT INTO quotes (company_id, lead_id, job_type, sqft, details, low_cents, high_cents, provider, summary) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO quotes (company_id, lead_id, job_type, sqft, details, low_cents, high_cents, provider, summary, brief, photo_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   )
-    .bind(company.id, leadId, q.jobType, q.sqft, q.details ?? null, lowCents, highCents, provider, summary)
+    .bind(company.id, leadId, q.jobType, q.sqft, q.details ?? null, lowCents, highCents, provider, summary, brief ? JSON.stringify(brief.brief) : null, q.photos?.length ?? 0)
     .run();
 
   ctx.waitUntil(
@@ -54,7 +65,10 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
         `Job: ${q.jobType}, ${q.sqft} sq ft`,
         `Range shown: $${Math.round(lowCents / 100)} to $${Math.round(highCents / 100)}`,
         `Notes: ${q.details ?? "none"}`,
+        `Photos: ${q.photos?.length ?? 0}`,
+        ...(brief ? ["", ownerBriefText(brief.brief, lowCents, highCents)] : q.photos?.length ? ["", "(Photos attached. The AI brief was not generated, so review them by hand.)"] : []),
       ].join("\n"),
+      q.photos?.map((p, i) => ({ filename: `customer-photo-${i + 1}.${p.mime.split("/")[1] === "jpeg" ? "jpg" : p.mime.split("/")[1]}`, content: p.data })),
     ),
   );
 
@@ -76,6 +90,7 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
         `Your ballpark range for ${q.jobType.replace(/_/g, " ")} (${q.sqft} sq ft): $${lowD} to $${highD}.`,
         "",
         summary,
+        ...(brief ? ["", "What we saw in your photos:", brief.brief.projectSummary] : []),
         "",
         "This is a ballpark only. We will follow up to confirm details and give you a firm written quote.",
         "You can reply to this email with questions or photos.",

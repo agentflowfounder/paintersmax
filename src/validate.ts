@@ -20,6 +20,19 @@ export function parseQuoteRequest(body: any): { ok: true; value: QuoteRequest } 
   const photoUrls = Array.isArray(body.photoUrls)
     ? body.photoUrls.filter((u: unknown) => typeof u === "string" && /^https:\/\//.test(u)).slice(0, 5)
     : [];
+  // Up to 4 photos as data URLs (jpeg/png/webp), ~700KB each, 2.5MB total.
+  const photos: { mime: string; data: string }[] = [];
+  let total = 0;
+  if (Array.isArray(body.photos)) {
+    for (const p of body.photos.slice(0, 12)) {
+      if (photos.length >= 4) break;
+      const m = typeof p === "string" ? /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(p) : null;
+      if (!m || m[2].length > 700_000) continue;
+      total += m[2].length;
+      if (total > 2_500_000) break;
+      photos.push({ mime: m[1], data: m[2] });
+    }
+  }
   return {
     ok: true,
     value: {
@@ -31,6 +44,7 @@ export function parseQuoteRequest(body: any): { ok: true; value: QuoteRequest } 
       sqft: Math.round(sqft),
       details: str(body.details, 2000) || undefined,
       photoUrls,
+      photos: photos.length ? photos : undefined,
       companySlug: str(body.companySlug, 60) || "dfw-painters",
     },
   };
