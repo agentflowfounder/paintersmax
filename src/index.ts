@@ -1,5 +1,6 @@
 import { writeSummary } from "./ai.ts";
 import { ownerBriefText, writeBrief } from "./brief.ts";
+import { addJobEvent, ensureCustomerAndJob, tradeFor } from "./crm.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
@@ -52,6 +53,20 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   )
     .bind(company.id, leadId, q.jobType, q.sqft, q.details ?? null, lowCents, highCents, provider, summary, brief ? JSON.stringify(brief.brief) : null, q.photos?.length ?? 0)
     .run();
+
+  // The lead becomes a customer and a job file the painter can work from.
+  const fileIds = await ensureCustomerAndJob(env, {
+    companyId: company.id,
+    leadId: Number(leadId),
+    name: q.name,
+    email: q.email,
+    phone: q.phone,
+    zip: q.zip,
+    title: `${q.jobType.replace(/_/g, " ")} painting, ${q.sqft} sq ft`,
+    trade: tradeFor(q.jobType),
+    firstEvent: `Instant quote: ${q.jobType}, ${q.sqft} sq ft. Range shown $${Math.round(lowCents / 100)} to $${Math.round(highCents / 100)}. Customer notes: ${q.details ?? "none"}`,
+  });
+  if (fileIds && brief) await addJobEvent(env, company.id, fileIds.jobId, "photo_brief", ownerBriefText(brief.brief, lowCents, highCents));
 
   ctx.waitUntil(
     sendLeadEmail(
@@ -121,11 +136,12 @@ async function handleLeadNote(request: Request, env: Env, ctx: ExecutionContext)
     .first<{ id: number; name: string; notify_email: string | null }>();
   if (!company) return json({ error: "Unknown company." }, 404);
   const lead = await env.DB.prepare(
-    "SELECT id, name, phone, notes FROM leads WHERE company_id = ? AND lower(email) = ? ORDER BY id DESC LIMIT 1",
+    "SELECT id, name, phone, notes, job_id FROM leads WHERE company_id = ? AND lower(email) = ? ORDER BY id DESC LIMIT 1",
   )
     .bind(company.id, email)
-    .first<{ id: number; name: string; phone: string | null; notes: string | null }>();
+    .first<{ id: number; name: string; phone: string | null; notes: string | null; job_id: number | null }>();
   if (!lead) return json({ error: "No matching lead." }, 404);
+  if (lead.job_id) await addJobEvent(env, company.id, lead.job_id, "chat", note);
   const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
   const merged = `${lead.notes ? lead.notes + "\n\n" : ""}[Chat ${stamp} UTC] ${note}`.slice(0, 6000);
   // Saved now, emailed later: the scheduled digest sends ONE email after the chat has been quiet for a while.
@@ -149,9 +165,21 @@ async function handleLead(request: Request, env: Env, ctx?: ExecutionContext): P
     .first<{ id: number; name: string; notify_email: string | null }>();
   if (!company) return json({ error: "Unknown company." }, 404);
   const source = str(body?.source, 60) || "website";
-  await env.DB.prepare("INSERT INTO leads (company_id, name, email, phone, zip, source, notes) VALUES (?, ?, ?, ?, ?, ?, ?)")
+  const leadIns = await env.DB.prepare("INSERT INTO leads (company_id, name, email, phone, zip, source, notes) VALUES (?, ?, ?, ?, ?, ?, ?)")
     .bind(company.id, name, email, str(body?.phone, 40) || null, str(body?.zip, 10) || null, source, str(body?.details, 2000) || null)
     .run();
+  const detailsText = str(body?.details, 2000);
+  await ensureCustomerAndJob(env, {
+    companyId: company.id,
+    leadId: Number(leadIns.meta.last_row_id),
+    name,
+    email,
+    phone: str(body?.phone, 40) || null,
+    zip: str(body?.zip, 10) || null,
+    title: detailsText.slice(0, 80) || `Request from ${name}`,
+    trade: tradeFor(detailsText.match(/Service:\s*([^.]*)/i)?.[1] ?? detailsText),
+    firstEvent: `${source}: ${detailsText || "(no details)"}`,
+  });
   // The contact form emails the owner itself; other sources (like the chat) are alerted here.
   if (ctx && source !== "website-contact-form") {
     ctx.waitUntil(
