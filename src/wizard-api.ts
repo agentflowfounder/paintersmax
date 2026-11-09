@@ -3,6 +3,7 @@ import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } fro
 import { normalizePlan } from "./usage.ts";
 import type { Env } from "./types.ts";
 import { computeTotals, draftLines, renderEstimateHtml, sanitizeEstimate } from "./estimate.ts";
+import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
 import { readSettings } from "./settings.ts";
@@ -175,15 +176,17 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     .bind(id, user.companyId)
     .first<any>();
   if (!job) return json({ error: "Not found." }, 404);
-  const [card, doc, events] = await Promise.all([
+  const [card, doc, events, contractDoc] = await Promise.all([
     env.DB.prepare("SELECT method, data FROM rate_cards WHERE company_id = ? AND trade = ? AND audience = 'retail'").bind(user.companyId, job.trade).first<{ method: string; data: string }>(),
     env.DB.prepare("SELECT id, status, body, language FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(id, user.companyId).first<{ id: number; status: string; body: string; language: string }>(),
     env.DB.prepare("SELECT kind, text, created_at AS at FROM job_events WHERE job_id = ? AND company_id = ? ORDER BY id DESC LIMIT 30").bind(id, user.companyId).all(),
+    env.DB.prepare("SELECT id, status, body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'contract' ORDER BY id DESC LIMIT 1").bind(id, user.companyId).first<{ id: number; status: string; body: string }>(),
   ]);
   return json({
     job,
     rateCard: card ? { method: card.method, data: parse(card.data) } : null,
     estimate: doc ? { id: doc.id, status: doc.status, ...parse(doc.body) } : null,
+    contract: contractDoc ? { id: contractDoc.id, status: contractDoc.status, ...parse(contractDoc.body) } : null,
     events: events.results,
   });
 }
@@ -267,7 +270,7 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
   return json({ error: "Unknown action." }, 400);
 }
 
-async function renderForJob(env: Env, companyId: number, jobId: number, est: ReturnType<typeof sanitizeEstimate>, totals: ReturnType<typeof computeTotals>): Promise<string | null> {
+async function loadJobRow(env: Env, companyId: number, jobId: number) {
   const row = await env.DB.prepare(
     `SELECT j.title, co.name AS company, co.settings, cu.name AS customerName, cu.email AS customerEmail, cu.phone AS customerPhone,
             p.address, p.city, p.zip, cp.data AS profile
@@ -279,19 +282,30 @@ async function renderForJob(env: Env, companyId: number, jobId: number, est: Ret
     .first<any>();
   if (!row) return null;
   const profile = parse(row.profile);
-  const s = readSettings(row.settings);
   const c = profile.company ?? {};
-  const ins = profile.insurance ?? {};
+  return {
+    row,
+    profile,
+    settings: readSettings(row.settings),
+    company: { name: row.company as string, phone: c.phone, email: c.email, address: [c.address, c.city, c.state, c.zip].filter(Boolean).join(", "), license: c.license, website: c.website },
+    property: [row.address, row.city, row.zip].filter(Boolean).join(", "),
+  };
+}
+
+async function renderForJob(env: Env, companyId: number, jobId: number, est: ReturnType<typeof sanitizeEstimate>, totals: ReturnType<typeof computeTotals>): Promise<string | null> {
+  const j = await loadJobRow(env, companyId, jobId);
+  if (!j) return null;
+  const ins = j.profile.insurance ?? {};
   return renderEstimateHtml(
     {
-      company: { name: row.company, phone: c.phone, email: c.email, address: [c.address, c.city, c.state, c.zip].filter(Boolean).join(", "), license: c.license, website: c.website },
-      brandColor: s.brandColor,
-      logoUrl: s.logoUrl,
+      company: j.company,
+      brandColor: j.settings.brandColor,
+      logoUrl: j.settings.logoUrl,
       insuranceLine: ins.shareSummary ? [ins.carrier, ins.coverage].filter(Boolean).join(", ") : undefined,
-      warrantyMonths: profile.warranty?.laborMonths,
-      customer: { name: row.customerName, email: row.customerEmail, phone: row.customerPhone },
-      property: [row.address, row.city, row.zip].filter(Boolean).join(", "),
-      jobTitle: row.title,
+      warrantyMonths: j.profile.warranty?.laborMonths,
+      customer: { name: j.row.customerName, email: j.row.customerEmail, phone: j.row.customerPhone },
+      property: j.property,
+      jobTitle: j.row.title,
       date: new Date().toISOString().slice(0, 10),
     },
     est,
@@ -299,18 +313,128 @@ async function renderForJob(env: Env, companyId: number, jobId: number, est: Ret
   );
 }
 
-/** GET /api/doc?id= shows a saved estimate as a printable page. Only the painter who owns it can open it. */
+/** Rebuilds the estimate from the stored document (money is stored in cents). */
+function storedEstimate(stored: any) {
+  const e = stored?.estimate ?? {};
+  return sanitizeEstimate({ ...e, lines: (e.lines ?? []).map((l: any) => ({ ...l, unitPrice: (l.unitCents ?? 0) / 100 })), discount: (e.discountCents ?? 0) / 100 });
+}
+
+async function renderContractForJob(env: Env, companyId: number, jobId: number, contract: ReturnType<typeof sanitizeContract>, stored: any): Promise<string | null> {
+  const j = await loadJobRow(env, companyId, jobId);
+  if (!j) return null;
+  const est = storedEstimate(stored);
+  return renderContractHtml(
+    { company: j.company, brandColor: j.settings.brandColor, customerName: j.row.customerName, jobTitle: j.row.title, date: new Date().toISOString().slice(0, 10) },
+    contract,
+    est,
+    stored.totals ?? computeTotals(est),
+  );
+}
+
+/**
+ * POST /api/contract with an "action":
+ *  draft  - builds editable starting clauses from the saved estimate and the business profile (nothing is saved)
+ *  save   - stores the contract as a draft document and moves the job to the contract stage
+ *  send   - emails the saved contract to the customer as an attachment and marks it sent
+ *  signed - records that both sides signed and moves the job to scheduled
+ */
+export async function handleContract(request: Request, env: Env): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: "Not signed in." }, 401);
+  if (request.method !== "POST") return json({ error: "Not found." }, 404);
+  let b: any;
+  try {
+    b = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON." }, 400);
+  }
+  const jobId = Number(b?.jobId);
+  if (!Number.isInteger(jobId)) return json({ error: "Job not found." }, 404);
+  const j = await loadJobRow(env, user.companyId, jobId);
+  if (!j) return json({ error: "Job not found." }, 404);
+  const estDoc = await env.DB.prepare("SELECT body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(jobId, user.companyId).first<{ body: string }>();
+  if (!estDoc) return json({ error: "Save the estimate first. The contract uses its price and scope." }, 400);
+  const stored = parse(estDoc.body);
+  const est = storedEstimate(stored);
+  const lang = b?.language === "es" ? "es" : "en";
+
+  if (b.action === "draft") {
+    const t = stored.totals ?? computeTotals(est);
+    const startDate = text(b?.startDate, 40);
+    const endDate = text(b?.endDate, 40);
+    const clauses = defaultClauses({ company: j.company.name, customer: j.row.customerName, property: j.property, scope: est.scope, totals: t, startDate, endDate, profile: j.profile }, lang);
+    return json({ clauses, language: lang });
+  }
+
+  const existing = await env.DB.prepare("SELECT id FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'contract' ORDER BY id DESC LIMIT 1").bind(jobId, user.companyId).first<{ id: number }>();
+
+  if (b.action === "signed") {
+    if (!existing) return json({ error: "Save the contract first." }, 400);
+    await env.DB.prepare("UPDATE documents SET status = 'signed', updated_at = datetime('now') WHERE id = ?").bind(existing.id).run();
+    await env.DB.prepare("UPDATE jobs SET stage = 'scheduled', updated_at = datetime('now') WHERE id = ? AND stage IN ('lead','bid','contract')").bind(jobId).run();
+    await addJobEvent(env, user.companyId, jobId, "stage", "Contract signed by both sides.");
+    return json({ ok: true });
+  }
+
+  if (b.action === "save" || b.action === "send") {
+    const contract = sanitizeContract(b?.contract);
+    if (!contract.clauses.length) return json({ error: "The contract has no clauses." }, 400);
+    const body = JSON.stringify({ contract });
+    let docId: number;
+    if (existing) {
+      docId = existing.id;
+      await env.DB.prepare("UPDATE documents SET body = ?, language = ?, status = CASE WHEN status = 'signed' THEN 'draft' ELSE status END, updated_at = datetime('now') WHERE id = ?").bind(body, contract.language, docId).run();
+    } else {
+      const ins = await env.DB.prepare("INSERT INTO documents (company_id, job_id, kind, language, status, title, body) VALUES (?, ?, 'contract', ?, 'draft', ?, ?)")
+        .bind(user.companyId, jobId, contract.language, `Contract: ${j.row.title}`.slice(0, 160), body)
+        .run();
+      docId = Number(ins.meta.last_row_id);
+    }
+    await env.DB.prepare("UPDATE jobs SET stage = CASE WHEN stage IN ('lead','bid') THEN 'contract' ELSE stage END, updated_at = datetime('now') WHERE id = ?").bind(jobId).run();
+    await addJobEvent(env, user.companyId, jobId, "note", "Contract saved.");
+
+    if (b.action === "send") {
+      if (!j.row.customerEmail) return json({ error: "This customer has no email address.", docId }, 400);
+      const page = await renderContractForJob(env, user.companyId, jobId, contract, stored);
+      if (!page) return json({ error: "Not found." }, 404);
+      const result = await sendCustomerEmail(
+        env,
+        j.row.customerEmail,
+        user.companyName,
+        j.company.email || user.email,
+        contract.language === "es" ? `Su contrato de ${user.companyName}` : `Your work agreement from ${user.companyName}`,
+        contract.language === "es"
+          ? `Hola ${j.row.customerName},\n\nAdjunto su contrato. Léalo, imprímalo, fírmelo y devuélvanoslo, o responda a este correo con cualquier pregunta.\n\n${user.companyName}`
+          : `Hi ${j.row.customerName},\n\nYour work agreement is attached. Please read it, print it, sign it and send it back to us, or reply to this email with any questions.\n\n${user.companyName}`,
+        [{ filename: "contract.html", content: toBase64(page) }],
+      );
+      if (result !== "sent") return json({ error: "The email could not be sent. Your contract is saved.", docId }, 502);
+      await env.DB.prepare("UPDATE documents SET status = 'sent', updated_at = datetime('now') WHERE id = ?").bind(docId).run();
+      await addJobEvent(env, user.companyId, jobId, "note", `Contract emailed to ${j.row.customerEmail}.`);
+    }
+    return json({ ok: true, docId });
+  }
+  return json({ error: "Unknown action." }, 400);
+}
+
+/** GET /api/doc?id= shows a saved estimate or contract as a printable page. Only the painter who owns it can open it. */
 export async function handleDoc(request: Request, env: Env): Promise<Response> {
   const user = await getSessionUser(env, request);
   if (!user) return html("<p>Not signed in. <a href='/login'>Sign in</a></p>", 401);
   const id = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(id) || id <= 0) return html("<p>Not found.</p>", 404);
-  const doc = await env.DB.prepare("SELECT job_id, body FROM documents WHERE id = ? AND company_id = ? AND kind = 'estimate'").bind(id, user.companyId).first<{ job_id: number; body: string }>();
+  const doc = await env.DB.prepare("SELECT job_id, kind, body FROM documents WHERE id = ? AND company_id = ? AND kind IN ('estimate','contract')").bind(id, user.companyId).first<{ job_id: number; kind: string; body: string }>();
   if (!doc) return html("<p>Not found.</p>", 404);
   const stored = parse(doc.body);
-  const est = sanitizeEstimate({ ...stored.estimate, lines: (stored.estimate?.lines ?? []).map((l: any) => ({ ...l, unitPrice: (l.unitCents ?? 0) / 100 })), discount: (stored.estimate?.discountCents ?? 0) / 100 });
-  // Use the totals saved with the document so the printout always matches what was sent.
-  const page = await renderForJob(env, user.companyId, doc.job_id, est, stored.totals ?? computeTotals(est));
+  let page: string | null;
+  if (doc.kind === "contract") {
+    const estDoc = await env.DB.prepare("SELECT body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(doc.job_id, user.companyId).first<{ body: string }>();
+    page = estDoc ? await renderContractForJob(env, user.companyId, doc.job_id, sanitizeContract(stored.contract), parse(estDoc.body)) : null;
+  } else {
+    // Use the totals saved with the document so the printout always matches what was sent.
+    const est = storedEstimate(stored);
+    page = await renderForJob(env, user.companyId, doc.job_id, est, stored.totals ?? computeTotals(est));
+  }
   if (!page) return html("<p>Not found.</p>", 404);
   return html(page);
 }

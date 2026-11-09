@@ -60,3 +60,28 @@ test("renderEstimateHtml escapes customer and painter text", () => {
   assert.ok(html.includes("A &amp; B &lt;Co&gt;"));
   assert.ok(!html.includes("red;}"));
 });
+
+import { defaultClauses, renderContractHtml, sanitizeContract } from "../src/contract.ts";
+
+test("defaultClauses fills price, deposit, warranty and brands; Spanish works", () => {
+  const e = sanitizeEstimate({ lines: [{ description: "Fence", qty: 940, unit: "ft", unitPrice: 35 }] });
+  const t = computeTotals(e, { depositPct: 30 });
+  const ctx = { company: "Tyler Painters", customer: "Hotel Co", property: "1 Main St", scope: "", totals: t, startDate: "", endDate: "", profile: { warranty: { laborMonths: 12 }, materials: { brands: ["Sherwin-Williams"] }, labor: { paymentTerms: "net 10" } } };
+  const en = defaultClauses(ctx, "en");
+  const price = en.find((c) => c.title === "Price and payment")!;
+  assert.ok(price.body.includes("$32,900.00") && price.body.includes("$9,870.00") && price.body.includes("net 10"));
+  assert.ok(en.find((c) => c.title === "Warranty")!.body.includes("12 months"));
+  assert.ok(en.some((c) => c.title === "Materials"));
+  const es = defaultClauses(ctx, "es");
+  assert.ok(es.find((c) => c.title === "Garantía")!.body.includes("12 meses"));
+});
+
+test("sanitizeContract limits clauses and renderContractHtml escapes", () => {
+  const c = sanitizeContract({ clauses: Array.from({ length: 30 }, (_, i) => ({ title: `T${i}`, body: "<script>x</script>" })), language: "es" });
+  assert.equal(c.clauses.length, 20);
+  const e = sanitizeEstimate({ lines: [{ description: "A", qty: 1, unitPrice: 1 }] });
+  const html = renderContractHtml({ company: { name: "Co" }, customerName: "<i>Bo</i>", jobTitle: "J", date: "d" }, c, e, computeTotals(e));
+  assert.ok(!html.includes("<script>x"));
+  assert.ok(!html.includes("<i>Bo</i>"));
+  assert.ok(html.includes("Contrato de Trabajo"));
+});
