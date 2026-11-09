@@ -20,19 +20,7 @@ export function parseQuoteRequest(body: any): { ok: true; value: QuoteRequest } 
   const photoUrls = Array.isArray(body.photoUrls)
     ? body.photoUrls.filter((u: unknown) => typeof u === "string" && /^https:\/\//.test(u)).slice(0, 5)
     : [];
-  // Up to 4 photos as data URLs (jpeg/png/webp), ~700KB each, 2.5MB total.
-  const photos: { mime: string; data: string }[] = [];
-  let total = 0;
-  if (Array.isArray(body.photos)) {
-    for (const p of body.photos.slice(0, 12)) {
-      if (photos.length >= 4) break;
-      const m = typeof p === "string" ? /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(p) : null;
-      if (!m || m[2].length > 700_000) continue;
-      total += m[2].length;
-      if (total > 2_500_000) break;
-      photos.push({ mime: m[1], data: m[2] });
-    }
-  }
+  const photos = parsePhotos(body.photos);
   return {
     ok: true,
     value: {
@@ -48,4 +36,21 @@ export function parseQuoteRequest(body: any): { ok: true; value: QuoteRequest } 
       companySlug: str(body.companySlug, 60) || "dfw-painters",
     },
   };
+}
+
+/** Up to 4 photos as data URLs (jpeg/png/webp), ~700KB each, 2.5MB total. Anything else is dropped. */
+export function parsePhotos(input: unknown): { mime: string; data: string }[] {
+  const photos: { mime: string; data: string }[] = [];
+  let total = 0;
+  if (Array.isArray(input)) {
+    for (const p of input.slice(0, 12)) {
+      if (photos.length >= 4) break;
+      const m = typeof p === "string" ? /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(p) : null;
+      if (!m || m[2].length > 700_000) continue;
+      total += m[2].length;
+      if (total > 2_500_000) break;
+      photos.push({ mime: m[1], data: m[2] });
+    }
+  }
+  return photos;
 }

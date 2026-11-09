@@ -12,12 +12,12 @@ export interface Brief {
   confidence: "low" | "medium" | "high";
 }
 
-const PROMPT = (q: QuoteRequest, lowD: number, highD: number) =>
+const PROMPT = (q: QuoteRequest, lowD?: number, highD?: number) =>
   [
     "You are an experienced painting estimator reviewing customer photos before a site visit.",
-    `Job type: ${q.jobType}. Customer-stated size: ${q.sqft} sq ft. ZIP: ${q.zip ?? "n/a"}.`,
+    `Job type: ${q.jobType}. Customer-stated size: ${q.sqft ? q.sqft + " sq ft" : "not given"}. ZIP: ${q.zip ?? "n/a"}.`,
     `Customer notes: ${(q.details ?? "none").slice(0, 1000)}`,
-    `The ballpark price range ($${lowD} to $${highD}) is calculated elsewhere. Do NOT mention or invent any prices.`,
+    lowD === undefined ? "Do NOT mention or invent any prices." : `The ballpark price range ($${lowD} to $${highD}) is calculated elsewhere. Do NOT mention or invent any prices.`,
     "Describe only what you can actually see. If a photo is unclear, say so and lower your confidence.",
     "Return ONLY JSON with this shape:",
     '{"projectSummary":string(max 60 words, friendly, for the customer),"rooms":string[],"surfaces":[{"name":string,"condition":string,"prep":string,"weight":number 1-10}],"materials":string[],"hours":{"low":number,"high":number},"concerns":string[],"questions":string[],"confidence":"low"|"medium"|"high"}',
@@ -93,9 +93,9 @@ async function viaOpenAI(env: Env, text: string, photos: { mime: string; data: s
 }
 
 /** Reads the photos and returns a structured brief, or null if no provider worked. */
-export async function writeBrief(env: Env, q: QuoteRequest, lowCents: number, highCents: number): Promise<{ provider: string; brief: Brief } | null> {
+export async function writeBrief(env: Env, q: QuoteRequest, lowCents?: number, highCents?: number): Promise<{ provider: string; brief: Brief } | null> {
   if (!q.photos?.length) return null;
-  const text = PROMPT(q, Math.round(lowCents / 100), Math.round(highCents / 100));
+  const text = PROMPT(q, lowCents === undefined ? undefined : Math.round(lowCents / 100), highCents === undefined ? undefined : Math.round(highCents / 100));
   const order: ("gemini" | "openai")[] = ["gemini", "openai"];
   for (const p of order) {
     if (p === "gemini" ? !env.GEMINI_API_KEY : !env.OPENAI_API_KEY) continue;
@@ -123,8 +123,9 @@ export function draftLines(brief: Brief, lowCents: number, highCents: number) {
 }
 
 /** Plain-text brief for the painter: what the job is, a draft estimate, and what to check on site. */
-export function ownerBriefText(brief: Brief, lowCents: number, highCents: number): string {
-  const lines = draftLines(brief, lowCents, highCents);
+export function ownerBriefText(brief: Brief, lowCents?: number, highCents?: number): string {
+  const priced = lowCents !== undefined && highCents !== undefined;
+  const lines = draftLines(brief, lowCents ?? 0, highCents ?? 0);
   return [
     "AI PROJECT BRIEF (from the customer's photos; confirm everything on site)",
     `Confidence: ${brief.confidence}`,
@@ -132,9 +133,9 @@ export function ownerBriefText(brief: Brief, lowCents: number, highCents: number
     brief.projectSummary,
     brief.rooms.length ? `\nAreas seen: ${brief.rooms.join(", ")}` : "",
     "",
-    "DRAFT ESTIMATE (ballpark split of the range shown to the customer)",
-    ...lines.map((l) => `- ${l.name}: ${d(l.low)} to ${d(l.high)}\n    Condition: ${l.condition}\n    Prep: ${l.prep}`),
-    `Total: ${d(lowCents)} to ${d(highCents)}`,
+    priced ? "DRAFT ESTIMATE (ballpark split of the range shown to the customer)" : "SCOPE SEEN IN PHOTOS (no price: size was not given)",
+    ...lines.map((l) => `- ${l.name}${priced ? `: ${d(l.low)} to ${d(l.high)}` : ""}\n    Condition: ${l.condition}\n    Prep: ${l.prep}`),
+    priced ? `Total: ${d(lowCents!)} to ${d(highCents!)}` : "",
     brief.hours.high ? `Rough crew time: ${brief.hours.low} to ${brief.hours.high} hours` : "",
     brief.materials.length ? `\nMATERIALS (rough)\n${brief.materials.map((m) => "- " + m).join("\n")}` : "",
     brief.concerns.length ? `\nWATCH OUT FOR\n${brief.concerns.map((m) => "- " + m).join("\n")}` : "",

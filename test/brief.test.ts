@@ -38,3 +38,9 @@ test("photos are validated: only small jpeg/png/webp data URLs, max 4", () => {
   assert.ok(r.ok);
   if (r.ok) assert.equal(r.value.photos?.length, 4);
 });
+
+test("brief without a price shows scope only and no dollar amounts", () => {
+  const t = ownerBriefText(brief);
+  assert.match(t, /SCOPE SEEN IN PHOTOS/);
+  assert.doesNotMatch(t, /\$/);
+});

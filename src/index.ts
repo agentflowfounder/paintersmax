@@ -5,7 +5,7 @@ import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
-import { parseQuoteRequest } from "./validate.ts";
+import { parsePhotos, parseQuoteRequest } from "./validate.ts";
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
@@ -197,6 +197,46 @@ async function handleConsume(request: Request, env: Env): Promise<Response> {
   return json(result, result.allowed ? 200 : 429);
 }
 
+/** Photo analysis for forms that have no price tool (for example a website's contact form). Token-gated, metered. */
+async function handleBrief(request: Request, env: Env): Promise<Response> {
+  const token = request.headers.get("x-site-token") ?? "";
+  if (!env.SITE_TOKEN) return json({ error: "Not configured." }, 503);
+  if (token.length !== env.SITE_TOKEN.length || token !== env.SITE_TOKEN) return json({ error: "Forbidden." }, 403);
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON." }, 400);
+  }
+  const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+  const photos = parsePhotos(body?.photos);
+  if (!photos.length) return json({ error: "No usable photos." }, 400);
+  const company = await env.DB.prepare("SELECT id, plan FROM companies WHERE slug = ?")
+    .bind(str(body?.companySlug, 60))
+    .first<{ id: number; plan: string }>();
+  if (!company) return json({ error: "Unknown company." }, 404);
+  const visitor = str(body?.visitor, 64) || undefined;
+  const use = await consume(env, company, "ai_estimate", visitor);
+  if (!use.allowed) return json({ error: "limit", reason: use.reason }, 429);
+  const service = str(body?.service, 100);
+  const jobType = service.toLowerCase().includes("exterior") ? "exterior" : "interior";
+  const out = await writeBrief(env, {
+    name: "",
+    email: "",
+    jobType,
+    sqft: 0,
+    zip: str(body?.zip, 10),
+    details: `${service}. ${str(body?.details, 1500)}`,
+    photos,
+    companySlug: str(body?.companySlug, 60),
+  });
+  if (!out) {
+    await refund(env, company, "ai_estimate", visitor);
+    return json({ error: "ai_unavailable" }, 502);
+  }
+  return json({ ok: true, provider: out.provider, text: ownerBriefText(out.brief), summary: out.brief.projectSummary });
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { pathname } = new URL(request.url);
@@ -267,6 +307,14 @@ export default {
         return await handleConsume(request, env);
       } catch (err) {
         console.error("consume failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/brief" && request.method === "POST") {
+      try {
+        return await handleBrief(request, env);
+      } catch (err) {
+        console.error("brief failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
