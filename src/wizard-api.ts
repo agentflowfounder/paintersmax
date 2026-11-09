@@ -1,6 +1,7 @@
 import { getSessionUser } from "./auth.ts";
 import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } from "./profile.ts";
-import { normalizePlan } from "./usage.ts";
+import { consume, normalizePlan, refund } from "./usage.ts";
+import { ask, buildJobContext, sanitizeHistory } from "./assistant.ts";
 import type { Env } from "./types.ts";
 import { computeTotals, draftLines, renderEstimateHtml, sanitizeEstimate } from "./estimate.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
@@ -571,4 +572,62 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
     return json({ ok: true, docId });
   }
   return json({ error: "Unknown action." }, 400);
+}
+
+/**
+ * POST /api/assistant: the painter asks a question, optionally about one job.
+ * The job's saved data is added as context (without street address, email or phone). Counts against the plan's monthly allowance.
+ */
+export async function handleAssistant(request: Request, env: Env): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: "Not signed in." }, 401);
+  if (request.method !== "POST") return json({ error: "Not found." }, 404);
+  let b: any;
+  try {
+    b = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON." }, 400);
+  }
+  const question = text(b?.message, 2000);
+  if (!question) return json({ error: "Type a question first." }, 400);
+  let context: string | null = null;
+  if (b?.jobId !== undefined && b?.jobId !== null) {
+    const jobId = Number(b.jobId);
+    context = Number.isInteger(jobId) ? await buildJobContext(env, user.companyId, jobId) : null;
+    if (!context) return json({ error: "Job not found." }, 404);
+  }
+  const company = await env.DB.prepare("SELECT id, plan FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string }>();
+  if (!company) return json({ error: "Not found." }, 404);
+  const used = await consume(env, company, "ai_assistant");
+  if (!used.allowed) {
+    const msg = used.reason === "kill_switch" ? "The assistant is paused right now. Try again soon." : used.reason === "not_in_plan" ? "The assistant is not included in your plan." : "You have used this month's assistant questions. Upgrade your plan for more.";
+    return json({ error: msg, code: used.reason }, 429);
+  }
+  const reply = await ask(env, context, sanitizeHistory(b?.history), question);
+  if (!reply) {
+    await refund(env, company, "ai_assistant");
+    return json({ error: "The assistant could not answer right now. Please try again in a minute." }, 503);
+  }
+  return json({ reply, used: used.used, limit: used.limit });
+}
+
+/** POST /api/jobnote adds a note to a job's history. The painter can save an assistant answer this way. */
+export async function handleJobNote(request: Request, env: Env): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: "Not signed in." }, 401);
+  if (request.method !== "POST") return json({ error: "Not found." }, 404);
+  let b: any;
+  try {
+    b = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON." }, 400);
+  }
+  const jobId = Number(b?.jobId);
+  const note = text(b?.text, 2000);
+  if (!Number.isInteger(jobId) || !note) return json({ error: "A note needs text." }, 400);
+  const job = await env.DB.prepare("SELECT id FROM jobs WHERE id = ? AND company_id = ?").bind(jobId, user.companyId).first();
+  if (!job) return json({ error: "Job not found." }, 404);
+  await addJobEvent(env, user.companyId, jobId, "note", note);
+  await env.DB.prepare("UPDATE jobs SET updated_at = datetime('now') WHERE id = ?").bind(jobId).run();
+  return json({ ok: true });
 }

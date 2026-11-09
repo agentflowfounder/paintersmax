@@ -1,16 +1,16 @@
 import type { Env } from "./types.ts";
 
-export type Feature = "ai_quote" | "ai_estimate" | "ai_invoice" | "photo_tag" | "smart_select" | "hd_render";
+export type Feature = "ai_quote" | "ai_estimate" | "ai_invoice" | "photo_tag" | "smart_select" | "hd_render" | "ai_assistant";
 export type Plan = "free" | "starter" | "basic" | "pro";
 
-export const FEATURES: Feature[] = ["ai_quote", "ai_estimate", "ai_invoice", "photo_tag", "smart_select", "hd_render"];
+export const FEATURES: Feature[] = ["ai_quote", "ai_estimate", "ai_invoice", "photo_tag", "smart_select", "hd_render", "ai_assistant"];
 
 /** Monthly allowance per plan. 0 means the plan does not include the feature. Adjust here as pricing is decided. */
 export const PLAN_LIMITS: Record<Plan, Record<Feature, number>> = {
-  free:    { ai_quote: 10,  ai_estimate: 3,  ai_invoice: 2,  photo_tag: 10,  smart_select: 0,   hd_render: 0 },
-  starter: { ai_quote: 200, ai_estimate: 30, ai_invoice: 30, photo_tag: 100, smart_select: 100, hd_render: 0 },
-  basic:   { ai_quote: 600, ai_estimate: 100, ai_invoice: 100, photo_tag: 400, smart_select: 400, hd_render: 20 },
-  pro:     { ai_quote: 2000, ai_estimate: 400, ai_invoice: 400, photo_tag: 1500, smart_select: 1500, hd_render: 100 },
+  free:    { ai_quote: 10,  ai_estimate: 3,  ai_invoice: 2,  photo_tag: 10,  smart_select: 0,   hd_render: 0,  ai_assistant: 5 },
+  starter: { ai_quote: 200, ai_estimate: 30, ai_invoice: 30, photo_tag: 100, smart_select: 100, hd_render: 0,  ai_assistant: 60 },
+  basic:   { ai_quote: 600, ai_estimate: 100, ai_invoice: 100, photo_tag: 400, smart_select: 400, hd_render: 20, ai_assistant: 300 },
+  pro:     { ai_quote: 2000, ai_estimate: 400, ai_invoice: 400, photo_tag: 1500, smart_select: 1500, hd_render: 100, ai_assistant: 1500 },
 };
 
 /** Per-visitor daily cap, so one person cannot burn a client's allowance. */

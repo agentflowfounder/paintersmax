@@ -66,5 +66,5 @@ test("helpers", () => {
   assert.equal(isFeature("hd_render"), true);
   assert.equal(isFeature("nope"), false);
   assert.match(dayKey(), /^\d{4}-\d{2}-\d{2}$/);
-  assert.equal(FEATURES.length, 6);
+  assert.equal(FEATURES.length, 7);
 });
