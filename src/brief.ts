@@ -56,14 +56,22 @@ function parse(text: string): Brief | null {
 
 async function viaGemini(env: Env, text: string, photos: { mime: string; data: string }[]): Promise<string> {
   const model = env.MODEL_GEMINI ?? "gemini-flash-latest";
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY! },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text }, ...photos.map((p) => ({ inline_data: { mime_type: p.mime, data: p.data } }))] }],
-      generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
-    }),
-  });
+  const call = (thinkingOff: boolean) =>
+    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY! },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text }, ...photos.map((p) => ({ inline_data: { mime_type: p.mime, data: p.data } }))] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.2,
+          // Thinking tokens are billed as output and are not needed for reading photos.
+          ...(thinkingOff ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+        },
+      }),
+    });
+  let r = await call(true);
+  if (r.status === 400) r = await call(false); // some models do not accept the thinking setting
   if (!r.ok) throw new Error(`gemini ${r.status}`);
   const j = (await r.json()) as any;
   return j.candidates?.[0]?.content?.parts?.[0]?.text ?? "";

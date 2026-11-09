@@ -25,5 +25,7 @@
   },
   // Keep variables and secrets added in the Cloudflare dashboard (like NOTIFY_EMAIL) when we deploy from GitHub.
   "keep_vars": true,
+  // Every 5 minutes: email one chat summary per conversation that has gone quiet.
+  "triggers": { "crons": ["*/5 * * * *"] },
   "observability": { "enabled": true }
 }

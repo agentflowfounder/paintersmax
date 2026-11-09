@@ -25,11 +25,18 @@ function prompt(req: QuoteRequest, low: number, high: number): string {
 
 async function callGemini(env: Env, text: string): Promise<string> {
   const model = env.MODEL_GEMINI ?? "gemini-flash-latest";
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY! },
-    body: JSON.stringify({ contents: [{ parts: [{ text }] }] }),
-  });
+  const call = (thinkingOff: boolean) =>
+    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY! },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text }] }],
+        // A 90-word summary does not need thinking tokens (they are billed as output).
+        generationConfig: { ...(thinkingOff ? { thinkingConfig: { thinkingBudget: 0 } } : {}), maxOutputTokens: 400 },
+      }),
+    });
+  let r = await call(true);
+  if (r.status === 400) r = await call(false);
   if (!r.ok) throw new Error(`gemini ${r.status}`);
   const j = (await r.json()) as any;
   return j.candidates?.[0]?.content?.parts?.[0]?.text ?? "";

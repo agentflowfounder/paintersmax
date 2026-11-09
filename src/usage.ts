@@ -14,7 +14,8 @@ export const PLAN_LIMITS: Record<Plan, Record<Feature, number>> = {
 };
 
 /** Per-visitor daily cap, so one person cannot burn a client's allowance. */
-export const VISITOR_DAILY: Partial<Record<Feature, number>> = { smart_select: 10, hd_render: 3, ai_quote: 5 };
+// Raised for the testing period. Tighten once real usage numbers are known.
+export const VISITOR_DAILY: Partial<Record<Feature, number>> = { smart_select: 30, hd_render: 10, ai_quote: 15, ai_estimate: 10 };
 
 export const isFeature = (v: unknown): v is Feature => typeof v === "string" && (FEATURES as string[]).includes(v);
 export const normalizePlan = (v: unknown): Plan => (v === "starter" || v === "basic" || v === "pro" ? v : "free");

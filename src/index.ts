@@ -127,15 +127,8 @@ async function handleLeadNote(request: Request, env: Env, ctx: ExecutionContext)
   if (!lead) return json({ error: "No matching lead." }, 404);
   const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
   const merged = `${lead.notes ? lead.notes + "\n\n" : ""}[Chat ${stamp} UTC] ${note}`.slice(0, 6000);
-  await env.DB.prepare("UPDATE leads SET notes = ? WHERE id = ?").bind(merged, lead.id).run();
-  ctx.waitUntil(
-    sendLeadEmail(
-      env,
-      company.notify_email,
-      `Chat update from ${lead.name}`,
-      [`Name: ${lead.name}`, `Email: ${email}`, `Phone: ${lead.phone ?? "n/a"}`, "", note].join("\n"),
-    ),
-  );
+  // Saved now, emailed later: the scheduled digest sends ONE email after the chat has been quiet for a while.
+  await env.DB.prepare("UPDATE leads SET notes = ?, notes_updated_at = datetime('now') WHERE id = ?").bind(merged, lead.id).run();
   return json({ ok: true });
 }
 
@@ -237,7 +230,50 @@ async function handleBrief(request: Request, env: Env): Promise<Response> {
   return json({ ok: true, provider: out.provider, text: ownerBriefText(out.brief), summary: out.brief.projectSummary });
 }
 
+/** Minutes of quiet after the last chat note before the owner gets the conversation summary. */
+const CHAT_QUIET_MINUTES = 10;
+
+/** Runs every few minutes (see wrangler.jsonc triggers). Sends one chat summary email per finished conversation. */
+async function sendChatDigests(env: Env): Promise<number> {
+  const rows = await env.DB.prepare(
+    `SELECT l.id, l.name, l.email, l.phone, l.zip, l.notes, c.name AS company, c.notify_email AS notifyEmail
+       FROM leads l JOIN companies c ON c.id = l.company_id
+      WHERE l.notes_updated_at IS NOT NULL
+        AND (l.notes_emailed_at IS NULL OR l.notes_emailed_at < l.notes_updated_at)
+        AND l.notes_updated_at < datetime('now', ?)
+      LIMIT 25`,
+  )
+    .bind(`-${CHAT_QUIET_MINUTES} minutes`)
+    .all<{ id: number; name: string; email: string; phone: string | null; zip: string | null; notes: string | null; company: string; notifyEmail: string | null }>();
+  let sent = 0;
+  for (const r of rows.results) {
+    const result = await sendLeadEmail(
+      env,
+      r.notifyEmail,
+      `Chat summary: ${r.name}`,
+      [
+        `${r.name} finished a chat with the website assistant.`,
+        `Email: ${r.email}`,
+        `Phone: ${r.phone ?? "n/a"}`,
+        `ZIP: ${r.zip ?? "n/a"}`,
+        "",
+        "WHAT WE LEARNED (saved by the assistant during the chat)",
+        r.notes ?? "(no notes)",
+      ].join("\n"),
+    );
+    // Mark as emailed only when it really went out, so a failed send is retried on the next run.
+    if (result === "sent" || !env.RESEND_API_KEY) {
+      await env.DB.prepare("UPDATE leads SET notes_emailed_at = datetime('now') WHERE id = ?").bind(r.id).run();
+      sent++;
+    }
+  }
+  return sent;
+}
+
 export default {
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(sendChatDigests(env).catch((err) => console.error("chat digest failed", String(err))));
+  },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { pathname } = new URL(request.url);
     if (pathname === "/api/health") {

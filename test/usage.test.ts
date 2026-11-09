@@ -51,7 +51,7 @@ test("features outside the plan are refused and counted as missed", async () => 
 test("visitor daily cap applies before the company allowance", async () => {
   const { env } = fakeEnv();
   const co = { id: 3, plan: "basic" };
-  for (let i = 0; i < 3; i++) assert.equal((await consume(env, co, "hd_render", "v1")).allowed, true);
+  for (let i = 0; i < 10; i++) assert.equal((await consume(env, co, "hd_render", "v1")).allowed, true);
   assert.equal((await consume(env, co, "hd_render", "v1") as any).reason, "visitor_limit");
   assert.equal((await consume(env, co, "hd_render", "v2")).allowed, true);
 });
