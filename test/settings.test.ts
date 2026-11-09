@@ -32,3 +32,35 @@ test("public page escapes the company name and uses brand color", () => {
   assert.match(html, /#112233/);
   assert.match(html, /<img class="logo" src="https:\/\/x\.co\/l\.png"/);
 });
+
+import { PROFILE_CAPS, sanitizeProfile, sanitizeRateData } from "../src/profile.ts";
+
+test("profile respects plan caps and drops bad values", () => {
+  const p = sanitizeProfile(
+    {
+      trades: ["interior", "exterior", "commercial", "nonsense"],
+      cities: ["Tyler", "Dallas", "Plano"],
+      company: { email: "bad", website: "http://x.co", phone: " 903 " },
+      labor: { hourlyRate: "45", depositPct: 500, crewSize: 3 },
+      language: { crewDocs: "es" },
+    },
+    "starter",
+  );
+  assert.equal(p.trades.length, PROFILE_CAPS.starter.services);
+  assert.equal(p.cities.length, PROFILE_CAPS.starter.cities);
+  assert.equal(p.company.email, undefined);
+  assert.equal(p.company.website, undefined);
+  assert.equal(p.company.phone, "903");
+  assert.equal(p.labor.hourlyRate, 45);
+  assert.equal(p.labor.depositPct, undefined);
+  assert.equal(p.language.crewDocs, "es");
+});
+
+test("rate card data keeps only numbers and safe keys", () => {
+  const d = sanitizeRateData({ small: 150, medium: "225", "bad key!": 5, text: "x", addons: { ceiling: 60, deep: { a: { b: { c: { d: 1 } } } } } });
+  assert.equal(d.small, 150);
+  assert.equal(d.medium, 225);
+  assert.equal(d["bad key!"], undefined);
+  assert.equal(d.text, undefined);
+  assert.equal(d.addons.ceiling, 60);
+});

@@ -1,6 +1,7 @@
 import { writeSummary } from "./ai.ts";
 import { ownerBriefText, writeBrief } from "./brief.ts";
 import { addJobEvent, ensureCustomerAndJob, tradeFor } from "./crm.ts";
+import { handleProfile, handleRateCard } from "./wizard-api.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
@@ -411,6 +412,26 @@ export default {
         return await handleConsume(request, env);
       } catch (err) {
         console.error("consume failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    // The Wizard lives at app.<domain>: its home page is the wizard app.
+    if (pathname === "/" && new URL(request.url).hostname.startsWith("app.")) {
+      return env.ASSETS.fetch(new URL("/app", request.url));
+    }
+    if (pathname === "/api/profile") {
+      try {
+        return await handleProfile(request, env);
+      } catch (err) {
+        console.error("profile failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/ratecard") {
+      try {
+        return await handleRateCard(request, env);
+      } catch (err) {
+        console.error("ratecard failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

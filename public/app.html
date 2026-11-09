@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F1B2D">
+<title>PaintersMax Wizard</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none}
+main{max-width:640px;margin:0 auto;padding:16px 16px 96px}
+.bar{display:flex;gap:4px;margin:4px 0 16px}.bar i{flex:1;height:6px;border-radius:3px;background:#dcd8cf}.bar i.on{background:#E8A33D}
+h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 4px;font-size:26px}
+p.lead{color:#4A5568;margin:0 0 16px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+input,select,textarea{width:100%;padding:12px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chk{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #cfd5dc;border-radius:8px;margin:6px 0;font-weight:500}
+.chk input{width:auto}
+.help{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#E8A33D;color:#0F1B2D;font-size:12px;font-weight:700;cursor:pointer;margin-left:6px;border:0;padding:0}
+.tip{display:none;background:#fff8e8;border:1px solid #f0d9a0;border-radius:8px;padding:10px;font-size:13px;margin:6px 0;line-height:1.4}
+.nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid rgba(15,27,45,.12);padding:10px 16px;display:flex;gap:10px;justify-content:center}
+.nav button{flex:1;max-width:300px;padding:14px;border-radius:8px;border:0;font-weight:700;font-size:16px;cursor:pointer}
+.nav .next{background:#E8A33D;color:#0F1B2D}.nav .back{background:#eceae4;color:#0F1B2D}
+small{color:#4A5568}#msg{font-size:13px;margin-top:8px;min-height:18px}
+.ok{color:#0a7a3d}.bad{color:#b42318}
+ul.sum{padding-left:18px;margin:6px 0}
+</style></head><body>
+<header><div><b>PaintersMax</b> Wizard <span id="co" style="opacity:.7;font-size:14px"></span></div><div><a href="/dashboard">Leads</a></div></header>
+<main>
+<div class="bar" id="bar"></div>
+<div id="view"></div>
+<div id="msg"></div>
+</main>
+<div class="nav"><button class="back" id="back">Back</button><button class="next" id="next">Save and continue</button></div>
+<script>
+const STEPS=['company','services','pricing','labor','extras','review'];
+const TRADE_LABELS={interior:'Interior painting',exterior:'Exterior painting',commercial:'Commercial',new_construction:'New construction (builders)',power_washing:'Power washing',drywall:'Drywall repair',cabinets:'Cabinet painting',decks_fences:'Decks and fence staining',fencing:'Fence installation',remodeling:'Remodeling',epoxy_floors:'Epoxy floors',industrial:'Industrial coatings'};
+const HELP={
+ floor:'Floor area: length x width of each room, added together. Example: a 12 ft x 15 ft bedroom is 180 sq ft. Most repaints are quoted from the whole home floor area.',
+ wall:'Paintable wall area: add up the length of every wall, multiply by the height, then subtract about 20 sq ft for each door and 15 sq ft for each window. Example: 4 walls totaling 54 ft x 8 ft = 432 sq ft, minus 1 door and 1 window = about 397 sq ft.',
+ linear:'Linear feet: the total length of the fence or trim run. Walk it with a measuring wheel, or measure it on a satellite map. Add a foot or two per gate or corner.',
+ ext:'Exterior prices vary a lot. A simple method: a base price for a typical 1, 2 or 3 story house, then add-ons for doors, shutters, windows and repairs. You can adjust on every job.',
+ rooms:'Small: closets, hallways, half baths. Medium: bedrooms, dining rooms, offices. Large: kitchens, living rooms, primary bedroom or bath, garage. Custom: anything else, priced on the job.',
+ builder:'Builder rates are the lower per-house or per-sq-ft prices you give a home builder or contractor who keeps you busy all year. Customers never see them.',
+ tools:'Affiliate note: we may earn a small commission if you buy tools or materials through links in the Wizard. It never changes your price.'
+};
+const BRANDS=['Sherwin-Williams','Benjamin Moore','Behr','Valspar','PPG','Dunn-Edwards','Kelly-Moore','Glidden','Diamond Vogel','Kilz','Zinsser','Rust-Oleum','Tnemec','Cabot','Ready Seal'];
+let S={profile:{company:{},trades:[],cities:[],insurance:{},labor:{},warranty:{laborMonths:12},materials:{brands:[]},language:{ui:'en',crewDocs:'en'}},rateCards:{},caps:{services:1,cities:1},plan:'free',step:0,completed:false};
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const val=(o,k)=>o&&o[k]!=null?esc(o[k]):'';
+const help=k=>`<button type="button" class="help" data-help="${k}" aria-label="Help">?</button><div class="tip" id="tip_${k}">${esc(HELP[k])}</div>`;
+document.addEventListener('click',e=>{const b=e.target.closest('[data-help]');if(b){const t=$('tip_'+b.dataset.help);t.style.display=t.style.display==='block'?'none':'block';}});
+
+function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
+async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Could not save.');return j;}
+
+function rcKey(trade,aud){return trade+'|'+(aud||'retail');}
+function card(trade,aud){return S.rateCards[rcKey(trade,aud)]||{method:'',data:{}};}
+
+// ---- pricing field sets per trade ----
+function methodsFor(trade){
+  if(trade==='interior')return[['room_size','By room size (small, medium, large, custom)'],['sqft_floor','By square foot of floor area'],['sqft_wall','By paintable wall area']];
+  if(trade==='exterior')return[['items','Base price by stories, plus add-ons']];
+  if(trade==='commercial')return[['sqft_wall','Per sq ft of paintable surface'],['line_items','By line item'],['lump_sum','Lump-sum bid (markup on cost)']];
+  if(trade==='fencing'||trade==='decks_fences')return[['per_linear_ft','Per linear foot']];
+  return[['sqft_floor','Per square foot'],['lump_sum','Lump-sum bid (markup on cost)']];
+}
+function fieldsFor(trade,method){
+  const f=(k,l,h)=>({k,l,h});
+  if(method==='room_size')return[f('small','Small room price ($)'),f('medium','Medium room price ($)'),f('large','Large room price ($)'),f('custom_min','Custom room minimum ($)'),f('ceiling','Add-on: ceiling ($)'),f('trim','Add-on: trim and baseboards ($)'),f('door_each','Add-on: each door ($)'),f('accent_wall','Add-on: accent wall ($)'),f('repairs_hourly','Repairs per hour ($)'),f('high_ceiling_pct','High ceiling surcharge (%)'),f('extra_coat_pct','Extra coat surcharge (%)')];
+  if(method==='sqft_floor'||method==='sqft_wall')return[f('low','Low price per sq ft ($)'),f('high','High price per sq ft ($)'),f('minimum','Minimum job ($)')];
+  if(method==='items')return[f('base_1_story','Typical 1-story house ($)'),f('base_2_story','Typical 2-story house ($)'),f('base_3_story','Typical 3-story house ($)'),f('door','Each door ($)'),f('shutter','Each shutter ($)'),f('window','Each window ($)'),f('garage_door','Garage door ($)'),f('power_washing','Power washing, whole house ($)'),f('wood_repair_hourly','Wood repair per hour ($)'),f('color_change','Each extra color ($)')];
+  if(method==='per_linear_ft')return[f('low','Low price per linear ft ($)'),f('high','High price per linear ft ($)'),f('gate_each','Each gate ($)'),f('removal_per_ft','Old fence removal per ft ($)'),f('stain_per_ft','Staining or painting per ft ($)')];
+  if(method==='line_items')return[f('mobilization','Mobilization ($)'),f('lift_daily','Lift or scaffold per day ($)'),f('night_weekend_pct','Night or weekend surcharge (%)'),f('hourly','Labor per hour ($)')];
+  if(method==='lump_sum')return[f('markup_pct','Markup on cost (%)'),f('minimum','Minimum job ($)')];
+  return[];
+}
+function helpKeyFor(trade,method){return method==='sqft_wall'?'wall':method==='sqft_floor'?'floor':method==='per_linear_ft'?'linear':method==='items'?'ext':method==='room_size'?'rooms':null;}
+
+function renderCard(trade,aud){
+  const c=card(trade,aud);const methods=methodsFor(trade);const method=c.method||methods[0][0];
+  const fs=fieldsFor(trade,method);const hk=helpKeyFor(trade,method);
+  return `<div class="card" data-trade="${trade}" data-aud="${aud||'retail'}">
+   <b>${esc(TRADE_LABELS[trade]||trade)}${aud==='builder'?' (builder rates)':''}</b> ${aud==='builder'?help('builder'):''}
+   <label>How do you price this? ${hk?help(hk):''}</label>
+   <select class="method">${methods.map(([v,l])=>`<option value="${v}" ${v===method?'selected':''}>${esc(l)}</option>`).join('')}</select>
+   <div class="row">${fs.map(x=>`<div><label>${esc(x.l)}</label><input inputmode="decimal" data-k="${x.k}" value="${val(c.data,x.k)}"></div>`).join('')}</div>
+   ${trade==='power_washing'||trade==='exterior'?'<small>Power washing is always its own line on the estimate.</small>':''}</div>`;
+}
+
+// ---- views ----
+function view(){
+  const k=STEPS[S.step];$('bar').innerHTML=STEPS.map((_,i)=>`<i class="${i<=S.step?'on':''}"></i>`).join('');
+  $('back').style.visibility=S.step===0?'hidden':'visible';
+  $('next').textContent=k==='review'?'Finish setup':'Save and continue';
+  const p=S.profile,c=p.company||{};
+  let h='';
+  if(k==='company')h=`<h2>Your company</h2><p class="lead">We save this once and use it on every estimate and contract.</p><div class="card">
+   <label>Company name</label><input id="legalName" value="${val(c,'legalName')}">
+   <div class="row"><div><label>Phone</label><input id="phone" type="tel" value="${val(c,'phone')}"></div><div><label>Email</label><input id="email" type="email" value="${val(c,'email')}"></div></div>
+   <label>Address</label><input id="address" value="${val(c,'address')}">
+   <div class="row"><div><label>City</label><input id="city" value="${val(c,'city')}"></div><div><label>State</label><input id="state" value="${val(c,'state')}"></div></div>
+   <div class="row"><div><label>ZIP</label><input id="zip" value="${val(c,'zip')}"></div><div><label>License number (if you have one)</label><input id="license" value="${val(c,'license')}"></div></div>
+   <label>Website (https://...)</label><input id="website" value="${val(c,'website')}"></div>`;
+  if(k==='services')h=`<h2>What you do, and where</h2><p class="lead">Your plan (${esc(S.plan)}) includes up to <b>${S.caps.services}</b> services and <b>${S.caps.cities}</b> cities.</p><div class="card"><b>Services</b>
+   ${Object.keys(TRADE_LABELS).map(t=>`<label class="chk"><input type="checkbox" class="trade" value="${t}" ${p.trades.includes(t)?'checked':''}> ${esc(TRADE_LABELS[t])}</label>`).join('')}</div>
+   <div class="card"><label>Cities you serve (separate with commas)</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div>`;
+  if(k==='pricing'){
+    h=`<h2>How you price</h2><p class="lead">Set your prices once. The Wizard uses them for every estimate and you can adjust any job. Tap the ? for measuring help.</p>`;
+    if(!p.trades.length)h+='<div class="card">Pick your services first (go back one step).</div>';
+    p.trades.forEach(t=>{if(t!=='new_construction')h+=renderCard(t,'retail');});
+    if(p.trades.includes('new_construction'))h+=['basic','pro'].includes(S.plan)?renderCard('interior','builder'):'<div class="card"><b>Builder rates</b><p>Builder rate cards are on the Basic and Pro plans.</p></div>';
+    h+=`<small>${esc(HELP.tools)}</small>`;
+  }
+  if(k==='labor'){const l=p.labor||{};h=`<h2>Labor and money</h2><p class="lead">Used for estimates, contracts and invoices.</p><div class="card">
+   <div class="row"><div><label>Crew size</label><input id="crewSize" inputmode="numeric" value="${val(l,'crewSize')}"></div><div><label>Your hourly rate ($)</label><input id="hourlyRate" inputmode="decimal" value="${val(l,'hourlyRate')}"></div></div>
+   <div class="row"><div><label>Helper hourly rate ($)</label><input id="helperRate" inputmode="decimal" value="${val(l,'helperRate')}"></div><div><label>Minimum job ($)</label><input id="minimumJob" inputmode="decimal" value="${val(l,'minimumJob')}"></div></div>
+   <div class="row"><div><label>Material markup (%)</label><input id="markupPct" inputmode="decimal" value="${val(l,'markupPct')}"></div><div><label>Overhead (%)</label><input id="overheadPct" inputmode="decimal" value="${val(l,'overheadPct')}"></div></div>
+   <label>Deposit (% of the job)</label><input id="depositPct" inputmode="decimal" value="${val(l,'depositPct')}">
+   <label>Payment terms</label><textarea id="paymentTerms" rows="2">${val(l,'paymentTerms')}</textarea></div>`;}
+  if(k==='extras'){const w=p.warranty||{},ins=p.insurance||{},m=p.materials||{},lg=p.language||{};h=`<h2>Warranty, insurance and materials</h2><div class="card">
+   <label>Labor warranty (months)</label><input id="laborMonths" inputmode="numeric" value="${val(w,'laborMonths')}">
+   <label>Warranty details (we add the paint maker's warranty and the customer-keeps-receipts note for you)</label><textarea id="wtext" rows="3">${val(w,'text')}</textarea>
+   <label>Exclusions</label><textarea id="exclusions" rows="2">${val(w,'exclusions')}</textarea></div>
+   <div class="card"><b>Insurance</b><small> Enter only what is true. Certificate upload comes next.</small>
+   <div class="row"><div><label>Carrier</label><input id="carrier" value="${val(ins,'carrier')}"></div><div><label>Expires</label><input id="expires" type="date" value="${val(ins,'expires')}"></div></div>
+   <label>Coverage summary</label><input id="coverage" value="${val(ins,'coverage')}">
+   <label class="chk"><input type="checkbox" id="shareSummary" ${ins.shareSummary?'checked':''}> Customers may see a summary of my coverage</label></div>
+   <div class="card"><b>Paint brands you use</b>${BRANDS.map(b=>`<label class="chk"><input type="checkbox" class="brand" value="${esc(b)}" ${(m.brands||[]).includes(b)?'checked':''}> ${esc(b)}</label>`).join('')}
+   <label>Other products or notes</label><textarea id="mnotes" rows="2">${val(m,'notes')}</textarea></div>
+   <div class="card"><b>Language</b><label>Crew documents (materials, schedule, instructions, punch list)</label><select id="crewDocs"><option value="en" ${lg.crewDocs!=='es'?'selected':''}>English</option><option value="es" ${lg.crewDocs==='es'?'selected':''}>Spanish</option></select></div>`;}
+  if(k==='review'){const l=p.labor||{};h=`<h2>Ready</h2><p class="lead">Here is what we saved. You can change any of it later.</p><div class="card">
+   <b>${esc(c.legalName||'(company name missing)')}</b><br><small>${esc([c.phone,c.email].filter(Boolean).join(' | '))}</small>
+   <ul class="sum"><li>Services: ${esc(p.trades.map(t=>TRADE_LABELS[t]).join(', ')||'none yet')}</li><li>Cities: ${esc((p.cities||[]).join(', ')||'none yet')}</li>
+   <li>Pricing set for: ${esc(Object.keys(S.rateCards).map(k=>k.split('|')[0]+(k.endsWith('builder')?' (builder)':'')).join(', ')||'none yet')}</li>
+   <li>Labor: crew of ${esc(l.crewSize||'?')}, $${esc(l.hourlyRate||'?')}/hr, deposit ${esc(l.depositPct||'?')}%</li>
+   <li>Warranty: ${esc((p.warranty||{}).laborMonths||'?')} months labor</li></ul></div>
+   <div class="card"><b>What happens next</b><p>Your estimates, contracts, material lists and schedules will use these settings. Estimate and contract documents are the next steps we are building.</p></div>`;}
+  $('view').innerHTML=h;msg('');
+}
+
+// ---- collect and save ----
+function collect(){
+  const k=STEPS[S.step],p=S.profile,g=id=>{const e=$(id);return e?e.value.trim():undefined;};
+  if(k==='company')p.company={legalName:g('legalName'),phone:g('phone'),email:g('email'),address:g('address'),city:g('city'),state:g('state'),zip:g('zip'),license:g('license'),website:g('website')};
+  if(k==='services'){p.trades=[...document.querySelectorAll('.trade:checked')].map(e=>e.value);p.cities=g('cities').split(',').map(s=>s.trim()).filter(Boolean);
+    if(p.trades.length>S.caps.services)throw new Error('Your plan includes up to '+S.caps.services+' services.');
+    if(p.cities.length>S.caps.cities)throw new Error('Your plan includes up to '+S.caps.cities+' cities.');}
+  if(k==='labor')p.labor={crewSize:g('crewSize'),hourlyRate:g('hourlyRate'),helperRate:g('helperRate'),minimumJob:g('minimumJob'),markupPct:g('markupPct'),overheadPct:g('overheadPct'),depositPct:g('depositPct'),paymentTerms:g('paymentTerms')};
+  if(k==='extras'){p.warranty={laborMonths:g('laborMonths'),text:g('wtext'),exclusions:g('exclusions')};p.insurance={carrier:g('carrier'),expires:g('expires'),coverage:g('coverage'),shareSummary:$('shareSummary').checked};
+    p.materials={brands:[...document.querySelectorAll('.brand:checked')].map(e=>e.value),notes:g('mnotes')};p.language={ui:'en',crewDocs:g('crewDocs')};}
+}
+async function saveCards(){
+  for(const el of document.querySelectorAll('[data-trade]')){
+    const data={};el.querySelectorAll('input[data-k]').forEach(i=>{if(i.value.trim()!=='')data[i.dataset.k]=i.value.trim();});
+    const body={trade:el.dataset.trade,audience:el.dataset.aud,method:el.querySelector('.method').value,data};
+    await api('/api/ratecard',body);S.rateCards[rcKey(body.trade,body.audience)]={method:body.method,data};
+  }
+}
+async function go(delta){
+  try{
+    if(delta>0||STEPS[S.step]!=='review'){collect();if(STEPS[S.step]==='pricing')await saveCards();}
+    const finishing=STEPS[S.step]==='review'&&delta>0;
+    await api('/api/profile',{profile:S.profile,setupStep:STEPS[Math.min(S.step+(delta>0?1:0),STEPS.length-1)].replace(/[^a-z]/g,''),completed:finishing||S.completed});
+    if(finishing){S.completed=true;msg('Saved. Your business profile is complete.',true);return;}
+    S.step=Math.max(0,Math.min(STEPS.length-1,S.step+delta));view();window.scrollTo(0,0);
+  }catch(e){if(e)msg(e.message||'Could not save.');}
+}
+$('next').onclick=()=>go(1);$('back').onclick=()=>go(-1);
+document.addEventListener('change',e=>{if(e.target.classList.contains('method')){try{const el=e.target.closest('[data-trade]');const t=el.dataset.trade,a=el.dataset.aud;
+  const cur=card(t,a);S.rateCards[rcKey(t,a)]={method:e.target.value,data:{}};el.outerHTML=renderCard(t,a);}catch{}}});
+
+(async()=>{
+  try{const j=await api('/api/profile');
+    $('co').textContent=j.company;S.plan=j.plan;S.caps=j.caps;S.completed=j.completed;
+    Object.assign(S.profile,j.profile||{});S.profile.company=S.profile.company||{};S.profile.trades=S.profile.trades||[];S.profile.cities=S.profile.cities||[];
+    S.profile.labor=S.profile.labor||{};S.profile.warranty=S.profile.warranty||{laborMonths:12};S.profile.insurance=S.profile.insurance||{};S.profile.materials=S.profile.materials||{brands:[]};S.profile.language=S.profile.language||{};
+    (j.rateCards||[]).forEach(r=>{S.rateCards[rcKey(r.trade,r.audience)]={method:r.method,data:r.data};});
+    const i=STEPS.indexOf(({company:'services',services:'pricing',pricing:'labor',labor:'extras',extras:'review'})[j.setupStep]||j.setupStep);S.step=i>=0?i:0;
+    view();
+  }catch(e){}
+})();
+</script></body></html>
