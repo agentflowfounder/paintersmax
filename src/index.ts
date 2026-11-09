@@ -1,7 +1,7 @@
 import { writeSummary } from "./ai.ts";
 import { ownerBriefText, writeBrief } from "./brief.ts";
 import { addJobEvent, ensureCustomerAndJob, tradeFor } from "./crm.ts";
-import { handleContract, handleDoc, handleEstimate, handleJob, handleJobs, handleProfile, handleRateCard } from "./wizard-api.ts";
+import { handleContract, handleDoc, handleJobDoc, handleEstimate, handleJob, handleJobs, handleProfile, handleRateCard } from "./wizard-api.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
@@ -464,6 +464,14 @@ export default {
         return await handleContract(request, env);
       } catch (err) {
         console.error("handleContract failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/jobdoc") {
+      try {
+        return await handleJobDoc(request, env);
+      } catch (err) {
+        console.error("handleJobDoc failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

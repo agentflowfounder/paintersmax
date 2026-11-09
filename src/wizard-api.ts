@@ -4,6 +4,7 @@ import { normalizePlan } from "./usage.ts";
 import type { Env } from "./types.ts";
 import { computeTotals, draftLines, renderEstimateHtml, sanitizeEstimate } from "./estimate.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
+import { CUSTOMER_KINDS, docTitle, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
 import { readSettings } from "./settings.ts";
@@ -176,17 +177,26 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     .bind(id, user.companyId)
     .first<any>();
   if (!job) return json({ error: "Not found." }, 404);
-  const [card, doc, events, contractDoc] = await Promise.all([
+  const [card, doc, events, contractDoc, extraDocs] = await Promise.all([
     env.DB.prepare("SELECT method, data FROM rate_cards WHERE company_id = ? AND trade = ? AND audience = 'retail'").bind(user.companyId, job.trade).first<{ method: string; data: string }>(),
     env.DB.prepare("SELECT id, status, body, language FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(id, user.companyId).first<{ id: number; status: string; body: string; language: string }>(),
     env.DB.prepare("SELECT kind, text, created_at AS at FROM job_events WHERE job_id = ? AND company_id = ? ORDER BY id DESC LIMIT 30").bind(id, user.companyId).all(),
     env.DB.prepare("SELECT id, status, body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'contract' ORDER BY id DESC LIMIT 1").bind(id, user.companyId).first<{ id: number; status: string; body: string }>(),
+    env.DB.prepare(
+      `SELECT d.kind, d.id, d.status, d.body FROM documents d
+        WHERE d.job_id = ? AND d.company_id = ? AND d.kind IN ('materials','schedule','instructions','punch','warranty','invoice')
+          AND d.id = (SELECT MAX(id) FROM documents WHERE job_id = d.job_id AND kind = d.kind)`,
+    ).bind(id, user.companyId).all(),
   ]);
   return json({
     job,
     rateCard: card ? { method: card.method, data: parse(card.data) } : null,
     estimate: doc ? { id: doc.id, status: doc.status, ...parse(doc.body) } : null,
     contract: contractDoc ? { id: contractDoc.id, status: contractDoc.status, ...parse(contractDoc.body) } : null,
+    docs: Object.fromEntries(
+      (extraDocs.results as any[]).map((d) => [d.kind, { id: d.id, status: d.status, ...parse(d.body) }]),
+    ),
+    crewLanguage: parse((await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(user.companyId).first<{ data: string }>())?.data)?.language?.crewDocs === "es" ? "es" : "en",
     events: events.results,
   });
 }
@@ -423,13 +433,15 @@ export async function handleDoc(request: Request, env: Env): Promise<Response> {
   if (!user) return html("<p>Not signed in. <a href='/login'>Sign in</a></p>", 401);
   const id = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(id) || id <= 0) return html("<p>Not found.</p>", 404);
-  const doc = await env.DB.prepare("SELECT job_id, kind, body FROM documents WHERE id = ? AND company_id = ? AND kind IN ('estimate','contract')").bind(id, user.companyId).first<{ job_id: number; kind: string; body: string }>();
+  const doc = await env.DB.prepare("SELECT job_id, kind, body FROM documents WHERE id = ? AND company_id = ? AND kind IN ('estimate','contract','materials','schedule','instructions','punch','warranty','invoice')").bind(id, user.companyId).first<{ job_id: number; kind: string; body: string }>();
   if (!doc) return html("<p>Not found.</p>", 404);
   const stored = parse(doc.body);
   let page: string | null;
   if (doc.kind === "contract") {
     const estDoc = await env.DB.prepare("SELECT body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(doc.job_id, user.companyId).first<{ body: string }>();
     page = estDoc ? await renderContractForJob(env, user.companyId, doc.job_id, sanitizeContract(stored.contract), parse(estDoc.body)) : null;
+  } else if (isListKind(doc.kind) || doc.kind === "invoice") {
+    page = await renderExtraDoc(env, user.companyId, doc.job_id, doc.kind, stored);
   } else {
     // Use the totals saved with the document so the printout always matches what was sent.
     const est = storedEstimate(stored);
@@ -437,4 +449,126 @@ export async function handleDoc(request: Request, env: Env): Promise<Response> {
   }
   if (!page) return html("<p>Not found.</p>", 404);
   return html(page);
+}
+
+async function renderExtraDoc(env: Env, companyId: number, jobId: number, kind: string, stored: any): Promise<string | null> {
+  const j = await loadJobRow(env, companyId, jobId);
+  if (!j) return null;
+  const ctx: DocContext = {
+    company: j.company,
+    brandColor: j.settings.brandColor,
+    customerName: j.row.customerName,
+    property: j.property,
+    jobTitle: j.row.title,
+    date: new Date().toISOString().slice(0, 10),
+  };
+  if (isListKind(kind)) return renderListDocHtml(kind, ctx, sanitizeListDoc(stored.doc));
+  if (kind === "invoice") {
+    const estDoc = await env.DB.prepare("SELECT body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(jobId, companyId).first<{ body: string }>();
+    if (!estDoc) return null;
+    const st = parse(estDoc.body);
+    const est = storedEstimate(st);
+    return renderInvoiceHtml(ctx, sanitizeInvoice({ ...stored.invoice, paid: (stored.invoice?.paidCents ?? 0) / 100 }), est, st.totals ?? computeTotals(est));
+  }
+  return null;
+}
+
+/**
+ * POST /api/jobdoc for materials, schedule, instructions, punch, warranty and invoice. "action":
+ *  draft - a starting document built from the trade and the business profile (nothing is saved)
+ *  save  - stores it as a draft document and moves the job along
+ *  send  - emails it to the customer (schedule, warranty and invoice only; the others are for the crew)
+ *  paid  - invoice only: marks it paid and closes the job
+ */
+export async function handleJobDoc(request: Request, env: Env): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: "Not signed in." }, 401);
+  if (request.method !== "POST") return json({ error: "Not found." }, 404);
+  let b: any;
+  try {
+    b = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON." }, 400);
+  }
+  const kind = String(b?.kind);
+  if (!isListKind(kind) && kind !== "invoice") return json({ error: "Unknown document." }, 400);
+  const jobId = Number(b?.jobId);
+  const j = Number.isInteger(jobId) ? await loadJobRow(env, user.companyId, jobId) : null;
+  if (!j) return json({ error: "Job not found." }, 404);
+  const jobMeta = await env.DB.prepare("SELECT trade FROM jobs WHERE id = ?").bind(jobId).first<{ trade: string }>();
+  const lang = b?.language === "es" ? "es" : "en";
+  const estDoc = await env.DB.prepare("SELECT body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(jobId, user.companyId).first<{ body: string }>();
+  const stored = parse(estDoc?.body);
+  if (kind === "invoice" && !estDoc) return json({ error: "Save the estimate first. The invoice uses its price." }, 400);
+
+  if (b.action === "draft") {
+    if (kind === "invoice") {
+      const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM documents WHERE company_id = ? AND kind = 'invoice'").bind(user.companyId).first<{ n: number }>();
+      return json({ invoice: { number: String(1001 + (n?.n ?? 0)), dueDate: j.profile.labor?.paymentTerms ?? "", paid: (stored.totals?.depositCents ?? 0) / 100, notes: "", language: lang } });
+    }
+    const doc = starterDoc(kind, { trade: jobMeta?.trade ?? "interior", profile: j.profile, company: j.company.name, customer: j.row.customerName, startDate: text(b?.startDate, 10), completionDate: text(b?.completionDate, 40) }, lang);
+    return json({ doc });
+  }
+
+  const existing = await env.DB.prepare("SELECT id FROM documents WHERE job_id = ? AND company_id = ? AND kind = ? ORDER BY id DESC LIMIT 1").bind(jobId, user.companyId, kind).first<{ id: number }>();
+
+  if (b.action === "paid") {
+    if (kind !== "invoice" || !existing) return json({ error: "Save the invoice first." }, 400);
+    await env.DB.prepare("UPDATE documents SET status = 'paid', updated_at = datetime('now') WHERE id = ?").bind(existing.id).run();
+    await env.DB.prepare("UPDATE jobs SET stage = 'closed', updated_at = datetime('now') WHERE id = ?").bind(jobId).run();
+    await addJobEvent(env, user.companyId, jobId, "stage", "Invoice paid. Job closed.");
+    return json({ ok: true });
+  }
+
+  if (b.action === "save" || b.action === "send") {
+    let body: string;
+    let language: string;
+    if (kind === "invoice") {
+      const inv = sanitizeInvoice(b?.invoice);
+      body = JSON.stringify({ invoice: inv });
+      language = inv.language;
+    } else {
+      const d = sanitizeListDoc(b?.doc);
+      if (!d.items.length) return json({ error: "The document has no items." }, 400);
+      body = JSON.stringify({ doc: d });
+      language = d.language;
+    }
+    const title = `${docTitle(kind, language === "es" ? "es" : "en")}: ${j.row.title}`.slice(0, 160);
+    let docId: number;
+    if (existing) {
+      docId = existing.id;
+      await env.DB.prepare("UPDATE documents SET body = ?, language = ?, title = ?, status = CASE WHEN status = 'paid' THEN 'paid' ELSE 'draft' END, updated_at = datetime('now') WHERE id = ?").bind(body, language, title, docId).run();
+    } else {
+      const ins = await env.DB.prepare("INSERT INTO documents (company_id, job_id, kind, language, status, title, body) VALUES (?, ?, ?, ?, 'draft', ?, ?)").bind(user.companyId, jobId, kind, language, title, body).run();
+      docId = Number(ins.meta.last_row_id);
+    }
+    if (kind === "punch") await env.DB.prepare("UPDATE jobs SET stage = 'punch', updated_at = datetime('now') WHERE id = ? AND stage IN ('scheduled','in_progress')").bind(jobId).run();
+    if (kind === "invoice") await env.DB.prepare("UPDATE jobs SET stage = 'invoiced', updated_at = datetime('now') WHERE id = ? AND stage NOT IN ('closed','lost')").bind(jobId).run();
+    await addJobEvent(env, user.companyId, jobId, "note", `${docTitle(kind, "en")} saved.`);
+
+    if (b.action === "send") {
+      if (!CUSTOMER_KINDS.includes(kind)) return json({ error: "This document is for your crew. Print it instead.", docId }, 400);
+      if (!j.row.customerEmail) return json({ error: "This customer has no email address.", docId }, 400);
+      const page = await renderExtraDoc(env, user.companyId, jobId, kind, parse(body));
+      if (!page) return json({ error: "Not found." }, 404);
+      const es = language === "es";
+      const label = docTitle(kind, es ? "es" : "en");
+      const result = await sendCustomerEmail(
+        env,
+        j.row.customerEmail,
+        user.companyName,
+        j.company.email || user.email,
+        `${label} - ${user.companyName}`,
+        es
+          ? `Hola ${j.row.customerName},\n\nAdjunto: ${label}. Ábralo en su navegador y use Imprimir para guardarlo como PDF.\n\n${user.companyName}`
+          : `Hi ${j.row.customerName},\n\nAttached: ${label}. Open it in your browser and use Print to save it as a PDF.\n\n${user.companyName}`,
+        [{ filename: `${kind}.html`, content: toBase64(page) }],
+      );
+      if (result !== "sent") return json({ error: "The email could not be sent. Your document is saved.", docId }, 502);
+      await env.DB.prepare("UPDATE documents SET status = CASE WHEN status = 'paid' THEN 'paid' ELSE 'sent' END, updated_at = datetime('now') WHERE id = ?").bind(docId).run();
+      await addJobEvent(env, user.companyId, jobId, "note", `${label} emailed to ${j.row.customerEmail}.`);
+    }
+    return json({ ok: true, docId });
+  }
+  return json({ error: "Unknown action." }, 400);
 }

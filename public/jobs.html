@@ -39,7 +39,7 @@ const TRADES={interior:'Interior painting',exterior:'Exterior painting',commerci
 const QL={small:'Small rooms',medium:'Medium rooms',large:'Large rooms',custom_min:'Custom rooms',ceiling:'Ceilings',trim:'Rooms with trim',door_each:'Doors',accent_wall:'Accent walls',repairs_hourly:'Repair hours',base_1_story:'1-story house (1 = yes)',base_2_story:'2-story house (1 = yes)',base_3_story:'3-story house (1 = yes)',door:'Doors',shutter:'Shutters',window:'Windows',garage_door:'Garage doors',power_washing:'Power washing (1 = yes)',wood_repair_hourly:'Wood repair hours',color_change:'Extra colors',gate_each:'Gates',removal_per_ft:'Old fence to remove (ft)',stain_per_ft:'Staining or painting (ft)',mobilization:'Mobilization (1 = yes)',lift_daily:'Lift days',hourly:'Labor hours'};
 const BASE={sqft_floor:[['sqft','Square feet of floor area']],sqft_wall:[['sqft','Square feet of wall']],per_linear_ft:[['linear_ft','Linear feet']],lump_sum:[['cost','Your cost for the whole job ($)']]};
 const STAGE={lead:'Lead',bid:'Estimate',contract:'Contract',scheduled:'Scheduled',in_progress:'In progress',punch:'Punch list',invoiced:'Invoiced',closed:'Closed',lost:'Lost'};
-let J=null,lines=[],clauses=[];
+let J=null,lines=[],clauses=[],docs={},inv={};
 function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
 async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
 
@@ -109,6 +109,7 @@ async function detail(id){
    <div id="clauses"></div>
    <div class="btns" id="c_btns" style="display:none"><button class="btn" id="c_save">Save contract</button><button class="btn sec" id="c_view" ${d.contract?'':'disabled'}>View / print</button><button class="btn sec" id="c_send" ${j.customerEmail&&d.contract?'':'disabled'}>Email to customer</button><button class="btn sec" id="c_signed" ${d.contract?'':'disabled'}>Mark as signed</button></div>
    <small>${d.contract?`Status: ${esc(d.contract.status)}`:'Not saved yet'}</small>`:'<p class="muted">Save the estimate first. The contract uses its price and scope.</p>'}</div>
+  <div id="more"></div>
   <h3>Job history</h3><div class="card">${d.events.map(v=>`<div class="ev"><b>${esc(v.kind)}</b> &middot; ${esc(v.at)}<br>${esc(v.text).slice(0,600)}</div>`).join('')||'<small>Nothing yet.</small>'}</div>`;
   drawLines();
   const f=$('fill');if(f)f.onclick=async()=>{try{msg('');const quantities={};document.querySelectorAll('[data-q]').forEach(i=>{if(i.value!=='')quantities[i.dataset.q]=Number(i.value);});const r=await api('/api/estimate',{action:'draft',jobId:j.id,quantities});if(!r.lines.length)throw new Error('Enter at least one quantity first.');lines=r.lines;drawLines();msg('Lines filled. Review and change anything you like.',true);}catch(e){if(e)msg(e.message);}};
@@ -116,7 +117,7 @@ async function detail(id){
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
   $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>msg('Saved.',true));};
   $('send').onclick=async()=>{if(!confirm('Email this estimate to '+j.customerEmail+'?'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
-  drawClauses();
+  drawClauses();drawMore(d);
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};
   const cact=async(action)=>{try{msg('');const r=await api('/api/contract',{action,jobId:j.id,contract:{startDate:$('c_start').value,endDate:$('c_end').value,language:$('c_lang').value,clauses}});return r;}catch(x){if(x)msg(x.message);}};
   const cs=$('c_save');if(cs){cs.onclick=async()=>{const r=await cact('save');if(r)detail(j.id).then(()=>msg('Contract saved.',true));};
@@ -125,6 +126,57 @@ async function detail(id){
    $('c_signed').onclick=async()=>{if(!confirm('Mark this contract as signed by both sides?'))return;const r=await cact('signed');if(r)detail(j.id).then(()=>msg('Marked as signed. The job moves to Scheduled.',true));};}
   $('view_doc').onclick=()=>{if(e)window.open('/api/doc?id='+e.id,'_blank');};
 }
+
+const DOCS=[
+ {k:'materials',n:4,t:'Materials list',h:'What to buy for this job. Fill in the quantities, then print it for the supply store.',crew:1,cols:1},
+ {k:'schedule',n:5,t:'Schedule',h:'Day-by-day plan. Pick the start date and the days fill in (Sundays skipped). You can email it to the customer.',cust:1,start:1},
+ {k:'instructions',n:6,t:'Crew instructions',h:'Step-by-step instructions for your crew, in English or Spanish.',crew:1},
+ {k:'punch',n:7,t:'Punch list',h:'The final walkthrough checklist. The customer signs at the bottom.'},
+ {k:'warranty',n:9,t:'Warranty letter',h:'Give this to the customer when the job is finished.',cust:1,done:1}
+];
+function wDraw(k){const c=$('wl_'+k);if(!c)return;const d=docs[k];const m=DOCS.find(x=>x.k===k);
+ c.innerHTML=d?`<label>Intro</label><textarea data-dk="${k}" data-df="intro" rows="2">${esc(d.intro||'')}</textarea>`+d.items.map((it,i)=>`<div class="line" style="grid-template-columns:${m.cols?'1fr 60px 60px 1fr':'1fr 150px'} 30px;"><input data-dk="${k}" data-di="${i}" data-df="text" value="${esc(it.text)}">${m.cols?`<input data-dk="${k}" data-di="${i}" data-df="qty" inputmode="decimal" value="${it.qty||''}" placeholder="Qty"><input data-dk="${k}" data-di="${i}" data-df="unit" value="${esc(it.unit)}" placeholder="Unit">`:''}<input data-dk="${k}" data-di="${i}" data-df="detail" value="${esc(it.detail)}" placeholder="${k==='schedule'?'Date':'Notes'}"><button data-dkdel="${k}:${i}">&times;</button></div>`).join('')+`<div class="btns"><button class="btn sec" data-dkadd="${k}">+ Add a line</button></div>`:'';
+ const b=$('wb_'+k);if(b)b.style.display=d?'flex':'none';}
+function docCard(m,d){const x=d.docs[m.k];const lang=docs[m.k]?docs[m.k].language:(m.crew?d.crewLanguage:'en');
+ return `<h3>${m.n}. ${m.t}</h3><div class="card"><p class="muted" style="margin-top:0">${m.h}</p>
+ <div class="row"><div><label>Language</label><select id="wlang_${m.k}"><option value="en">English</option><option value="es" ${lang==='es'?'selected':''}>Español</option></select></div>
+ ${m.start?`<div><label>Start date</label><input id="wstart_${m.k}" type="date"></div>`:''}${m.done?`<div><label>Completion date</label><input id="wdone_${m.k}" placeholder="Example: Nov 21, 2026"></div>`:''}</div>
+ <div class="btns"><button class="btn sec" data-dkbuild="${m.k}">${x?'Rebuild (replaces edits)':'Build it'}</button></div>
+ <div id="wl_${m.k}"></div>
+ <div class="btns" id="wb_${m.k}" style="display:none"><button class="btn" data-dksave="${m.k}">Save</button><button class="btn sec" data-dkview="${m.k}" ${x?'':'disabled'}>View / print</button>${m.cust?`<button class="btn sec" data-dksend="${m.k}" ${x&&d.job.customerEmail?'':'disabled'}>Email to customer</button>`:''}</div>
+ <small>${x?'Status: '+esc(x.status):'Not saved yet'}</small></div>`;}
+function invCard(d){const x=d.docs.invoice;
+ return `<h3>8. Invoice</h3><div class="card">${d.estimate?`<p class="muted" style="margin-top:0">Uses the price from your saved estimate. Enter what the customer already paid, such as the deposit.</p>
+ <div class="btns" style="margin-top:0"><button class="btn sec" data-ivbuild="1">${x?'Rebuild (replaces edits)':'Build invoice'}</button></div>
+ <div id="ivf" style="display:none"><div class="row"><div><label>Invoice number</label><input id="iv_num"></div><div><label>Due</label><input id="iv_due" placeholder="Example: on completion, or Dec 1"></div></div>
+ <div class="row"><div><label>Already paid ($)</label><input id="iv_paid" inputmode="decimal"></div><div><label>Language</label><select id="iv_lang"><option value="en">English</option><option value="es">Español</option></select></div></div>
+ <label>Notes (how to pay, thank you)</label><textarea id="iv_notes" rows="3"></textarea>
+ <div class="btns"><button class="btn" data-ivsave="1">Save</button><button class="btn sec" data-ivview="1" ${x?'':'disabled'}>View / print</button><button class="btn sec" data-ivsend="1" ${x&&d.job.customerEmail?'':'disabled'}>Email to customer</button><button class="btn sec" data-ivpaid="1" ${x?'':'disabled'}>Mark as paid</button></div></div>
+ <small>${x?'Status: '+esc(x.status):'Not saved yet'}</small>`:'<p class="muted">Save the estimate first. The invoice uses its price.</p>'}</div>`;}
+function ivFill(){const f=$('ivf');if(!f)return;f.style.display='block';$('iv_num').value=inv.number||'';$('iv_due').value=inv.dueDate||'';$('iv_paid').value=inv.paid||'';$('iv_notes').value=inv.notes||'';$('iv_lang').value=inv.language||'en';}
+function ivRead(){return{number:$('iv_num').value,dueDate:$('iv_due').value,paid:$('iv_paid').value,notes:$('iv_notes').value,language:$('iv_lang').value};}
+function drawMore(d){
+ docs={};for(const m of DOCS){if(d.docs[m.k]&&d.docs[m.k].doc)docs[m.k]=JSON.parse(JSON.stringify(d.docs[m.k].doc));}
+ inv=d.docs.invoice&&d.docs.invoice.invoice?{...d.docs.invoice.invoice,paid:(d.docs.invoice.invoice.paidCents||0)/100}:{};
+ $('more').innerHTML=DOCS.slice(0,4).map(m=>docCard(m,d)).join('')+invCard(d)+docCard(DOCS[4],d);
+ DOCS.forEach(m=>wDraw(m.k));if(d.docs.invoice&&d.docs.invoice.invoice)ivFill();
+}
+async function jd(body){try{msg('');return await api('/api/jobdoc',{jobId:J.job.id,...body});}catch(x){if(x)msg(x.message);}}
+document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if(!J)return;
+ const rel=()=>detail(J.job.id);
+ if(ds.dkbuild){const k=ds.dkbuild;if(docs[k]&&!confirm('This replaces what is on screen with a fresh draft. Continue?'))return;const r=await jd({action:'draft',kind:k,language:$('wlang_'+k).value,startDate:($('wstart_'+k)||{}).value,completionDate:($('wdone_'+k)||{}).value});if(r){docs[k]=r.doc;wDraw(k);msg('Built. Edit anything you like.',true);}}
+ else if(ds.dksave){const k=ds.dksave;docs[k].language=$('wlang_'+k).value;const r=await jd({action:'save',kind:k,doc:docs[k]});if(r)rel().then(()=>msg('Saved.',true));}
+ else if(ds.dksend){const k=ds.dksend;if(!confirm('Email this to '+J.job.customerEmail+'?'))return;docs[k].language=$('wlang_'+k).value;const r=await jd({action:'send',kind:k,doc:docs[k]});if(r)rel().then(()=>msg('Emailed.',true));}
+ else if(ds.dkview){const x=J.docs[ds.dkview];if(x)window.open('/api/doc?id='+x.id,'_blank');}
+ else if(ds.dkadd){const k=ds.dkadd;docs[k].items.push({text:'',detail:'',qty:0,unit:''});wDraw(k);}
+ else if(ds.dkdel){const[k,i]=ds.dkdel.split(':');docs[k].items.splice(+i,1);wDraw(k);}
+ else if(ds.ivbuild){if(inv.number&&!confirm('This replaces the invoice on screen. Continue?'))return;const r=await jd({action:'draft',kind:'invoice',language:'en'});if(r){inv=r.invoice;ivFill();}}
+ else if(ds.ivsave){const r=await jd({action:'save',kind:'invoice',invoice:ivRead()});if(r)rel().then(()=>msg('Invoice saved.',true));}
+ else if(ds.ivsend){if(!confirm('Email this invoice to '+J.job.customerEmail+'?'))return;const r=await jd({action:'send',kind:'invoice',invoice:ivRead()});if(r)rel().then(()=>msg('Invoice emailed.',true));}
+ else if(ds.ivview){const x=J.docs.invoice;if(x)window.open('/api/doc?id='+x.id,'_blank');}
+ else if(ds.ivpaid){if(!confirm('Mark this invoice as paid? The job will close.'))return;const r=await jd({action:'paid',kind:'invoice'});if(r)rel().then(()=>msg('Paid. Job closed.',true));}
+});
+document.addEventListener('input',e=>{const t=e.target,ds=t.dataset||{};if(ds.dk&&ds.df){const d=docs[ds.dk];if(!d)return;if(ds.di!==undefined)d.items[+ds.di][ds.df]=ds.df==='qty'?(Number(t.value)||0):t.value;else d[ds.df]=t.value;}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.ci!==undefined){clauses[+t.dataset.ci][t.dataset.cf]=t.value;return;}if(t.dataset&&t.dataset.f!==undefined){lines[+t.dataset.i][t.dataset.f]=t.value;drawTotals();}else if(t.id==='discount'||t.id==='tax')drawTotals();});
 document.addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.del;if(d!==undefined&&d!==''){lines.splice(+d,1);drawLines();}});
 (async()=>{try{const id=new URLSearchParams(location.search).get('id');id?await detail(id):await list();}catch(e){if(e)$('view').innerHTML='<p class="bad">'+esc(e.message||'Could not load.')+'</p>';}})();
