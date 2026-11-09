@@ -10,8 +10,12 @@ const RATES: Record<JobType, [number, number]> = {
 };
 
 /** Deterministic price range in cents. The AI writes the explanation but never sets the numbers. */
-export function priceRange(jobType: JobType, sqft: number): { lowCents: number; highCents: number } {
-  const [lo, hi] = RATES[jobType];
+export function priceRange(
+  jobType: JobType,
+  sqft: number,
+  overrides?: Partial<Record<JobType, [number, number]>>,
+): { lowCents: number; highCents: number } {
+  const [lo, hi] = overrides?.[jobType] ?? RATES[jobType];
   const round = (n: number) => Math.round(n / 50) * 50 * 100; // nearest $50
   return { lowCents: round(lo * sqft), highCents: round(hi * sqft) };
 }

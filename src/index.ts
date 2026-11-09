@@ -3,6 +3,7 @@ import { ownerBriefText, writeBrief } from "./brief.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
+import { readSettings, renderQuotePage, sanitize } from "./settings.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
 import { parsePhotos, parseQuoteRequest } from "./validate.ts";
@@ -24,12 +25,12 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   if (!parsed.ok) return json({ error: parsed.error }, 400);
   const q = parsed.value;
 
-  const company = await env.DB.prepare("SELECT id, name, notify_email, plan FROM companies WHERE slug = ?")
+  const company = await env.DB.prepare("SELECT id, name, notify_email, plan, settings FROM companies WHERE slug = ?")
     .bind(q.companySlug)
-    .first<{ id: number; name: string; notify_email: string | null; plan: string }>();
+    .first<{ id: number; name: string; notify_email: string | null; plan: string; settings: string }>();
   if (!company) return json({ error: "Unknown company." }, 404);
 
-  const { lowCents, highCents } = priceRange(q.jobType, q.sqft);
+  const { lowCents, highCents } = priceRange(q.jobType, q.sqft, readSettings(company.settings).rates);
   const { provider, summary } = await writeSummary(env, q, lowCents, highCents);
 
   // Photo brief: metered under ai_estimate. If the plan is used up or the AI fails, the normal quote still goes out.
@@ -270,6 +271,45 @@ async function sendChatDigests(env: Env): Promise<number> {
   return sent;
 }
 
+/** Public quote page for one company: /q/their-slug. Works as a link and inside an iframe. */
+async function handleQuotePage(request: Request, env: Env, slug: string): Promise<Response> {
+  const c = await env.DB.prepare("SELECT slug, name, settings FROM companies WHERE slug = ?")
+    .bind(slug)
+    .first<{ slug: string; name: string; settings: string }>();
+  if (!c) return new Response("Not found.", { status: 404 });
+  const tpl = await env.ASSETS.fetch(new URL("/q-template.html", request.url));
+  const html = renderQuotePage(await tpl.text(), c, readSettings(c.settings));
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=60" } });
+}
+
+/** Signed-in owner reads and updates their company's settings. */
+async function handleSettings(request: Request, env: Env): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: "Not signed in." }, 401);
+  const row = await env.DB.prepare("SELECT slug, name, notify_email, settings FROM companies WHERE id = ?")
+    .bind(user.companyId)
+    .first<{ slug: string; name: string; notify_email: string | null; settings: string }>();
+  if (!row) return json({ error: "Not found." }, 404);
+  if (request.method === "POST") {
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "Invalid JSON." }, 400);
+    }
+    const name = typeof body?.name === "string" ? body.name.trim().slice(0, 80) : "";
+    const email = typeof body?.notifyEmail === "string" ? body.notifyEmail.trim().slice(0, 200) : "";
+    if (!name) return json({ error: "Company name is required." }, 400);
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Enter a valid notification email." }, 400);
+    const settings = sanitize(body?.settings);
+    await env.DB.prepare("UPDATE companies SET name = ?, notify_email = ?, settings = ? WHERE id = ?")
+      .bind(name, email || null, JSON.stringify(settings), user.companyId)
+      .run();
+    return json({ ok: true });
+  }
+  return json({ slug: row.slug, name: row.name, notifyEmail: row.notify_email, settings: readSettings(row.settings) });
+}
+
 export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(sendChatDigests(env).catch((err) => console.error("chat digest failed", String(err))));
@@ -343,6 +383,18 @@ export default {
         return await handleConsume(request, env);
       } catch (err) {
         console.error("consume failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/quote") return Response.redirect(new URL("/q/dfw-painters", request.url).toString(), 302);
+    if (pathname.startsWith("/q/") && request.method === "GET") {
+      return await handleQuotePage(request, env, decodeURIComponent(pathname.slice(3)).slice(0, 60));
+    }
+    if (pathname === "/api/settings") {
+      try {
+        return await handleSettings(request, env);
+      } catch (err) {
+        console.error("settings failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

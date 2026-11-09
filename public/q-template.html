@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Get a Free Painting Estimate</title>
+<title>Free estimate | {{NAME}}</title>
 <style>
   body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0;padding:32px 16px}
   main{max-width:520px;margin:0 auto;background:#fff;padding:28px;border-radius:8px;border:1px solid rgba(15,27,45,.1)}
@@ -11,18 +11,21 @@
   p.sub{color:#4A5568;margin:0 0 20px}
   label{display:block;font-size:14px;font-weight:600;margin:14px 0 4px}
   input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cfd5dc;border-radius:6px;font:inherit}
-  button{margin-top:20px;width:100%;padding:14px;border:0;border-radius:6px;background:#E8A33D;color:#0F1B2D;font-weight:700;font-size:16px;cursor:pointer}
+  button{margin-top:20px;width:100%;padding:14px;border:0;border-radius:6px;background:{{COLOR}};color:#0F1B2D;font-weight:700;font-size:16px;cursor:pointer}
   button:disabled{opacity:.6;cursor:wait}
   .hp{position:absolute;left:-9999px}
+  .logo{max-height:48px;max-width:200px;display:block;margin:0 0 12px}
+  small{color:#4A5568;display:block;margin-top:4px}
   #result{margin-top:20px;padding:16px;border-radius:6px;background:#0F1B2D;color:#fff;display:none}
-  #result .range{font-size:28px;font-family:Newsreader,Georgia,serif;color:#E8A33D}
+  #result .range{font-size:28px;font-family:Newsreader,Georgia,serif;color:{{COLOR}}}
   #err{color:#b42318;margin-top:12px;display:none}
 </style>
 </head>
 <body>
 <main>
-  <h1>Get your free estimate</h1>
-  <p class="sub">Tell us about the job and see a price range in seconds.</p>
+  {{LOGO}}
+  <h1>Get your free estimate from {{NAME}}</h1>
+  <p class="sub">{{TAGLINE}}</p>
   <form id="f">
     <label for="name">Your name</label><input id="name" name="name" required>
     <label for="email">Email</label><input id="email" name="email" type="email" required>
@@ -38,6 +41,9 @@
     </select>
     <label for="sqft">Approximate square feet</label><input id="sqft" name="sqft" type="number" min="100" max="500000" required>
     <label for="details">Anything else we should know? (optional)</label><textarea id="details" name="details" rows="3"></textarea>
+    <label for="photos">Photos of the area (optional, up to 4)</label>
+    <input id="photos" type="file" accept="image/*" multiple>
+    <small>Photos help us prepare a better estimate before we visit. They go only to {{NAME}}.</small>
     <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
     <button id="go" type="submit">See my estimate</button>
     <div id="err"></div>
@@ -45,10 +51,15 @@
   <div id="result"><div class="range" id="range"></div><p id="summary"></p></div>
 </main>
 <script>
+const SLUG='{{SLUG}}';
+let photos=[];
+// Shrinks a photo in the browser (max 1280px, JPEG) so uploads stay small and fast.
+async function shrink(file){try{const b=await createImageBitmap(file);const s=Math.min(1,1280/Math.max(b.width,b.height));const c=document.createElement('canvas');c.width=Math.round(b.width*s);c.height=Math.round(b.height*s);c.getContext('2d').drawImage(b,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.8);}catch{return null;}}
+document.getElementById('photos').addEventListener('change',async e=>{photos=(await Promise.all(Array.from(e.target.files).slice(0,4).map(shrink))).filter(Boolean);});
 const f=document.getElementById('f'),err=document.getElementById('err'),go=document.getElementById('go');
 f.addEventListener('submit',async e=>{
   e.preventDefault(); err.style.display='none'; go.disabled=true; go.textContent='Working...';
-  const body=Object.fromEntries(new FormData(f)); body.sqft=Number(body.sqft);
+  const body=Object.fromEntries(new FormData(f)); body.sqft=Number(body.sqft); body.companySlug=SLUG; if(photos.length) body.photos=photos;
   try{
     const r=await fetch('/api/quote',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json();

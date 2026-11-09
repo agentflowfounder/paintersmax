@@ -10,10 +10,26 @@ main{max-width:1000px;margin:24px auto;padding:0 16px}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden}
 th,td{text-align:left;padding:10px 12px;border-bottom:1px solid rgba(15,27,45,.08);font-size:14px;vertical-align:top}
 th{background:#eceae4;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.card{background:#fff;border-radius:8px;padding:16px;margin:0 0 24px} .card label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px} .card input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #cfd5dc;border-radius:6px;font:inherit} .card code,.card textarea{display:block;width:100%;box-sizing:border-box;background:#eceae4;padding:8px;border-radius:6px;font-size:12px;word-break:break-all} .rates{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end} .card button{margin-top:14px;background:#0F1B2D;color:#fff;border:0;border-radius:6px;padding:10px 16px;cursor:pointer} #msg{margin-left:10px;font-size:13px}
 .wrap{overflow-x:auto} .empty{padding:32px;text-align:center;color:#4A5568;background:#fff;border-radius:8px}
 </style></head><body>
 <header><div><b>PaintersMax</b> <span id="co"></span></div><div><span id="me"></span> <button id="out">Sign out</button></div></header>
-<main><h2>Leads</h2><div id="box" class="empty">Loading...</div></main>
+<main>
+<h2>Your quote page</h2>
+<div class="card"><p style="margin:0 0 8px">Share this link, or paste the embed code into any website.</p>
+<label>Link</label><code id="lnk"></code>
+<label>Embed code</label><textarea id="emb" rows="2" readonly></textarea></div>
+<h2>Settings</h2>
+<div class="card"><form id="sf">
+<label>Company name</label><input id="s_name" maxlength="80" required>
+<label>Send lead emails to</label><input id="s_email" type="email">
+<label>Brand color (for example #E8A33D)</label><input id="s_color" maxlength="7">
+<label>Logo URL (https)</label><input id="s_logo" maxlength="300">
+<label>Short message above the form</label><input id="s_tag" maxlength="140">
+<label style="margin-top:16px">Price per square foot (low and high). Leave blank to use the standard rates.</label>
+<div class="rates" id="rates"></div>
+<button type="submit">Save settings</button><span id="msg"></span></form></div>
+<h2>Leads</h2><div id="box" class="empty">Loading...</div></main>
 <script>
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
@@ -23,8 +39,22 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
   const j=await r.json();
   document.getElementById('co').textContent=j.company;
   const me=await (await fetch('/api/me')).json(); document.getElementById('me').textContent=me.email;
+  const JT=[['interior','Interior'],['exterior','Exterior'],['both','Interior + exterior'],['commercial','Commercial'],['multifamily','Apartments']];
+  document.getElementById('rates').innerHTML=JT.map(([k,l])=>`<div><small>${l}</small><div style="display:flex;gap:4px"><input id="r_${k}_lo" type="number" step="0.05" placeholder="low"><input id="r_${k}_hi" type="number" step="0.05" placeholder="high"></div></div>`).join('');
+  const st=await (await fetch('/api/settings')).json(); const S=st.settings||{};
+  const url=location.origin+'/q/'+st.slug;
+  document.getElementById('lnk').textContent=url;
+  document.getElementById('emb').value='<iframe src="'+url+'" style="width:100%;max-width:560px;height:900px;border:0" title="Free estimate"></iframe>';
+  document.getElementById('s_name').value=st.name||''; document.getElementById('s_email').value=st.notifyEmail||'';
+  document.getElementById('s_color').value=S.brandColor||''; document.getElementById('s_logo').value=S.logoUrl||''; document.getElementById('s_tag').value=S.tagline||'';
+  JT.forEach(([k])=>{const r=(S.rates||{})[k]; if(r){document.getElementById('r_'+k+'_lo').value=r[0];document.getElementById('r_'+k+'_hi').value=r[1];}});
+  document.getElementById('sf').onsubmit=async e=>{e.preventDefault();
+    const rates={}; JT.forEach(([k])=>{const lo=document.getElementById('r_'+k+'_lo').value,hi=document.getElementById('r_'+k+'_hi').value; if(lo!==''&&hi!=='') rates[k]=[Number(lo),Number(hi)];});
+    const v=id=>document.getElementById(id).value.trim();
+    const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:v('s_name'),notifyEmail:v('s_email'),settings:{brandColor:v('s_color'),logoUrl:v('s_logo'),tagline:v('s_tag'),rates}})});
+    const j=await r.json(); const m=document.getElementById('msg'); m.textContent=r.ok?'Saved.':(j.error||'Could not save.'); m.style.color=r.ok?'#0a7a3d':'#b42318';};
   const box=document.getElementById('box');
-  if(!j.leads.length){box.textContent='No leads yet. Share your quote page: /quote';return;}
+  if(!j.leads.length){box.textContent='No leads yet. Share your quote page link above.';return;}
   box.className='wrap';
   box.innerHTML='<table><thead><tr><th>Date</th><th>Name</th><th>Contact</th><th>Job</th><th>Estimate</th><th>Notes</th><th>Status</th></tr></thead><tbody>'+
     j.leads.map(l=>`<tr><td>${esc(l.createdAt)}</td><td>${esc(l.name)}</td><td>${esc(l.email)}<br>${esc(l.phone)} ${esc(l.zip)}</td><td>${esc(l.jobType)} ${l.sqft?esc(l.sqft)+' sq ft':''}</td><td>${l.lowCents==null?'':usd(l.lowCents)+' - '+usd(l.highCents)}</td><td>${esc(l.notes)}</td><td>${esc(l.status)}</td></tr>`).join('')+'</tbody></table>';
