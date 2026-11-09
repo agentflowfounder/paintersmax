@@ -33,6 +33,7 @@ export async function sendCustomerEmail(
   replyTo: string | null | undefined,
   subject: string,
   text: string,
+  attachments?: { filename: string; content: string }[],
 ): Promise<"sent" | "skipped"> {
   if (!env.RESEND_API_KEY || !to) return "skipped";
   const r = await fetch("https://api.resend.com/emails", {
@@ -44,6 +45,7 @@ export async function sendCustomerEmail(
       ...(replyTo ? { reply_to: replyTo } : {}),
       subject,
       text,
+      ...(attachments?.length ? { attachments } : {}),
     }),
   });
   if (!r.ok) console.error("Resend customer email failed", r.status);

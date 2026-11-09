@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F1B2D">
+<title>PaintersMax Jobs</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
+main{max-width:720px;margin:0 auto;padding:16px 16px 60px}
+h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 8px;font-size:26px}
+h3{margin:18px 0 6px;font-size:16px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
+label{display:block;font-size:14px;font-weight:600;margin:10px 0 4px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{padding:12px 16px;border-radius:8px;border:0;font-weight:700;font-size:15px;cursor:pointer;background:#E8A33D;color:#0F1B2D}
+.btn.sec{background:#eceae4}.btn[disabled]{opacity:.5}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.job{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #eee;text-decoration:none;color:inherit}
+.job:last-child{border-bottom:0}
+.tag{font-size:12px;background:#eceae4;border-radius:99px;padding:3px 10px;white-space:nowrap;align-self:center}
+.line{display:grid;grid-template-columns:1fr 70px 60px 90px 30px;gap:6px;margin:6px 0;align-items:center}
+.line input{padding:8px}.line button{border:0;background:none;font-size:18px;cursor:pointer;color:#b42318}
+.head{font-size:12px;color:#4A5568;font-weight:600}
+.tot{text-align:right;font-size:15px;margin-top:10px;line-height:1.7}.tot b{font-size:19px}
+small,.muted{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#0a7a3d}.bad{color:#b42318}
+.ev{font-size:13px;padding:4px 0;border-bottom:1px solid #f0eee9}
+@media(max-width:520px){.line{grid-template-columns:1fr 60px 50px 80px 26px}}
+</style></head><body>
+<header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Wizard setup</a><a href="/dashboard">Leads</a></div></header>
+<main><div id="view">Loading...</div><div id="msg"></div></main>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
+const TRADES={interior:'Interior painting',exterior:'Exterior painting',commercial:'Commercial',new_construction:'New construction',power_washing:'Power washing',drywall:'Drywall repair',cabinets:'Cabinet painting',decks_fences:'Decks and fences',fencing:'Fence installation',remodeling:'Remodeling',epoxy_floors:'Epoxy floors',industrial:'Industrial'};
+const QL={small:'Small rooms',medium:'Medium rooms',large:'Large rooms',custom_min:'Custom rooms',ceiling:'Ceilings',trim:'Rooms with trim',door_each:'Doors',accent_wall:'Accent walls',repairs_hourly:'Repair hours',base_1_story:'1-story house (1 = yes)',base_2_story:'2-story house (1 = yes)',base_3_story:'3-story house (1 = yes)',door:'Doors',shutter:'Shutters',window:'Windows',garage_door:'Garage doors',power_washing:'Power washing (1 = yes)',wood_repair_hourly:'Wood repair hours',color_change:'Extra colors',gate_each:'Gates',removal_per_ft:'Old fence to remove (ft)',stain_per_ft:'Staining or painting (ft)',mobilization:'Mobilization (1 = yes)',lift_daily:'Lift days',hourly:'Labor hours'};
+const BASE={sqft_floor:[['sqft','Square feet of floor area']],sqft_wall:[['sqft','Square feet of wall']],per_linear_ft:[['linear_ft','Linear feet']],lump_sum:[['cost','Your cost for the whole job ($)']]};
+const STAGE={lead:'Lead',bid:'Estimate',contract:'Contract',scheduled:'Scheduled',in_progress:'In progress',punch:'Punch list',invoiced:'Invoiced',closed:'Closed',lost:'Lost'};
+let J=null,lines=[];
+function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
+async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
+
+async function list(){
+  const {jobs}=await api('/api/jobs');
+  $('view').innerHTML=`<h2>Jobs</h2>
+  <div class="card">${jobs.length?jobs.map(j=>`<a class="job" href="/jobs?id=${j.id}"><div><b>${esc(j.title)}</b><br><small>${esc(j.customer)} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div><span class="tag">${esc(STAGE[j.stage]||j.stage)}</span></a>`).join(''):'<p class="muted">No jobs yet. New leads from your quote form and chat appear here automatically, or add one below.</p>'}</div>
+  <h3>Add a job</h3><div class="card">
+   <label>Customer name</label><input id="n_name">
+   <div class="row"><div><label>Email</label><input id="n_email" type="email"></div><div><label>Phone</label><input id="n_phone" type="tel"></div></div>
+   <label>Job address (optional)</label><input id="n_addr">
+   <div class="row"><div><label>City</label><input id="n_city"></div><div><label>Zip</label><input id="n_zip" inputmode="numeric"></div></div>
+   <label>Job title</label><input id="n_title" placeholder="Example: Repaint 3 bedrooms">
+   <label>Type of work</label><select id="n_trade">${Object.entries(TRADES).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('')}</select>
+   <div class="btns"><button class="btn" id="n_go">Create job</button></div></div>`;
+  $('n_go').onclick=async()=>{try{msg('');const r=await api('/api/jobs',{name:$('n_name').value,email:$('n_email').value,phone:$('n_phone').value,address:$('n_addr').value,city:$('n_city').value,zip:$('n_zip').value,title:$('n_title').value,trade:$('n_trade').value});location.href='/jobs?id='+r.jobId;}catch(e){msg(e.message);}};
+}
+
+function qtyFields(rc){
+  if(!rc)return[];
+  const out=[...(BASE[rc.method]||[])];
+  for(const k of Object.keys(rc.data||{})){if(k.endsWith('_pct')||!QL[k])continue;if(typeof rc.data[k]==='number'&&rc.data[k]>0)out.push([k,QL[k]]);}
+  return out;
+}
+function totals(){
+  const sub=lines.reduce((s,l)=>s+Math.round((+l.qty||0)*(+l.unitPrice||0)*100),0);
+  const disc=Math.min(Math.round((+$('discount').value||0)*100),sub);
+  const tax=Math.round((sub-disc)*(+$('tax').value||0)/100);
+  return{sub,disc,tax,total:sub-disc+tax};
+}
+const $$=c=>'$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+function drawLines(){
+  $('lines').innerHTML=lines.length?`<div class="line head"><span>Description</span><span>Qty</span><span>Unit</span><span>Price ($)</span><span></span></div>`+lines.map((l,i)=>`<div class="line"><input data-i="${i}" data-f="description" value="${esc(l.description)}"><input data-i="${i}" data-f="qty" inputmode="decimal" value="${esc(l.qty)}"><input data-i="${i}" data-f="unit" value="${esc(l.unit)}"><input data-i="${i}" data-f="unitPrice" inputmode="decimal" value="${esc(l.unitPrice)}"><button data-del="${i}" title="Remove">&times;</button></div>`).join(''):'<p class="muted">No lines yet. Fill them from your prices above, or add a line by hand.</p>';
+  drawTotals();
+}
+function drawTotals(){const t=totals();$('tot').innerHTML=`Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;}
+function readEstimate(){return{lines,scope:$('scope').value,notes:$('notes').value,taxPct:$('tax').value,discount:$('discount').value,validDays:$('valid').value,language:$('lang').value};}
+
+async function detail(id){
+  const d=await api('/api/job?id='+id);J=d;const j=d.job,e=d.estimate;
+  lines=e&&e.estimate?e.estimate.lines.map(l=>({description:l.description,qty:l.qty,unit:l.unit,unitPrice:l.unitCents/100})):[];
+  const qf=qtyFields(d.rateCard);const est=e&&e.estimate?e.estimate:{};
+  $('view').innerHTML=`<p><a href="/jobs">&larr; All jobs</a></p>
+  <h2>${esc(j.title)}</h2>
+  <div class="card"><b>${esc(j.customerName)}</b> <span class="tag">${esc(STAGE[j.stage]||j.stage)}</span><br>
+   <small>${esc([j.customerEmail,j.customerPhone].filter(Boolean).join(' · ')||'No contact details')}<br>${esc([j.address,j.city,j.zip].filter(Boolean).join(', ')||'No address yet')} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div>
+  <h3>1. Measurements and quantities</h3>
+  <div class="card">${d.rateCard?`<small>Using your ${esc(TRADES[j.trade]||j.trade)} prices. Enter how many of each; leave blank for none.</small>
+   <div class="row">${qf.map(([k,l])=>`<div><label>${esc(l)}</label><input data-q="${esc(k)}" inputmode="decimal"></div>`).join('')}</div>
+   <div class="btns"><button class="btn sec" id="fill">Fill lines from my prices</button></div>`:`<p class="muted">You have not set prices for this type of work yet. <a href="/app">Open Wizard setup</a> (step 3), or add lines by hand below.</p>`}</div>
+  <h3>2. Estimate</h3>
+  <div class="card"><label>Scope of work (what the customer gets)</label><textarea id="scope" rows="4">${esc(est.scope||'')}</textarea>
+   <div id="lines" style="margin-top:12px"></div>
+   <div class="btns"><button class="btn sec" id="addline">+ Add a line</button></div>
+   <div class="row"><div><label>Discount ($)</label><input id="discount" inputmode="decimal" value="${esc((est.discountCents||0)/100||'')}"></div><div><label>Sales tax (%)</label><input id="tax" inputmode="decimal" value="${esc(est.taxPct||'')}"></div></div>
+   <div class="row"><div><label>Valid for (days)</label><input id="valid" inputmode="numeric" value="${esc(est.validDays||30)}"></div><div><label>Language</label><select id="lang"><option value="en">English</option><option value="es" ${est.language==='es'?'selected':''}>Español</option></select></div></div>
+   <label>Notes for the customer</label><textarea id="notes" rows="3">${esc(est.notes||'')}</textarea>
+   <div class="tot" id="tot"></div>
+   <div class="btns"><button class="btn" id="save">Save estimate</button><button class="btn sec" id="view_doc" ${e?'':'disabled'}>View / print</button><button class="btn sec" id="send" ${j.customerEmail?'':'disabled'}>Email to customer</button></div>
+   <small>${e?`Status: ${esc(e.status)}`:'Not saved yet'}</small></div>
+  <h3>Job history</h3><div class="card">${d.events.map(v=>`<div class="ev"><b>${esc(v.kind)}</b> &middot; ${esc(v.at)}<br>${esc(v.text).slice(0,600)}</div>`).join('')||'<small>Nothing yet.</small>'}</div>`;
+  drawLines();
+  const f=$('fill');if(f)f.onclick=async()=>{try{msg('');const quantities={};document.querySelectorAll('[data-q]').forEach(i=>{if(i.value!=='')quantities[i.dataset.q]=Number(i.value);});const r=await api('/api/estimate',{action:'draft',jobId:j.id,quantities});if(!r.lines.length)throw new Error('Enter at least one quantity first.');lines=r.lines;drawLines();msg('Lines filled. Review and change anything you like.',true);}catch(e){if(e)msg(e.message);}};
+  $('addline').onclick=()=>{lines.push({description:'',qty:1,unit:'ea',unitPrice:0});drawLines();};
+  const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
+  $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>msg('Saved.',true));};
+  $('send').onclick=async()=>{if(!confirm('Email this estimate to '+j.customerEmail+'?'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
+  $('view_doc').onclick=()=>{if(e)window.open('/api/doc?id='+e.id,'_blank');};
+}
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.f!==undefined){lines[+t.dataset.i][t.dataset.f]=t.value;drawTotals();}else if(t.id==='discount'||t.id==='tax')drawTotals();});
+document.addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.del;if(d!==undefined&&d!==''){lines.splice(+d,1);drawLines();}});
+(async()=>{try{const id=new URLSearchParams(location.search).get('id');id?await detail(id):await list();}catch(e){if(e)$('view').innerHTML='<p class="bad">'+esc(e.message||'Could not load.')+'</p>';}})();
+</script></body></html>

@@ -1,7 +1,7 @@
 import { writeSummary } from "./ai.ts";
 import { ownerBriefText, writeBrief } from "./brief.ts";
 import { addJobEvent, ensureCustomerAndJob, tradeFor } from "./crm.ts";
-import { handleProfile, handleRateCard } from "./wizard-api.ts";
+import { handleDoc, handleEstimate, handleJob, handleJobs, handleProfile, handleRateCard } from "./wizard-api.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
@@ -432,6 +432,38 @@ export default {
         return await handleRateCard(request, env);
       } catch (err) {
         console.error("ratecard failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/jobs") {
+      try {
+        return await handleJobs(request, env);
+      } catch (err) {
+        console.error("handleJobs failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/job") {
+      try {
+        return await handleJob(request, env);
+      } catch (err) {
+        console.error("handleJob failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/estimate") {
+      try {
+        return await handleEstimate(request, env);
+      } catch (err) {
+        console.error("handleEstimate failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/doc") {
+      try {
+        return await handleDoc(request, env);
+      } catch (err) {
+        console.error("handleDoc failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
