@@ -2,6 +2,7 @@ export interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   BROWSER?: Fetcher;
+  FILES?: R2Bucket; // optional: where painters keep the original of their insurance policy
   GEMINI_API_BASE?: string; // tests only: points the document reader at a mock server
   // Secrets (set in Cloudflare: Settings -> Variables and Secrets). All optional: missing = demo mode.
   ANTHROPIC_API_KEY?: string;

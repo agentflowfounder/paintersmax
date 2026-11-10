@@ -37,6 +37,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;p
  <b>Upload your policy</b>
  <p class="muted" style="margin:6px 0">A PDF or a clear photo of your policy, up to 5 MB. The declarations page, the list of exclusions and any endorsements give the best results.</p>
  <input type="file" id="file" accept="application/pdf,image/png,image/jpeg,image/webp">
+ <label style="font-weight:400;display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="keep" style="width:auto;margin-top:3px"><span id="keeptxt">Keep a copy of the original file in my account, so I can open it on a job site or show it to a customer.</span></label>
  <div class="btns"><button class="btn" id="go">Read my policy</button></div>
  <small>Your file is sent to our AI provider to be read. We keep only the summary and the text it read, in your account, and not the original file. You can delete it any time. Reading takes up to a minute.</small>
 </div>
@@ -48,7 +49,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const $=id=>document.getElementById(id);
 function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
 async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
-let chat=[];
+let chat=[],storage=false;
 const ST={likely_covered:['lc','Likely covered'],check_with_agent:['cw','Check with your agent'],likely_excluded:['le','Likely not covered']};
 const lst=a=>a&&a.length?'<ul>'+a.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>':'<p class="muted">Nothing found in the document.</p>';
 function show(p){
@@ -65,7 +66,18 @@ function show(p){
  ${s.jobGuide.length?`<h3>Which jobs can I take on?</h3><div class="card"><table>${s.jobGuide.map(j=>`<tr><td><b>${esc(j.job)}</b><br><small>${esc(j.note)}</small></td><td><span class="pill ${ST[j.status][0]}">${ST[j.status][1]}</span></td></tr>`).join('')}</table></div>`:''}
  ${s.upgradeIdeas.length?`<h3>How to get covered for more</h3><div class="card"><ul>${s.upgradeIdeas.map(u=>`<li><b>${esc(u.need)}</b><br>${esc(u.suggestion)}</li>`).join('')}</ul></div>`:''}
  ${s.questionsForAgent.length?`<h3>Questions to ask your insurance agent</h3><div class="card">${lst(s.questionsForAgent)}</div>`:''}
- <div class="btns"><button class="btn sec" id="del">Delete my policy summary</button></div>`;
+ <h3>Your insurance tools</h3><div class="card" id="tools">
+  ${p.fileKept?'<p style="margin-top:0"><button class="btn sec" id="viewfile">Open my policy file</button> <small>Your saved copy, ready to show on a job site.</small></p>':'<p class="muted" style="margin-top:0">'+(storage?'Your original file was not kept. Upload it again with "Keep a copy" checked to save it here.':'Saving the original file is not turned on yet.')+'</p>'}
+  <p><button class="btn sec" id="fillprof">Use my carrier and expiry date in my profile</button></p>
+  <label style="font-weight:400;display:flex;gap:8px;align-items:center"><input type="checkbox" id="rem" style="width:auto" ${p.remindersOn?'checked':''}> Email me 30 days and 7 days before my policy expires, and on the day it ends</label>
+  <hr style="border:0;border-top:1px solid #eee;margin:14px 0">
+  <b>Proof of insurance page for customers</b>
+  <p class="muted" style="margin:4px 0">A simple page you can send or show a customer: your company, carrier, dates and limits. It is a summary you prepared, not an official certificate. Send an official certificate from your agent when a customer or building requires one.</p>
+  <label style="font-weight:400;display:flex;gap:8px;align-items:center"><input type="checkbox" id="shareon" style="width:auto" ${p.shared?'checked':''}> Turn on my customer link</label>
+  ${p.fileKept?`<label style="font-weight:400;display:flex;gap:8px;align-items:center"><input type="checkbox" id="sharefile" style="width:auto" ${p.shareFile?'checked':''}> Let customers also open my original policy file</label>`:''}
+  <div id="sharebox">${p.shared?'<small>Sharing is on. Turn it off and on again to get a new link.</small>':''}</div>
+ </div>
+ <div class="btns"><button class="btn sec" id="del">Delete my policy summary and saved file</button></div>`;
  $('askbox').innerHTML=`<h3>Ask about your policy</h3><div class="card"><small>Answers come from your policy text. ${p.readableChars<2000?'Only a little of the document could be read, so some answers may say they could not find it. ':''}Each question uses one of your monthly assistant questions.</small>
  <div id="log"></div>
  <label for="q">Your question</label><textarea id="q" rows="2" placeholder="Example: Am I covered if a ladder falls on a customer's car? Do I need more coverage to paint a 3-story building?"></textarea>
@@ -77,16 +89,26 @@ function draw(){$('log').innerHTML=chat.map(m=>`<div class="bub ${m.role==='user
 async function ask(q){q=(q||'').trim();if(!q)return;const b=$('ask');b.disabled=true;msg('');const hist=chat.slice();chat.push({role:'user',content:q});draw();$('q').value='';
  try{const r=await api('/api/insurance',{action:'ask',message:q,history:hist,language:$('lang').value});chat.push({role:'assistant',content:r.reply});}catch(e){if(e){chat.pop();msg(e.message);$('q').value=q;}}
  draw();b.disabled=false;}
+document.addEventListener('change',async e=>{const t=e.target;
+ try{if(t.id==='rem'){await api('/api/insurance',{action:'reminders',on:t.checked});msg(t.checked?'Reminders on.':'Reminders off.',true);}
+ else if(t.id==='shareon'||t.id==='sharefile'){const on=$('shareon').checked,inc=$('sharefile')?$('sharefile').checked:false;
+  const r=await api('/api/insurance',{action:'share',on,includeFile:inc});
+  $('sharebox').innerHTML=r.shared?`<input id="lnk" readonly value="${esc(r.link)}" onclick="this.select()"><div class="btns"><button class="btn sec" id="copy">Copy link</button><button class="btn sec" id="openlnk">Preview</button></div><small>Anyone with this link can see the page. Turn it off to stop sharing.</small>`:'<small>Sharing is off.</small>';}}
+ catch(x){if(x){msg(x.message);if(t.id==='shareon')t.checked=!t.checked;}}});
 document.addEventListener('click',async e=>{const t=e.target;
+ if(t.id==='copy'){try{await navigator.clipboard.writeText($('lnk').value);msg('Link copied.',true);}catch(x){$('lnk').select();}return;}
+ if(t.id==='openlnk'){window.open($('lnk').value,'_blank');return;}
  if(t.dataset&&t.dataset.q)ask(t.dataset.q);
  else if(t.id==='ask')ask($('q').value);
+else if(t.id==='viewfile')window.open('/api/insurance?file=1','_blank');
+ else if(t.id==='fillprof'){try{const r=await api('/api/insurance',{action:'fill_profile'});msg('Saved to your profile: '+(r.carrier||'no carrier found')+(r.expires?', expires '+r.expires:''),true);}catch(x){if(x)msg(x.message);}}
  else if(t.id==='del'){if(!confirm('Delete your saved policy summary and text?'))return;try{await api('/api/insurance',{action:'delete'});chat=[];$('out').innerHTML='';$('askbox').innerHTML='';$('up').querySelector('b').textContent='Upload your policy';msg('Deleted.',true);}catch(x){if(x)msg(x.message);}}
 });
 $('go').onclick=async()=>{const f=$('file').files[0];if(!f){msg('Choose a file first.');return;}
  if(f.size>5*1024*1024){msg('That file is over 5 MB. Upload just the declarations page and the exclusions pages.');return;}
  const b=$('go');b.disabled=true;msg('Reading your policy. This can take up to a minute...',true);
  try{const data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=()=>rej(new Error('Could not read that file.'));r.readAsDataURL(f);});
-  const r=await api('/api/insurance',{action:'analyze',fileName:f.name,mime:f.type,data});show(r.policy);chat=[];msg('Done. Review the summary below.',true);}
+  const r=await api('/api/insurance',{action:'analyze',fileName:f.name,mime:f.type,data,keepFile:$('keep').checked});storage=!!r.storage;show(r.policy);chat=[];msg('Done. Review the summary below.',true);}
  catch(e){if(e)msg(e.message);}b.disabled=false;};
-api('/api/insurance').then(r=>{if(r.policy)show(r.policy);}).catch(()=>{});
+api('/api/insurance').then(r=>{storage=!!r.storage;if(!storage){$('keep').disabled=true;$('keeptxt').textContent='Keeping a copy of the original file is not turned on yet. We will still read it and save the summary.';}if(r.policy)show(r.policy);}).catch(()=>{});
 </script></body></html>

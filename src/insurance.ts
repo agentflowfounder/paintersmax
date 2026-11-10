@@ -1,4 +1,5 @@
-import { getSessionUser } from "./auth.ts";
+import { getSessionUser, randomToken, sha256Hex } from "./auth.ts";
+import { sendLeadEmail } from "./email.ts";
 import { complete, keyFor, sanitizeHistory } from "./assistant.ts";
 import { consume, refund } from "./usage.ts";
 import type { Env } from "./types.ts";
@@ -167,10 +168,16 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
   const user = await getSessionUser(env, request);
   if (!user) return json({ error: "Not signed in." }, 401);
 
+  if (request.method === "GET" && new URL(request.url).searchParams.get("file") === "1") {
+    const row = await env.DB.prepare("SELECT file_key, file_mime, file_name FROM insurance_policies WHERE company_id = ?").bind(user.companyId).first<any>();
+    if (!row?.file_key || !env.FILES) return new Response("Not found.", { status: 404 });
+    return streamFile(env, row.file_key, row.file_mime, row.file_name);
+  }
   if (request.method === "GET") {
-    const row = await env.DB.prepare("SELECT file_name, summary, updated_at, length(policy_text) AS chars FROM insurance_policies WHERE company_id = ?").bind(user.companyId).first<any>();
-    if (!row) return json({ policy: null });
-    return json({ policy: { fileName: row.file_name, updatedAt: row.updated_at, readableChars: row.chars, summary: JSON.parse(row.summary) } });
+    const row = await env.DB.prepare("SELECT file_name, summary, updated_at, length(policy_text) AS chars, file_key, share_token_hash, share_file, reminders_on FROM insurance_policies WHERE company_id = ?").bind(user.companyId).first<any>();
+    const storage = !!env.FILES;
+    if (!row) return json({ policy: null, storage });
+    return json({ policy: { fileName: row.file_name, updatedAt: row.updated_at, readableChars: row.chars, summary: JSON.parse(row.summary), fileKept: !!row.file_key, shared: !!row.share_token_hash, shareFile: row.share_file === 1, remindersOn: row.reminders_on === 1 }, storage });
   }
   if (request.method !== "POST") return json({ error: "Not found." }, 404);
   let b: any;
@@ -183,8 +190,48 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
   if (!company) return json({ error: "Not found." }, 404);
 
   if (b?.action === "delete") {
+    const old = await env.DB.prepare("SELECT file_key FROM insurance_policies WHERE company_id = ?").bind(user.companyId).first<{ file_key: string | null }>();
+    if (old?.file_key) await env.FILES?.delete(old.file_key).catch(() => {});
     await env.DB.prepare("DELETE FROM insurance_policies WHERE company_id = ?").bind(user.companyId).run();
     return json({ ok: true });
+  }
+
+  if (b?.action === "share") {
+    const row = await env.DB.prepare("SELECT file_key FROM insurance_policies WHERE company_id = ?").bind(user.companyId).first<{ file_key: string | null }>();
+    if (!row) return json({ error: "Upload your policy first." }, 400);
+    if (b.on !== true) {
+      await env.DB.prepare("UPDATE insurance_policies SET share_token_hash = NULL, share_file = 0 WHERE company_id = ?").bind(user.companyId).run();
+      return json({ ok: true, shared: false });
+    }
+    const token = randomToken();
+    const withFile = b.includeFile === true && !!row.file_key && !!env.FILES;
+    await env.DB.prepare("UPDATE insurance_policies SET share_token_hash = ?, share_file = ? WHERE company_id = ?").bind(await sha256Hex(token), withFile ? 1 : 0, user.companyId).run();
+    return json({ ok: true, shared: true, shareFile: withFile, link: `${new URL(request.url).origin}/coi/${token}` });
+  }
+
+  if (b?.action === "reminders") {
+    await env.DB.prepare("UPDATE insurance_policies SET reminders_on = ? WHERE company_id = ?").bind(b.on === true ? 1 : 0, user.companyId).run();
+    return json({ ok: true });
+  }
+
+  if (b?.action === "fill_profile") {
+    const row = await env.DB.prepare("SELECT summary FROM insurance_policies WHERE company_id = ?").bind(user.companyId).first<{ summary: string }>();
+    if (!row) return json({ error: "Upload your policy first." }, 400);
+    const s = sanitizeSummary(JSON.parse(row.summary));
+    const exp = isoDate(s.expires);
+    const prof = await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(user.companyId).first<{ data: string }>();
+    let data: any = {};
+    try {
+      data = prof ? JSON.parse(prof.data) : {};
+    } catch {
+      data = {};
+    }
+    data.insurance = { ...(data.insurance ?? {}), ...(s.carrier ? { carrier: s.carrier } : {}), ...(exp ? { expires: exp } : {}) };
+    await env.DB.prepare(
+      `INSERT INTO company_profiles (company_id, data, setup_step, completed, updated_at) VALUES (?, ?, 'start', 0, datetime('now'))
+       ON CONFLICT(company_id) DO UPDATE SET data = excluded.data, updated_at = datetime('now')`,
+    ).bind(user.companyId, JSON.stringify(data)).run();
+    return json({ ok: true, carrier: s.carrier, expires: exp });
   }
 
   if (b?.action === "analyze") {
@@ -206,11 +253,30 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
     }
     const summary = sanitizeSummary(parsed);
     const text = (textRaw ?? "").slice(0, MAX_TEXT);
+    // Optional: keep the original file so the painter can show it on a job site.
+    const old = await env.DB.prepare("SELECT file_key FROM insurance_policies WHERE company_id = ?").bind(user.companyId).first<{ file_key: string | null }>();
+    let fileKey: string | null = null;
+    let fileKept = false;
+    if (env.FILES) {
+      if (old?.file_key) await env.FILES.delete(old.file_key).catch(() => {});
+      if (b.keepFile === true) {
+        try {
+          const bin = Uint8Array.from(atob(data), (ch) => ch.charCodeAt(0));
+          fileKey = `insurance/${user.companyId}/${Date.now()}-${randomToken().slice(0, 8)}`;
+          await env.FILES.put(fileKey, bin, { httpMetadata: { contentType: mime } });
+          fileKept = true;
+        } catch (err) {
+          console.error("keep file failed", String(err));
+          fileKey = null;
+        }
+      }
+    }
     await env.DB.prepare(
-      `INSERT INTO insurance_policies (company_id, file_name, summary, policy_text) VALUES (?, ?, ?, ?)
-       ON CONFLICT(company_id) DO UPDATE SET file_name = excluded.file_name, summary = excluded.summary, policy_text = excluded.policy_text, updated_at = datetime('now')`,
-    ).bind(user.companyId, str(b.fileName, 120) || "policy", JSON.stringify(summary), text).run();
-    return json({ ok: true, policy: { fileName: str(b.fileName, 120), summary, readableChars: text.length } });
+      `INSERT INTO insurance_policies (company_id, file_name, summary, policy_text, file_key, file_mime, expires_on, reminded) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+       ON CONFLICT(company_id) DO UPDATE SET file_name = excluded.file_name, summary = excluded.summary, policy_text = excluded.policy_text,
+         file_key = excluded.file_key, file_mime = excluded.file_mime, expires_on = excluded.expires_on, reminded = NULL, updated_at = datetime('now')`,
+    ).bind(user.companyId, str(b.fileName, 120) || "policy", JSON.stringify(summary), text, fileKey, fileKey ? mime : null, isoDate(summary.expires)).run();
+    return json({ ok: true, policy: { fileName: str(b.fileName, 120), summary, readableChars: text.length, fileKept, shared: false, shareFile: false, remindersOn: true }, storage: !!env.FILES });
   }
 
   if (b?.action === "ask") {
@@ -288,4 +354,72 @@ export async function loadSummary(env: Env, companyId: number): Promise<PolicySu
 export async function coverageLine(env: Env, companyId: number, trade: string): Promise<string> {
   const c = coverageFor(await loadSummary(env, companyId), trade);
   return c ? `\nInsurance check: ${c.headline}${c.note ? ` (${c.note})` : ""} General information only, confirm with your agent.` : "";
+}
+
+// ---- Kept file, proof-of-insurance page for customers, expiry reminders ----
+
+export function isoDate(s: string | undefined | null): string | null {
+  if (!s) return null;
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : null;
+}
+
+async function streamFile(env: Env, key: string, mime: string | null, name: string): Promise<Response> {
+  const obj = await env.FILES!.get(key);
+  if (!obj) return new Response("Not found.", { status: 404 });
+  const safe = name.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 80) || "policy";
+  return new Response(obj.body, { headers: { "content-type": mime || "application/octet-stream", "content-disposition": `inline; filename="${safe}"`, "cache-control": "no-store", "x-robots-tag": "noindex", "x-content-type-options": "nosniff" } });
+}
+
+/** GET /api/insurance/public?t= shows the customer-facing proof of insurance. GET /api/insurance/public/file?t= gives the original if the painter allowed it. */
+export async function handlePublicInsurance(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const t = url.searchParams.get("t") ?? "";
+  if (!/^[0-9a-f]{64}$/.test(t)) return json({ error: "This link is not valid." }, 404);
+  const row = await env.DB.prepare(
+    `SELECT ip.summary, ip.file_key, ip.file_mime, ip.file_name, ip.share_file, co.name AS company
+       FROM insurance_policies ip JOIN companies co ON co.id = ip.company_id WHERE ip.share_token_hash = ?`,
+  ).bind(await sha256Hex(t)).first<any>();
+  if (!row) return json({ error: "This link is not valid or sharing was turned off." }, 404);
+  if (url.pathname.endsWith("/file")) {
+    if (row.share_file !== 1 || !row.file_key || !env.FILES) return new Response("Not found.", { status: 404 });
+    return streamFile(env, row.file_key, row.file_mime, row.file_name);
+  }
+  const s = sanitizeSummary(JSON.parse(row.summary));
+  const exp = Date.parse(s.expires);
+  return json({
+    company: row.company,
+    carrier: s.carrier,
+    policyTypes: s.policyTypes,
+    effective: s.effective,
+    expires: s.expires,
+    expired: Number.isFinite(exp) && exp < Date.now(),
+    limits: s.limits,
+    hasFile: row.share_file === 1 && !!row.file_key && !!env.FILES,
+  });
+}
+
+const stageFor = (days: number): "30" | "7" | "0" | null => (days <= 0 ? "0" : days <= 7 ? "7" : days <= 30 ? "30" : null);
+const ORDER = ["30", "7", "0"];
+
+/** Run from the scheduled job. Emails the owner at 30 days, 7 days and at expiry. Cheap when there is nothing to send. */
+export async function sendInsuranceReminders(env: Env): Promise<void> {
+  const rows = await env.DB.prepare(
+    `SELECT ip.company_id, ip.expires_on, ip.reminded, co.name, co.notify_email, (SELECT email FROM users WHERE company_id = co.id ORDER BY id LIMIT 1) AS owner
+       FROM insurance_policies ip JOIN companies co ON co.id = ip.company_id
+      WHERE ip.reminders_on = 1 AND ip.expires_on IS NOT NULL AND ip.expires_on <= date('now','+30 days')`,
+  ).all<any>();
+  for (const r of rows.results) {
+    const days = Math.floor((Date.parse(r.expires_on) - Date.now()) / 86400000) + 1;
+    const stage = stageFor(days);
+    if (!stage || (r.reminded && ORDER.indexOf(stage) <= ORDER.indexOf(r.reminded))) continue;
+    const to = r.notify_email || r.owner;
+    if (!to) continue;
+    const subject = stage === "0" ? `Your insurance policy has expired (${r.name})` : `Your insurance policy expires in ${Math.max(days, 1)} days (${r.name})`;
+    const text = stage === "0"
+      ? `Your insurance policy on file ended on ${r.expires_on}. Jobs may not be covered until it is renewed. Renew it, then upload the new policy on the Insurance page so your checks stay accurate.\n\nhttps://paintersmax.app/insurance`
+      : `Your insurance policy on file ends on ${r.expires_on}. Contact your agent about renewing, then upload the new policy on the Insurance page.\n\nhttps://paintersmax.app/insurance`;
+    const res = await sendLeadEmail(env, to, subject, text);
+    if (res === "sent") await env.DB.prepare("UPDATE insurance_policies SET reminded = ? WHERE company_id = ?").bind(stage, r.company_id).run();
+  }
 }

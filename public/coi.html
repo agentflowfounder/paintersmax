@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Proof of insurance</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0;padding:16px}
+.wrap{max-width:640px;margin:0 auto}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0 2px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.12);border-radius:10px;padding:16px;margin:14px 0}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 10px;font-size:15px}.kv b{color:#4A5568;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:15px}td{padding:8px 4px;border-bottom:1px solid #eee}
+.bad{background:#fdecea;color:#b42318;border-radius:8px;padding:10px;font-weight:600}
+.btn{padding:11px 16px;border-radius:8px;border:0;font-weight:700;font-size:15px;cursor:pointer;background:#E8A33D;color:#0F1B2D;text-decoration:none;display:inline-block}
+.muted{color:#4A5568;font-size:13px}
+@media print{.noprint{display:none}body{background:#fff}}
+</style></head><body><div class="wrap">
+<h1 id="co">Proof of insurance</h1><div class="muted">Insurance summary prepared by the contractor</div>
+<div id="out" class="card">Loading...</div>
+<p class="muted">This page is a summary prepared by the contractor from their own policy. It is not an official certificate of insurance and does not change the policy. If you need an official certificate, ask the contractor to have their insurance agent send one. Secure page by PaintersMax.</p>
+<button class="btn noprint" onclick="window.print()">Print this page</button>
+</div>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const t=location.pathname.split('/')[2]||'';
+fetch('/api/insurance/public?t='+encodeURIComponent(t)).then(r=>r.json()).then(d=>{
+ const o=document.getElementById('out');
+ if(d.error){o.textContent=d.error;return;}
+ document.getElementById('co').textContent=d.company;document.title='Proof of insurance - '+d.company;
+ o.innerHTML=(d.expired?'<div class="bad">This policy shows an end date that has passed. Ask the contractor for a current policy.</div><br>':'')+
+ `<div class="kv"><b>Carrier</b><span>${esc(d.carrier)||'Not listed'}</span><b>Coverage</b><span>${esc(d.policyTypes.join(', '))||'Not listed'}</span><b>Effective</b><span>${esc(d.effective)||'Not listed'}</span><b>Expires</b><span>${esc(d.expires)||'Not listed'}</span></div>`+
+ (d.limits.length?`<h3>Limits</h3><table>${d.limits.map(l=>`<tr><td>${esc(l.label)}</td><td><b>${esc(l.value)}</b></td></tr>`).join('')}</table>`:'')+
+ (d.hasFile?`<p class="noprint"><a class="btn" href="/api/insurance/public/file?t=${encodeURIComponent(t)}" target="_blank">Open the policy document</a></p>`:'');
+}).catch(()=>{document.getElementById('out').textContent='This page could not be loaded.';});
+</script></body></html>

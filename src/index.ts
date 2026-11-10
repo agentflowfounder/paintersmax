@@ -1,6 +1,6 @@
 import { coverageLine } from "./insurance.ts";
 import { handleHome } from "./home.ts";
-import { handleInsurance } from "./insurance.ts";
+import { handleInsurance, handlePublicInsurance, sendInsuranceReminders } from "./insurance.ts";
 import { handlePublicTicker } from "./ticker.ts";
 import { handleEsign, handleSign } from "./esign.ts";
 import { writeSummary } from "./ai.ts";
@@ -353,6 +353,7 @@ async function handleSettings(request: Request, env: Env): Promise<Response> {
 export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(sendChatDigests(env).catch((err) => console.error("chat digest failed", String(err))));
+    ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { pathname } = new URL(request.url);
@@ -567,6 +568,15 @@ export default {
         return json({ error: "Something went wrong." }, 500);
       }
     }
+    if (pathname === "/api/insurance/public" || pathname === "/api/insurance/public/file") {
+      try {
+        return await handlePublicInsurance(request, env);
+      } catch (err) {
+        console.error("handlePublicInsurance failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname.startsWith("/coi/") && request.method === "GET") return env.ASSETS.fetch(new URL("/coi", request.url));
     if (pathname === "/api/insurance") {
       try {
         return await handleInsurance(request, env);
