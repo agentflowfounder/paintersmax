@@ -465,5 +465,36 @@
     [/^(.+) Leave both empty to use local standard rates\.$/, function (a, r) { return x(r) + ' Deje ambos vacíos para usar las tarifas estándar de su zona.'; }],
   ]);
 
+  /* ---- Part 7: insurance protection features (proof to customers, claim help, nudges) ---- */
+  pmI18n.add({
+    'Insurance guide': 'Guía de seguros', 'Insurance guide →': 'Guía de seguros →', 'Read the insurance guide': 'Lea la guía de seguros', 'Read the insurance guide.': 'Lea la guía de seguros.', 'Preview': 'Vista previa',
+    'No insurance yet?': '¿Todavía no tiene seguro?', 'Customers often ask for proof before they hire, so you may win more jobs with coverage.': 'Los clientes suelen pedir un comprobante antes de contratar, así que con cobertura puede ganar más trabajos.',
+    'Protect this job': 'Proteja este trabajo', 'before, during and after the work': 'antes, durante y después del trabajo', 'Email my proof of insurance to the customer': 'Enviar mi comprobante de seguro al cliente por correo',
+    'Something happened? Get claim help': '¿Pasó algo? Pida ayuda con el reclamo',
+    'To email proof of insurance, add your policy and turn on your customer link on the Insurance page, and make sure this customer has an email address.': 'Para enviar el comprobante de seguro, agregue su póliza y active su enlace para clientes en la página de Seguro, y confirme que este cliente tenga un correo electrónico.',
+    'If something goes wrong': 'Si algo sale mal', 'If anyone is hurt, call 911 first.': 'Si alguien está lesionado, llame primero al 911.', 'Make the area safe and stop work near the problem.': 'Haga seguro el área y pare el trabajo cerca del problema.',
+    'Take photos and video of everything before anything is moved or cleaned up.': 'Tome fotos y video de todo antes de mover o limpiar algo.', 'Write down the name and phone number of everyone involved and any witnesses.': 'Anote el nombre y teléfono de todos los involucrados y de los testigos.',
+    'Do not admit fault, promise to pay or sign anything. Say you will report it to your insurance.': 'No admita culpa, no prometa pagar ni firme nada. Diga que lo va a reportar a su seguro.', 'Call your insurance agent or carrier as soon as you can. Many policies require quick notice.': 'Llame a su agente o aseguradora lo antes posible. Muchas pólizas exigen aviso rápido.',
+    'Keep every receipt, message and quote. Do not throw away damaged items.': 'Guarde todos los recibos, mensajes y cotizaciones. No tire los objetos dañados.',
+    'Date it happened': 'Fecha en que ocurrió', 'Was anyone hurt?': '¿Alguien resultó lesionado?', 'What happened?': '¿Qué pasó?', "Damage to the customer's property?": '¿Daños a la propiedad del cliente?', 'Others involved or witnesses': 'Otras personas involucradas o testigos',
+    "Example: A ladder slipped and scratched the customer's car in the driveway.": 'Ejemplo: Una escalera se resbaló y rayó el carro del cliente en la entrada.', 'Example: Scratch on the driver side door. Photos taken.': 'Ejemplo: Rayón en la puerta del conductor. Ya tomé fotos.', 'Example: Crew member Luis, neighbor next door.': 'Ejemplo: El ayudante Luis y el vecino de al lado.',
+    'Save to job history and build my claim sheet': 'Guardar en el historial del trabajo y preparar mi hoja de reclamo', 'Claim information sheet (copy it into an email to your agent)': 'Hoja de información del reclamo (cópiela en un correo a su agente)', 'Copy': 'Copiar',
+    'General information only, not legal or insurance advice. Your insurance company decides what is covered.': 'Solo información general, no asesoría legal ni de seguros. Su compañía de seguros decide qué está cubierto.',
+    'Proof of insurance emailed to the customer.': 'Comprobante de seguro enviado por correo al cliente.', 'Describe what happened first.': 'Primero describa qué pasó.', 'Saved to the job history. Your claim sheet is ready below. Call or email your insurance agent now.': 'Guardado en el historial del trabajo. Su hoja de reclamo está lista abajo. Llame o escriba a su agente de seguros ahora.',
+    'Copied.': 'Copiado.', 'Press Ctrl+C or Command+C to copy.': 'Presione Ctrl+C o Comando+C para copiar.',
+    'Show that I am insured on my estimates and my quote page': 'Mostrar que tengo seguro en mis presupuestos y en mi página de cotización',
+    'Customers see "Insured" and a link to your proof page, which can help you win more jobs.': 'Los clientes ven "Asegurado" y un enlace a su página de comprobante, lo que puede ayudarle a ganar más trabajos.', 'It only shows while your customer link is on and your policy has not expired.': 'Solo se muestra mientras su enlace para clientes esté activado y su póliza no haya vencido.',
+    'Leave it off if you do not have coverage.': 'Déjelo apagado si no tiene cobertura.', 'On any job you can also email your proof to the customer before you start.': 'En cualquier trabajo también puede enviar su comprobante por correo al cliente antes de empezar.',
+    'Customers will see that you are insured.': 'Los clientes verán que usted tiene seguro.', 'Your coverage is hidden from customers.': 'Su cobertura está oculta para los clientes.', 'Sharing is on. Turn it off and on again to get a link you can also email from a job.': 'Compartir está activado. Apáguelo y vuélvalo a encender para obtener un enlace que también puede enviar por correo desde un trabajo.',
+    'Turn on your customer link on the Insurance page first. It is also off when your policy has expired.': 'Primero active su enlace para clientes en la página de Seguro. También se apaga cuando su póliza vence.',
+    'Email is not set up yet, so nothing was sent. Copy your link from the Insurance page and send it yourself.': 'El correo todavía no está configurado, así que no se envió nada. Copie su enlace de la página de Seguro y envíelo usted.',
+    'This customer has no email address.': 'Este cliente no tiene correo electrónico.', 'Job not found.': 'Trabajo no encontrado.',
+    'No insurance policy on file. Add yours so PaintersMax can tell you if each job is covered. If you do not have coverage yet, the Insurance guide explains how it helps you win jobs and how to get it.': 'No hay una póliza de seguro registrada. Agregue la suya para que PaintersMax le diga si cada trabajo está cubierto. Si todavía no tiene cobertura, la Guía de seguros explica cómo le ayuda a ganar trabajos y cómo conseguirla.',
+  }, [
+    [/^(\d+) open jobs? may not be covered by your policy\. Check the insurance note on each job before you bid or start\.$/, function (a, n) { return n + (n === '1' ? ' trabajo abierto puede no estar cubierto' : ' trabajos abiertos pueden no estar cubiertos') + ' por su póliza. Revise la nota de seguro de cada trabajo antes de hacer la oferta o empezar.'; }],
+    [/^Sent proof of insurance to (.+)\.$/, function (a, e) { return 'Comprobante de seguro enviado a ' + e + '.'; }],
+    [/^Incident report \((.+?)\): ([\s\S]+)$/, function (a, d, r) { return 'Reporte de incidente (' + d + '): ' + r; }],
+  ]);
+
   pmI18n.start();
 })();

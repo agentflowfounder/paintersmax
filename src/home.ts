@@ -1,4 +1,5 @@
 import { getSessionUser } from "./auth.ts";
+import { coverageFor, sanitizeSummary } from "./insurance.ts";
 import type { Env } from "./types.ts";
 
 /** GET /api/home: real numbers for the painter's Home screen. Nothing is estimated. All counts come from this company's own records. */
@@ -59,6 +60,25 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
         if (days < 0) attention.unshift({ type: "insurance", link: "/insurance", text: `Your insurance policy expired ${-days} days ago. Update it on the Insurance page.` });
         else if (days <= 30) attention.unshift({ type: "insurance", link: "/insurance", text: `Your insurance policy expires in ${days} days.` });
       }
+    } catch {
+      /* ignore unreadable summary */
+    }
+  }
+  if (!policy) {
+    attention.push({
+      type: "insurance",
+      link: "/insurance",
+      text: "No insurance policy on file. Add yours so PaintersMax can tell you if each job is covered. If you do not have coverage yet, the Insurance guide explains how it helps you win jobs and how to get it.",
+    });
+  } else {
+    try {
+      const summary = sanitizeSummary(JSON.parse(policy.summary));
+      const open = await env.DB.prepare("SELECT trade FROM jobs WHERE company_id = ? AND stage IN ('lead','bid','contract','scheduled','in_progress','punch')").bind(c).all<{ trade: string }>();
+      const n = open.results.filter((j) => {
+        const cv = coverageFor(summary, j.trade);
+        return cv && cv.status !== "likely_covered";
+      }).length;
+      if (n) attention.push({ type: "insurance", link: "/jobs", text: `${n} open job${n === 1 ? "" : "s"} may not be covered by your policy. Check the insurance note on each job before you bid or start.` });
     } catch {
       /* ignore unreadable summary */
     }

@@ -1,6 +1,6 @@
 import { coverageLine } from "./insurance.ts";
 import { handleHome } from "./home.ts";
-import { handleInsurance, handlePublicInsurance, sendInsuranceReminders } from "./insurance.ts";
+import { coiLink, handleInsurance, handlePublicInsurance, sendInsuranceReminders, showsCustomers } from "./insurance.ts";
 import { handlePublicTicker } from "./ticker.ts";
 import { handleEsign, handleSign } from "./esign.ts";
 import { writeSummary } from "./ai.ts";
@@ -313,12 +313,14 @@ async function sendChatDigests(env: Env): Promise<number> {
 
 /** Public quote page for one company: /q/their-slug. Works as a link and inside an iframe. */
 async function handleQuotePage(request: Request, env: Env, slug: string): Promise<Response> {
-  const c = await env.DB.prepare("SELECT slug, name, settings FROM companies WHERE slug = ?")
+  const c = await env.DB.prepare("SELECT id, slug, name, settings FROM companies WHERE slug = ?")
     .bind(slug)
-    .first<{ slug: string; name: string; settings: string }>();
+    .first<{ id: number; slug: string; name: string; settings: string }>();
   if (!c) return new Response("Not found.", { status: 404 });
   const tpl = await env.ASSETS.fetch(new URL("/q-template.html", request.url));
-  const html = renderQuotePage(await tpl.text(), c, readSettings(c.settings));
+  // Optional "Insured" badge, only when the painter chose to show their coverage and has a valid proof page.
+  const proof = (await showsCustomers(env, c.id)) ? await coiLink(env, c.id, new URL(request.url).origin) : null;
+  const html = renderQuotePage(await tpl.text(), c, readSettings(c.settings), proof);
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=60" } });
 }
 

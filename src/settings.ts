@@ -46,7 +46,7 @@ export const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 /** Fills the public quote page template for one company. */
-export function renderQuotePage(template: string, c: { slug: string; name: string }, s: CompanySettings): string {
+export function renderQuotePage(template: string, c: { slug: string; name: string }, s: CompanySettings, proofUrl?: string | null): string {
   const e = escapeHtml;
   const logo = s.logoUrl ? `<img class="logo" src="${e(s.logoUrl)}" alt="${e(c.name)}">` : "";
   return template
@@ -54,5 +54,6 @@ export function renderQuotePage(template: string, c: { slug: string; name: strin
     .replaceAll("{{SLUG}}", e(c.slug))
     .replaceAll("{{COLOR}}", s.brandColor ?? "#E8A33D")
     .replaceAll("{{LOGO}}", logo)
+    .replaceAll("{{INSURED}}", proofUrl ? `<p class="insured">&#10003; Insured &middot; <a href="${e(proofUrl)}" target="_blank" rel="noopener">View proof of insurance</a></p>` : "")
     .replaceAll("{{TAGLINE}}", e(s.tagline ?? "Tell us about the job and see a price range in seconds. Add photos for a more accurate estimate."));
 }

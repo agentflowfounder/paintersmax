@@ -28,7 +28,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;p
 .chip{border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:6px 12px;font-size:13px;cursor:pointer;margin:4px 4px 0 0}
 .kv{display:grid;grid-template-columns:150px 1fr;gap:4px 10px;font-size:14px}.kv b{color:#4A5568;font-weight:600}
 </style></head><body>
-<header><div><b>PaintersMax</b> Insurance</div><div><a href="/jobs">Jobs</a><a href="/materials">Materials</a><a href="/app">Estimating Setup</a><a href="/dashboard">Settings and leads</a></div></header>
+<header><div><b>PaintersMax</b> Insurance</div><div><a href="/jobs">Jobs</a><a href="/insurance-guide">Insurance guide</a><a href="/materials">Materials</a><a href="/app">Estimating Setup</a><a href="/dashboard">Settings and leads</a></div></header>
 <main>
 <h1>Know what your insurance covers</h1>
 <div class="note"><b>General information only.</b> This is not insurance or legal advice, and an AI can misread a document. Your insurance company decides what is covered. Before a big job, or if you ever need to file a claim, confirm with your agent in writing.</div>
@@ -47,6 +47,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;p
 <script>
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=id=>document.getElementById(id);
+function shareBox(on,link){if(!on)return '<small>Sharing is off.</small>';if(!link)return '<small>Sharing is on. Turn it off and on again to get a link you can also email from a job.</small>';return `<input id="lnk" readonly value="${esc(link)}" onclick="this.select()"><div class="btns"><button class="btn sec" id="copy">Copy link</button><button class="btn sec" id="openlnk">Preview</button></div><small>Anyone with this link can see the page. Turn it off to stop sharing.</small>`;}
 function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
 async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
 let chat=[],storage=false;
@@ -75,7 +76,9 @@ function show(p){
   <p class="muted" style="margin:4px 0">A simple page you can send or show a customer: your company, carrier, dates and limits. It is a summary you prepared, not an official certificate. Send an official certificate from your agent when a customer or building requires one.</p>
   <label style="font-weight:400;display:flex;gap:8px;align-items:center"><input type="checkbox" id="shareon" style="width:auto" ${p.shared?'checked':''}> Turn on my customer link</label>
   ${p.fileKept?`<label style="font-weight:400;display:flex;gap:8px;align-items:center"><input type="checkbox" id="sharefile" style="width:auto" ${p.shareFile?'checked':''}> Let customers also open my original policy file</label>`:''}
-  <div id="sharebox">${p.shared?'<small>Sharing is on. Turn it off and on again to get a new link.</small>':''}</div>
+  <div id="sharebox">${shareBox(p.shared,p.link)}</div>
+  <label style="font-weight:400;display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="showcust" style="width:auto" ${p.showCustomers?'checked':''}> Show that I am insured on my estimates and my quote page</label>
+  <p class="muted" style="margin:4px 0">Customers see "Insured" and a link to your proof page, which can help you win more jobs. It only shows while your customer link is on and your policy has not expired. Leave it off if you do not have coverage. On any job you can also email your proof to the customer before you start.</p>
  </div>
  <div class="btns"><button class="btn sec" id="del">Delete my policy summary and saved file</button></div>`;
  $('askbox').innerHTML=`<h3>Ask about your policy</h3><div class="card"><small>Answers come from your policy text. ${p.readableChars<2000?'Only a little of the document could be read, so some answers may say they could not find it. ':''}Each question uses one of your monthly assistant questions.</small>
@@ -93,7 +96,8 @@ document.addEventListener('change',async e=>{const t=e.target;
  try{if(t.id==='rem'){await api('/api/insurance',{action:'reminders',on:t.checked});msg(t.checked?'Reminders on.':'Reminders off.',true);}
  else if(t.id==='shareon'||t.id==='sharefile'){const on=$('shareon').checked,inc=$('sharefile')?$('sharefile').checked:false;
   const r=await api('/api/insurance',{action:'share',on,includeFile:inc});
-  $('sharebox').innerHTML=r.shared?`<input id="lnk" readonly value="${esc(r.link)}" onclick="this.select()"><div class="btns"><button class="btn sec" id="copy">Copy link</button><button class="btn sec" id="openlnk">Preview</button></div><small>Anyone with this link can see the page. Turn it off to stop sharing.</small>`:'<small>Sharing is off.</small>';}}
+  $('sharebox').innerHTML=shareBox(r.shared,r.link);}
+ else if(t.id==='showcust'){await api('/api/insurance',{action:'show_customers',on:t.checked});msg(t.checked?'Customers will see that you are insured.':'Your coverage is hidden from customers.',true);}}
  catch(x){if(x){msg(x.message);if(t.id==='shareon')t.checked=!t.checked;}}});
 document.addEventListener('click',async e=>{const t=e.target;
  if(t.id==='copy'){try{await navigator.clipboard.writeText($('lnk').value);msg('Link copied.',true);}catch(x){$('lnk').select();}return;}

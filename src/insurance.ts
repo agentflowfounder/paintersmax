@@ -1,5 +1,6 @@
 import { getSessionUser, randomToken, sha256Hex } from "./auth.ts";
-import { sendLeadEmail } from "./email.ts";
+import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
+import { addJobEvent } from "./crm.ts";
 import { complete, keyFor, sanitizeHistory } from "./assistant.ts";
 import { consume, refund } from "./usage.ts";
 import type { Env } from "./types.ts";
@@ -164,6 +165,22 @@ const ASK_SYSTEM = [
 ].join("\n");
 
 /** GET /api/insurance returns the saved summary. POST: analyze (upload), ask (question), delete. */
+const tokenKey = (companyId: number) => `coi_token:${companyId}`;
+
+/** The customer-facing proof-of-insurance link, when the painter has turned sharing on and the policy has not expired. Null otherwise. */
+export async function coiLink(env: Env, companyId: number, origin: string): Promise<string | null> {
+  try {
+    const row = await env.DB.prepare("SELECT share_token_hash, expires_on FROM insurance_policies WHERE company_id = ?").bind(companyId).first<{ share_token_hash: string | null; expires_on: string | null }>();
+    if (!row?.share_token_hash) return null;
+    if (row.expires_on && row.expires_on < new Date().toISOString().slice(0, 10)) return null;
+    const t = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(tokenKey(companyId)).first<{ value: string }>();
+    if (!t || (await sha256Hex(t.value)) !== row.share_token_hash) return null;
+    return `${origin}/coi/${t.value}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function handleInsurance(request: Request, env: Env): Promise<Response> {
   const user = await getSessionUser(env, request);
   if (!user) return json({ error: "Not signed in." }, 401);
@@ -177,7 +194,7 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
     const row = await env.DB.prepare("SELECT file_name, summary, updated_at, length(policy_text) AS chars, file_key, share_token_hash, share_file, reminders_on FROM insurance_policies WHERE company_id = ?").bind(user.companyId).first<any>();
     const storage = !!env.FILES;
     if (!row) return json({ policy: null, storage });
-    return json({ policy: { fileName: row.file_name, updatedAt: row.updated_at, readableChars: row.chars, summary: JSON.parse(row.summary), fileKept: !!row.file_key, shared: !!row.share_token_hash, shareFile: row.share_file === 1, remindersOn: row.reminders_on === 1 }, storage });
+    return json({ policy: { fileName: row.file_name, updatedAt: row.updated_at, readableChars: row.chars, summary: JSON.parse(row.summary), fileKept: !!row.file_key, shared: !!row.share_token_hash, link: await coiLink(env, user.companyId, new URL(request.url).origin), showCustomers: await showsCustomers(env, user.companyId), shareFile: row.share_file === 1, remindersOn: row.reminders_on === 1 }, storage });
   }
   if (request.method !== "POST") return json({ error: "Not found." }, 404);
   let b: any;
@@ -193,6 +210,7 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
     const old = await env.DB.prepare("SELECT file_key FROM insurance_policies WHERE company_id = ?").bind(user.companyId).first<{ file_key: string | null }>();
     if (old?.file_key) await env.FILES?.delete(old.file_key).catch(() => {});
     await env.DB.prepare("DELETE FROM insurance_policies WHERE company_id = ?").bind(user.companyId).run();
+    await env.DB.prepare("DELETE FROM app_settings WHERE key = ?").bind(tokenKey(user.companyId)).run();
     return json({ ok: true });
   }
 
@@ -201,12 +219,40 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
     if (!row) return json({ error: "Upload your policy first." }, 400);
     if (b.on !== true) {
       await env.DB.prepare("UPDATE insurance_policies SET share_token_hash = NULL, share_file = 0 WHERE company_id = ?").bind(user.companyId).run();
+      await env.DB.prepare("DELETE FROM app_settings WHERE key = ?").bind(tokenKey(user.companyId)).run();
       return json({ ok: true, shared: false });
     }
     const token = randomToken();
     const withFile = b.includeFile === true && !!row.file_key && !!env.FILES;
     await env.DB.prepare("UPDATE insurance_policies SET share_token_hash = ?, share_file = ? WHERE company_id = ?").bind(await sha256Hex(token), withFile ? 1 : 0, user.companyId).run();
+    await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')").bind(tokenKey(user.companyId), token).run();
     return json({ ok: true, shared: true, shareFile: withFile, link: `${new URL(request.url).origin}/coi/${token}` });
+  }
+
+  if (b?.action === "show_customers") {
+    await setProfileInsurance(env, user.companyId, { shareSummary: b.on === true });
+    return json({ ok: true, showCustomers: b.on === true });
+  }
+
+  if (b?.action === "email_customer") {
+    const link = await coiLink(env, user.companyId, new URL(request.url).origin);
+    if (!link) return json({ error: "Turn on your customer link on the Insurance page first. It is also off when your policy has expired." }, 400);
+    const jobId = Number(b.jobId);
+    const job = await env.DB.prepare(
+      `SELECT j.id, j.title, cu.name AS cname, cu.email AS cemail, co.name AS company, co.notify_email AS notify
+         FROM jobs j JOIN customers cu ON cu.id = j.customer_id JOIN companies co ON co.id = j.company_id WHERE j.id = ? AND j.company_id = ?`,
+    ).bind(jobId, user.companyId).first<{ id: number; title: string; cname: string; cemail: string | null; company: string; notify: string | null }>();
+    if (!job) return json({ error: "Job not found." }, 404);
+    if (!job.cemail) return json({ error: "This customer has no email address." }, 400);
+    const es = b.language === "es";
+    const subject = es ? `Comprobante de seguro de ${job.company}` : `Proof of insurance from ${job.company}`;
+    const text = es
+      ? `Hola ${job.cname},\n\nAntes de empezar "${job.title}", queremos que sepa que ${job.company} cuenta con seguro. Puede ver un resumen aquí:\n${link}\n\nEs un resumen preparado por nosotros, no un certificado oficial. Si necesita un certificado oficial, avísenos y lo pedimos a nuestro agente de seguros.\n\nSi algo ocurre durante el trabajo, avísenos de inmediato.\n\n${job.company}`
+      : `Hi ${job.cname},\n\nBefore we start "${job.title}", we want you to know that ${job.company} carries insurance. You can see a summary here:\n${link}\n\nThis is a summary we prepared, not an official certificate. If you need an official certificate, tell us and we will request one from our insurance agent.\n\nIf anything happens during the work, please tell us right away.\n\n${job.company}`;
+    const sent = await sendCustomerEmail(env, job.cemail, job.company, job.notify, subject, text);
+    if (sent !== "sent") return json({ error: "Email is not set up yet, so nothing was sent. Copy your link from the Insurance page and send it yourself." }, 503);
+    await addJobEvent(env, user.companyId, job.id, "note", `Sent proof of insurance to ${job.cemail}.`);
+    return json({ ok: true });
   }
 
   if (b?.action === "reminders") {
@@ -422,4 +468,26 @@ export async function sendInsuranceReminders(env: Env): Promise<void> {
     const res = await sendLeadEmail(env, to, subject, text);
     if (res === "sent") await env.DB.prepare("UPDATE insurance_policies SET reminded = ? WHERE company_id = ?").bind(stage, r.company_id).run();
   }
+}
+
+async function readProfile(env: Env, companyId: number): Promise<any> {
+  const prof = await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(companyId).first<{ data: string }>();
+  try {
+    return prof ? JSON.parse(prof.data) : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function showsCustomers(env: Env, companyId: number): Promise<boolean> {
+  return (await readProfile(env, companyId))?.insurance?.shareSummary === true;
+}
+
+async function setProfileInsurance(env: Env, companyId: number, patch: Record<string, unknown>): Promise<void> {
+  const data = await readProfile(env, companyId);
+  data.insurance = { ...(data.insurance ?? {}), ...patch };
+  await env.DB.prepare(
+    `INSERT INTO company_profiles (company_id, data, setup_step, completed, updated_at) VALUES (?, ?, 'start', 0, datetime('now'))
+     ON CONFLICT(company_id) DO UPDATE SET data = excluded.data, updated_at = datetime('now')`,
+  ).bind(companyId, JSON.stringify(data)).run();
 }

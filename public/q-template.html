@@ -9,6 +9,7 @@
   main{max-width:520px;margin:0 auto;background:#fff;padding:28px;border-radius:8px;border:1px solid rgba(15,27,45,.1)}
   h1{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 6px}
   p.sub{color:#4A5568;margin:0 0 20px}
+  p.insured{margin:-8px 0 18px;font-size:14px;color:#0a7a3d}p.insured a{color:inherit}
   label{display:block;font-size:14px;font-weight:600;margin:14px 0 4px}
   input,select,textarea{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cfd5dc;border-radius:6px;font:inherit}
   button{margin-top:20px;width:100%;padding:14px;border:0;border-radius:6px;background:{{COLOR}};color:#0F1B2D;font-weight:700;font-size:16px;cursor:pointer}
@@ -26,6 +27,7 @@
   {{LOGO}}
   <h1>Get your free estimate from {{NAME}}</h1>
   <p class="sub">{{TAGLINE}}</p>
+  {{INSURED}}
   <form id="f">
     <label for="name">Your name</label><input id="name" name="name" required>
     <label for="email">Email</label><input id="email" name="email" type="email" required>

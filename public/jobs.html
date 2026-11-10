@@ -88,8 +88,24 @@ function micInit(){const m=$('as_mic');if(m&&(window.SpeechRecognition||window.w
 const GROUPS=[['New leads',['lead'],'Customers who asked for a quote. Build an estimate to bid on them.'],['Estimate approved',['bid:signed'],'The customer signed the estimate. Build and send the contract next.'],['Waiting on the customer',['bid','contract'],'Estimates and contracts you sent. Waiting for the customer to approve or sign.'],['In progress',['scheduled','in_progress','punch'],'Approved jobs that are scheduled or underway.'],['Completed',['invoiced','closed'],'Finished and invoiced jobs.'],['Lost',['lost'],'']];
 const COVC={likely_covered:['#e6f4ea','#0a7a3d','Insured: appears covered'],check_with_agent:['#fff3d6','#8a5a00','Check your insurance'],likely_excluded:['#fdecea','#b42318','Insurance: may not cover'],expired:['#fdecea','#b42318','Policy expired']};
 function covPill(c){const x=COVC[c];return x?`<span class="sg" style="background:${x[0]};color:${x[1]}">${x[2]}</span>`:'';}
-function covBanner(c){if(!c)return `<div class="card" style="background:#f4f1ea"><small>Want to know if your insurance covers each job? <a href="/insurance">Upload your policy</a> and PaintersMax will check every lead and job for you.</small></div>`;const x=COVC[c.status];return `<div class="card" style="background:${x[0]};border-color:${x[1]}33"><b style="color:${x[1]}">${esc(c.headline)}</b>${c.note?`<br><small>${esc(c.note)}</small>`:''}<br><small>This is general information from your saved policy summary, not insurance advice. Confirm with your agent before a big job. <a href="/insurance">Open your policy</a></small></div>`;}
-function jobRow(j){return `<a class="job" href="/jobs?id=${j.id}"><div><b>${esc(j.title)}</b><br><small>${esc(j.customer)} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div><span>${covPill(j.coverage)}${j.signed?'<span class="sg">&#10003; Signed</span>':j.awaiting?'<span class="sg w">Awaiting signature</span>':''}<span class="tag">${esc(STAGE[j.stage]||j.stage)}</span></span></a>`;}
+function covBanner(c){if(!c)return `<div class="card" style="background:#f4f1ea"><small>Want to know if your insurance covers each job? <a href="/insurance">Upload your policy</a> and PaintersMax will check every lead and job for you. No insurance yet? Customers often ask for proof before they hire, so you may win more jobs with coverage. <a href="/insurance-guide">Read the insurance guide</a>.</small></div>`;const x=COVC[c.status];return `<div class="card" style="background:${x[0]};border-color:${x[1]}33"><b style="color:${x[1]}">${esc(c.headline)}</b>${c.note?`<br><small>${esc(c.note)}</small>`:''}<br><small>This is general information from your saved policy summary, not insurance advice. Confirm with your agent before a big job. <a href="/insurance">Open your policy</a></small></div>`;}
+
+function protectCard(d){const j=d.job||{};const has=!!d.coverage;const can=has&&j.customerEmail;
+ return `<div class="card"><b>Protect this job</b> <small class="muted">before, during and after the work</small>
+ <div class="btns" style="margin-top:8px;align-items:center"><button class="btn sec" data-inssend="1" ${can?'':'disabled'}>Email my proof of insurance to the customer</button>
+ <select id="ins_lang" style="width:auto;padding:6px 8px" aria-label="Language"><option value="en">English</option><option value="es" ${window.PM_LANG==='es'?'selected':''}>Español</option></select>
+ <button class="btn sec" data-claimopen="1">Something happened? Get claim help</button></div>
+ ${can?'':'<small>To email proof of insurance, add your policy and turn on your customer link on the <a href="/insurance">Insurance page</a>, and make sure this customer has an email address.</small>'}
+ <div id="claimbox" style="display:none;margin-top:12px"><b>If something goes wrong</b>
+ <ol style="margin:6px 0 10px 18px;padding:0"><li>If anyone is hurt, call 911 first.</li><li>Make the area safe and stop work near the problem.</li><li>Take photos and video of everything before anything is moved or cleaned up.</li><li>Write down the name and phone number of everyone involved and any witnesses.</li><li>Do not admit fault, promise to pay or sign anything. Say you will report it to your insurance.</li><li>Call your insurance agent or carrier as soon as you can. Many policies require quick notice.</li><li>Keep every receipt, message and quote. Do not throw away damaged items.</li></ol>
+ <div class="row"><div><label>Date it happened</label><input id="cl_date" type="date"></div><div><label>Was anyone hurt?</label><select id="cl_hurt"><option value="No">No</option><option value="Yes">Yes</option></select></div></div>
+ <label>What happened?</label><textarea id="cl_what" rows="3" placeholder="Example: A ladder slipped and scratched the customer's car in the driveway."></textarea>
+ <label>Damage to the customer's property?</label><textarea id="cl_dmg" rows="2" placeholder="Example: Scratch on the driver side door. Photos taken."></textarea>
+ <label>Others involved or witnesses</label><textarea id="cl_wit" rows="2" placeholder="Example: Crew member Luis, neighbor next door."></textarea>
+ <div class="btns"><button class="btn" data-claimbuild="1">Save to job history and build my claim sheet</button></div>
+ <div id="claimout" style="display:none"><label>Claim information sheet (copy it into an email to your agent)</label><textarea id="claimsheet" rows="12" readonly></textarea><div class="btns"><button class="btn sec" data-claimcopy="1">Copy</button></div>
+ <small>General information only, not legal or insurance advice. Your insurance company decides what is covered.</small></div></div></div>`;
+}function jobRow(j){return `<a class="job" href="/jobs?id=${j.id}"><div><b>${esc(j.title)}</b><br><small>${esc(j.customer)} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div><span>${covPill(j.coverage)}${j.signed?'<span class="sg">&#10003; Signed</span>':j.awaiting?'<span class="sg w">Awaiting signature</span>':''}<span class="tag">${esc(STAGE[j.stage]||j.stage)}</span></span></a>`;}
 async function list(){
   const {jobs}=await api('/api/jobs');
   $('view').innerHTML=`${assistantCard(null)}
@@ -180,6 +196,7 @@ async function detail(id){
   <div class="card"><b>${esc(j.customerName)}</b> <span class="tag">${esc(STAGE[j.stage]||j.stage)}</span><br>
    <small>${esc([j.customerEmail,j.customerPhone].filter(Boolean).join(' · ')||'No contact details')}<br>${esc([j.address,j.city,j.zip].filter(Boolean).join(', ')||'No address yet')} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div>
   ${covBanner(d.coverage)}
+  ${protectCard(d)}
   ${assistantCard(j.id)}
   <h3>1. Measurements and quantities</h3>
   <div class="card">${d.rateCard?`<small>Using your ${esc(TRADES[j.trade]||j.trade)} prices. Enter how many of each; leave blank for none.</small>
@@ -288,6 +305,22 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  else if(ds.ivpaid){if(!confirm('Mark this invoice as paid? The job will close.'))return;const r=await jd({action:'paid',kind:'invoice'});if(r)rel().then(()=>msg('Paid. Job closed.',true));}
 });
 document.addEventListener('change',e=>{if(e.target.id==='iv_msel'){const v=e.target.value;let paid=0;if(v!=='')for(let i=0;i<+v;i++)paid+=msOpts[i].amountCents;$('iv_paid').value=v!==''?(paid/100||''):'';}});
+document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if(!J)return;
+ if(ds.claimopen){const b=$('claimbox');b.style.display=b.style.display==='none'?'block':'none';if(b.style.display==='block'&&!$('cl_date').value)$('cl_date').value=new Date().toISOString().slice(0,10);}
+ else if(ds.inssend){try{msg('');t.disabled=true;await api('/api/insurance',{action:'email_customer',jobId:J.job.id,language:$('ins_lang').value});msg('Proof of insurance emailed to the customer.',true);}catch(x){if(x)msg(x.message);}t.disabled=false;}
+ else if(ds.claimbuild){try{msg('');const what=$('cl_what').value.trim();if(!what){msg('Describe what happened first.');return;}
+  let s={};try{const r=await api('/api/insurance');s=(r.policy&&r.policy.summary)||{};}catch(_){}
+  const j=J.job,date=$('cl_date').value||new Date().toISOString().slice(0,10);
+  const lines=['INCIDENT AND CLAIM INFORMATION SHEET','Prepared: '+new Date().toISOString().slice(0,10),'',
+   'Contractor / insured: '+(s.insured||'(your business name)'),'Insurance carrier: '+(s.carrier||'(not on file)'),'Policy number (last 4): '+(s.policyNumberLast4||'(see your policy)'),'Policy period: '+[s.effective,s.expires].filter(Boolean).join(' to '),'',
+   'Job: '+j.title,'Customer: '+j.customerName+(j.customerPhone?', '+j.customerPhone:'')+(j.customerEmail?', '+j.customerEmail:''),'Job address: '+([j.address,j.city,j.zip].filter(Boolean).join(', ')||'(not on file)'),'',
+   'Date of incident: '+date,'Anyone hurt: '+$('cl_hurt').value,'','What happened:',what,'','Damage to the customer property:',$('cl_dmg').value.trim()||'(none reported)','','Others involved or witnesses:',$('cl_wit').value.trim()||'(none listed)','',
+   'Photos and video taken: (yes or no)','Date I told my agent or carrier: (fill in)'];
+  const sheet=lines.join('\n');
+  await api('/api/jobnote',{jobId:j.id,text:'Incident report ('+date+'): '+what.slice(0,400)+(($('cl_hurt').value==='Yes')?' Someone was hurt.':'')});
+  $('claimsheet').value=sheet;$('claimout').style.display='block';msg('Saved to the job history. Your claim sheet is ready below. Call or email your insurance agent now.',true);}catch(x){if(x)msg(x.message);}}
+ else if(ds.claimcopy){try{await navigator.clipboard.writeText($('claimsheet').value);msg('Copied.',true);}catch(_){$('claimsheet').select();msg('Press Ctrl+C or Command+C to copy.');}}
+});
 document.addEventListener('input',e=>{const t=e.target,ds=t.dataset||{};if(ds.dk&&ds.df){const d=docs[ds.dk];if(!d)return;if(ds.di!==undefined)d.items[+ds.di][ds.df]=ds.df==='qty'?(Number(t.value)||0):t.value;else d[ds.df]=t.value;}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.ci!==undefined){clauses[+t.dataset.ci][t.dataset.cf]=t.value;return;}if(t.dataset&&t.dataset.f!==undefined){lines[+t.dataset.i][t.dataset.f]=t.value;drawTotals();}else if(t.id==='discount'||t.id==='tax')drawTotals();});
 document.addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.del;if(d!==undefined&&d!==''){lines.splice(+d,1);drawLines();}});

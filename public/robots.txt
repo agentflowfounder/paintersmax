@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /jobs
+Disallow: /app
+Disallow: /sign/
+Disallow: /coi/
+Disallow: /q/
+Sitemap: https://paintersmax.app/sitemap.xml

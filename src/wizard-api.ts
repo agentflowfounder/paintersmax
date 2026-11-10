@@ -1,4 +1,4 @@
-import { coverageFor, loadSummary } from "./insurance.ts";
+import { coiLink, coverageFor, loadSummary } from "./insurance.ts";
 import { getSessionUser } from "./auth.ts";
 import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } from "./profile.ts";
 import { consume, normalizePlan, refund } from "./usage.ts";
@@ -310,6 +310,8 @@ async function loadJobRow(env: Env, companyId: number, jobId: number) {
   };
 }
 
+const PUBLIC_BASE = "https://paintersmax.app";
+
 async function renderForJob(env: Env, companyId: number, jobId: number, est: ReturnType<typeof sanitizeEstimate>, totals: ReturnType<typeof computeTotals>): Promise<string | null> {
   const j = await loadJobRow(env, companyId, jobId);
   if (!j) return null;
@@ -320,6 +322,7 @@ async function renderForJob(env: Env, companyId: number, jobId: number, est: Ret
       brandColor: j.settings.brandColor,
       logoUrl: j.settings.logoUrl,
       insuranceLine: ins.shareSummary ? [ins.carrier, ins.coverage].filter(Boolean).join(", ") : undefined,
+      insuranceUrl: ins.shareSummary ? (await coiLink(env, companyId, PUBLIC_BASE)) ?? undefined : undefined,
       warrantyMonths: j.profile.warranty?.laborMonths,
       customer: { name: j.row.customerName, email: j.row.customerEmail, phone: j.row.customerPhone },
       property: j.property,
