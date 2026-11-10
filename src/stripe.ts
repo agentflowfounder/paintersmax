@@ -93,6 +93,19 @@ export async function verifyStripeSignature(payload: string, header: string | nu
   return ok;
 }
 
+/** Key in app_settings that marks a client whose last payment failed. The Home screen shows a banner until a payment succeeds. */
+export const pastDueKey = (companyId: number) => `past_due:${companyId}`;
+
+async function setPastDue(env: Env, column: "stripe_customer_id" | "stripe_subscription_id", value: string, on: boolean): Promise<void> {
+  const c = await env.DB.prepare(`SELECT id FROM companies WHERE ${column} = ?`).bind(value).first<{ id: number }>();
+  if (!c) return;
+  if (on) {
+    await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO NOTHING").bind(pastDueKey(c.id), new Date().toISOString()).run();
+  } else {
+    await env.DB.prepare("DELETE FROM app_settings WHERE key = ?").bind(pastDueKey(c.id)).run();
+  }
+}
+
 /** POST /api/stripe/webhook: Stripe tells us a payment happened or a subscription ended. */
 export async function handleStripeWebhook(request: Request, env: Env): Promise<Response> {
   if (request.method !== "POST" || !env.STRIPE_WEBHOOK_SECRET) return json({ error: "Not found." }, 404);
@@ -125,6 +138,14 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       .run();
   } else if (event.type === "customer.subscription.deleted" && typeof obj.id === "string") {
     await env.DB.prepare("UPDATE companies SET plan = 'free' WHERE stripe_subscription_id = ?").bind(obj.id).run();
+    await setPastDue(env, "stripe_subscription_id", obj.id, false);
+  } else if (event.type === "customer.subscription.updated" && typeof obj.id === "string" && ["unpaid", "canceled", "incomplete_expired"].includes(obj.status)) {
+    // Stripe gave up collecting: drop to the free plan. (past_due alone keeps access while Stripe retries the card.)
+    await env.DB.prepare("UPDATE companies SET plan = 'free' WHERE stripe_subscription_id = ?").bind(obj.id).run();
+  } else if (event.type === "invoice.payment_failed" && typeof obj.customer === "string") {
+    await setPastDue(env, "stripe_customer_id", obj.customer, true);
+  } else if ((event.type === "invoice.paid" || event.type === "invoice.payment_succeeded") && typeof obj.customer === "string") {
+    await setPastDue(env, "stripe_customer_id", obj.customer, false);
   }
   await env.DB.prepare("INSERT OR IGNORE INTO stripe_events (id, type) VALUES (?, ?)").bind(event.id, String(event.type).slice(0, 80)).run();
   return json({ ok: true });

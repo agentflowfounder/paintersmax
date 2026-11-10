@@ -1,5 +1,6 @@
 import { getSessionUser } from "./auth.ts";
 import { coverageFor, sanitizeSummary } from "./insurance.ts";
+import { pastDueKey } from "./stripe.ts";
 import type { Env } from "./types.ts";
 
 /** GET /api/home: real numbers for the painter's Home screen. Nothing is estimated. All counts come from this company's own records. */
@@ -64,6 +65,8 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
       /* ignore unreadable summary */
     }
   }
+  const pastDue = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(pastDueKey(c)).first<{ value: string }>().catch(() => null);
+  if (pastDue) attention.unshift({ type: "billing", link: "/dashboard#billing", text: "Your last PaintersMax payment did not go through. Update your card so your plan stays active." });
   if (!policy) {
     attention.push({
       type: "insurance",
