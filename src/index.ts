@@ -1,3 +1,5 @@
+import { coverageLine } from "./insurance.ts";
+import { handleHome } from "./home.ts";
 import { handleInsurance } from "./insurance.ts";
 import { handlePublicTicker } from "./ticker.ts";
 import { handleEsign, handleSign } from "./esign.ts";
@@ -75,6 +77,7 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   });
   if (fileIds && brief) await addJobEvent(env, company.id, fileIds.jobId, "photo_brief", ownerBriefText(brief.brief, lowCents, highCents));
 
+  const covQuote = await coverageLine(env, company.id, tradeFor(q.jobType));
   ctx.waitUntil(
     sendLeadEmail(
       env,
@@ -89,6 +92,7 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
         `Range shown: $${Math.round(lowCents / 100)} to $${Math.round(highCents / 100)}`,
         `Notes: ${q.details ?? "none"}`,
         `Photos: ${q.photos?.length ?? 0}`,
+        ...(covQuote ? [covQuote] : []),
         ...(brief ? ["", ownerBriefText(brief.brief, lowCents, highCents)] : q.photos?.length ? ["", "(Photos attached. The AI brief was not generated, so review them by hand.)"] : []),
       ].join("\n"),
       q.photos?.map((p, i) => ({ filename: `customer-photo-${i + 1}.${p.mime.split("/")[1] === "jpeg" ? "jpg" : p.mime.split("/")[1]}`, content: p.data })),
@@ -189,12 +193,13 @@ async function handleLead(request: Request, env: Env, ctx?: ExecutionContext): P
   });
   // The contact form emails the owner itself; other sources (like the chat) are alerted here.
   if (ctx && source !== "website-contact-form") {
+    const covChat = await coverageLine(env, company.id, tradeFor(detailsText.match(/Service:\s*([^.]*)/i)?.[1] ?? detailsText));
     ctx.waitUntil(
       sendLeadEmail(
         env,
         company.notify_email,
         `New ${source} lead for ${company.name}: ${name}`,
-        [`Name: ${name}`, `Email: ${email}`, `Phone: ${str(body?.phone, 40) || "n/a"}`, `ZIP: ${str(body?.zip, 10) || "n/a"}`, "", str(body?.details, 2000)].join("\n"),
+        [`Name: ${name}`, `Email: ${email}`, `Phone: ${str(body?.phone, 40) || "n/a"}`, `ZIP: ${str(body?.zip, 10) || "n/a"}`, "", str(body?.details, 2000), covChat].join("\n"),
       ),
     );
   }
@@ -543,6 +548,14 @@ export default {
         return await handleAdmin(request, env);
       } catch (err) {
         console.error("handleAdmin failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/home") {
+      try {
+        return await handleHome(request, env);
+      } catch (err) {
+        console.error("handleHome failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

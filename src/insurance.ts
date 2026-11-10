@@ -230,3 +230,62 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
   }
   return json({ error: "Unknown action." }, 400);
 }
+
+// ---- Coverage check: no AI call. The policy is read once at upload; every lead and job is matched against the saved summary. ----
+
+export type CoverageStatus = "likely_covered" | "check_with_agent" | "likely_excluded" | "expired";
+export interface Coverage {
+  status: CoverageStatus;
+  headline: string;
+  note: string;
+}
+
+const TRADE_WORDS: Record<string, string[]> = {
+  interior: ["interior"],
+  exterior: ["exterior"],
+  commercial: ["commercial"],
+  industrial: ["commercial"],
+  new_construction: ["new construction"],
+  power_washing: ["pressure", "power wash"],
+  drywall: ["drywall", "carpentry"],
+  remodeling: ["carpentry", "drywall"],
+  fencing: ["carpentry", "exterior"],
+  decks_fences: ["exterior"],
+  cabinets: ["interior", "spray", "fumes"],
+  epoxy_floors: ["spray", "fumes", "coating"],
+};
+
+const RANK: Record<string, number> = { likely_covered: 0, check_with_agent: 1, likely_excluded: 2 };
+export const COVERAGE_HEADLINE: Record<CoverageStatus, string> = {
+  likely_covered: "Your policy appears to cover this type of work.",
+  check_with_agent: "Check with your agent: your policy does not clearly cover this type of work.",
+  likely_excluded: "Heads up: your policy appears NOT to cover this type of work.",
+  expired: "Your insurance policy has expired. This job would not be covered until it is renewed.",
+};
+
+/** Matches a job type against the saved policy summary. Pure function, no network. Returns null when there is no policy. */
+export function coverageFor(summary: PolicySummary | null, trade: string, now = Date.now()): Coverage | null {
+  if (!summary) return null;
+  const exp = summary.expires ? Date.parse(summary.expires) : NaN;
+  if (Number.isFinite(exp) && exp < now) return { status: "expired", headline: COVERAGE_HEADLINE.expired, note: `The policy on file ended ${summary.expires}.` };
+  const words = TRADE_WORDS[trade] ?? [];
+  const hits = summary.jobGuide.filter((j) => words.some((w) => j.job.toLowerCase().includes(w)));
+  if (!hits.length) return { status: "check_with_agent", headline: COVERAGE_HEADLINE.check_with_agent, note: "Your policy summary does not mention this kind of work." };
+  const worst = hits.reduce((a, b) => (RANK[b.status] > RANK[a.status] ? b : a));
+  return { status: worst.status, headline: COVERAGE_HEADLINE[worst.status], note: worst.note };
+}
+
+export async function loadSummary(env: Env, companyId: number): Promise<PolicySummary | null> {
+  try {
+    const row = await env.DB.prepare("SELECT summary FROM insurance_policies WHERE company_id = ?").bind(companyId).first<{ summary: string }>();
+    return row ? sanitizeSummary(JSON.parse(row.summary)) : null;
+  } catch {
+    return null; // table not created yet, or unreadable
+  }
+}
+
+/** One line for lead alert emails. Empty when the company has not uploaded a policy. */
+export async function coverageLine(env: Env, companyId: number, trade: string): Promise<string> {
+  const c = coverageFor(await loadSummary(env, companyId), trade);
+  return c ? `\nInsurance check: ${c.headline}${c.note ? ` (${c.note})` : ""} General information only, confirm with your agent.` : "";
+}

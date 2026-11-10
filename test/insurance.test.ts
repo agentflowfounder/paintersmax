@@ -31,3 +31,25 @@ describe("insurance reader", () => {
     assert.equal(s.plain, "");
   });
 });
+
+import { coverageFor } from "../src/insurance.ts";
+describe("coverage check", () => {
+  const policy = sanitizeSummary({
+    expires: "2030-01-01",
+    jobGuide: [
+      { job: "Interior residential painting", status: "likely_covered", note: "ok" },
+      { job: "Exterior residential painting", status: "check_with_agent", note: "ask" },
+      { job: "Work above 2 stories", status: "likely_excluded", note: "limit" },
+      { job: "Commercial buildings", status: "likely_excluded", note: "no commercial" },
+    ],
+  });
+  it("matches a trade to the guide with no network", () => {
+    assert.equal(coverageFor(policy, "interior")?.status, "likely_covered");
+    assert.equal(coverageFor(policy, "commercial")?.status, "likely_excluded");
+    assert.equal(coverageFor(policy, "fencing")?.status, "check_with_agent");
+  });
+  it("is null without a policy and expired when past the end date", () => {
+    assert.equal(coverageFor(null, "interior"), null);
+    assert.equal(coverageFor(policy, "interior", Date.parse("2031-01-01"))?.status, "expired");
+  });
+});

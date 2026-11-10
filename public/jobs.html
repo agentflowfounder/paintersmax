@@ -86,7 +86,10 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};
 document.addEventListener('change',e=>{if(e.target.id==='as_lang'){try{localStorage.setItem('as_lang',e.target.value);}catch(x){}}});
 function micInit(){const m=$('as_mic');if(m&&(window.SpeechRecognition||window.webkitSpeechRecognition))m.style.display='';}
 const GROUPS=[['New leads',['lead'],'Customers who asked for a quote. Build an estimate to bid on them.'],['Estimate approved',['bid:signed'],'The customer signed the estimate. Build and send the contract next.'],['Waiting on the customer',['bid','contract'],'Estimates and contracts you sent. Waiting for the customer to approve or sign.'],['In progress',['scheduled','in_progress','punch'],'Approved jobs that are scheduled or underway.'],['Completed',['invoiced','closed'],'Finished and invoiced jobs.'],['Lost',['lost'],'']];
-function jobRow(j){return `<a class="job" href="/jobs?id=${j.id}"><div><b>${esc(j.title)}</b><br><small>${esc(j.customer)} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div><span>${j.signed?'<span class="sg">&#10003; Signed</span>':j.awaiting?'<span class="sg w">Awaiting signature</span>':''}<span class="tag">${esc(STAGE[j.stage]||j.stage)}</span></span></a>`;}
+const COVC={likely_covered:['#e6f4ea','#0a7a3d','Insured: appears covered'],check_with_agent:['#fff3d6','#8a5a00','Check your insurance'],likely_excluded:['#fdecea','#b42318','Insurance: may not cover'],expired:['#fdecea','#b42318','Policy expired']};
+function covPill(c){const x=COVC[c];return x?`<span class="sg" style="background:${x[0]};color:${x[1]}">${x[2]}</span>`:'';}
+function covBanner(c){if(!c)return `<div class="card" style="background:#f4f1ea"><small>Want to know if your insurance covers each job? <a href="/insurance">Upload your policy</a> and PaintersMax will check every lead and job for you.</small></div>`;const x=COVC[c.status];return `<div class="card" style="background:${x[0]};border-color:${x[1]}33"><b style="color:${x[1]}">${esc(c.headline)}</b>${c.note?`<br><small>${esc(c.note)}</small>`:''}<br><small>This is general information from your saved policy summary, not insurance advice. Confirm with your agent before a big job. <a href="/insurance">Open your policy</a></small></div>`;}
+function jobRow(j){return `<a class="job" href="/jobs?id=${j.id}"><div><b>${esc(j.title)}</b><br><small>${esc(j.customer)} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div><span>${covPill(j.coverage)}${j.signed?'<span class="sg">&#10003; Signed</span>':j.awaiting?'<span class="sg w">Awaiting signature</span>':''}<span class="tag">${esc(STAGE[j.stage]||j.stage)}</span></span></a>`;}
 async function list(){
   const {jobs}=await api('/api/jobs');
   $('view').innerHTML=`${assistantCard(null)}
@@ -176,6 +179,7 @@ async function detail(id){
   <h2>${esc(j.title)}</h2>
   <div class="card"><b>${esc(j.customerName)}</b> <span class="tag">${esc(STAGE[j.stage]||j.stage)}</span><br>
    <small>${esc([j.customerEmail,j.customerPhone].filter(Boolean).join(' · ')||'No contact details')}<br>${esc([j.address,j.city,j.zip].filter(Boolean).join(', ')||'No address yet')} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div>
+  ${covBanner(d.coverage)}
   ${assistantCard(j.id)}
   <h3>1. Measurements and quantities</h3>
   <div class="card">${d.rateCard?`<small>Using your ${esc(TRADES[j.trade]||j.trade)} prices. Enter how many of each; leave blank for none.</small>

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dashboard - PaintersMax</title>
+<title>Home - PaintersMax</title>
 <style>
 body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
 header{background:#0F1B2D;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -21,21 +21,32 @@ details.acc{border:1px solid rgba(15,27,45,.12);border-radius:8px;margin:8px 0;b
 details.acc summary{padding:12px;cursor:pointer;font-weight:600;font-size:14px}
 details.acc .in{padding:0 12px 12px}
 .steps li{margin:6px 0}
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 16px}
+.sc{background:#0F1B2D;color:#fff;border-radius:10px;padding:14px}
+.sc .v{font-family:Newsreader,Georgia,serif;font-size:28px;line-height:1.1}.sc .l{font-size:12px;opacity:.75;margin-top:4px}.sc.g .v{color:#E8A33D}
+.at{background:#fff;border-radius:10px;padding:4px 16px;margin:0 0 16px}
+.at div,.ac div{padding:9px 0;border-bottom:1px solid #eee;font-size:14px}.at div:last-child,.ac div:last-child{border-bottom:0}
+.at a,.ac a{color:#0F1B2D}
+.pilltag{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px;margin-right:6px;background:#fff3d6;color:#8a5a00}
+.pilltag.i{background:#fdecea;color:#b42318}
 .steps a{color:#0F1B2D;font-weight:600}
 .wrap{overflow-x:auto} .empty{padding:32px;text-align:center;color:#4A5568;background:#fff;border-radius:8px}
 </style></head><body>
 <header><div><b>PaintersMax</b> <span id="co"></span> &nbsp; <a href="/app" style="color:#E8A33D">Estimating Setup &rarr;</a> &nbsp; <a href="/jobs" style="color:#E8A33D">Jobs &rarr;</a> &nbsp; <a href="/materials" style="color:#E8A33D">Materials &rarr;</a> &nbsp; <a href="/insurance" style="color:#E8A33D">Insurance &rarr;</a></div><div><span id="me"></span> <button id="out">Sign out</button></div></header>
 <main>
-<h2>Your quote page</h2>
-<div class="card"><p style="margin:0 0 8px">Share this link, or paste the embed code into any website.</p>
-<label>Link</label><code id="lnk"></code>
-<label>Embed code</label><textarea id="emb" rows="2" readonly></textarea></div>
-<h2>Get started</h2>
+<h2 style="margin-top:0">Home</h2>
+<div id="hm"><div class="empty">Loading...</div></div>
+<h2>Signatures</h2><div id="sigs" class="empty">Loading...</div>
+<h2>Leads</h2><div id="box" class="empty">Loading...</div><h2>Get started</h2>
 <div class="card"><ol class="steps" style="margin:0;padding-left:20px">
 <li><b>Fill in your settings below</b> and press Save. This controls how your quote page looks.</li>
 <li><a href="/app">Set your prices in Estimating Setup</a>. This is your detailed rate card for written estimates and contracts.</li>
 <li><a href="#lnk">Share your quote page link</a> (at the top of this page) on your website, Facebook or business card.</li>
 <li><a href="/jobs">Open Jobs</a> to build estimates, contracts and invoices, and to send them out for signature.</li></ol></div>
+<h2>Your quote page</h2>
+<div class="card"><p style="margin:0 0 8px">Share this link, or paste the embed code into any website.</p>
+<label>Link</label><code id="lnk"></code>
+<label>Embed code</label><textarea id="emb" rows="2" readonly></textarea></div>
 <h2>Settings</h2>
 <div class="card"><form id="sf">
 <label>Company name</label><div class="hint">Shown on your quote page and on every document you send.</div>
@@ -55,8 +66,7 @@ details.acc .in{padding:0 12px 12px}
 <div id="rates"></div>
 <button type="submit">Save settings</button><span id="msg"></span></form>
 <div id="after" style="display:none;margin-top:14px;padding:12px;border-radius:8px;background:#eaf6ee;font-size:14px"><b>Saved.</b> Next step: <a href="/app" style="font-weight:700">set your prices in Estimating Setup &rarr;</a> then <a href="/jobs" style="font-weight:700">create your first job &rarr;</a></div></div>
-<h2>Signatures</h2><div id="sigs" class="empty">Loading...</div>
-<h2>Leads</h2><div id="box" class="empty">Loading...</div></main>
+</main>
 <script>
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
@@ -93,6 +103,19 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
     const v=id=>document.getElementById(id).value.trim();
     const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:v('s_name'),notifyEmail:v('s_email'),settings:{brandColor:v('s_color'),logoUrl:v('s_logo'),tagline:v('s_tag'),rates}})});
     const j=await r.json(); const m=document.getElementById('msg'); m.textContent=r.ok?'Saved.':(j.error||'Could not save.'); m.style.color=r.ok?'#0a7a3d':'#b42318'; if(r.ok){const a=document.getElementById('after');a.style.display='block';a.scrollIntoView({behavior:'smooth',block:'nearest'});}};
+  (async()=>{const el=document.getElementById('hm');try{
+    const h=await (await fetch('/api/home')).json();const S=h.stats;
+    const money=c=>'$'+Math.round(c/100).toLocaleString('en-US');
+    const card=(v,l,g)=>`<div class="sc ${g?'g':''}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
+    const lk=a=>a.jobId?`/jobs?id=${a.jobId}`:(a.link||'#');
+    const TT={lead:'Lead',estimate:'Estimate',signature:'Signature',invoice:'Invoice',insurance:'Insurance'};
+    el.innerHTML=`<div class="sg">${card(money(S.paidMonthCents),'Jobs paid this month ('+S.paidMonthJobs+')',true)}${card(money(S.bookedCents),'Booked work, signed and not finished ('+S.bookedCount+')')}${card(money(S.waitingCents),'Estimates waiting on customers ('+S.waitingCount+')')}${card(S.newLeads,'New leads to follow up ('+S.newLeadsWeek+' this week)')}${card(S.inProgress,'Jobs in progress')}${card(S.signedWeek,'Signed in the last 7 days')}</div>
+    <h3 style="margin:0 0 8px">Needs your attention</h3>
+    <div class="at">${h.attention.length?h.attention.map(a=>`<div><span class="pilltag ${a.type==='insurance'?'i':''}">${TT[a.type]||''}</span><a href="${lk(a)}">${esc(a.text)}</a></div>`).join(''):'<div style="color:#4A5568">Nothing urgent. You are caught up.</div>'}</div>
+    <h3 style="margin:0 0 8px">Recent activity</h3>
+    <div class="at ac">${h.activity.length?h.activity.map(a=>`<div><a href="/jobs?id=${a.jobId}"><b>${esc(a.title)}</b></a> &middot; ${esc(String(a.text).slice(0,140))} <small style="color:#4A5568">${esc(a.at)}</small></div>`).join(''):'<div style="color:#4A5568">No activity yet. Create a job to get started.</div>'}</div>`;
+    el.className='';
+  }catch(e){el.textContent='Could not load your numbers.';}})();
   (async()=>{const el=document.getElementById('sigs');try{
     const g=await (await fetch('/api/esign?all=1')).json();
     if(!g.items||!g.items.length){el.textContent='No signature requests yet. Open a job and press "Send for e-signature" on an estimate or contract.';return;}

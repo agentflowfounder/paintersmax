@@ -1,3 +1,4 @@
+import { coverageFor, loadSummary } from "./insurance.ts";
 import { getSessionUser } from "./auth.ts";
 import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } from "./profile.ts";
 import { consume, normalizePlan, refund } from "./usage.ts";
@@ -162,7 +163,8 @@ export async function handleJobs(request: Request, env: Env): Promise<Response> 
   )
     .bind(user.companyId)
     .all();
-  return json({ jobs: rows.results });
+  const pol = await loadSummary(env, user.companyId);
+  return json({ jobs: (rows.results as any[]).map((r) => ({ ...r, coverage: coverageFor(pol, r.trade)?.status ?? null })) });
 }
 
 /** GET /api/job?id= returns one job with its customer, property, rate card, saved estimate and timeline. */
@@ -202,6 +204,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     ),
     crewLanguage: parse((await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(user.companyId).first<{ data: string }>())?.data)?.language?.crewDocs === "es" ? "es" : "en",
     events: events.results,
+    coverage: coverageFor(await loadSummary(env, user.companyId), job.trade),
   });
 }
 
