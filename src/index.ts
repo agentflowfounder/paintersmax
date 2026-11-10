@@ -1,3 +1,4 @@
+import { handleEsign, handleSign } from "./esign.ts";
 import { writeSummary } from "./ai.ts";
 import { ownerBriefText, writeBrief } from "./brief.ts";
 import { addJobEvent, ensureCustomerAndJob, tradeFor } from "./crm.ts";
@@ -542,6 +543,25 @@ export default {
         console.error("handleAdmin failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
+    }
+    if (pathname === "/api/esign" || pathname === "/api/esign/record") {
+      try {
+        return await handleEsign(request, env);
+      } catch (err) {
+        console.error("handleEsign failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/sign/view" || pathname === "/api/sign/submit") {
+      try {
+        return await handleSign(request, env);
+      } catch (err) {
+        console.error("handleSign failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname.startsWith("/sign/") && request.method === "GET") {
+      return env.ASSETS.fetch(new URL("/sign", request.url));
     }
     if (pathname === "/api/doc") {
       try {

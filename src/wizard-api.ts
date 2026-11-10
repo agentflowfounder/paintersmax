@@ -429,28 +429,34 @@ export async function handleContract(request: Request, env: Env): Promise<Respon
   return json({ error: "Unknown action." }, 400);
 }
 
+/** Renders a saved estimate, contract or job document as a full page. Used by the printout and by e-signature. */
+export async function renderDocPage(env: Env, companyId: number, id: number): Promise<{ page: string; jobId: number; kind: string; language: string; title: string } | null> {
+  const doc = await env.DB.prepare("SELECT job_id, kind, body, language, title FROM documents WHERE id = ? AND company_id = ? AND kind IN ('estimate','contract','materials','schedule','instructions','punch','warranty','invoice')").bind(id, companyId).first<{ job_id: number; kind: string; body: string; language: string; title: string }>();
+  if (!doc) return null;
+  const stored = parse(doc.body);
+  let page: string | null;
+  if (doc.kind === "contract") {
+    const estDoc = await env.DB.prepare("SELECT body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(doc.job_id, companyId).first<{ body: string }>();
+    page = estDoc ? await renderContractForJob(env, companyId, doc.job_id, sanitizeContract(stored.contract), parse(estDoc.body)) : null;
+  } else if (isListKind(doc.kind) || doc.kind === "invoice") {
+    page = await renderExtraDoc(env, companyId, doc.job_id, doc.kind, stored);
+  } else {
+    // Use the totals saved with the document so the printout always matches what was sent.
+    const est = storedEstimate(stored);
+    page = await renderForJob(env, companyId, doc.job_id, est, stored.totals ?? computeTotals(est));
+  }
+  return page ? { page, jobId: doc.job_id, kind: doc.kind, language: doc.language, title: doc.title } : null;
+}
+
 /** GET /api/doc?id= shows a saved estimate or contract as a printable page. Only the painter who owns it can open it. */
 export async function handleDoc(request: Request, env: Env): Promise<Response> {
   const user = await getSessionUser(env, request);
   if (!user) return html("<p>Not signed in. <a href='/login'>Sign in</a></p>", 401);
   const id = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(id) || id <= 0) return html("<p>Not found.</p>", 404);
-  const doc = await env.DB.prepare("SELECT job_id, kind, body FROM documents WHERE id = ? AND company_id = ? AND kind IN ('estimate','contract','materials','schedule','instructions','punch','warranty','invoice')").bind(id, user.companyId).first<{ job_id: number; kind: string; body: string }>();
-  if (!doc) return html("<p>Not found.</p>", 404);
-  const stored = parse(doc.body);
-  let page: string | null;
-  if (doc.kind === "contract") {
-    const estDoc = await env.DB.prepare("SELECT body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(doc.job_id, user.companyId).first<{ body: string }>();
-    page = estDoc ? await renderContractForJob(env, user.companyId, doc.job_id, sanitizeContract(stored.contract), parse(estDoc.body)) : null;
-  } else if (isListKind(doc.kind) || doc.kind === "invoice") {
-    page = await renderExtraDoc(env, user.companyId, doc.job_id, doc.kind, stored);
-  } else {
-    // Use the totals saved with the document so the printout always matches what was sent.
-    const est = storedEstimate(stored);
-    page = await renderForJob(env, user.companyId, doc.job_id, est, stored.totals ?? computeTotals(est));
-  }
-  if (!page) return html("<p>Not found.</p>", 404);
-  return html(page);
+  const r = await renderDocPage(env, user.companyId, id);
+  if (!r) return html("<p>Not found.</p>", 404);
+  return html(r.page);
 }
 
 async function renderExtraDoc(env: Env, companyId: number, jobId: number, kind: string, stored: any): Promise<string | null> {

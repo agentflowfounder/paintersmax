@@ -130,6 +130,23 @@ document.addEventListener('click',e=>{const t=e.target,ds=t.dataset||{};
  else if(ds.cdel!==undefined&&ds.cdel!==''){cost.items.splice(+ds.cdel,1);drawCost();}
  else if(ds.cuse){const x=costTotal();if(x.total<=0){msg('Add your costs first.');return;}lines=lines.filter(l=>l.description!=='Project total');lines.push({description:'Project total',qty:1,unit:'lump sum',unitPrice:x.total});drawLines();msg('Added a Project total line.',true);}
 });
+
+const SIGST={pending:'Waiting for signature',signed:'Signed',void:'Cancelled',expired:'Expired'};
+async function sigLoad(jobId,est,ctr){
+ let reqs=[];try{reqs=(await api('/api/esign?jobId='+jobId)).requests;}catch(x){return;}
+ [['estimate',est],['contract',ctr]].forEach(([k,doc])=>{const el=$('sig_'+k);if(!el||!doc)return;
+  const mine=reqs.filter(r=>r.kind===k&&r.documentId===doc.id);
+  el.innerHTML='<div class="btns" style="margin-top:8px"><button class="btn sec" data-sigsend="'+doc.id+'">Send for e-signature</button></div>'+
+   '<small>The customer gets a private link, signs on their phone, and you both get the signed copy by email. Save any changes first.</small>'+
+   mine.map(r=>'<div class="ev"><b>'+esc(SIGST[r.status]||r.status)+'</b> &middot; '+esc(r.signerName)+' ('+esc(r.signerEmail)+') &middot; '+esc(r.signedAt||r.createdAt)+
+    (r.status==='signed'?' <a href="/api/esign/record?id='+r.id+'" target="_blank">Open signed copy</a>':'')+
+    (r.status==='pending'?' <button class="btn sec" data-sigvoid="'+r.id+'" style="padding:2px 8px">Cancel</button>':'')+'</div>').join('');});
+}
+document.addEventListener('click',async e=>{const ds=e.target.dataset||{};
+ if(ds.sigsend){const to=prompt('Send for signature to which email? (leave as is for the customer)',(J&&J.job&&J.job.customerEmail)||'');if(to===null)return;
+  try{msg('');const r=await api('/api/esign',{action:'send',docId:+ds.sigsend,signerEmail:to});await detail(J.job.id);msg(r.emailed?'Sent for signature.':'Created, but the email could not be sent. Copy this link: '+r.link,r.emailed);}catch(x){if(x)msg(x.message);}}
+ else if(ds.sigvoid){if(!confirm('Cancel this signature request? The link stops working.'))return;try{await api('/api/esign',{action:'void',id:+ds.sigvoid});await detail(J.job.id);msg('Cancelled.',true);}catch(x){if(x)msg(x.message);}}
+});
 async function detail(id){
   const d=await api('/api/job?id='+id);J=d;const j=d.job,e=d.estimate;
   lines=e&&e.estimate?e.estimate.lines.map(l=>({description:l.description,qty:l.qty,unit:l.unit,unitPrice:l.unitCents/100})):[];
@@ -166,7 +183,7 @@ async function detail(id){
    <label>Notes for the customer</label><textarea id="notes" rows="3">${esc(est.notes||'')}</textarea>
    <div class="tot" id="tot"></div>
    <div class="btns"><button class="btn" id="save">Save estimate</button><button class="btn sec" id="view_doc" ${e?'':'disabled'}>View / print</button><button class="btn sec" id="send" ${j.customerEmail?'':'disabled'}>Email to customer</button></div>
-   <small>${e?`Status: ${esc(e.status)}`:'Not saved yet'}</small></div>
+   <small>${e?`Status: ${esc(e.status)}`:'Not saved yet'}</small><div id="sig_estimate"></div></div>
   <h3>3. Contract</h3>
   <div class="card" id="ctr">${e?`<p class="muted" style="margin-top:0"><b>Template, not legal advice.</b> Have an attorney in your state review it before you use it with customers. Spanish text should be checked by a native speaker.</p>
    <div class="row"><div><label>Start date</label><input id="c_start" value="${esc(ct.startDate||'')}" placeholder="Example: Monday, Nov 17"></div><div><label>Finish date</label><input id="c_end" value="${esc(ct.endDate||'')}" placeholder="Example: Friday, Nov 21"></div></div>
@@ -174,10 +191,10 @@ async function detail(id){
    <div class="btns"><button class="btn sec" id="c_build">${clauses.length?'Rebuild from my estimate (replaces edits)':'Build contract from my estimate'}</button></div>
    <div id="clauses"></div>
    <div class="btns" id="c_btns" style="display:none"><button class="btn" id="c_save">Save contract</button><button class="btn sec" id="c_view" ${d.contract?'':'disabled'}>View / print</button><button class="btn sec" id="c_send" ${j.customerEmail&&d.contract?'':'disabled'}>Email to customer</button><button class="btn sec" id="c_signed" ${d.contract?'':'disabled'}>Mark as signed</button></div>
-   <small>${d.contract?`Status: ${esc(d.contract.status)}`:'Not saved yet'}</small>`:'<p class="muted">Save the estimate first. The contract uses its price and scope.</p>'}</div>
+   <small>${d.contract?`Status: ${esc(d.contract.status)}`:'Not saved yet'}</small><div id="sig_contract"></div>`:'<p class="muted">Save the estimate first. The contract uses its price and scope.</p>'}</div>
   <div id="more"></div>
   <h3>Job history</h3><div class="card">${d.events.map(v=>`<div class="ev"><b>${esc(v.kind)}</b> &middot; ${esc(v.at)}<br>${esc(v.text).slice(0,600)}</div>`).join('')||'<small>Nothing yet.</small>'}</div>`;
-  drawLines();
+  drawLines();sigLoad(j.id,e,d.contract);
   const f=$('fill');if(f)f.onclick=async()=>{try{msg('');const quantities={};document.querySelectorAll('[data-q]').forEach(i=>{if(i.value!=='')quantities[i.dataset.q]=Number(i.value);});const r=await api('/api/estimate',{action:'draft',jobId:j.id,quantities});if(!r.lines.length)throw new Error('Enter at least one quantity first.');lines=r.lines;drawLines();msg('Lines filled. Review and change anything you like.',true);}catch(e){if(e)msg(e.message);}};
   $('addline').onclick=()=>{lines.push({description:'',qty:1,unit:'ea',unitPrice:0});drawLines();};
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
