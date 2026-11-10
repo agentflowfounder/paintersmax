@@ -1,3 +1,4 @@
+import { handlePublicTicker } from "./ticker.ts";
 import { handleEsign, handleSign } from "./esign.ts";
 import { writeSummary } from "./ai.ts";
 import { ownerBriefText, writeBrief } from "./brief.ts";
@@ -542,6 +543,14 @@ export default {
       } catch (err) {
         console.error("handleAdmin failed", String(err));
         return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/ticker" && request.method === "GET") {
+      try {
+        return await handlePublicTicker(env);
+      } catch (err) {
+        console.error("ticker failed", String(err));
+        return json({ enabled: false });
       }
     }
     if (pathname === "/api/esign" || pathname === "/api/esign/record") {

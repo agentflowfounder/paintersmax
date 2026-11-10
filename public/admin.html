@@ -14,6 +14,9 @@ h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 8px;font-size
 .card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
 label{display:block;font-size:14px;font-weight:600;margin:10px 0 4px}
 input,select{width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
+.sw{display:flex;gap:10px;align-items:center;font-weight:600}.sw input{width:auto}
+.st{display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #eee}.st input{width:auto}
+.prev{background:#0F1B2D;color:#fff;border-radius:8px;padding:10px 14px;font-size:14px;margin-top:10px;min-height:20px}
 .row{display:grid;grid-template-columns:1fr 1fr 130px;gap:10px}
 .btn{margin-top:12px;padding:12px 16px;border-radius:8px;border:0;font-weight:700;font-size:15px;cursor:pointer;background:#E8A33D;color:#0F1B2D}
 .c{padding:12px 0;border-bottom:1px solid #eee;display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center}.c:last-child{border-bottom:0}
@@ -21,7 +24,9 @@ small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#
 @media(max-width:560px){.row{grid-template-columns:1fr}}
 </style></head><body>
 <header><div><b>PaintersMax</b> Admin</div><div><a href="/jobs">Jobs</a><a href="/dashboard">Leads</a></div></header>
-<main><h2>Clients</h2><div id="msg"></div>
+<main><h2>Live stats ticker</h2>
+<div class="card" id="tk">Loading...</div>
+<h2>Clients</h2><div id="msg"></div>
 <div class="card" id="list">Loading...</div>
 <h2 style="font-size:20px">Add a client</h2>
 <div class="card"><div class="row"><div><label>Company name</label><input id="n"></div><div><label>Owner email</label><input id="e" type="email"></div><div><label>Plan</label><select id="p"><option value="free">Free</option><option value="starter">Starter</option><option value="basic">Basic</option><option value="pro">Pro</option></select></div></div>
@@ -36,5 +41,19 @@ const PLANS=['free','starter','basic','pro'];
 async function load(){try{const {clients}=await api('/api/admin');$('list').innerHTML=clients.map(c=>`<div class="c"><div><b>${esc(c.name)}</b> <small>${esc(c.slug)}</small><br><small>${esc(c.owners||'no login yet')} &middot; ${c.jobs} jobs &middot; ${c.leads} leads</small></div><select data-id="${c.id}">${PLANS.map(p=>`<option value="${p}" ${p===c.plan?'selected':''}>${p}</option>`).join('')}</select></div>`).join('');}catch(e){if(e)$('list').textContent='You do not have access to this page.';}}
 document.addEventListener('change',async e=>{const id=e.target.dataset&&e.target.dataset.id;if(!id)return;try{await api('/api/admin',{action:'plan',companyId:+id,plan:e.target.value});msg('Plan updated.',true);}catch(x){if(x)msg(x.message);}});
 $('go').onclick=async()=>{try{msg('');const r=await api('/api/admin',{action:'create',name:$('n').value,email:$('e').value,plan:$('p').value});msg(r.created?'Client created. Sign-in link sent.':'That email already has an account. Nothing changed.',true);$('n').value='';$('e').value='';load();}catch(x){if(x)msg(x.message);}};
+async function tkLoad(){try{const v=await api('/api/admin?ticker=1');const c=v.config;
+ $('tk').innerHTML=`<label class="sw"><input type="checkbox" id="tk_on" ${c.enabled?'checked':''}> Show the ticker on the public homepage</label>
+ <small>Every number is counted from real data across your clients (your own template company is left out). Nothing is estimated or made up.</small>
+ <label style="margin-top:14px">Stats to show</label>
+ ${v.catalog.map(s=>`<label class="st"><input type="checkbox" data-k="${esc(s.key)}" ${c.stats.includes(s.key)?'checked':''}><span>${esc(s.name)}</span><b>${s.current==null?'n/a':esc(s.current)}</b></label>`).join('')}
+ <label>Hide a stat until it reaches this number (0 shows everything)</label><input id="tk_min" type="number" min="0" value="${c.minValue}" placeholder="Example: 10">
+ <small>For dollar stats the number is in dollars. A hidden stat still counts, it just does not show yet.</small>
+ <div><button class="btn" id="tk_save">Save ticker settings</button></div>
+ <label style="margin-top:14px">Preview of what visitors see now</label><div class="prev" id="tk_prev"></div>`;
+ const prev=items=>{const t=items.map(i=>i.value+' '+i.label).join('   \u2022   ');$('tk_prev').textContent=!$('tk_on').checked?'The ticker is off. When you turn it on it will show: '+(t||'nothing yet, the chosen stats are zero or below the minimum.'):(t||'Nothing to show yet: the chosen stats are zero or below the minimum.');};
+ prev(v.preview);
+ $('tk_save').onclick=async()=>{try{msg('');const stats=[...document.querySelectorAll('#tk [data-k]:checked')].map(x=>x.dataset.k);await api('/api/admin',{action:'ticker_save',config:{enabled:$('tk_on').checked,stats,minValue:Number($('tk_min').value)||0}});msg('Ticker settings saved.',true);tkLoad();}catch(x){if(x)msg(x.message);}};
+}catch(x){$('tk').textContent='Could not load ticker settings.';}}
+tkLoad();
 load();
 </script></body></html>

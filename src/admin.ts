@@ -1,3 +1,4 @@
+import { adminTickerView, saveConfig } from "./ticker.ts";
 import { getSessionUser, requestLoginLink } from "./auth.ts";
 import { normalizePlan } from "./usage.ts";
 import type { Env } from "./types.ts";
@@ -78,6 +79,10 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
       if (!r.ok) return json({ error: r.error }, 400);
       return json({ ok: true, slug: r.slug, created: r.created });
     }
+    if (b?.action === "ticker_save") {
+      const cfg = await saveConfig(env, b.config);
+      return json({ ok: true, config: cfg });
+    }
     if (b?.action === "plan") {
       const id = Number(b?.companyId);
       if (!Number.isInteger(id)) return json({ error: "Client not found." }, 404);
@@ -86,6 +91,8 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
     }
     return json({ error: "Unknown action." }, 400);
   }
+
+  if (new URL(request.url).searchParams.get("ticker") === "1") return json(await adminTickerView(env));
 
   const rows = await env.DB.prepare(
     `SELECT c.id, c.slug, c.name, c.plan, c.created_at AS createdAt,

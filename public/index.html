@@ -217,10 +217,18 @@
   .foot-grid li a:hover { color: var(--white); }
   .foot-bottom { padding-top: 24px; font-size: 12.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
   @media (max-width: 800px) { .foot-grid { grid-template-columns: 1fr 1fr; } }
+  #ticker{background:#0F1B2D;color:#fff;overflow:hidden;white-space:nowrap;font-size:13px;line-height:34px;font-family:'IBM Plex Mono',monospace}
+  #ticker .tk-track{display:inline-block;animation:tk 30s linear infinite}
+  #ticker:hover .tk-track{animation-play-state:paused}
+  #ticker .tk-item{margin-right:44px}#ticker b{color:#E8A33D;font-weight:700}
+  #ticker .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3ddc84;margin-right:8px}
+  @keyframes tk{from{transform:translateX(0)}to{transform:translateX(-25%)}}
+  @media (prefers-reduced-motion:reduce){#ticker .tk-track{animation:none}#ticker .tk-dup{display:none}#ticker{overflow-x:auto}}
 </style>
 </head>
 <body>
 
+<div id="ticker" hidden><div class="tk-track" id="tk_track"></div></div>
 <header>
   <div class="wrap nav-row">
     <div class="logo"><span class="logo-mark"></span>PaintersMax</div>
@@ -392,5 +400,18 @@
   </div>
 </footer>
 
+<script>
+(function(){
+  var box=document.getElementById('ticker'),track=document.getElementById('tk_track');
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function load(){fetch('/api/ticker').then(function(r){return r.json();}).then(function(d){
+    if(!d.enabled||!d.items||!d.items.length){box.hidden=true;return;}
+    var one='<span class="dot"></span>'+d.items.map(function(i){return '<span class="tk-item"><b>'+esc(i.value)+'</b> '+esc(i.label)+'</span>';}).join('');
+    track.innerHTML='<span>'+one+'</span><span class="tk-dup" aria-hidden="true">'+one+'</span><span class="tk-dup" aria-hidden="true">'+one+'</span><span class="tk-dup" aria-hidden="true">'+one+'</span>';
+    box.hidden=false;
+  }).catch(function(){box.hidden=true;});}
+  load();setInterval(load,60000);
+})();
+</script>
 </body>
 </html>
