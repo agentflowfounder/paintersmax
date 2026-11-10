@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0F1B2D">
-<title>PaintersMax Estimating Setup</title>
+<title>PaintersMax Estimating Setup</title><script src="/i18n.js" data-app></script>
 <style>
 *{box-sizing:border-box}
 body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
@@ -134,7 +134,7 @@ function view(){
    <label class="chk"><input type="checkbox" id="shareSummary" ${ins.shareSummary?'checked':''}> Customers may see a summary of my coverage</label></div>
    <div class="card"><b>Paint brands you use</b>${BRANDS.map(b=>`<label class="chk"><input type="checkbox" class="brand" value="${esc(b)}" ${(m.brands||[]).includes(b)?'checked':''}> ${esc(b)}</label>`).join('')}
    <label>Other products or notes</label><textarea id="mnotes" rows="2">${val(m,'notes')}</textarea></div>
-   <div class="card"><b>Language</b><label>Crew documents (materials, schedule, instructions, punch list)</label><select id="crewDocs"><option value="en" ${lg.crewDocs!=='es'?'selected':''}>English</option><option value="es" ${lg.crewDocs==='es'?'selected':''}>Spanish</option></select></div>`;}
+   <div class="card"><b>Language</b><label>App language (the pages you use every day)</label><select id="uiLang" onchange="pmSetLang(this.value)"><option value="en">English</option><option value="es" ${window.PM_LANG==='es'?'selected':''}>Español</option></select><label>Crew documents (materials, schedule, instructions, punch list)</label><select id="crewDocs"><option value="en" ${lg.crewDocs!=='es'?'selected':''}>English</option><option value="es" ${lg.crewDocs==='es'?'selected':''}>Spanish</option></select></div>`;}
   if(k==='review'){const l=p.labor||{};h=`<h2>Ready</h2><p class="lead">Here is what we saved. You can change any of it later.</p><div class="card">
    <b>${esc(c.legalName||'(company name missing)')}</b><br><small>${esc([c.phone,c.email].filter(Boolean).join(' | '))}</small>
    <ul class="sum"><li>Services: ${esc(p.trades.map(t=>TRADE_LABELS[t]).join(', ')||'none yet')}</li><li>Cities: ${esc((p.cities||[]).join(', ')||'none yet')}</li>
@@ -154,7 +154,7 @@ function collect(){
     if(p.cities.length>S.caps.cities)throw new Error('Your plan includes up to '+S.caps.cities+' cities.');}
   if(k==='labor')p.labor={crewSize:g('crewSize'),hourlyRate:g('hourlyRate'),helperRate:g('helperRate'),minimumJob:g('minimumJob'),markupPct:g('markupPct'),overheadPct:g('overheadPct'),depositPct:g('depositPct'),paymentTerms:g('paymentTerms')};
   if(k==='extras'){p.warranty={laborMonths:g('laborMonths'),text:g('wtext'),exclusions:g('exclusions')};p.insurance={carrier:g('carrier'),expires:g('expires'),coverage:g('coverage'),shareSummary:$('shareSummary').checked};
-    p.materials={brands:[...document.querySelectorAll('.brand:checked')].map(e=>e.value),notes:g('mnotes')};p.language={ui:'en',crewDocs:g('crewDocs')};}
+    p.materials={brands:[...document.querySelectorAll('.brand:checked')].map(e=>e.value),notes:g('mnotes')};p.language={ui:window.PM_LANG||'en',crewDocs:g('crewDocs')};}
 }
 async function saveCards(){
   for(const el of document.querySelectorAll('[data-trade]')){

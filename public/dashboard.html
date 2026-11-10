@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Home - PaintersMax</title>
+<title>Home - PaintersMax</title><script src="/i18n.js" data-app></script>
 <style>
 body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
 header{background:#0F1B2D;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -49,6 +49,8 @@ details.acc .in{padding:0 12px 12px}
 <label>Embed code</label><textarea id="emb" rows="2" readonly></textarea></div>
 <h2>Settings</h2>
 <div class="card"><form id="sf">
+<label for="s_lang">App language</label><div class="hint">Show every page in English or Spanish. This is saved to your account.</div>
+<select id="s_lang" onchange="pmSetLang(this.value)"><option value="en">English</option><option value="es">Español</option></select>
 <label>Company name</label><div class="hint">Shown on your quote page and on every document you send.</div>
 <input id="s_name" maxlength="80" required placeholder="Example: Rivera Painting &amp; Remodeling">
 <label>Send lead emails to</label><div class="hint">New quote requests and chat leads are emailed here.</div>
@@ -96,6 +98,7 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
   document.getElementById('lnk').textContent=url;
   document.getElementById('emb').value='<iframe src="'+url+'" style="width:100%;max-width:560px;height:900px;border:0" title="Free estimate"></iframe>';
   document.getElementById('s_name').value=st.name||''; document.getElementById('s_email').value=st.notifyEmail||'';
+  document.getElementById('s_lang').value=window.PM_LANG||'en';
   setColor(S.brandColor||''); document.getElementById('s_logo').value=S.logoUrl||''; document.getElementById('s_tag').value=S.tagline||'';
   JT.forEach(([k])=>{const r=(S.rates||{})[k]; if(r){document.getElementById('r_'+k+'_lo').value=r[0];document.getElementById('r_'+k+'_hi').value=r[1];}}); rsum();
   document.getElementById('sf').onsubmit=async e=>{e.preventDefault();

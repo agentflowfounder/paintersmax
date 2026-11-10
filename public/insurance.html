@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Insurance - PaintersMax</title>
+<title>Insurance - PaintersMax</title><script src="/i18n.js" data-app></script>
 <style>
 *{box-sizing:border-box}
 body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
@@ -69,9 +69,9 @@ function show(p){
  $('askbox').innerHTML=`<h3>Ask about your policy</h3><div class="card"><small>Answers come from your policy text. ${p.readableChars<2000?'Only a little of the document could be read, so some answers may say they could not find it. ':''}Each question uses one of your monthly assistant questions.</small>
  <div id="log"></div>
  <label for="q">Your question</label><textarea id="q" rows="2" placeholder="Example: Am I covered if a ladder falls on a customer's car? Do I need more coverage to paint a 3-story building?"></textarea>
- <div class="btns"><button class="btn" id="ask">Ask</button><select id="lang" style="width:auto"><option value="en">English</option><option value="es">Español</option></select></div>
+ <div class="btns"><button class="btn" id="ask">Ask</button><select id="lang" style="width:auto"><option value="en">English</option><option value="es" ${window.PM_LANG==='es'?'selected':''}>Español</option></select></div>
  <div>${['What does my policy not cover?','Am I covered for exterior work above two stories?','Do I need more coverage for commercial jobs?','How do I add coverage for lead paint work?','Does my policy cover my subcontractors?'].map(q=>`<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join('')}</div></div>`;
- try{$('lang').value=localStorage.getItem('as_lang')==='es'?'es':'en';}catch(e){}
+ try{$('lang').value=(localStorage.getItem('as_lang')||window.PM_LANG)==='es'?'es':'en';}catch(e){}
 }
 function draw(){$('log').innerHTML=chat.map(m=>`<div class="bub ${m.role==='user'?'u':'a'}">${esc(m.content)}</div>`).join('');}
 async function ask(q){q=(q||'').trim();if(!q)return;const b=$('ask');b.disabled=true;msg('');const hist=chat.slice();chat.push({role:'user',content:q});draw();$('q').value='';

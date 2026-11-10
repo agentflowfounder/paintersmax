@@ -653,3 +653,32 @@ export async function handleJobNote(request: Request, env: Env): Promise<Respons
   await env.DB.prepare("UPDATE jobs SET updated_at = datetime('now') WHERE id = ?").bind(jobId).run();
   return json({ ok: true });
 }
+
+/** The painter's app language (English or Spanish), kept in their business profile so it follows them to any device. */
+export async function handleLang(request: Request, env: Env): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: "Not signed in." }, 401);
+  const prof = await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(user.companyId).first<{ data: string }>();
+  let data: any = {};
+  try {
+    data = prof ? JSON.parse(prof.data) : {};
+  } catch {
+    data = {};
+  }
+  if (request.method === "POST") {
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "Invalid JSON." }, 400);
+    }
+    const lang = body?.lang === "es" ? "es" : "en";
+    data.language = { ...(data.language ?? {}), ui: lang };
+    await env.DB.prepare(
+      `INSERT INTO company_profiles (company_id, data, setup_step, completed, updated_at) VALUES (?, ?, 'start', 0, datetime('now'))
+       ON CONFLICT(company_id) DO UPDATE SET data = excluded.data, updated_at = datetime('now')`,
+    ).bind(user.companyId, JSON.stringify(data)).run();
+    return json({ ok: true, lang });
+  }
+  return json({ lang: data?.language?.ui === "es" ? "es" : "en" });
+}

@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0F1B2D">
-<title>PaintersMax Jobs</title>
+<title>PaintersMax Jobs</title><script src="/i18n.js" data-app></script>
 <style>
 *{box-sizing:border-box}
 body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
@@ -61,7 +61,7 @@ const QCATS=[
  ['Customers and business',['Write a short message asking a customer to approve my estimate','How do I handle a change order in the middle of a job?','How do I ask for a deposit politely?','How do I answer a customer who says my price is too high?']]];
 function assistantCard(jobId){
  if(chatJob!==jobId||chat===null){chat=[];}chatJob=jobId;
- const es=localStorage.getItem('as_lang')==='es';
+ const es=(localStorage.getItem('as_lang')||window.PM_LANG)==='es';
  return `<h3>Job assistant</h3><div class="card">
  <div style="display:flex;justify-content:space-between;gap:10px;align-items:end;flex-wrap:wrap"><label for="as_in" style="margin:0">${jobId?'Ask about this job, or any painting question':'Ask any painting or business question'}</label>
  <select id="as_lang" style="width:auto;padding:6px 8px" aria-label="Language"><option value="en" ${es?'':'selected'}>English</option><option value="es" ${es?'selected':''}>Español</option></select></div>
