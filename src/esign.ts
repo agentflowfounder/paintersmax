@@ -92,6 +92,28 @@ export async function handleEsign(request: Request, env: Env): Promise<Response>
     return htmlResp(page);
   }
 
+  if (request.method === "GET" && url.searchParams.get("all") === "1") {
+    const rows = await env.DB.prepare(
+      `SELECT s.id, s.job_id, s.document_id, s.kind, s.signer_name, s.signer_email, s.status, s.expires_at, s.created_at, s.viewed_at, s.signed_at,
+              j.title AS job_title
+         FROM signature_requests s JOIN jobs j ON j.id = s.job_id
+        WHERE s.company_id = ? ORDER BY s.id DESC LIMIT 100`,
+    ).bind(user.companyId).all();
+    const items = (rows.results as any[]).map((r) => ({ ...rowToItem(r), jobId: r.job_id, jobTitle: r.job_title }));
+    const signed = items.filter((i) => i.status === "signed");
+    const hours = signed.map((i) => (Date.parse(i.signedAt + "") - Date.parse(String(i.createdAt).replace(" ", "T") + "Z")) / 3600000).filter((h) => h >= 0 && Number.isFinite(h));
+    hours.sort((a, b) => a - b);
+    return json({
+      items,
+      summary: {
+        signed: signed.length,
+        awaiting: items.filter((i) => i.status === "pending").length,
+        expired: items.filter((i) => i.status === "expired").length,
+        medianHours: hours.length ? Math.round(hours[Math.floor(hours.length / 2)] * 10) / 10 : null,
+      },
+    });
+  }
+
   if (request.method === "GET") {
     const jobId = Number(url.searchParams.get("jobId"));
     if (!Number.isInteger(jobId) || jobId <= 0) return json({ error: "Not found." }, 404);

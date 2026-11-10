@@ -55,6 +55,7 @@ details.acc .in{padding:0 12px 12px}
 <div id="rates"></div>
 <button type="submit">Save settings</button><span id="msg"></span></form>
 <div id="after" style="display:none;margin-top:14px;padding:12px;border-radius:8px;background:#eaf6ee;font-size:14px"><b>Saved.</b> Next step: <a href="/app" style="font-weight:700">set your prices in Estimating Setup &rarr;</a> then <a href="/jobs" style="font-weight:700">create your first job &rarr;</a></div></div>
+<h2>Signatures</h2><div id="sigs" class="empty">Loading...</div>
 <h2>Leads</h2><div id="box" class="empty">Loading...</div></main>
 <script>
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -92,6 +93,16 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
     const v=id=>document.getElementById(id).value.trim();
     const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:v('s_name'),notifyEmail:v('s_email'),settings:{brandColor:v('s_color'),logoUrl:v('s_logo'),tagline:v('s_tag'),rates}})});
     const j=await r.json(); const m=document.getElementById('msg'); m.textContent=r.ok?'Saved.':(j.error||'Could not save.'); m.style.color=r.ok?'#0a7a3d':'#b42318'; if(r.ok){const a=document.getElementById('after');a.style.display='block';a.scrollIntoView({behavior:'smooth',block:'nearest'});}};
+  (async()=>{const el=document.getElementById('sigs');try{
+    const g=await (await fetch('/api/esign?all=1')).json();
+    if(!g.items||!g.items.length){el.textContent='No signature requests yet. Open a job and press "Send for e-signature" on an estimate or contract.';return;}
+    const S=g.summary,ST={pending:'Awaiting signature',signed:'Signed',void:'Cancelled',expired:'Expired'},K={estimate:'Estimate',contract:'Contract'};
+    const chip=(n,l,c)=>`<div style="background:#fff;border-radius:8px;padding:10px 14px;min-width:110px"><div style="font-size:24px;font-weight:700;color:${c}">${n}</div><div class="hint" style="margin:0">${l}</div></div>`;
+    el.className='';el.style.cssText='';
+    el.innerHTML=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">${chip(S.signed,'Signed','#0a7a3d')}${chip(S.awaiting,'Awaiting signature','#8a5a00')}${chip(S.expired,'Expired','#b42318')}${chip(S.medianHours==null?'-':(S.medianHours<1?'under 1 hr':S.medianHours+' hrs'),'Typical time to sign','#0F1B2D')}</div>
+    <div class="wrap"><table><thead><tr><th>Customer</th><th>Document</th><th>Job</th><th>Status</th><th>Sent</th><th>Signed</th><th></th></tr></thead><tbody>`+
+    g.items.map(i=>`<tr><td>${esc(i.signerName)}<br><small>${esc(i.signerEmail)}</small></td><td>${K[i.kind]||esc(i.kind)}</td><td><a href="/jobs?id=${i.jobId}">${esc(i.jobTitle)}</a></td><td>${i.status==='signed'?'<b style="color:#0a7a3d">&#10003; Signed</b>':esc(ST[i.status]||i.status)}${i.status==='pending'&&i.viewedAt?'<br><small>Opened by customer</small>':''}</td><td>${esc(i.createdAt)}</td><td>${esc(i.signedAt||'')}</td><td>${i.status==='signed'?`<a href="/api/esign/record?id=${i.id}" target="_blank">Open</a> &middot; <a href="/api/esign/record?id=${i.id}&format=pdf" target="_blank">PDF</a>`:''}</td></tr>`).join('')+'</tbody></table></div>';
+  }catch(e){el.textContent='Could not load signatures.';}})();
   const box=document.getElementById('box');
   if(!j.leads.length){box.textContent='No leads yet. Share your quote page link above.';return;}
   box.className='wrap';
