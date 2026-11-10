@@ -85,3 +85,34 @@ test("sanitizeContract limits clauses and renderContractHtml escapes", () => {
   assert.ok(!html.includes("<i>Bo</i>"));
   assert.ok(html.includes("Contrato de Trabajo"));
 });
+
+import { milestoneAmounts, scheduleIsValid } from "../src/estimate.ts";
+
+test("milestones add up exactly and the first one is the deposit", () => {
+  const e = sanitizeEstimate({ lines: [{ description: "A", qty: 1, unitPrice: 62800 }], schedule: [{ label: "Deposit", pct: 30 }, { label: "Posts", pct: 30 }, { label: "Pickets", pct: 30 }, { label: "Final", pct: 10 }] });
+  const t = computeTotals(e, { depositPct: 50 });
+  assert.deepEqual(milestoneAmounts(t.totalCents, e.schedule), [1884000, 1884000, 1884000, 628000]);
+  assert.equal(t.depositCents, 1884000); // schedule wins over the profile's deposit percentage
+  const odd = milestoneAmounts(10001, [{ label: "a", pct: 33.33 }, { label: "b", pct: 33.33 }, { label: "c", pct: 33.34 }]);
+  assert.equal(odd.reduce((s, v) => s + v, 0), 10001);
+  assert.equal(scheduleIsValid(e.schedule), true);
+  assert.equal(scheduleIsValid([{ label: "a", pct: 60 }, { label: "b", pct: 30 }]), false);
+  assert.equal(scheduleIsValid([]), true);
+});
+
+test("sanitizeEstimate turns multi-line text into short lists", () => {
+  const e = sanitizeEstimate({ exclusions: "Gates\n\n  Permits  \n" + "x".repeat(500), inclusions: ["Labor", ""] });
+  assert.equal(e.exclusions.length, 3);
+  assert.equal(e.exclusions[2].length, 300);
+  assert.deepEqual(e.inclusions, ["Labor"]);
+});
+
+test("contract lists the milestones, inclusions and exclusions from the estimate", () => {
+  const e = sanitizeEstimate({ lines: [{ description: "A", qty: 1, unitPrice: 1000 }], schedule: [{ label: "Deposit at signing", pct: 50 }, { label: "Final", pct: 50 }], exclusions: ["The gates"], inclusions: ["All labor"], assumptions: ["Clear access"] });
+  const t = computeTotals(e);
+  const clauses = defaultClauses({ company: "T", customer: "C", property: "", scope: "", totals: t, startDate: "", endDate: "", profile: {}, estimate: e }, "en");
+  const price = clauses.find((c) => c.title === "Price and payment")!.body;
+  assert.ok(price.includes("1. Deposit at signing: $500.00 (50%)") && price.includes("2. Final: $500.00 (50%)"));
+  assert.ok(clauses.find((c) => c.title === "What is not included")!.body.includes("The gates"));
+  assert.ok(clauses.some((c) => c.title === "Assumptions"));
+});

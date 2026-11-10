@@ -40,7 +40,7 @@ const TRADES={interior:'Interior painting',exterior:'Exterior painting',commerci
 const QL={small:'Small rooms',medium:'Medium rooms',large:'Large rooms',custom_min:'Custom rooms',ceiling:'Ceilings',trim:'Rooms with trim',door_each:'Doors',accent_wall:'Accent walls',repairs_hourly:'Repair hours',base_1_story:'1-story house (1 = yes)',base_2_story:'2-story house (1 = yes)',base_3_story:'3-story house (1 = yes)',door:'Doors',shutter:'Shutters',window:'Windows',garage_door:'Garage doors',power_washing:'Power washing (1 = yes)',wood_repair_hourly:'Wood repair hours',color_change:'Extra colors',gate_each:'Gates',removal_per_ft:'Old fence to remove (ft)',stain_per_ft:'Staining or painting (ft)',mobilization:'Mobilization (1 = yes)',lift_daily:'Lift days',hourly:'Labor hours'};
 const BASE={sqft_floor:[['sqft','Square feet of floor area']],sqft_wall:[['sqft','Square feet of wall']],per_linear_ft:[['linear_ft','Linear feet']],lump_sum:[['cost','Your cost for the whole job ($)']]};
 const STAGE={lead:'Lead',bid:'Estimate',contract:'Contract',scheduled:'Scheduled',in_progress:'In progress',punch:'Punch list',invoiced:'Invoiced',closed:'Closed',lost:'Lost'};
-let J=null,lines=[],clauses=[],docs={},inv={},chat=[],chatJob=undefined;
+let J=null,lines=[],clauses=[],docs={},inv={},chat=[],chatJob=undefined,sched=[],cost={items:[],markupPct:0},msOpts=[];
 function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
 async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
 
@@ -49,7 +49,7 @@ const CHIPS_JOB=['What is left to do on this job?','How much paint will I need?'
 const CHIPS_GEN=['How do I price a ceiling in a small bathroom?','What primer do I use over stains?','How long should I wait between coats?'];
 function assistantCard(jobId){
  if(chatJob!==jobId||chat===null){chat=[];}chatJob=jobId;
- return `<h3>Job assistant</h3><div class="card"><p class="muted" style="margin-top:0">${jobId?'Ask about this job. It sees the estimate, documents and notes. The customer's email, phone and street address fields are not sent.':'Ask any painting or business question.'} Answers are suggestions: check numbers before you rely on them.</p>
+ return `<h3>Job assistant</h3><div class="card"><p class="muted" style="margin-top:0">${jobId?'Ask about this job. It sees the estimate, documents and notes. The email, phone and street address fields for the customer are not sent.':'Ask any painting or business question.'} Answers are suggestions: check numbers before you rely on them.</p>
  <div class="chips">${(jobId?CHIPS_JOB:CHIPS_GEN).map(c=>`<button class="chip" data-chip="${esc(c)}">${esc(c)}</button>`).join('')}</div>
  <div id="as_log"></div>
  <label>Your question</label><textarea id="as_in" rows="2" placeholder="Type or tap the mic"></textarea>
@@ -101,14 +101,39 @@ function drawLines(){
   $('lines').innerHTML=lines.length?`<div class="line head"><span>Description</span><span>Qty</span><span>Unit</span><span>Price ($)</span><span></span></div>`+lines.map((l,i)=>`<div class="line"><input data-i="${i}" data-f="description" value="${esc(l.description)}"><input data-i="${i}" data-f="qty" inputmode="decimal" value="${esc(l.qty)}"><input data-i="${i}" data-f="unit" value="${esc(l.unit)}"><input data-i="${i}" data-f="unitPrice" inputmode="decimal" value="${esc(l.unitPrice)}"><button data-del="${i}" title="Remove">&times;</button></div>`).join(''):'<p class="muted">No lines yet. Fill them from your prices above, or add a line by hand.</p>';
   drawTotals();
 }
-function drawTotals(){const t=totals();$('tot').innerHTML=`Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;}
-function readEstimate(){return{lines,scope:$('scope').value,notes:$('notes').value,taxPct:$('tax').value,discount:$('discount').value,validDays:$('valid').value,language:$('lang').value};}
+function drawTotals(){if($('sched'))drawSched();const t=totals();$('tot').innerHTML=`Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;}
+function readEstimate(){const L=id=>($(id)||{value:''}).value;return{inclusions:L('e_incl'),exclusions:L('e_excl'),assumptions:L('e_assume'),allowances:L('e_allow'),options:L('e_opts'),schedule:sched,costBuild:cost,lines,scope:$('scope').value,notes:$('notes').value,taxPct:$('tax').value,discount:$('discount').value,validDays:$('valid').value,language:$('lang').value};}
 
 function drawClauses(){const c=$('clauses');if(!c)return;c.innerHTML=clauses.map((cl,i)=>`<label>${i+1}. Title</label><input data-ci="${i}" data-cf="title" value="${esc(cl.title)}"><textarea data-ci="${i}" data-cf="body" rows="4" style="margin-top:6px">${esc(cl.body)}</textarea>`).join('');const b=$('c_btns');if(b)b.style.display=clauses.length?'flex':'none';}
+
+function schedSum(){return Math.round(sched.reduce((a,m)=>a+(+m.pct||0),0)*100)/100;}
+function schedNote(){const s=document.querySelector('#sched small');if(s){s.textContent='Total '+schedSum()+'%'+(schedSum()===100?'':' (must be 100%)');s.className=schedSum()===100?'ok':'bad';}}
+function drawSched(){const c=$('sched');if(!c)return;const t=totals().total;
+ c.innerHTML=sched.map((m,i)=>`<div class="line" style="grid-template-columns:1fr 70px 90px 30px"><input data-sf="label" data-si="${i}" value="${esc(m.label)}"><input data-sf="pct" data-si="${i}" inputmode="decimal" value="${esc(m.pct)}"><span class="muted">${$$(Math.round(t*(+m.pct||0)/100))}</span><button data-sdel="${i}">&times;</button></div>`).join('')+
+ `<div class="btns"><button class="btn sec" data-sadd="1">+ Add a milestone</button></div>`+(sched.length?`<small class="${schedSum()===100?'ok':'bad'}">Total ${schedSum()}%${schedSum()===100?'':' (must be 100%)'}</small>`:'');}
+function costTotal(){const base=cost.items.reduce((a,c)=>a+(+c.amount||0),0);return{base,total:Math.round(base*(1+(+cost.markupPct||0)/100)*100)/100};}
+function costOut(){const o=$('c_out');const x=costTotal();if(o)o.innerHTML='Costs '+$$(Math.round(x.base*100))+'<br><b>Price '+$$(Math.round(x.total*100))+'</b>';}
+function drawCost(){const c=$('cost');if(!c)return;
+ c.innerHTML=cost.items.map((x,i)=>`<div class="line" style="grid-template-columns:1fr 110px 30px"><input data-cf2="label" data-ci2="${i}" value="${esc(x.label)}" placeholder="Example: Wood fence materials"><input data-cf2="amount" data-ci2="${i}" inputmode="decimal" value="${esc(x.amount||'')}" placeholder="$"><button data-cdel="${i}">&times;</button></div>`).join('')+
+ `<div class="btns"><button class="btn sec" data-cadd="1">+ Add a cost</button></div><div class="row"><div><label>Markup for overhead, contingency and profit (%)</label><input id="c_mk" inputmode="decimal" value="${esc(cost.markupPct||'')}"></div><div class="tot" style="align-self:end" id="c_out"></div></div>
+ <div class="btns"><button class="btn sec" data-cuse="1">Use as project total line</button></div>`;costOut();}
+document.addEventListener('input',e=>{const t=e.target,ds=t.dataset||{};
+ if(ds.sf){sched[+ds.si][ds.sf]=t.value;schedNote();}
+ else if(ds.cf2){cost.items[+ds.ci2][ds.cf2]=t.value;costOut();}
+ else if(t.id==='c_mk'){cost.markupPct=t.value;costOut();}
+ else if(t.id==='discount'||t.id==='tax')drawSched();});
+document.addEventListener('click',e=>{const t=e.target,ds=t.dataset||{};
+ if(ds.pre){if(ds.pre==='clear')sched=[];else{const names=['Deposit at signing','Posts set and rails installed','Work substantially complete','Final payment after punch list'];const p=ds.pre.split(',').map(Number);sched=p.map((v,i)=>({label:p.length===2?(i?'Final payment on completion':'Deposit at signing'):names[i],pct:v}));}drawSched();}
+ else if(ds.sadd){sched.push({label:'',pct:0});drawSched();}
+ else if(ds.sdel!==undefined&&ds.sdel!==''){sched.splice(+ds.sdel,1);drawSched();}
+ else if(ds.cadd){cost.items.push({label:'',amount:0});drawCost();}
+ else if(ds.cdel!==undefined&&ds.cdel!==''){cost.items.splice(+ds.cdel,1);drawCost();}
+ else if(ds.cuse){const x=costTotal();if(x.total<=0){msg('Add your costs first.');return;}lines=lines.filter(l=>l.description!=='Project total');lines.push({description:'Project total',qty:1,unit:'lump sum',unitPrice:x.total});drawLines();msg('Added a Project total line.',true);}
+});
 async function detail(id){
   const d=await api('/api/job?id='+id);J=d;const j=d.job,e=d.estimate;
   lines=e&&e.estimate?e.estimate.lines.map(l=>({description:l.description,qty:l.qty,unit:l.unit,unitPrice:l.unitCents/100})):[];
-  const qf=qtyFields(d.rateCard);const est=e&&e.estimate?e.estimate:{};const ct=d.contract&&d.contract.contract?d.contract.contract:{};clauses=ct.clauses?ct.clauses.map(c=>({...c})):[];
+  const qf=qtyFields(d.rateCard);const est=e&&e.estimate?e.estimate:{};const ct=d.contract&&d.contract.contract?d.contract.contract:{};sched=(est.schedule||[]).map(m=>({...m}));cost=est.costBuild?{items:(est.costBuild.items||[]).map(c=>({...c})),markupPct:est.costBuild.markupPct||0}:{items:[],markupPct:0};clauses=ct.clauses?ct.clauses.map(c=>({...c})):[];
   $('view').innerHTML=`<p><a href="/jobs">&larr; All jobs</a></p>
   <h2>${esc(j.title)}</h2>
   <div class="card"><b>${esc(j.customerName)}</b> <span class="tag">${esc(STAGE[j.stage]||j.stage)}</span><br>
@@ -124,6 +149,20 @@ async function detail(id){
    <div class="btns"><button class="btn sec" id="addline">+ Add a line</button></div>
    <div class="row"><div><label>Discount ($)</label><input id="discount" inputmode="decimal" value="${esc((est.discountCents||0)/100||'')}"></div><div><label>Sales tax (%)</label><input id="tax" inputmode="decimal" value="${esc(est.taxPct||'')}"></div></div>
    <div class="row"><div><label>Valid for (days)</label><input id="valid" inputmode="numeric" value="${esc(est.validDays||30)}"></div><div><label>Language</label><select id="lang"><option value="en">English</option><option value="es" ${est.language==='es'?'selected':''}>Español</option></select></div></div>
+   <h3 style="margin-top:18px">What is included and not included</h3>
+   <small>One item per line. These print on the estimate. The included, not included and assumptions lists also carry into the contract.</small>
+   <label>Included</label><textarea id="e_incl" rows="3">${esc((est.inclusions||[]).join('\n'))}</textarea>
+   <label>Not included</label><textarea id="e_excl" rows="3">${esc((est.exclusions||[]).join('\n'))}</textarea>
+   <label>Assumptions</label><textarea id="e_assume" rows="3">${esc((est.assumptions||[]).join('\n'))}</textarea>
+   <label>Allowances (adjusted to actual cost)</label><textarea id="e_allow" rows="2">${esc((est.allowances||[]).join('\n'))}</textarea>
+   <label>Options, priced on request</label><textarea id="e_opts" rows="2">${esc((est.options||[]).join('\n'))}</textarea>
+   <h3 style="margin-top:18px">Payment schedule</h3>
+   <small>Leave empty to use your deposit and final payment. Or split the price into milestones that add up to 100%.</small>
+   <div class="btns" style="margin-top:6px"><button class="btn sec" data-pre="30,30,30,10">30 / 30 / 30 / 10</button><button class="btn sec" data-pre="50,50">50 / 50</button><button class="btn sec" data-pre="clear">No schedule</button></div>
+   <div id="sched"></div>
+   <h3 style="margin-top:18px">Cost build-up for a lump-sum bid</h3>
+   <small>Private to you. Add your costs and your markup for overhead, contingency and profit, then use the result as the project total line.</small>
+   <div id="cost"></div>
    <label>Notes for the customer</label><textarea id="notes" rows="3">${esc(est.notes||'')}</textarea>
    <div class="tot" id="tot"></div>
    <div class="btns"><button class="btn" id="save">Save estimate</button><button class="btn sec" id="view_doc" ${e?'':'disabled'}>View / print</button><button class="btn sec" id="send" ${j.customerEmail?'':'disabled'}>Email to customer</button></div>
@@ -144,7 +183,7 @@ async function detail(id){
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
   $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>msg('Saved.',true));};
   $('send').onclick=async()=>{if(!confirm('Email this estimate to '+j.customerEmail+'?'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
-  drawClauses();drawMore(d);micInit();chatDraw();
+  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};
   const cact=async(action)=>{try{msg('');const r=await api('/api/contract',{action,jobId:j.id,contract:{startDate:$('c_start').value,endDate:$('c_end').value,language:$('c_lang').value,clauses}});return r;}catch(x){if(x)msg(x.message);}};
   const cs=$('c_save');if(cs){cs.onclick=async()=>{const r=await cact('save');if(r)detail(j.id).then(()=>msg('Contract saved.',true));};
@@ -162,7 +201,7 @@ const DOCS=[
  {k:'warranty',n:9,t:'Warranty letter',h:'Give this to the customer when the job is finished.',cust:1,done:1}
 ];
 function wDraw(k){const c=$('wl_'+k);if(!c)return;const d=docs[k];const m=DOCS.find(x=>x.k===k);
- c.innerHTML=d?`<label>Intro</label><textarea data-dk="${k}" data-df="intro" rows="2">${esc(d.intro||'')}</textarea>`+d.items.map((it,i)=>`<div class="line" style="grid-template-columns:${m.cols?'1fr 60px 60px 1fr':'1fr 150px'} 30px;"><input data-dk="${k}" data-di="${i}" data-df="text" value="${esc(it.text)}">${m.cols?`<input data-dk="${k}" data-di="${i}" data-df="qty" inputmode="decimal" value="${it.qty||''}" placeholder="Qty"><input data-dk="${k}" data-di="${i}" data-df="unit" value="${esc(it.unit)}" placeholder="Unit">`:''}<input data-dk="${k}" data-di="${i}" data-df="detail" value="${esc(it.detail)}" placeholder="${k==='schedule'?'Date':'Notes'}"><button data-dkdel="${k}:${i}">&times;</button></div>`).join('')+`<div class="btns"><button class="btn sec" data-dkadd="${k}">+ Add a line</button></div>`:'';
+ c.innerHTML=d?`<label>Intro</label><textarea data-dk="${k}" data-df="intro" rows="2">${esc(d.intro||'')}</textarea>`+d.items.map((it,i)=>`<div class="line" style="grid-template-columns:${m.cols?'1fr 56px 56px 80px 1fr':'1fr 150px'} 30px;"><input data-dk="${k}" data-di="${i}" data-df="text" value="${esc(it.text)}">${m.cols?`<input data-dk="${k}" data-di="${i}" data-df="qty" inputmode="decimal" value="${it.qty||''}" placeholder="Qty"><input data-dk="${k}" data-di="${i}" data-df="unit" value="${esc(it.unit)}" placeholder="Unit"><select data-dk="${k}" data-di="${i}" data-df="group">${[['material','Buy'],['rental','Rent'],['tool','Tools'],['safety','Safety']].map(([v,l])=>`<option value="${v}" ${(it.group||'material')===v?'selected':''}>${l}</option>`).join('')}</select>`:''}<input data-dk="${k}" data-di="${i}" data-df="detail" value="${esc(it.detail)}" placeholder="${k==='schedule'?'Date':'Notes'}"><button data-dkdel="${k}:${i}">&times;</button></div>`).join('')+`<div class="btns"><button class="btn sec" data-dkadd="${k}">+ Add a line</button></div>`:'';
  const b=$('wb_'+k);if(b)b.style.display=d?'flex':'none';}
 function docCard(m,d){const x=d.docs[m.k];const lang=docs[m.k]?docs[m.k].language:(m.crew?d.crewLanguage:'en');
  return `<h3>${m.n}. ${m.t}</h3><div class="card"><p class="muted" style="margin-top:0">${m.h}</p>
@@ -176,17 +215,18 @@ function invCard(d){const x=d.docs.invoice;
  return `<h3>8. Invoice</h3><div class="card">${d.estimate?`<p class="muted" style="margin-top:0">Uses the price from your saved estimate. Enter what the customer already paid, such as the deposit.</p>
  <div class="btns" style="margin-top:0"><button class="btn sec" data-ivbuild="1">${x?'Rebuild (replaces edits)':'Build invoice'}</button></div>
  <div id="ivf" style="display:none"><div class="row"><div><label>Invoice number</label><input id="iv_num"></div><div><label>Due</label><input id="iv_due" placeholder="Example: on completion, or Dec 1"></div></div>
- <div class="row"><div><label>Already paid ($)</label><input id="iv_paid" inputmode="decimal"></div><div><label>Language</label><select id="iv_lang"><option value="en">English</option><option value="es">Español</option></select></div></div>
+ <div id="iv_ms"></div><div class="row"><div><label>Already paid ($)</label><input id="iv_paid" inputmode="decimal"></div><div><label>Language</label><select id="iv_lang"><option value="en">English</option><option value="es">Español</option></select></div></div>
  <label>Notes (how to pay, thank you)</label><textarea id="iv_notes" rows="3"></textarea>
  <div class="btns"><button class="btn" data-ivsave="1">Save</button><button class="btn sec" data-ivview="1" ${x?'':'disabled'}>View / print</button><button class="btn sec" data-ivsend="1" ${x&&d.job.customerEmail?'':'disabled'}>Email to customer</button><button class="btn sec" data-ivpaid="1" ${x?'':'disabled'}>Mark as paid</button></div></div>
  <small>${x?'Status: '+esc(x.status):'Not saved yet'}</small>`:'<p class="muted">Save the estimate first. The invoice uses its price.</p>'}</div>`;}
-function ivFill(){const f=$('ivf');if(!f)return;f.style.display='block';$('iv_num').value=inv.number||'';$('iv_due').value=inv.dueDate||'';$('iv_paid').value=inv.paid||'';$('iv_notes').value=inv.notes||'';$('iv_lang').value=inv.language||'en';}
-function ivRead(){return{number:$('iv_num').value,dueDate:$('iv_due').value,paid:$('iv_paid').value,notes:$('iv_notes').value,language:$('iv_lang').value};}
+function ivMs(){const w=$('iv_ms');if(!w)return;w.innerHTML=msOpts.length?`<label>Which payment is this invoice for?</label><select id="iv_msel"><option value="">The whole job</option>${msOpts.map((m,i)=>`<option value="${i}" ${inv.milestone===i?'selected':''}>${i+1}. ${esc(m.label)} (${m.pct}%, ${$$(m.amountCents)})</option>`).join('')}</select>`:'';}
+function ivFill(){const f=$('ivf');if(!f)return;f.style.display='block';ivMs();$('iv_num').value=inv.number||'';$('iv_due').value=inv.dueDate||'';$('iv_paid').value=inv.paid||'';$('iv_notes').value=inv.notes||'';$('iv_lang').value=inv.language||'en';}
+function ivRead(){const ms=$('iv_msel');return{milestone:ms&&ms.value!==''?Number(ms.value):null,number:$('iv_num').value,dueDate:$('iv_due').value,paid:$('iv_paid').value,notes:$('iv_notes').value,language:$('iv_lang').value};}
 function drawMore(d){
  docs={};for(const m of DOCS){if(d.docs[m.k]&&d.docs[m.k].doc)docs[m.k]=JSON.parse(JSON.stringify(d.docs[m.k].doc));}
  inv=d.docs.invoice&&d.docs.invoice.invoice?{...d.docs.invoice.invoice,paid:(d.docs.invoice.invoice.paidCents||0)/100}:{};
  $('more').innerHTML=DOCS.slice(0,4).map(m=>docCard(m,d)).join('')+invCard(d)+docCard(DOCS[4],d);
- DOCS.forEach(m=>wDraw(m.k));if(d.docs.invoice&&d.docs.invoice.invoice)ivFill();
+ DOCS.forEach(m=>wDraw(m.k));msOpts=((d.estimate&&d.estimate.estimate&&d.estimate.estimate.schedule)||[]).map((m,i,a)=>({label:m.label,pct:m.pct,amountCents:Math.round(((d.estimate.totals||{}).totalCents||0)*m.pct/100)}));if(d.docs.invoice&&d.docs.invoice.invoice)ivFill();
 }
 async function jd(body){try{msg('');return await api('/api/jobdoc',{jobId:J.job.id,...body});}catch(x){if(x)msg(x.message);}}
 document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if(!J)return;
@@ -197,12 +237,13 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  else if(ds.dkview){const x=J.docs[ds.dkview];if(x)window.open('/api/doc?id='+x.id,'_blank');}
  else if(ds.dkadd){const k=ds.dkadd;docs[k].items.push({text:'',detail:'',qty:0,unit:''});wDraw(k);}
  else if(ds.dkdel){const[k,i]=ds.dkdel.split(':');docs[k].items.splice(+i,1);wDraw(k);}
- else if(ds.ivbuild){if(inv.number&&!confirm('This replaces the invoice on screen. Continue?'))return;const r=await jd({action:'draft',kind:'invoice',language:'en'});if(r){inv=r.invoice;ivFill();}}
+ else if(ds.ivbuild){if(inv.number&&!confirm('This replaces the invoice on screen. Continue?'))return;const r=await jd({action:'draft',kind:'invoice',language:'en'});if(r){inv=r.invoice;msOpts=r.milestones||[];ivFill();}}
  else if(ds.ivsave){const r=await jd({action:'save',kind:'invoice',invoice:ivRead()});if(r)rel().then(()=>msg('Invoice saved.',true));}
  else if(ds.ivsend){if(!confirm('Email this invoice to '+J.job.customerEmail+'?'))return;const r=await jd({action:'send',kind:'invoice',invoice:ivRead()});if(r)rel().then(()=>msg('Invoice emailed.',true));}
  else if(ds.ivview){const x=J.docs.invoice;if(x)window.open('/api/doc?id='+x.id,'_blank');}
  else if(ds.ivpaid){if(!confirm('Mark this invoice as paid? The job will close.'))return;const r=await jd({action:'paid',kind:'invoice'});if(r)rel().then(()=>msg('Paid. Job closed.',true));}
 });
+document.addEventListener('change',e=>{if(e.target.id==='iv_msel'){const v=e.target.value;let paid=0;if(v!=='')for(let i=0;i<+v;i++)paid+=msOpts[i].amountCents;$('iv_paid').value=v!==''?(paid/100||''):'';}});
 document.addEventListener('input',e=>{const t=e.target,ds=t.dataset||{};if(ds.dk&&ds.df){const d=docs[ds.dk];if(!d)return;if(ds.di!==undefined)d.items[+ds.di][ds.df]=ds.df==='qty'?(Number(t.value)||0):t.value;else d[ds.df]=t.value;}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.ci!==undefined){clauses[+t.dataset.ci][t.dataset.cf]=t.value;return;}if(t.dataset&&t.dataset.f!==undefined){lines[+t.dataset.i][t.dataset.f]=t.value;drawTotals();}else if(t.id==='discount'||t.id==='tax')drawTotals();});
 document.addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.del;if(d!==undefined&&d!==''){lines.splice(+d,1);drawLines();}});

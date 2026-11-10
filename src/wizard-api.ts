@@ -3,7 +3,7 @@ import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } fro
 import { consume, normalizePlan, refund } from "./usage.ts";
 import { ask, buildJobContext, sanitizeHistory } from "./assistant.ts";
 import type { Env } from "./types.ts";
-import { computeTotals, draftLines, renderEstimateHtml, sanitizeEstimate } from "./estimate.ts";
+import { computeTotals, draftLines, milestoneAmounts, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
 import { CUSTOMER_KINDS, docTitle, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
 import { addJobEvent } from "./crm.ts";
@@ -237,6 +237,7 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
   }
 
   const est = sanitizeEstimate(b?.estimate);
+  if ((b.action === "save" || b.action === "send") && !scheduleIsValid(est.schedule)) return json({ error: "The payment percentages must add up to 100." }, 400);
   const totals = computeTotals(est, { minimumJobCents: Math.round((profile?.labor?.minimumJob ?? 0) * 100), depositPct: profile?.labor?.depositPct });
 
   if (b.action === "save" || b.action === "send") {
@@ -373,7 +374,7 @@ export async function handleContract(request: Request, env: Env): Promise<Respon
     const t = stored.totals ?? computeTotals(est);
     const startDate = text(b?.startDate, 40);
     const endDate = text(b?.endDate, 40);
-    const clauses = defaultClauses({ company: j.company.name, customer: j.row.customerName, property: j.property, scope: est.scope, totals: t, startDate, endDate, profile: j.profile }, lang);
+    const clauses = defaultClauses({ company: j.company.name, customer: j.row.customerName, property: j.property, scope: est.scope, totals: t, startDate, endDate, profile: j.profile, estimate: est }, lang);
     return json({ clauses, language: lang });
   }
 
@@ -505,7 +506,12 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
   if (b.action === "draft") {
     if (kind === "invoice") {
       const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM documents WHERE company_id = ? AND kind = 'invoice'").bind(user.companyId).first<{ n: number }>();
-      return json({ invoice: { number: String(1001 + (n?.n ?? 0)), dueDate: j.profile.labor?.paymentTerms ?? "", paid: (stored.totals?.depositCents ?? 0) / 100, notes: "", language: lang } });
+      const sched = storedEstimate(stored).schedule;
+      const amounts = milestoneAmounts(stored.totals?.totalCents ?? 0, sched);
+      return json({
+        invoice: { number: String(1001 + (n?.n ?? 0)), dueDate: j.profile.labor?.paymentTerms ?? "", paid: sched.length ? 0 : (stored.totals?.depositCents ?? 0) / 100, notes: "", language: lang, milestone: sched.length ? 0 : null },
+        milestones: sched.map((m, i) => ({ label: m.label, pct: m.pct, amountCents: amounts[i] })),
+      });
     }
     const doc = starterDoc(kind, { trade: jobMeta?.trade ?? "interior", profile: j.profile, company: j.company.name, customer: j.row.customerName, startDate: text(b?.startDate, 10), completionDate: text(b?.completionDate, 40) }, lang);
     return json({ doc });

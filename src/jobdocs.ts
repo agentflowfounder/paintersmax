@@ -1,5 +1,5 @@
 import { escapeHtml } from "./settings.ts";
-import { money, type EstimateInput, type Totals } from "./estimate.ts";
+import { milestoneAmounts, money, type EstimateInput, type Totals } from "./estimate.ts";
 
 /** Documents that are simple lists. Invoices are separate because they carry money. */
 export const LIST_KINDS = ["materials", "schedule", "instructions", "punch", "warranty"] as const;
@@ -9,11 +9,16 @@ export const isListKind = (v: unknown): v is ListKind => typeof v === "string" &
 /** Which of these the painter can email straight to the customer. The rest are for the crew. */
 export const CUSTOMER_KINDS: readonly string[] = ["schedule", "warranty", "invoice"];
 
+export type ItemGroup = "material" | "rental" | "tool" | "safety";
+export const ITEM_GROUPS: ItemGroup[] = ["material", "rental", "tool", "safety"];
+
 export interface Item {
   text: string;
   detail: string;
   qty: number;
   unit: string;
+  /** Only the materials list uses groups: things to buy, rent, own and wear. */
+  group: ItemGroup;
 }
 export interface ListDoc {
   language: "en" | "es";
@@ -30,7 +35,7 @@ export function sanitizeListDoc(input: any): ListDoc {
     const text = str(i?.text, 300);
     if (!text) continue;
     const q = Number(i?.qty);
-    items.push({ text, detail: str(i?.detail, 300), qty: Number.isFinite(q) && q >= 0 && q <= 1_000_000 ? Math.round(q * 100) / 100 : 0, unit: str(i?.unit, 20) });
+    items.push({ text, detail: str(i?.detail, 300), qty: Number.isFinite(q) && q >= 0 && q <= 1_000_000 ? Math.round(q * 100) / 100 : 0, unit: str(i?.unit, 20), group: (ITEM_GROUPS as string[]).includes(i?.group) ? i.group : "material" });
   }
   return { language: input?.language === "es" ? "es" : "en", intro: str(input?.intro, 2000), items, footer: str(input?.footer, 2000) };
 }
@@ -44,6 +49,27 @@ const MATERIALS: Record<Group, Array<[string, string, string]>> = {
   paint: [["Primer", "Imprimante", "gal"], ["Finish paint", "Pintura de acabado", "gal"], ["Ceiling paint", "Pintura de techo", "gal"], ["Painter's tape", "Cinta de pintor", "rolls"], ["Drop cloths", "Lonas", "ea"], ["Plastic sheeting", "Plástico protector", "rolls"], ["Caulk", "Sellador", "tubes"], ["Patching compound", "Masilla", "tubs"], ["Sandpaper", "Lija", "pk"], ["Roller covers", "Rodillos", "ea"], ["Brushes", "Brochas", "ea"], ["Tray liners", "Forros de bandeja", "ea"]],
   fencing: [["Posts", "Postes", "ea"], ["Rails", "Travesaños", "ea"], ["Pickets", "Tablas", "ea"], ["Concrete mix", "Concreto", "bags"], ["Gravel", "Grava", "bags"], ["Galvanized screws or nails", "Tornillos o clavos galvanizados", "box"], ["Post caps", "Tapas de poste", "ea"], ["Gate hardware", "Herrajes de puerta", "sets"], ["Stain or sealer", "Tinte o sellador", "gal"], ["String line and stakes", "Cuerda y estacas", "set"]],
   remodel: [["Lumber", "Madera", "pcs"], ["Drywall sheets", "Paneles de yeso", "ea"], ["Joint compound", "Compuesto para juntas", "bucket"], ["Screws and fasteners", "Tornillos y sujetadores", "box"], ["Trim", "Molduras", "ft"], ["Adhesive", "Adhesivo", "tubes"], ["Paint and primer", "Pintura e imprimante", "gal"], ["Disposal bags", "Bolsas de desecho", "ea"]],
+};
+
+/** Tools to own or bring, rentals to reserve, and protective gear. Quantities stay blank for the painter to fill in. */
+const EXTRAS: Record<Group, Array<[ItemGroup, string, string, string]>> = {
+  paint: [
+    ["tool", "Ladders and extension poles", "Escaleras y extensiones", "set"], ["tool", "Roller frames and paint trays", "Marcos de rodillo y bandejas", "set"], ["tool", "Putty knives and scrapers", "Espátulas y raspadores", "set"],
+    ["rental", "Airless sprayer (if spraying)", "Pulverizador airless (si se rocía)", "day"], ["rental", "Scaffold or lift (if needed)", "Andamio o elevador (si se necesita)", "day"],
+    ["safety", "Respirator, safety glasses and gloves", "Respirador, lentes y guantes", "per person"], ["safety", "Lead-safe supplies for homes built before 1978", "Insumos seguros contra plomo para casas anteriores a 1978", "kit"],
+  ],
+  fencing: [
+    ["tool", "Impact drivers and spare batteries", "Atornilladores de impacto y baterías de repuesto", "ea"], ["tool", "Levels (4 ft, 2 ft, post level)", "Niveles (4 pies, 2 pies, de poste)", "set"], ["tool", "Tape measures and mason's line", "Cintas métricas y cuerda de albañil", "set"],
+    ["tool", "Marking paint and wire flags", "Pintura de marcar y banderas de alambre", "set"], ["tool", "Shovels, post-hole diggers and digging bar", "Palas, cavahoyos y barra", "set"], ["tool", "Circular saws and spare blades", "Sierras circulares y discos de repuesto", "ea"],
+    ["tool", "Wheelbarrows, hoses and buckets", "Carretillas, mangueras y cubetas", "set"], ["tool", "Extension cords and a GFCI", "Cables de extensión y GFCI", "set"], ["tool", "Cones, caution tape and jobsite signs", "Conos, cinta de precaución y letreros", "set"],
+    ["rental", "Gas auger (2-man) and bits", "Barrena de gasolina (2 personas) y brocas", "unit-day"], ["rental", "Concrete mixer", "Mezcladora de concreto", "wk"], ["rental", "Dumpster", "Contenedor de basura", "ea"],
+    ["rental", "Rotary laser level with tripod", "Nivel láser rotativo con trípode", "day"], ["rental", "Chainsaw or pole saw (if clearing)", "Motosierra o podadora de altura (si se despeja)", "day"],
+    ["safety", "Hard hats, glasses, hearing protection, gloves and boots", "Cascos, lentes, protección auditiva, guantes y botas", "per person"], ["safety", "High-visibility vests", "Chalecos de alta visibilidad", "per person"], ["safety", "First-aid kit, water and sunscreen", "Botiquín, agua y protector solar", "set"],
+  ],
+  remodel: [
+    ["tool", "Hand and power tools for the trade", "Herramientas manuales y eléctricas del oficio", "set"], ["tool", "Levels, squares and tape measures", "Niveles, escuadras y cintas métricas", "set"],
+    ["rental", "Dumpster", "Contenedor de basura", "ea"], ["safety", "Hard hats, glasses, hearing protection, gloves and boots", "Cascos, lentes, protección auditiva, guantes y botas", "per person"], ["safety", "Dust masks or respirators", "Mascarillas o respiradores", "per person"],
+  ],
 };
 
 const STEPS: Record<Group, Pair[]> = {
@@ -116,14 +142,14 @@ export interface StarterContext {
 export function starterDoc(kind: ListKind, c: StarterContext, lang: "en" | "es"): ListDoc {
   const g = groupFor(c.trade);
   const i = lang === "es" ? 1 : 0;
-  const mk = (text: string, detail = "", qty = 0, unit = ""): Item => ({ text, detail, qty, unit });
+  const mk = (text: string, detail = "", qty = 0, unit = "", group: ItemGroup = "material"): Item => ({ text, detail, qty, unit, group });
   const p = c.profile ?? {};
   if (kind === "materials") {
     const brands: string[] = Array.isArray(p.materials?.brands) ? p.materials.brands : [];
     return {
       language: lang,
       intro: brands.length ? (lang === "es" ? `Marcas preferidas: ${brands.join(", ")}.` : `Preferred brands: ${brands.join(", ")}.`) : "",
-      items: MATERIALS[g].map(([en, es, unit]) => mk(i ? es : en, "", 0, unit)),
+      items: [...MATERIALS[g].map(([en, es, unit]) => mk(i ? es : en, "", 0, unit)), ...EXTRAS[g].map(([grp, en, es, unit]) => mk(i ? es : en, "", 0, unit, grp))],
       footer: "",
     };
   }
@@ -216,9 +242,14 @@ export function renderListDocHtml(kind: ListKind, ctx: DocContext, d: ListDoc): 
   const intro = d.intro ? `<p>${x(d.intro)}</p>` : "";
   let body = "";
   if (kind === "materials") {
-    body = `<table><thead><tr><th>${es ? "Material" : "Item"}</th><th class="r">${es ? "Cant." : "Qty"}</th><th>${es ? "Notas" : "Notes"}</th></tr></thead><tbody>${d.items
-      .map((i) => `<tr><td>${x(i.text)}</td><td class="r">${i.qty ? x(String(i.qty)) + " " + x(i.unit) : "&nbsp;"}</td><td>${x(i.detail)}</td></tr>`)
-      .join("")}</tbody></table>`;
+    const heads: Record<ItemGroup, [string, string]> = { material: ["Materials to buy", "Materiales por comprar"], rental: ["Rentals to reserve", "Alquileres por reservar"], tool: ["Tools to own or bring", "Herramientas propias o por llevar"], safety: ["Safety gear and supplies", "Equipo de seguridad"] };
+    body = ITEM_GROUPS.map((g) => {
+      const rows = d.items.filter((i) => i.group === g);
+      if (!rows.length) return "";
+      return `<h3 style="margin:18px 0 0">${x(heads[g][es ? 1 : 0])}</h3><table><thead><tr><th>${es ? "Artículo" : "Item"}</th><th class="r">${es ? "Cant." : "Qty"}</th><th>${es ? "Notas" : "Notes"}</th></tr></thead><tbody>${rows
+        .map((i) => `<tr><td>${x(i.text)}</td><td class="r">${i.qty ? x(String(i.qty)) + " " + x(i.unit) : x(i.unit) || "&nbsp;"}</td><td>${x(i.detail)}</td></tr>`)
+        .join("")}</tbody></table>`;
+    }).join("");
   } else if (kind === "schedule") {
     body = `<table><thead><tr><th>${es ? "Día" : "When"}</th><th>${es ? "Trabajo" : "Work"}</th></tr></thead><tbody>${d.items.map((i, n) => `<tr><td style="white-space:nowrap">${x(i.detail || (es ? "Día " : "Day ") + (n + 1))}</td><td>${x(i.text)}</td></tr>`).join("")}</tbody></table>`;
   } else if (kind === "instructions") {
@@ -238,6 +269,8 @@ export interface InvoiceInput {
   paidCents: number;
   notes: string;
   language: "en" | "es";
+  /** Which payment on the estimate's milestone schedule this invoice bills (0 = first). Null bills the whole job. */
+  milestone: number | null;
 }
 
 export function sanitizeInvoice(input: any): InvoiceInput {
@@ -248,6 +281,7 @@ export function sanitizeInvoice(input: any): InvoiceInput {
     paidCents: Number.isFinite(paid) && paid >= 0 && paid <= 10_000_000 ? Math.round(paid * 100) : 0,
     notes: str(input?.notes, 2000),
     language: input?.language === "es" ? "es" : "en",
+    milestone: Number.isInteger(Number(input?.milestone)) && input?.milestone !== null && input?.milestone !== "" && Number(input.milestone) >= 0 && Number(input.milestone) < 12 ? Number(input.milestone) : null,
   };
 }
 
@@ -255,13 +289,26 @@ export function sanitizeInvoice(input: any): InvoiceInput {
 export function renderInvoiceHtml(ctx: DocContext, inv: InvoiceInput, est: EstimateInput, t: Totals): string {
   const x = escapeHtml;
   const es = inv.language === "es";
-  const balance = Math.max(0, t.totalCents - inv.paidCents);
+  const amounts = milestoneAmounts(t.totalCents, est.schedule);
+  const ms = inv.milestone !== null && inv.milestone < est.schedule.length ? inv.milestone : null;
+  const balance = ms !== null ? amounts[ms] : Math.max(0, t.totalCents - inv.paidCents);
   const rows = est.lines
     .map((l) => `<tr><td>${x(l.description)}</td><td class="r">${x(String(l.qty))} ${x(l.unit)}</td><td class="r">${money(l.unitCents)}</td><td class="r">${money(Math.round(l.qty * l.unitCents))}</td></tr>`)
     .join("");
   const signed = (c: number) => (c < 0 ? `-${money(-c)}` : money(c));
   const sum = (label: string, cents: number, cls = "") => `<tr class="${cls}"><td colspan="3" class="r">${x(label)}</td><td class="r">${signed(cents)}</td></tr>`;
   const meta = `<p class="muted">${inv.number ? `${es ? "Factura n.º" : "Invoice no."} ${x(inv.number)} &middot; ` : ""}${inv.dueDate ? `${es ? "Vence" : "Due"}: ${x(inv.dueDate)}` : ""}</p>`;
+  if (ms !== null) {
+    const m = est.schedule[ms];
+    const remaining = Math.max(0, t.totalCents - inv.paidCents - amounts[ms]);
+    const msBody = `${meta}<table><thead><tr><th>${es ? "Descripción" : "Description"}</th><th class="r">${es ? "Importe" : "Amount"}</th></tr></thead><tbody>
+<tr><td>${es ? "Pago" : "Payment"} ${ms + 1} ${es ? "de" : "of"} ${est.schedule.length}: ${x(m.label)} (${x(String(m.pct))}%)</td><td class="r">${money(amounts[ms])}</td></tr>
+<tr><td class="r">${es ? "Precio total del contrato" : "Contract total"}</td><td class="r">${money(t.totalCents)}</td></tr>
+<tr><td class="r">${es ? "Pagado hasta ahora" : "Paid to date"}</td><td class="r">${money(inv.paidCents)}</td></tr>
+<tr><td class="r">${es ? "Restante después de este pago" : "Remaining after this payment"}</td><td class="r">${money(remaining)}</td></tr>
+<tr class="tot"><td class="r">${es ? "Importe a pagar ahora" : "Amount due now"}</td><td class="r">${money(amounts[ms])}</td></tr></tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
+    return shell(ctx, inv.language, docTitle("invoice", inv.language), msBody);
+  }
   const body = `${meta}<table><thead><tr><th>${es ? "Descripción" : "Description"}</th><th class="r">${es ? "Cant." : "Qty"}</th><th class="r">${es ? "Precio unitario" : "Unit price"}</th><th class="r">${es ? "Importe" : "Amount"}</th></tr></thead><tbody>${rows}
 ${t.discountCents ? sum(es ? "Descuento" : "Discount", -t.discountCents) : ""}${t.taxCents ? sum(es ? "Impuesto" : "Tax", t.taxCents) : ""}${sum(es ? "Total" : "Total", t.totalCents)}${inv.paidCents ? sum(es ? "Pagado" : "Already paid", -inv.paidCents) : ""}${sum(es ? "Saldo a pagar" : "Balance due", balance, "tot")}</tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
   return shell(ctx, inv.language, docTitle("invoice", inv.language), body);

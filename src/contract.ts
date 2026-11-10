@@ -1,5 +1,5 @@
 import { escapeHtml } from "./settings.ts";
-import { money, type EstimateInput, type Totals } from "./estimate.ts";
+import { milestoneAmounts, money, type EstimateInput, type Totals } from "./estimate.ts";
 
 export interface Clause {
   title: string;
@@ -40,6 +40,8 @@ export interface ClauseContext {
   startDate: string;
   endDate: string;
   profile: any;
+  /** The saved estimate: its payment schedule, inclusions, exclusions and assumptions flow into the contract. */
+  estimate?: EstimateInput;
 }
 
 /**
@@ -56,6 +58,23 @@ export function defaultClauses(c: ClauseContext, lang: "en" | "es"): Clause[] {
   const t = c.totals;
   const dep = t.depositCents ? money(t.depositCents) : null;
   const when = (en: string, es: string) => (lang === "es" ? es : en);
+  const est = c.estimate;
+  const priceBody = () => {
+    if (est?.schedule.length) {
+      const amounts = milestoneAmounts(t.totalCents, est.schedule);
+      const rows = est.schedule.map((m, n) => `${n + 1}. ${m.label}: ${money(amounts[n])} (${m.pct}%)`).join("\n");
+      return when(
+        `The total price is ${money(t.totalCents)}. Payments are due as follows:\n${rows}\n${terms ? "Each invoice is due " + terms + "." : ""}`.trim(),
+        `El precio total es ${money(t.totalCents)}. Los pagos vencen así:\n${rows}\n${terms ? "Cada factura vence " + terms + "." : ""}`.trim(),
+      );
+    }
+    return when(
+      `The total price is ${money(t.totalCents)}${dep ? `. A deposit of ${dep} is due before work is scheduled` : ""}. The balance is due ${terms || "when the work is finished"}.`,
+      `El precio total es ${money(t.totalCents)}${dep ? `. Se requiere un depósito de ${dep} antes de programar el trabajo` : ""}. El saldo vence ${terms || "al terminar el trabajo"}.`,
+    );
+  };
+  const listClause = (en: string, es: string, items: string[] | undefined): Clause[] =>
+    items?.length ? [{ title: when(en, es), body: items.map((i) => `- ${i}`).join("\n") }] : [];
 
   const out: Clause[] = [
     {
@@ -72,11 +91,12 @@ export function defaultClauses(c: ClauseContext, lang: "en" | "es"): Clause[] {
     },
     {
       title: when("Price and payment", "Precio y pago"),
-      body: when(
-        `The total price is ${money(t.totalCents)}${dep ? `. A deposit of ${dep} is due before work is scheduled` : ""}. The balance is due ${terms || "when the work is finished"}.`,
-        `El precio total es ${money(t.totalCents)}${dep ? `. Se requiere un depósito de ${dep} antes de programar el trabajo` : ""}. El saldo vence ${terms || "al terminar el trabajo"}.`,
-      ),
+      body: priceBody(),
     },
+    ...listClause("What is included", "Qué está incluido", est?.inclusions),
+    ...listClause("What is not included", "Qué no está incluido", est?.exclusions),
+    ...listClause("Assumptions", "Supuestos", est?.assumptions),
+    ...listClause("Allowances", "Asignaciones", est?.allowances),
     {
       title: when("Schedule", "Calendario"),
       body: when(

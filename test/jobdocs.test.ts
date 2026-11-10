@@ -68,3 +68,25 @@ test("list documents render and escape", () => {
     assert.ok(!html.includes("<i>hi</i>"), k);
   }
 });
+
+test("materials list groups buy, rent, tools and safety; fence starter has all four", () => {
+  const d = starterDoc("materials", { trade: "fencing", profile: {}, company: "T", customer: "C" }, "en");
+  const groups = new Set(d.items.map((i) => i.group));
+  assert.deepEqual([...groups].sort(), ["material", "rental", "safety", "tool"]);
+  const html = renderListDocHtml("materials", ctx, d);
+  for (const h of ["Materials to buy", "Rentals to reserve", "Tools to own or bring", "Safety gear and supplies"]) assert.ok(html.includes(h), h);
+  assert.equal(sanitizeListDoc({ items: [{ text: "x", group: "bogus" }] }).items[0].group, "material");
+});
+
+test("milestone invoice shows the payment, paid to date and what remains", () => {
+  const e = sanitizeEstimate({ lines: [{ description: "Fence", qty: 1, unitPrice: 1000 }], schedule: [{ label: "Deposit", pct: 30 }, { label: "Middle", pct: 30 }, { label: "Final", pct: 40 }] });
+  const t = computeTotals(e);
+  const inv = sanitizeInvoice({ number: "7", milestone: 1, paid: 300 });
+  assert.equal(inv.milestone, 1);
+  const html = renderInvoiceHtml(ctx, inv, e, t);
+  assert.ok(html.includes("Payment 2 of 3: Middle (30%)"));
+  assert.ok(html.includes("Amount due now"));
+  assert.ok(html.includes("$400.00")); // remaining after this payment
+  assert.equal(sanitizeInvoice({ milestone: "" }).milestone, null);
+  assert.equal(sanitizeInvoice({}).milestone, null);
+});
