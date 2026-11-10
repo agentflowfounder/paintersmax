@@ -9,14 +9,20 @@ p{color:#4A5568} label{display:block;font-weight:600;font-size:14px;margin:16px 
 input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cfd5dc;border-radius:6px;font:inherit}
 button{margin-top:16px;width:100%;padding:12px;border:0;border-radius:6px;background:#0F1B2D;color:#fff;font-weight:600;font-size:16px;cursor:pointer}
 #done{display:none;color:#0F1B2D}
+.gbtn{display:block;text-align:center;padding:12px;border:1px solid #cfd5dc;border-radius:6px;color:#0F1B2D;text-decoration:none;font-weight:600;background:#fff}
 </style></head><body><main>
 <h1>Sign in</h1>
+<div id="err" style="display:none;color:#b42318;background:#fdecea;border-radius:6px;padding:10px;margin:8px 0;font-size:14px"></div>
+<div id="g" style="display:none"><a class="gbtn" href="/api/auth/google">Sign in with Google</a><p style="text-align:center;margin:14px 0 0;color:#4A5568">or use an email link</p></div>
 <form id="f"><p>Enter your email and we'll send you a one-click sign-in link.</p>
 <label for="email">Email</label><input id="email" type="email" required autocomplete="email">
 <button type="submit">Email me a link</button></form>
 <p id="done">If that email has an account, a sign-in link is on its way. It works for 15 minutes.</p>
 </main>
 <script>
+const MSG={no_account:'That Google account is not linked to a PaintersMax account. Use the email you signed up with, or contact us.',google_failed:'Google sign-in did not work. Please try again, or use an email link.',google_cancelled:'Google sign-in was cancelled.',google_off:'Google sign-in is not available yet. Use an email link.'};
+const q=new URLSearchParams(location.search).get('error');if(q&&MSG[q]){const e=document.getElementById('err');e.textContent=MSG[q];e.style.display='block';}
+fetch('/api/auth/config').then(r=>r.json()).then(c=>{if(c.google)document.getElementById('g').style.display='block';}).catch(()=>{});
 document.getElementById('f').addEventListener('submit',async e=>{
   e.preventDefault();
   await fetch('/api/auth/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value})});

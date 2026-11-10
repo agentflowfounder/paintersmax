@@ -2,6 +2,7 @@ import { writeSummary } from "./ai.ts";
 import { ownerBriefText, writeBrief } from "./brief.ts";
 import { addJobEvent, ensureCustomerAndJob, tradeFor } from "./crm.ts";
 import { handleAdmin } from "./admin.ts";
+import { handleAuthConfig, handleGoogleCallback, handleGoogleStart } from "./google.ts";
 import { handleBilling, handleCheckout, handleStripeWebhook } from "./stripe.ts";
 import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleProfile, handleRateCard } from "./wizard-api.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
@@ -394,6 +395,23 @@ export default {
         console.error("login link failed", String(err));
       }
       return json({ ok: true }); // same answer whether or not the email exists
+    }
+    if (pathname === "/api/auth/config") return handleAuthConfig(env);
+    if (pathname === "/api/auth/google") {
+      try {
+        return await handleGoogleStart(request, env);
+      } catch (err) {
+        console.error("google start failed", String(err));
+        return Response.redirect(new URL("/login?error=google_failed", request.url).toString(), 302);
+      }
+    }
+    if (pathname === "/api/auth/google/callback") {
+      try {
+        return await handleGoogleCallback(request, env);
+      } catch (err) {
+        console.error("google callback failed", String(err));
+        return Response.redirect(new URL("/login?error=google_failed", request.url).toString(), 302);
+      }
     }
     if (pathname === "/api/auth/verify") {
       const result = await verifyLoginLink(env, new URL(request.url).searchParams.get("token"));

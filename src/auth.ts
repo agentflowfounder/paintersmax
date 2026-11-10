@@ -69,9 +69,14 @@ export async function verifyLoginLink(env: Env, token: string | null): Promise<{
     .first<{ user_id: number }>();
   if (!used) return null;
 
+  return startSession(env, used.user_id);
+}
+
+/** Opens a signed-in session for a user and returns the cookie that carries it. */
+export async function startSession(env: Env, userId: number): Promise<{ cookie: string }> {
   const session = randomToken();
   await env.DB.prepare("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)")
-    .bind(await sha256Hex(session), used.user_id, inFuture(SESSION_DAYS * 86_400_000))
+    .bind(await sha256Hex(session), userId, inFuture(SESSION_DAYS * 86_400_000))
     .run();
   return {
     cookie: `${SESSION_COOKIE}=${session}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_DAYS * 86400}`,
