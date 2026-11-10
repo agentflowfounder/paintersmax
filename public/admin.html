@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>PaintersMax Admin</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
+main{max-width:820px;margin:0 auto;padding:16px 16px 60px}
+h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 8px;font-size:26px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
+label{display:block;font-size:14px;font-weight:600;margin:10px 0 4px}
+input,select{width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr 130px;gap:10px}
+.btn{margin-top:12px;padding:12px 16px;border-radius:8px;border:0;font-weight:700;font-size:15px;cursor:pointer;background:#E8A33D;color:#0F1B2D}
+.c{padding:12px 0;border-bottom:1px solid #eee;display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center}.c:last-child{border-bottom:0}
+small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#0a7a3d}.bad{color:#b42318}
+@media(max-width:560px){.row{grid-template-columns:1fr}}
+</style></head><body>
+<header><div><b>PaintersMax</b> Admin</div><div><a href="/jobs">Jobs</a><a href="/dashboard">Leads</a></div></header>
+<main><h2>Clients</h2><div id="msg"></div>
+<div class="card" id="list">Loading...</div>
+<h2 style="font-size:20px">Add a client</h2>
+<div class="card"><div class="row"><div><label>Company name</label><input id="n"></div><div><label>Owner email</label><input id="e" type="email"></div><div><label>Plan</label><select id="p"><option value="free">Free</option><option value="starter">Starter</option><option value="basic">Basic</option><option value="pro">Pro</option></select></div></div>
+<button class="btn" id="go">Create client and email sign-in link</button>
+<p><small>The owner gets a one-time sign-in link at that email. Creating the same email twice does nothing.</small></p></div></main>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
+function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
+async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
+const PLANS=['free','starter','basic','pro'];
+async function load(){try{const {clients}=await api('/api/admin');$('list').innerHTML=clients.map(c=>`<div class="c"><div><b>${esc(c.name)}</b> <small>${esc(c.slug)}</small><br><small>${esc(c.owners||'no login yet')} &middot; ${c.jobs} jobs &middot; ${c.leads} leads</small></div><select data-id="${c.id}">${PLANS.map(p=>`<option value="${p}" ${p===c.plan?'selected':''}>${p}</option>`).join('')}</select></div>`).join('');}catch(e){if(e)$('list').textContent='You do not have access to this page.';}}
+document.addEventListener('change',async e=>{const id=e.target.dataset&&e.target.dataset.id;if(!id)return;try{await api('/api/admin',{action:'plan',companyId:+id,plan:e.target.value});msg('Plan updated.',true);}catch(x){if(x)msg(x.message);}});
+$('go').onclick=async()=>{try{msg('');const r=await api('/api/admin',{action:'create',name:$('n').value,email:$('e').value,plan:$('p').value});msg(r.created?'Client created. Sign-in link sent.':'That email already has an account. Nothing changed.',true);$('n').value='';$('e').value='';load();}catch(x){if(x)msg(x.message);}};
+load();
+</script></body></html>

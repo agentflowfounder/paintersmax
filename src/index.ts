@@ -1,6 +1,7 @@
 import { writeSummary } from "./ai.ts";
 import { ownerBriefText, writeBrief } from "./brief.ts";
 import { addJobEvent, ensureCustomerAndJob, tradeFor } from "./crm.ts";
+import { handleAdmin } from "./admin.ts";
 import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleProfile, handleRateCard } from "./wizard-api.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
@@ -488,6 +489,14 @@ export default {
         return await handleJobNote(request, env);
       } catch (err) {
         console.error("handleJobNote failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/admin") {
+      try {
+        return await handleAdmin(request, env);
+      } catch (err) {
+        console.error("handleAdmin failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
