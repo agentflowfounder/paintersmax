@@ -2,6 +2,7 @@ import { writeSummary } from "./ai.ts";
 import { ownerBriefText, writeBrief } from "./brief.ts";
 import { addJobEvent, ensureCustomerAndJob, tradeFor } from "./crm.ts";
 import { handleAdmin } from "./admin.ts";
+import { handleBilling, handleCheckout, handleStripeWebhook } from "./stripe.ts";
 import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleProfile, handleRateCard } from "./wizard-api.ts";
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
@@ -489,6 +490,30 @@ export default {
         return await handleJobNote(request, env);
       } catch (err) {
         console.error("handleJobNote failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/checkout") {
+      try {
+        return await handleCheckout(request, env);
+      } catch (err) {
+        console.error("handleCheckout failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/stripe/webhook") {
+      try {
+        return await handleStripeWebhook(request, env);
+      } catch (err) {
+        console.error("handleStripeWebhook failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/billing") {
+      try {
+        return await handleBilling(request, env);
+      } catch (err) {
+        console.error("handleBilling failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

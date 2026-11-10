@@ -14,6 +14,8 @@ export interface Env {
   MODEL_GEMINI?: string;
   SITE_TOKEN?: string; // shared secret that client websites send to /api/usage/consume
   AI_KILL_SWITCH?: string; // set to "1" to stop all metered AI features at once
+  STRIPE_SECRET_KEY?: string; // sk_test_... while testing; secret, never in the repo
+  STRIPE_WEBHOOK_SECRET?: string; // whsec_... from the Stripe webhook endpoint; secret
   DEV_LOG_LINKS?: string; // local development only
 }
 

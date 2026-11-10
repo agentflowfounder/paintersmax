@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Start with PaintersMax</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px}header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+main{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:32px;margin:6px 0 6px}
+p.lead{color:#4A5568;margin:0 0 18px}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.plan{background:#fff;border:2px solid rgba(15,27,45,.1);border-radius:12px;padding:16px;cursor:pointer}
+.plan.on{border-color:#E8A33D;box-shadow:0 0 0 3px rgba(232,163,61,.25)}
+.plan h3{margin:0;font-size:18px}.price{font-size:28px;font-weight:700;margin:6px 0}.price small{font-size:14px;font-weight:500;color:#4A5568}
+.plan ul{padding-left:18px;margin:8px 0 0;font-size:14px;line-height:1.5}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:16px 0}
+label{display:block;font-size:14px;font-weight:600;margin:10px 0 4px}
+input{width:100%;padding:12px;border:1px solid #cfd5dc;border-radius:8px;font:inherit}
+button{margin-top:14px;width:100%;padding:14px;border-radius:8px;border:0;background:#E8A33D;color:#0F1B2D;font-weight:700;font-size:16px;cursor:pointer}
+button[disabled]{opacity:.6}#msg{color:#b42318;font-size:14px;min-height:20px;margin-top:8px}
+small{color:#4A5568}
+@media(max-width:700px){.plans{grid-template-columns:1fr}}
+</style></head><body>
+<header><b>PaintersMax</b></header>
+<main>
+<h1>Quotes, estimates and contracts in one place</h1>
+<p class="lead">Pick a plan, pay securely, and sign in. A one-time setup fee of $499 applies to every plan.</p>
+<div class="plans" id="plans">
+ <div class="plan" data-p="starter"><h3>Starter</h3><div class="price">$99<small>/month</small></div><ul><li>Up to 2 services and 2 cities</li><li>Estimates, contracts, invoices</li><li>Job assistant: 60 questions a month</li></ul></div>
+ <div class="plan on" data-p="basic"><h3>Basic</h3><div class="price">$199<small>/month</small></div><ul><li>Up to 5 services and 6 cities</li><li>Builder rate cards</li><li>Job assistant: 300 questions a month</li></ul></div>
+ <div class="plan" data-p="pro"><h3>Pro</h3><div class="price">$349<small>/month</small></div><ul><li>Up to 15 services and 25 cities</li><li>Builder rate cards</li><li>Job assistant: 1,500 questions a month</li></ul></div>
+</div>
+<div class="card"><label for="n">Company name</label><input id="n" autocomplete="organization"><label for="e">Your email</label><input id="e" type="email" autocomplete="email">
+<button id="go">Continue to secure payment</button><div id="msg"></div><small>You will pay on Stripe's secure page. After payment, a sign-in link is emailed to you. You can cancel anytime.</small></div>
+</main>
+<script>
+let plan='basic';const $=id=>document.getElementById(id);
+document.querySelectorAll('.plan').forEach(el=>el.onclick=()=>{plan=el.dataset.p;document.querySelectorAll('.plan').forEach(x=>x.classList.toggle('on',x===el));});
+$('go').onclick=async()=>{const b=$('go');b.disabled=true;$('msg').textContent='';
+ try{const r=await fetch('/api/checkout',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({plan,name:$('n').value,email:$('e').value})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw new Error(j.error||'Something went wrong.');location.href=j.url;}
+ catch(e){$('msg').textContent=e.message;b.disabled=false;}};
+</script></body></html>
