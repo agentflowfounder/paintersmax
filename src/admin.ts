@@ -1,3 +1,4 @@
+import { RESERVED_SLUGS } from "./settings.ts";
 import { adminTickerView, saveConfig } from "./ticker.ts";
 import { getSessionUser, requestLoginLink } from "./auth.ts";
 import { normalizePlan } from "./usage.ts";
@@ -21,7 +22,8 @@ export function slugify(name: string): string {
 }
 
 async function uniqueSlug(env: Env, name: string): Promise<string> {
-  const base = slugify(name);
+  let base = slugify(name);
+  if (RESERVED_SLUGS.has(base)) base = `${base}-painting`;
   for (let n = 0; n < 50; n++) {
     const slug = n === 0 ? base : `${base}-${n + 1}`;
     const hit = await env.DB.prepare("SELECT 1 FROM companies WHERE slug = ?").bind(slug).first();

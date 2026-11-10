@@ -13,7 +13,7 @@ import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote
 import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
-import { readSettings, renderQuotePage, sanitize } from "./settings.ts";
+import { readSettings, renderQuotePage, sanitize, tenantFromHost } from "./settings.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
 import { parsePhotos, parseQuoteRequest } from "./validate.ts";
@@ -358,7 +358,15 @@ export default {
     ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const { pathname } = new URL(request.url);
+    const { pathname, hostname } = new URL(request.url);
+    // A client's own address: rivera-painting.paintersmax.app shows their quote page. Owners sign in on the main site.
+    const tenant = tenantFromHost(hostname);
+    if (tenant) {
+      if (pathname === "/" || pathname === "/quote") return handleQuotePage(request, env, tenant);
+      if (["/login", "/dashboard", "/app", "/jobs", "/insurance", "/materials", "/admin", "/start"].includes(pathname)) {
+        return Response.redirect(`https://paintersmax.app${pathname}`, 302);
+      }
+    }
     if (pathname === "/api/health") {
       return json({
         ok: true,

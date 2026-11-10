@@ -64,3 +64,15 @@ test("rate card data keeps only numbers and safe keys", () => {
   assert.equal(d.text, undefined);
   assert.equal(d.addons.ceiling, 60);
 });
+
+import { tenantFromHost } from "../src/settings.ts";
+test("client subdomains: only real client names count", () => {
+  assert.equal(tenantFromHost("rivera-painting.paintersmax.app"), "rivera-painting");
+  assert.equal(tenantFromHost("Rivera.PaintersMax.app"), "rivera");
+  assert.equal(tenantFromHost("paintersmax.app"), null);
+  assert.equal(tenantFromHost("app.paintersmax.app"), null);
+  assert.equal(tenantFromHost("www.paintersmax.app"), null);
+  assert.equal(tenantFromHost("a.b.paintersmax.app"), null);
+  assert.equal(tenantFromHost("dfwpainters.pro"), null);
+  assert.equal(tenantFromHost("evil-paintersmax.app"), null);
+});

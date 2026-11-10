@@ -57,3 +57,18 @@ export function renderQuotePage(template: string, c: { slug: string; name: strin
     .replaceAll("{{INSURED}}", proofUrl ? `<p class="insured">&#10003; Insured &middot; <a href="${e(proofUrl)}" target="_blank" rel="noopener">View proof of insurance</a></p>` : "")
     .replaceAll("{{TAGLINE}}", e(s.tagline ?? "Tell us about the job and see a price range in seconds. Add photos for a more accurate estimate."));
 }
+
+/** Names that must never be a client's address (they are ours, or look official). */
+export const RESERVED_SLUGS = new Set([
+  "www", "app", "api", "mail", "email", "smtp", "imap", "ftp", "admin", "root", "support", "help", "billing", "status", "docs", "blog", "news", "login", "signin", "signup", "start",
+  "dashboard", "portal", "static", "assets", "cdn", "dev", "test", "staging", "demo", "security", "abuse", "postmaster", "hostmaster", "webmaster", "noreply", "no-reply", "info", "sales", "legal", "privacy", "terms", "paintersmax",
+]);
+
+/** For a host like "rivera-painting.paintersmax.app" returns "rivera-painting". Returns null for the main site, app., www. and any other host. */
+export function tenantFromHost(hostname: string, base = "paintersmax.app"): string | null {
+  const h = hostname.toLowerCase();
+  if (!h.endsWith("." + base)) return null;
+  const label = h.slice(0, -(base.length + 1));
+  if (!/^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$/.test(label) || RESERVED_SLUGS.has(label)) return null;
+  return label;
+}
