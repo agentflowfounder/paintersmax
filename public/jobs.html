@@ -21,6 +21,11 @@ input,select,textarea{width:100%;padding:11px;border:1px solid #cfd5dc;border-ra
 .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .job{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #eee;text-decoration:none;color:inherit}
 .job:last-child{border-bottom:0}
+.sec h3{margin:22px 0 8px}.sec .ct{font-weight:400;color:#4A5568;font-size:14px}
+.sg{font-size:12px;border-radius:99px;padding:3px 10px;white-space:nowrap;background:#e6f4ea;color:#0a7a3d;margin-right:6px}.sg.w{background:#fff3d6;color:#8a5a00}
+.chips2 summary{cursor:pointer;font-weight:600;font-size:14px;margin:12px 0 4px}
+.cat{margin:8px 0}.cat b{font-size:13px}.cat .chip{margin:4px 4px 0 0}
+.mic{display:inline-flex;align-items:center;gap:6px}.mic.on{background:#E8A33D}
 .tag{font-size:12px;background:#eceae4;border-radius:99px;padding:3px 10px;white-space:nowrap;align-self:center}
 .line{display:grid;grid-template-columns:1fr 70px 60px 90px 30px;gap:6px;margin:6px 0;align-items:center}
 .line input{padding:8px}.line button{border:0;background:none;font-size:18px;cursor:pointer;color:#b42318}
@@ -31,7 +36,7 @@ small,.muted{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{
 .bub{padding:10px 12px;border-radius:10px;margin:8px 0;white-space:pre-wrap;line-height:1.45}.bub.u{background:#eceae4;margin-left:24px}.bub.a{background:#fff8e8;border:1px solid #f0d9a0;margin-right:12px}.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.chip{border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:6px 12px;font-size:13px;cursor:pointer}.mini{border:0;background:none;color:#0F1B2D;text-decoration:underline;font-size:12px;cursor:pointer;padding:2px 0}
 @media(max-width:520px){.line{grid-template-columns:1fr 60px 50px 80px 26px}}
 </style></head><body>
-<header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Wizard setup</a><a href="/dashboard">Leads</a></div></header>
+<header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Estimating Setup</a><a href="/dashboard">Settings and leads</a></div></header>
 <main><div id="view">Loading...</div><div id="msg"></div></main>
 <script>
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -47,39 +52,55 @@ async function api(path,body){const r=await fetch(path,body?{method:'POST',heade
 
 const CHIPS_JOB=['What is left to do on this job?','How much paint will I need?','What should I watch out for?','Write a short message to the customer about the schedule'];
 const CHIPS_GEN=['How do I price a ceiling in a small bathroom?','What primer do I use over stains?','How long should I wait between coats?'];
+const QCATS=[
+ ['Bidding and pricing',['How do I price a ceiling in a small bathroom?','How do I bid a repaint by the square foot?','How much should I charge to paint kitchen cabinets?','What markup should I add for overhead and profit?']],
+ ['Prep, stains and repairs',['What primer do I use over water stains on a ceiling?','How do I remove mildew before painting?','How do I cover smoke or nicotine stains?','How do I fix peeling paint on an exterior wall?']],
+ ['Coatings and finishes',['When should I use oil-based instead of water-based paint?','What is the difference between epoxy, lacquer and varnish?','How long should I wait between coats?','Which sheen should I use in kitchens, baths and trim?']],
+ ['Spraying and equipment',['How do I clean an airless sprayer?','Why does my sprayer spit or leave tails?','What tip size should I use for latex on walls?','How do I store a sprayer for the winter?']],
+ ['Safety',['What do I do about lead paint in a home built before 1978?','What respirator do I need for spraying oil-based paint?','How do I stay safe on ladders and scaffolds?','How do I handle and dispose of leftover paint and rags?']],
+ ['Customers and business',['Write a short message asking a customer to approve my estimate','How do I handle a change order in the middle of a job?','How do I ask for a deposit politely?','How do I answer a customer who says my price is too high?']]];
 function assistantCard(jobId){
  if(chatJob!==jobId||chat===null){chat=[];}chatJob=jobId;
- return `<h3>Job assistant</h3><div class="card"><p class="muted" style="margin-top:0">${jobId?'Ask about this job. It sees the estimate, documents and notes. The email, phone and street address fields for the customer are not sent.':'Ask any painting or business question.'} Answers are suggestions: check numbers before you rely on them.</p>
- <div class="chips">${(jobId?CHIPS_JOB:CHIPS_GEN).map(c=>`<button class="chip" data-chip="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+ const es=localStorage.getItem('as_lang')==='es';
+ return `<h3>Job assistant</h3><div class="card">
+ <div style="display:flex;justify-content:space-between;gap:10px;align-items:end;flex-wrap:wrap"><label for="as_in" style="margin:0">${jobId?'Ask about this job, or any painting question':'Ask any painting or business question'}</label>
+ <select id="as_lang" style="width:auto;padding:6px 8px" aria-label="Language"><option value="en" ${es?'':'selected'}>English</option><option value="es" ${es?'selected':''}>Español</option></select></div>
+ <textarea id="as_in" rows="3" placeholder="Example: What primer should I use over water stains on a ceiling? Type your question, or tap the Mic button and speak it. Ask about bidding, safety, stains, coatings or equipment."></textarea>
+ <div class="btns"><button class="btn" id="as_send">Ask</button><button class="btn sec mic" id="as_mic" style="display:none" aria-label="Speak your question"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>Mic</button></div>
  <div id="as_log"></div>
- <label>Your question</label><textarea id="as_in" rows="2" placeholder="Type or tap the mic"></textarea>
- <div class="btns"><button class="btn" id="as_send">Ask</button><button class="btn sec" id="as_mic" style="display:none">Speak</button></div></div>`;}
+ ${jobId?`<div class="chips">${CHIPS_JOB.map(c=>`<button class="chip" data-chip="${esc(c)}">${esc(c)}</button>`).join('')}</div>`:''}
+ <details class="chips2"><summary>Browse common questions by topic</summary>${QCATS.map(([t,qs])=>`<div class="cat"><b>${esc(t)}</b><div>${qs.map(q=>`<button class="chip" data-chip="${esc(q)}">${esc(q)}</button>`).join('')}</div></div>`).join('')}</details>
+ <small class="muted">Answers are suggestions: check numbers and safety rules before you rely on them. ${jobId?'On a job, the assistant sees the estimate, documents and notes, but never the customer email, phone or street address. ':''}Each question uses one of your monthly assistant questions.</small></div>`;}
 function chatDraw(){const l=$('as_log');if(!l)return;l.innerHTML=chat.map((m,i)=>`<div class="bub ${m.role==='user'?'u':'a'}">${esc(m.content)}${m.role==='assistant'&&chatJob?`<br><button class="mini" data-asave="${i}">Save to job notes</button>`:''}</div>`).join('');l.scrollTop=l.scrollHeight;}
 async function askNow(q){const inp=$('as_in'),btn=$('as_send');q=(q||'').trim();if(!q)return;btn.disabled=true;msg('');
  const hist=chat.slice();chat.push({role:'user',content:q});chatDraw();inp.value='';
- try{const r=await api('/api/assistant',{jobId:chatJob,message:q,history:hist});chat.push({role:'assistant',content:r.reply});}
+ try{const r=await api('/api/assistant',{jobId:chatJob,message:q,history:hist,language:($('as_lang')||{value:'en'}).value});chat.push({role:'assistant',content:r.reply});}
  catch(e){if(e){chat.pop();msg(e.message);inp.value=q;}}
  chatDraw();btn.disabled=false;}
 document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};
  if(ds.chip){askNow(ds.chip);}
  else if(t.id==='as_send'){askNow($('as_in').value);}
  else if(ds.asave!==undefined&&ds.asave!==''){try{await api('/api/jobnote',{jobId:chatJob,text:'Assistant note: '+chat[+ds.asave].content});t.textContent='Saved';t.disabled=true;}catch(x){if(x)msg(x.message);}}
- else if(t.id==='as_mic'){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return;const r=new R();r.lang=navigator.language||'en-US';r.onresult=ev=>{$('as_in').value=(($('as_in').value?$('as_in').value+' ':'')+ev.results[0][0].transcript).trim();};r.start();}
+ else if(t.closest&&t.closest('#as_mic')){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return;const b=$('as_mic');const r=new R();r.lang=($('as_lang')||{value:'en'}).value==='es'?'es-US':'en-US';b.classList.add('on');r.onresult=ev=>{$('as_in').value=(($('as_in').value?$('as_in').value+' ':'')+ev.results[0][0].transcript).trim();};r.onend=r.onerror=()=>b.classList.remove('on');r.start();}
 });
+document.addEventListener('change',e=>{if(e.target.id==='as_lang'){try{localStorage.setItem('as_lang',e.target.value);}catch(x){}}});
 function micInit(){const m=$('as_mic');if(m&&(window.SpeechRecognition||window.webkitSpeechRecognition))m.style.display='';}
+const GROUPS=[['New leads',['lead'],'Customers who asked for a quote. Build an estimate to bid on them.'],['Estimate approved',['bid:signed'],'The customer signed the estimate. Build and send the contract next.'],['Waiting on the customer',['bid','contract'],'Estimates and contracts you sent. Waiting for the customer to approve or sign.'],['In progress',['scheduled','in_progress','punch'],'Approved jobs that are scheduled or underway.'],['Completed',['invoiced','closed'],'Finished and invoiced jobs.'],['Lost',['lost'],'']];
+function jobRow(j){return `<a class="job" href="/jobs?id=${j.id}"><div><b>${esc(j.title)}</b><br><small>${esc(j.customer)} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div><span>${j.signed?'<span class="sg">&#10003; Signed</span>':j.awaiting?'<span class="sg w">Awaiting signature</span>':''}<span class="tag">${esc(STAGE[j.stage]||j.stage)}</span></span></a>`;}
 async function list(){
   const {jobs}=await api('/api/jobs');
-  $('view').innerHTML=`<h2>Jobs</h2>
-  <div class="card">${jobs.length?jobs.map(j=>`<a class="job" href="/jobs?id=${j.id}"><div><b>${esc(j.title)}</b><br><small>${esc(j.customer)} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div><span class="tag">${esc(STAGE[j.stage]||j.stage)}</span></a>`).join(''):'<p class="muted">No jobs yet. New leads from your quote form and chat appear here automatically, or add one below.</p>'}</div>
-  ${assistantCard(null)}
-  <h3>Add a job</h3><div class="card">
-   <label>Customer name</label><input id="n_name">
-   <div class="row"><div><label>Email</label><input id="n_email" type="email"></div><div><label>Phone</label><input id="n_phone" type="tel"></div></div>
-   <label>Job address (optional)</label><input id="n_addr">
-   <div class="row"><div><label>City</label><input id="n_city"></div><div><label>Zip</label><input id="n_zip" inputmode="numeric"></div></div>
+  $('view').innerHTML=`${assistantCard(null)}
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:18px 0 0">Jobs</h2><button class="btn" id="n_show">+ Add a job you won yourself</button></div>
+  <div id="n_box" style="display:none"><div class="card" style="margin-top:10px"><p class="muted" style="margin-top:0">Use this for work that did not come through your quote page, like a referral or a repeat customer.</p>
+   <label>Customer name</label><input id="n_name" placeholder="Example: Maria Lopez">
+   <div class="row"><div><label>Email</label><input id="n_email" type="email" placeholder="Example: maria@email.com"></div><div><label>Phone</label><input id="n_phone" type="tel" placeholder="Example: 214-555-0123"></div></div>
+   <label>Job address (optional)</label><input id="n_addr" placeholder="Example: 123 Main St">
+   <div class="row"><div><label>City</label><input id="n_city" placeholder="Example: Dallas"></div><div><label>Zip</label><input id="n_zip" inputmode="numeric" placeholder="Example: 75201"></div></div>
    <label>Job title</label><input id="n_title" placeholder="Example: Repaint 3 bedrooms">
    <label>Type of work</label><select id="n_trade">${Object.entries(TRADES).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('')}</select>
-   <div class="btns"><button class="btn" id="n_go">Create job</button></div></div>`;
+   <div class="btns"><button class="btn" id="n_go">Create job</button></div></div></div>
+  <div class="sec">${jobs.length?GROUPS.map(([t,st,h])=>{const key=j=>j.stage==='bid'&&j.signed?'bid:signed':j.stage;const m=jobs.filter(j=>st.includes(key(j)));return m.length?`<h3>${t} <span class="ct">(${m.length})</span></h3>${h?`<small class="muted">${h}</small>`:''}<div class="card" style="margin-top:6px">${m.map(jobRow).join('')}</div>`:'';}).join(''):'<div class="card"><p class="muted">No jobs yet. New leads from your quote form and chat appear here automatically, or add one with the button above.</p></div>'}</div>`;
+  $('n_show').onclick=()=>{const b=$('n_box');b.style.display=b.style.display==='none'?'block':'none';};
   micInit();chatDraw();
   $('n_go').onclick=async()=>{try{msg('');const r=await api('/api/jobs',{name:$('n_name').value,email:$('n_email').value,phone:$('n_phone').value,address:$('n_addr').value,city:$('n_city').value,zip:$('n_zip').value,title:$('n_title').value,trade:$('n_trade').value});location.href='/jobs?id='+r.jobId;}catch(e){msg(e.message);}};
 }
@@ -159,7 +180,7 @@ async function detail(id){
   <h3>1. Measurements and quantities</h3>
   <div class="card">${d.rateCard?`<small>Using your ${esc(TRADES[j.trade]||j.trade)} prices. Enter how many of each; leave blank for none.</small>
    <div class="row">${qf.map(([k,l])=>`<div><label>${esc(l)}</label><input data-q="${esc(k)}" inputmode="decimal"></div>`).join('')}</div>
-   <div class="btns"><button class="btn sec" id="fill">Fill lines from my prices</button></div>`:`<p class="muted">You have not set prices for this type of work yet. <a href="/app">Open Wizard setup</a> (step 3), or add lines by hand below.</p>`}</div>
+   <div class="btns"><button class="btn sec" id="fill">Fill lines from my prices</button></div>`:`<p class="muted">You have not set prices for this type of work yet. <a href="/app">Open Estimating Setup</a> (step 3), or add lines by hand below.</p>`}</div>
   <h3>2. Estimate</h3>
   <div class="card"><label>Scope of work (what the customer gets)</label><textarea id="scope" rows="4">${esc(est.scope||'')}</textarea>
    <div id="lines" style="margin-top:12px"></div>

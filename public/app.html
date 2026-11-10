@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0F1B2D">
-<title>PaintersMax Wizard</title>
+<title>PaintersMax Estimating Setup</title>
 <style>
 *{box-sizing:border-box}
 body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
@@ -28,7 +28,7 @@ small{color:#4A5568}#msg{font-size:13px;margin-top:8px;min-height:18px}
 .ok{color:#0a7a3d}.bad{color:#b42318}
 ul.sum{padding-left:18px;margin:6px 0}
 </style></head><body>
-<header><div><b>PaintersMax</b> Wizard <span id="co" style="opacity:.7;font-size:14px"></span></div><div><a href="/jobs">Jobs</a> &nbsp; <a href="/dashboard">Leads</a></div></header>
+<header><div><b>PaintersMax</b> Estimating Setup <span id="co" style="opacity:.7;font-size:14px"></span></div><div><a href="/jobs">Jobs</a> &nbsp; <a href="/dashboard">Leads</a></div></header>
 <main>
 <div class="bar" id="bar"></div>
 <div id="view"></div>
@@ -45,7 +45,7 @@ const HELP={
  ext:'Exterior prices vary a lot. A simple method: a base price for a typical 1, 2 or 3 story house, then add-ons for doors, shutters, windows and repairs. You can adjust on every job.',
  rooms:'Small: closets, hallways, half baths. Medium: bedrooms, dining rooms, offices. Large: kitchens, living rooms, primary bedroom or bath, garage. Custom: anything else, priced on the job.',
  builder:'Builder rates are the lower per-house or per-sq-ft prices you give a home builder or contractor who keeps you busy all year. Customers never see them.',
- tools:'Affiliate note: we may earn a small commission if you buy tools or materials through links in the Wizard. It never changes your price.'
+ tools:'Affiliate note: we may earn a small commission if you buy tools or materials through links in PaintersMax. It never changes your price.'
 };
 const BRANDS=['Sherwin-Williams','Benjamin Moore','Behr','Valspar','PPG','Dunn-Edwards','Kelly-Moore','Glidden','Diamond Vogel','Kilz','Zinsser','Rust-Oleum','Tnemec','Cabot','Ready Seal'];
 let S={profile:{company:{},trades:[],cities:[],insurance:{},labor:{},warranty:{laborMonths:12},materials:{brands:[]},language:{ui:'en',crewDocs:'en'}},rateCards:{},caps:{services:1,cities:1},plan:'free',step:0,completed:false};
@@ -111,7 +111,7 @@ function view(){
    ${Object.keys(TRADE_LABELS).map(t=>`<label class="chk"><input type="checkbox" class="trade" value="${t}" ${p.trades.includes(t)?'checked':''}> ${esc(TRADE_LABELS[t])}</label>`).join('')}</div>
    <div class="card"><label>Cities you serve (separate with commas)</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div>`;
   if(k==='pricing'){
-    h=`<h2>How you price</h2><p class="lead">Set your prices once. The Wizard uses them for every estimate and you can adjust any job. Tap the ? for measuring help.</p>`;
+    h=`<h2>How you price</h2><p class="lead">Set your prices once. PaintersMax uses them for every estimate and you can adjust any job. Tap the ? for measuring help.</p>`;
     if(!p.trades.length)h+='<div class="card">Pick your services first (go back one step).</div>';
     p.trades.forEach(t=>{if(t!=='new_construction')h+=renderCard(t,'retail');});
     if(p.trades.includes('new_construction'))h+=['basic','pro'].includes(S.plan)?renderCard('interior','builder'):'<div class="card"><b>Builder rates</b><p>Builder rate cards are on the Basic and Pro plans.</p></div>';

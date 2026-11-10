@@ -11,24 +11,50 @@ table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;over
 th,td{text-align:left;padding:10px 12px;border-bottom:1px solid rgba(15,27,45,.08);font-size:14px;vertical-align:top}
 th{background:#eceae4;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
 .card{background:#fff;border-radius:8px;padding:16px;margin:0 0 24px} .card label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px} .card input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #cfd5dc;border-radius:6px;font:inherit} .card code,.card textarea{display:block;width:100%;box-sizing:border-box;background:#eceae4;padding:8px;border-radius:6px;font-size:12px;word-break:break-all} .rates{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end} .card button{margin-top:14px;background:#0F1B2D;color:#fff;border:0;border-radius:6px;padding:10px 16px;cursor:pointer} #msg{margin-left:10px;font-size:13px}
+.hint{font-size:13px;color:#4A5568;margin:2px 0 6px;font-weight:400}
+.sw{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}
+.scheme{border:2px solid rgba(15,27,45,.12);border-radius:10px;padding:8px;cursor:pointer;background:#fff;min-width:118px;text-align:left;margin:0}
+.scheme.on{border-color:#0F1B2D;box-shadow:0 0 0 2px rgba(15,27,45,.15)}
+.scheme i{display:inline-block;width:26px;height:26px;border-radius:50%;margin-right:3px;border:1px solid rgba(0,0,0,.1)}
+.scheme span{display:block;font-size:12px;margin-top:6px;color:#0F1B2D}
+details.acc{border:1px solid rgba(15,27,45,.12);border-radius:8px;margin:8px 0;background:#fff}
+details.acc summary{padding:12px;cursor:pointer;font-weight:600;font-size:14px}
+details.acc .in{padding:0 12px 12px}
+.steps li{margin:6px 0}
+.steps a{color:#0F1B2D;font-weight:600}
 .wrap{overflow-x:auto} .empty{padding:32px;text-align:center;color:#4A5568;background:#fff;border-radius:8px}
 </style></head><body>
-<header><div><b>PaintersMax</b> <span id="co"></span> &nbsp; <a href="/app" style="color:#E8A33D">Open the Wizard &rarr;</a> &nbsp; <a href="/jobs" style="color:#E8A33D">Jobs &rarr;</a></div><div><span id="me"></span> <button id="out">Sign out</button></div></header>
+<header><div><b>PaintersMax</b> <span id="co"></span> &nbsp; <a href="/app" style="color:#E8A33D">Estimating Setup &rarr;</a> &nbsp; <a href="/jobs" style="color:#E8A33D">Jobs &rarr;</a></div><div><span id="me"></span> <button id="out">Sign out</button></div></header>
 <main>
 <h2>Your quote page</h2>
 <div class="card"><p style="margin:0 0 8px">Share this link, or paste the embed code into any website.</p>
 <label>Link</label><code id="lnk"></code>
 <label>Embed code</label><textarea id="emb" rows="2" readonly></textarea></div>
+<h2>Get started</h2>
+<div class="card"><ol class="steps" style="margin:0;padding-left:20px">
+<li><b>Fill in your settings below</b> and press Save. This controls how your quote page looks.</li>
+<li><a href="/app">Set your prices in Estimating Setup</a>. This is your detailed rate card for written estimates and contracts.</li>
+<li><a href="#lnk">Share your quote page link</a> (at the top of this page) on your website, Facebook or business card.</li>
+<li><a href="/jobs">Open Jobs</a> to build estimates, contracts and invoices, and to send them out for signature.</li></ol></div>
 <h2>Settings</h2>
 <div class="card"><form id="sf">
-<label>Company name</label><input id="s_name" maxlength="80" required>
-<label>Send lead emails to</label><input id="s_email" type="email">
-<label>Brand color (for example #E8A33D)</label><input id="s_color" maxlength="7">
-<label>Logo URL (https)</label><input id="s_logo" maxlength="300">
-<label>Short message above the form</label><input id="s_tag" maxlength="140">
-<label style="margin-top:16px">Price per square foot (low and high). Leave blank to use the standard rates.</label>
-<div class="rates" id="rates"></div>
-<button type="submit">Save settings</button><span id="msg"></span></form></div>
+<label>Company name</label><div class="hint">Shown on your quote page and on every document you send.</div>
+<input id="s_name" maxlength="80" required placeholder="Example: Rivera Painting &amp; Remodeling">
+<label>Send lead emails to</label><div class="hint">New quote requests and chat leads are emailed here.</div>
+<input id="s_email" type="email" placeholder="Example: you@yourcompany.com">
+<label>Brand color</label><div class="hint">Used for buttons and highlights on your quote page. Pick a ready-made scheme, or choose your own color.</div>
+<div class="sw" id="schemes"></div>
+<div style="display:flex;gap:10px;align-items:center;margin-top:6px"><span class="hint" style="margin:0">Or pick your own:</span><input type="color" id="s_pick" style="width:54px;height:38px;padding:2px"><span id="s_hex" class="hint" style="margin:0"></span><button type="button" id="s_clr" style="margin:0;background:#eceae4;color:#0F1B2D;padding:6px 10px">Use the default</button></div>
+<input id="s_color" type="hidden">
+<label>Logo web address</label><div class="hint">Paste the web address of your logo image (starts with https and ends in .png or .jpg). Logo upload is coming soon. Leave empty for now if you do not have one online.</div>
+<input id="s_logo" maxlength="300" placeholder="Example: https://yourcompany.com/logo.png">
+<label>Short message above the form</label><div class="hint">One sentence customers see before they ask for a quote. Say only things that are true for your business.</div>
+<input id="s_tag" maxlength="140" placeholder="Example: Get a free painting estimate in about a minute. We will follow up within one business day.">
+<label style="margin-top:18px">Instant quote prices (per square foot)</label>
+<div class="hint">These ranges power the instant quotes your customers see on your quote page. Open a type of work and enter your lowest and highest price per square foot. Leave it blank and PaintersMax uses local standard rates. Your detailed prices for written estimates and contracts are set separately in <a href="/app">Estimating Setup</a>.</div>
+<div id="rates"></div>
+<button type="submit">Save settings</button><span id="msg"></span></form>
+<div id="after" style="display:none;margin-top:14px;padding:12px;border-radius:8px;background:#eaf6ee;font-size:14px"><b>Saved.</b> Next step: <a href="/app" style="font-weight:700">set your prices in Estimating Setup &rarr;</a> then <a href="/jobs" style="font-weight:700">create your first job &rarr;</a></div></div>
 <h2>Leads</h2><div id="box" class="empty">Loading...</div></main>
 <script>
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -39,20 +65,33 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
   const j=await r.json();
   document.getElementById('co').textContent=j.company;
   const me=await (await fetch('/api/me')).json(); document.getElementById('me').textContent=me.email;
-  const JT=[['interior','Interior'],['exterior','Exterior'],['both','Interior + exterior'],['commercial','Commercial'],['multifamily','Apartments']];
-  document.getElementById('rates').innerHTML=JT.map(([k,l])=>`<div><small>${l}</small><div style="display:flex;gap:4px"><input id="r_${k}_lo" type="number" step="0.05" placeholder="low"><input id="r_${k}_hi" type="number" step="0.05" placeholder="high"></div></div>`).join('');
+  const JT=[
+   ['interior','Interior painting','How much do you charge for interior painting? Enter your lowest and highest price per square foot, for example 1.50 and 3.50.'],
+   ['exterior','Exterior painting','How much do you charge to paint the outside of a home? Enter your lowest and highest price per square foot.'],
+   ['both','Interior + exterior','How much do you charge when a customer wants the inside and outside done together? Enter your lowest and highest price per square foot.'],
+   ['commercial','Commercial painting','How much do you charge for offices, shops and other commercial spaces? Enter your lowest and highest price per square foot.'],
+   ['multifamily','Apartments and multifamily','How much do you charge for apartment units and multifamily buildings? Enter your lowest and highest price per square foot.']];
+  document.getElementById('rates').innerHTML=JT.map(([k,l,h])=>`<details class="acc"><summary>${l} <span class="hint" id="rs_${k}" style="font-weight:400"></span></summary><div class="in"><div class="hint">${h} Leave both empty to use local standard rates.</div><div style="display:flex;gap:8px;align-items:center"><span class="hint">Lowest $</span><input id="r_${k}_lo" type="number" step="0.05" min="0" placeholder="Example: 1.50"><span class="hint">Highest $</span><input id="r_${k}_hi" type="number" step="0.05" min="0" placeholder="Example: 3.50"></div></div></details>`).join('');
+  const rsum=()=>JT.forEach(([k])=>{const lo=document.getElementById('r_'+k+'_lo').value,hi=document.getElementById('r_'+k+'_hi').value;document.getElementById('rs_'+k).textContent=(lo!==''&&hi!=='')?'· $'+lo+' to $'+hi+' per sq ft':'· local standard rates';});
+  document.getElementById('rates').addEventListener('input',rsum);
+  const SCHEMES=[['Navy and gold',['#0F1B2D','#E8A33D','#F7F5F1']],['Forest green',['#1F5132','#5FA052','#F4F8F1']],['Classic red',['#7A1F2B','#C8453B','#FBF7F2']],['Ocean blue',['#0B4F7A','#2E9BC6','#F2F8FB']],['Charcoal and orange',['#2B2B2B','#F26B21','#F5F5F3']],['Warm earth',['#6B4226','#C98B4B','#FAF5EE']]];
+  const setColor=c=>{document.getElementById('s_color').value=c||'';document.getElementById('s_hex').textContent=c?('Your color: '+c):'Using the default gold';if(c)document.getElementById('s_pick').value=c;document.querySelectorAll('.scheme').forEach(x=>x.classList.toggle('on',x.dataset.c===c));};
+  document.getElementById('schemes').innerHTML=SCHEMES.map(([n,c])=>`<button type="button" class="scheme" data-c="${c[1]}">${c.map(x=>`<i style="background:${x}"></i>`).join('')}<span>${n}</span></button>`).join('');
+  document.getElementById('schemes').onclick=e=>{const b=e.target.closest('.scheme');if(b)setColor(b.dataset.c);};
+  document.getElementById('s_pick').oninput=e=>setColor(e.target.value);
+  document.getElementById('s_clr').onclick=()=>setColor('');
   const st=await (await fetch('/api/settings')).json(); const S=st.settings||{};
   const url=location.origin+'/q/'+st.slug;
   document.getElementById('lnk').textContent=url;
   document.getElementById('emb').value='<iframe src="'+url+'" style="width:100%;max-width:560px;height:900px;border:0" title="Free estimate"></iframe>';
   document.getElementById('s_name').value=st.name||''; document.getElementById('s_email').value=st.notifyEmail||'';
-  document.getElementById('s_color').value=S.brandColor||''; document.getElementById('s_logo').value=S.logoUrl||''; document.getElementById('s_tag').value=S.tagline||'';
-  JT.forEach(([k])=>{const r=(S.rates||{})[k]; if(r){document.getElementById('r_'+k+'_lo').value=r[0];document.getElementById('r_'+k+'_hi').value=r[1];}});
+  setColor(S.brandColor||''); document.getElementById('s_logo').value=S.logoUrl||''; document.getElementById('s_tag').value=S.tagline||'';
+  JT.forEach(([k])=>{const r=(S.rates||{})[k]; if(r){document.getElementById('r_'+k+'_lo').value=r[0];document.getElementById('r_'+k+'_hi').value=r[1];}}); rsum();
   document.getElementById('sf').onsubmit=async e=>{e.preventDefault();
     const rates={}; JT.forEach(([k])=>{const lo=document.getElementById('r_'+k+'_lo').value,hi=document.getElementById('r_'+k+'_hi').value; if(lo!==''&&hi!=='') rates[k]=[Number(lo),Number(hi)];});
     const v=id=>document.getElementById(id).value.trim();
     const r=await fetch('/api/settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:v('s_name'),notifyEmail:v('s_email'),settings:{brandColor:v('s_color'),logoUrl:v('s_logo'),tagline:v('s_tag'),rates}})});
-    const j=await r.json(); const m=document.getElementById('msg'); m.textContent=r.ok?'Saved.':(j.error||'Could not save.'); m.style.color=r.ok?'#0a7a3d':'#b42318';};
+    const j=await r.json(); const m=document.getElementById('msg'); m.textContent=r.ok?'Saved.':(j.error||'Could not save.'); m.style.color=r.ok?'#0a7a3d':'#b42318'; if(r.ok){const a=document.getElementById('after');a.style.display='block';a.scrollIntoView({behavior:'smooth',block:'nearest'});}};
   const box=document.getElementById('box');
   if(!j.leads.length){box.textContent='No leads yet. Share your quote page link above.';return;}
   box.className='wrap';

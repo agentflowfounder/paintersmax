@@ -148,12 +148,14 @@ export async function handleJobs(request: Request, env: Env): Promise<Response> 
       .bind(user.companyId, customerId, propertyId, title, trade)
       .run();
     const jobId = Number(job.meta.last_row_id);
-    await addJobEvent(env, user.companyId, jobId, "note", "Job created in the Wizard.");
+    await addJobEvent(env, user.companyId, jobId, "note", "Job added by hand.");
     return json({ ok: true, jobId });
   }
 
   const rows = await env.DB.prepare(
-    `SELECT j.id, j.title, j.trade, j.stage, j.updated_at AS updatedAt, c.name AS customer
+    `SELECT j.id, j.title, j.trade, j.stage, j.updated_at AS updatedAt, c.name AS customer,
+            EXISTS (SELECT 1 FROM signature_requests s WHERE s.job_id = j.id AND s.status = 'signed') AS signed,
+            EXISTS (SELECT 1 FROM signature_requests s WHERE s.job_id = j.id AND s.status = 'pending' AND s.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')) AS awaiting
        FROM jobs j JOIN customers c ON c.id = j.customer_id
       WHERE j.company_id = ? ORDER BY j.updated_at DESC LIMIT 200`,
   )
@@ -615,7 +617,7 @@ export async function handleAssistant(request: Request, env: Env): Promise<Respo
     const msg = used.reason === "kill_switch" ? "The assistant is paused right now. Try again soon." : used.reason === "not_in_plan" ? "The assistant is not included in your plan." : "You have used this month's assistant questions. Upgrade your plan for more.";
     return json({ error: msg, code: used.reason }, 429);
   }
-  const reply = await ask(env, context, sanitizeHistory(b?.history), question);
+  const reply = await ask(env, context, sanitizeHistory(b?.history), question, b?.language === "es" ? "es" : "en");
   if (!reply) {
     await refund(env, company, "ai_assistant");
     return json({ error: "The assistant could not answer right now. Please try again in a minute." }, 503);

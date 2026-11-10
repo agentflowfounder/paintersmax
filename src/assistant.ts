@@ -136,8 +136,9 @@ async function viaAnthropic(env: Env, system: string, turns: Turn[]): Promise<st
 const CALLERS = { gemini: viaGemini, openai: viaOpenAI, anthropic: viaAnthropic } as const;
 
 /** Tries each provider with a key, cheapest first. Returns null when none works. */
-export async function ask(env: Env, jobContext: string | null, history: Turn[], question: string): Promise<string | null> {
-  const system = jobContext ? `${SYSTEM_PROMPT}\n\n<job_data>\n${jobContext}\n</job_data>` : SYSTEM_PROMPT;
+export async function ask(env: Env, jobContext: string | null, history: Turn[], question: string, language: "en" | "es" = "en"): Promise<string | null> {
+  const base = language === "es" ? `${SYSTEM_PROMPT}\n\nAlways answer in Spanish, even if the question is in English.` : SYSTEM_PROMPT;
+  const system = jobContext ? `${base}\n\n<job_data>\n${jobContext}\n</job_data>` : base;
   const turns: Turn[] = [...history, { role: "user", content: question }];
   for (const p of ["gemini", "openai", "anthropic"] as const) {
     if (!keyFor(env, p)) continue;
