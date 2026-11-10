@@ -160,7 +160,7 @@ async function sigLoad(jobId,est,ctr){
   el.innerHTML='<div class="btns" style="margin-top:8px"><button class="btn sec" data-sigsend="'+doc.id+'">Send for e-signature</button></div>'+
    '<small>The customer gets a private link, signs on their phone, and you both get the signed copy by email. Save any changes first.</small>'+
    mine.map(r=>'<div class="ev"><b>'+esc(SIGST[r.status]||r.status)+'</b> &middot; '+esc(r.signerName)+' ('+esc(r.signerEmail)+') &middot; '+esc(r.signedAt||r.createdAt)+
-    (r.status==='signed'?' <a href="/api/esign/record?id='+r.id+'" target="_blank">Open signed copy</a>':'')+
+    (r.status==='signed'?' <a href="/api/esign/record?id='+r.id+'" target="_blank">Open signed copy</a> &middot; <a href="/api/esign/record?id='+r.id+'&format=pdf" target="_blank">PDF</a>':'')+
     (r.status==='pending'?' <button class="btn sec" data-sigvoid="'+r.id+'" style="padding:2px 8px">Cancel</button>':'')+'</div>').join('');});
 }
 document.addEventListener('click',async e=>{const ds=e.target.dataset||{};
@@ -203,7 +203,7 @@ async function detail(id){
    <div id="cost"></div>
    <label>Notes for the customer</label><textarea id="notes" rows="3">${esc(est.notes||'')}</textarea>
    <div class="tot" id="tot"></div>
-   <div class="btns"><button class="btn" id="save">Save estimate</button><button class="btn sec" id="view_doc" ${e?'':'disabled'}>View / print</button><button class="btn sec" id="send" ${j.customerEmail?'':'disabled'}>Email to customer</button></div>
+   <div class="btns"><button class="btn" id="save">Save estimate</button><button class="btn sec" id="view_doc" ${e?'':'disabled'}>View / print</button><button class="btn sec" id="pdf_doc" ${e?'':'disabled'}>Download PDF</button><button class="btn sec" id="send" ${j.customerEmail?'':'disabled'}>Email to customer</button></div>
    <small>${e?`Status: ${esc(e.status)}`:'Not saved yet'}</small><div id="sig_estimate"></div></div>
   <h3>3. Contract</h3>
   <div class="card" id="ctr">${e?`<p class="muted" style="margin-top:0"><b>Template, not legal advice.</b> Have an attorney in your state review it before you use it with customers. Spanish text should be checked by a native speaker.</p>
@@ -211,7 +211,7 @@ async function detail(id){
    <div class="row"><div><label>Language</label><select id="c_lang"><option value="en">English</option><option value="es" ${ct.language==='es'?'selected':''}>Español</option></select></div></div>
    <div class="btns"><button class="btn sec" id="c_build">${clauses.length?'Rebuild from my estimate (replaces edits)':'Build contract from my estimate'}</button></div>
    <div id="clauses"></div>
-   <div class="btns" id="c_btns" style="display:none"><button class="btn" id="c_save">Save contract</button><button class="btn sec" id="c_view" ${d.contract?'':'disabled'}>View / print</button><button class="btn sec" id="c_send" ${j.customerEmail&&d.contract?'':'disabled'}>Email to customer</button><button class="btn sec" id="c_signed" ${d.contract?'':'disabled'}>Mark as signed</button></div>
+   <div class="btns" id="c_btns" style="display:none"><button class="btn" id="c_save">Save contract</button><button class="btn sec" id="c_view" ${d.contract?'':'disabled'}>View / print</button><button class="btn sec" id="c_pdf" ${d.contract?'':'disabled'}>Download PDF</button><button class="btn sec" id="c_send" ${j.customerEmail&&d.contract?'':'disabled'}>Email to customer</button><button class="btn sec" id="c_signed" ${d.contract?'':'disabled'}>Mark as signed</button></div>
    <small>${d.contract?`Status: ${esc(d.contract.status)}`:'Not saved yet'}</small><div id="sig_contract"></div>`:'<p class="muted">Save the estimate first. The contract uses its price and scope.</p>'}</div>
   <div id="more"></div>
   <h3>Job history</h3><div class="card">${d.events.map(v=>`<div class="ev"><b>${esc(v.kind)}</b> &middot; ${esc(v.at)}<br>${esc(v.text).slice(0,600)}</div>`).join('')||'<small>Nothing yet.</small>'}</div>`;
@@ -227,8 +227,10 @@ async function detail(id){
   const cs=$('c_save');if(cs){cs.onclick=async()=>{const r=await cact('save');if(r)detail(j.id).then(()=>msg('Contract saved.',true));};
    $('c_send').onclick=async()=>{if(!confirm('Email this contract to '+j.customerEmail+'?'))return;const r=await cact('send');if(r)detail(j.id).then(()=>msg('Contract emailed.',true));};
    $('c_view').onclick=()=>{if(d.contract)window.open('/api/doc?id='+d.contract.id,'_blank');};
+   $('c_pdf').onclick=()=>{if(d.contract)window.open('/api/doc?id='+d.contract.id+'&format=pdf','_blank');};
    $('c_signed').onclick=async()=>{if(!confirm('Mark this contract as signed by both sides?'))return;const r=await cact('signed');if(r)detail(j.id).then(()=>msg('Marked as signed. The job moves to Scheduled.',true));};}
   $('view_doc').onclick=()=>{if(e)window.open('/api/doc?id='+e.id,'_blank');};
+  $('pdf_doc').onclick=()=>{if(e)window.open('/api/doc?id='+e.id+'&format=pdf','_blank');};
 }
 
 const DOCS=[

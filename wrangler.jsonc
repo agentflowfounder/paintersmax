@@ -3,6 +3,10 @@
   "name": "paintersmax-site",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
+  // Needed by the PDF library (Browser Rendering).
+  "compatibility_flags": ["nodejs_compat"],
+  // Headless browser used to turn documents into real PDFs. Needs the Workers Paid plan.
+  "browser": { "binding": "BROWSER" },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",

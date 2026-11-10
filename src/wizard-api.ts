@@ -9,6 +9,7 @@ import { CUSTOMER_KINDS, docTitle, isListKind, renderInvoiceHtml, renderListDocH
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
 import { readSettings } from "./settings.ts";
+import { documentAttachment, htmlToPdf } from "./pdf.ts";
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
@@ -273,7 +274,7 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
         est.language === "es"
           ? `Hola ${cust.name},\n\nAdjunto su presupuesto. Ábralo en su navegador y use Imprimir para guardarlo como PDF. Responda a este correo con cualquier pregunta.\n\n${user.companyName}`
           : `Hi ${cust.name},\n\nYour estimate is attached. Open it in your browser and use Print to save it as a PDF. Reply to this email with any questions.\n\n${user.companyName}`,
-        [{ filename: "estimate.html", content: toBase64(page) }],
+        [await documentAttachment(env, "estimate", page)],
       );
       if (result !== "sent") return json({ error: "The email could not be sent. Your estimate is saved.", docId }, 502);
       await env.DB.prepare("UPDATE documents SET status = 'sent', updated_at = datetime('now') WHERE id = ?").bind(docId).run();
@@ -420,7 +421,7 @@ export async function handleContract(request: Request, env: Env): Promise<Respon
         contract.language === "es"
           ? `Hola ${j.row.customerName},\n\nAdjunto su contrato. Léalo, imprímalo, fírmelo y devuélvanoslo, o responda a este correo con cualquier pregunta.\n\n${user.companyName}`
           : `Hi ${j.row.customerName},\n\nYour work agreement is attached. Please read it, print it, sign it and send it back to us, or reply to this email with any questions.\n\n${user.companyName}`,
-        [{ filename: "contract.html", content: toBase64(page) }],
+        [await documentAttachment(env, "contract", page)],
       );
       if (result !== "sent") return json({ error: "The email could not be sent. Your contract is saved.", docId }, 502);
       await env.DB.prepare("UPDATE documents SET status = 'sent', updated_at = datetime('now') WHERE id = ?").bind(docId).run();
@@ -458,6 +459,10 @@ export async function handleDoc(request: Request, env: Env): Promise<Response> {
   if (!Number.isInteger(id) || id <= 0) return html("<p>Not found.</p>", 404);
   const r = await renderDocPage(env, user.companyId, id);
   if (!r) return html("<p>Not found.</p>", 404);
+  if (new URL(request.url).searchParams.get("format") === "pdf") {
+    const pdf = await htmlToPdf(env, r.page);
+    if (pdf) return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": `inline; filename="${r.kind}.pdf"`, "cache-control": "no-store", "x-robots-tag": "noindex" } });
+  }
   return html(r.page);
 }
 
@@ -577,7 +582,7 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
         es
           ? `Hola ${j.row.customerName},\n\nAdjunto: ${label}. Ábralo en su navegador y use Imprimir para guardarlo como PDF.\n\n${user.companyName}`
           : `Hi ${j.row.customerName},\n\nAttached: ${label}. Open it in your browser and use Print to save it as a PDF.\n\n${user.companyName}`,
-        [{ filename: `${kind}.html`, content: toBase64(page) }],
+        [await documentAttachment(env, kind, page)],
       );
       if (result !== "sent") return json({ error: "The email could not be sent. Your document is saved.", docId }, 502);
       await env.DB.prepare("UPDATE documents SET status = CASE WHEN status = 'paid' THEN 'paid' ELSE 'sent' END, updated_at = datetime('now') WHERE id = ?").bind(docId).run();

@@ -2,6 +2,7 @@ import { getSessionUser, randomToken, sha256Hex } from "./auth.ts";
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
 import { renderDocPage } from "./wizard-api.ts";
+import { documentAttachment, htmlToPdf } from "./pdf.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -23,11 +24,6 @@ const htmlResp = (body: string, status = 200) =>
 const esc = (s: unknown) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-const toBase64 = (s: string) => {
-  let bin = "";
-  for (const b of new TextEncoder().encode(s)) bin += String.fromCharCode(b);
-  return btoa(bin);
-};
 
 export function cleanName(v: unknown): string {
   return typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 100) : "";
@@ -88,7 +84,12 @@ export async function handleEsign(request: Request, env: Env): Promise<Response>
     const id = Number(url.searchParams.get("id"));
     const r = Number.isInteger(id) ? await env.DB.prepare("SELECT * FROM signature_requests WHERE id = ? AND company_id = ? AND status = 'signed'").bind(id, user.companyId).first<any>() : null;
     if (!r) return htmlResp("<p>Not found.</p>", 404);
-    return htmlResp(withSignature(r.snapshot, recordOf(r)));
+    const page = withSignature(r.snapshot, recordOf(r));
+    if (url.searchParams.get("format") === "pdf") {
+      const pdf = await htmlToPdf(env, page);
+      if (pdf) return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": `inline; filename="signed-${r.kind}.pdf"`, "cache-control": "no-store", "x-robots-tag": "noindex" } });
+    }
+    return htmlResp(page);
   }
 
   if (request.method === "GET") {
@@ -220,7 +221,7 @@ export async function handleSign(request: Request, env: Env): Promise<Response> 
     } catch {
       /* keep notify_email */
     }
-    const attach = [{ filename: `signed-${r.kind}.html`, content: toBase64(signedPage) }];
+    const attach = [await documentAttachment(env, `signed-${r.kind}`, signedPage)];
     const what = r.kind === "contract" ? (es ? "contrato" : "work agreement") : es ? "estimado" : "estimate";
     await sendCustomerEmail(
       env, r.signer_email, r.company_name, companyEmail,

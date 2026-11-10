@@ -1,6 +1,7 @@
 export interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
+  BROWSER?: Fetcher;
   // Secrets (set in Cloudflare: Settings -> Variables and Secrets). All optional: missing = demo mode.
   ANTHROPIC_API_KEY?: string;
   OPENAI_API_KEY?: string;
