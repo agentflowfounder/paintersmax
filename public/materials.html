@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Materials and tools - PaintersMax</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
+main{max-width:820px;margin:0 auto;padding:16px 16px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:4px 16px;margin:0 0 14px}
+details{margin:0 0 10px}summary{cursor:pointer;font-weight:700;font-size:16px;padding:12px 0}
+.it{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid #eee}
+.it input{width:20px;height:20px;margin-top:2px}
+.it .n{font-weight:600}.it .w{font-size:13px;color:#4A5568;margin-top:2px;line-height:1.4}
+.tag{font-size:11px;border-radius:99px;padding:2px 8px;margin-left:6px;font-weight:600;background:#e6f4ea;color:#0a7a3d;white-space:nowrap}.tag.r{background:#eceae4;color:#4A5568}
+a.go{font-size:13px;font-weight:700;color:#0F1B2D;background:#eceae4;border-radius:8px;padding:8px 10px;text-decoration:none;white-space:nowrap}
+a.go.buy{background:#E8A33D}
+.bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:6px 0 14px}
+.muted,small{color:#4A5568}
+.disc{font-size:13px;color:#4A5568;margin-top:24px;padding-top:12px;border-top:1px solid #ddd}
+</style></head><body>
+<header><div><b>PaintersMax</b> Materials</div><div><a href="/jobs">Jobs</a><a href="/insurance">Insurance</a><a href="/app">Estimating Setup</a><a href="/dashboard">Settings and leads</a></div></header>
+<main>
+<h1>Recommended materials and tools</h1>
+<p class="muted" style="margin-top:0">A starter list for a painting crew. Check off what you already own, and the rest becomes your shopping list. Tap <b>Compare prices</b> to see current online prices for an item.</p>
+<div class="bar"><label><input type="checkbox" id="need"> Show only what I still need</label><span id="count" class="muted"></span><button id="print" style="border:1px solid #cfd5dc;background:#fff;border-radius:8px;padding:8px 12px;cursor:pointer">Print my shopping list</button></div>
+<div id="list"></div>
+<div class="disc" id="disc" hidden>Disclosure: some links on this page are affiliate links. If you buy through them, PaintersMax may earn a small commission at no extra cost to you. It never changes your price.</div>
+<p class="muted"><small>Your checkmarks are saved on this device. This list is a general starting point, not a requirement. Add or skip items to fit the work you do.</small></p>
+</main>
+<script>
+// When PaintersMax joins a store's affiliate program, put the link here, keyed by the item name.
+// While this is empty, the page uses plain price-comparison searches and shows no affiliate disclosure.
+const AFFILIATE={};
+const G=[
+['Brushes and rollers',[
+ ['2.5 in angled sash brush, synthetic','Cutting in edges and trim with latex paint.','e','angled sash paint brush 2.5 inch synthetic'],
+ ['3 in flat wall brush','Larger areas and corners where a roller does not reach.','e','3 inch paint brush wall brush'],
+ ['Natural bristle brush for oil-based paint','Oil-based and stain products. Synthetic brushes can go limp in them.','r','natural bristle paint brush oil based'],
+ ['9 in roller frame, heavy duty','The basic wall roller. Get a sturdy frame with a threaded handle.','e','9 inch paint roller frame heavy duty'],
+ ['Roller covers, 3/8 in nap','Smooth walls and ceilings. Buy in multi-packs.','e','roller covers 3/8 nap 9 inch'],
+ ['Roller covers, 3/4 in nap','Textured drywall, stucco and rough surfaces.','e','roller covers 3/4 nap 9 inch'],
+ ['4 in mini roller kit with covers','Doors, cabinets and trim for a smooth finish.','e','4 inch mini paint roller set'],
+ ['Extension pole, 4 to 8 ft','Ceilings and high walls without a ladder.','e','extension pole paint roller 4-8 ft'],
+ ['Paint pail liners and 5 gal bucket grid','Fast color changes and cleanup. The grid replaces a tray on big jobs.','r','5 gallon paint bucket roller grid liners']]],
+['Spray equipment',[
+ ['Airless sprayer (about 0.5 to 0.8 gpm)','Fast coverage on exteriors, new construction and large rooms. A big time saver.','r','airless paint sprayer 0.6 gpm'],
+ ['Spray tips and tip guard set','Tips wear out. Keep 515, 517 and 519 sizes on hand for common latex work.','r','airless sprayer tip 515 517 519'],
+ ['Airless pump cleaner and storage fluid','Keeps the pump alive between jobs and over winter.','r','airless sprayer pump armor storage fluid'],
+ ['Extra airless hose, 50 ft','Reach the whole house without moving the machine.','r','airless sprayer hose 50 ft 1/4']]],
+['Prep and repair',[
+ ['5-in-1 painters tool','Scrape, open cans, clean rollers and push in glazing.','e','5-in-1 painters tool'],
+ ['Putty knives, 1.5 in and 3 in','Filling holes and light scraping.','e','putty knife set 1.5 3 inch'],
+ ['6 in and 10 in drywall taping knives','Skim coats and larger patches.','e','drywall knife 6 inch 10 inch'],
+ ['Lightweight spackle','Small nail holes and dings. Dries fast and sands easy.','e','lightweight spackling compound'],
+ ['Joint compound','Larger drywall repairs and skim coats.','e','joint compound all purpose'],
+ ['Sanding sponges, assorted grit','Quick hand sanding of walls and trim.','e','sanding sponge assorted grit'],
+ ['Pole sander and 120/150 grit sheets','Smoothing walls and ceilings after patching.','r','pole sander drywall 120 grit sheets'],
+ ['Wire brush and scraper for exterior','Loose paint, rust and flaking surfaces before priming.','r','paint scraper wire brush exterior'],
+ ['Stain-blocking primer','Water stains, smoke and tannin bleed. Test a small area first.','e','stain blocking primer white'],
+ ['Bonding primer for slick surfaces','Glossy trim, tile, laminate and cabinets.','r','bonding primer slick surfaces'],
+ ['Painter caulk, paintable','Gaps at trim and baseboards for a crisp finish.','e','paintable caulk painters'],
+ ['Caulk gun, dripless','Smooth, controlled caulk lines.','e','caulk gun dripless'],
+ ['Wood filler','Rot repair and nail holes in exterior wood and trim.','r','exterior wood filler'],
+ ['TSP substitute or degreaser','Cleaning grease and grime off walls before painting.','e','TSP substitute cleaner paint prep'],
+ ['Mildew remover','Mildew on exteriors and bathrooms. Always follow the label and ventilate.','r','mildew remover exterior house wash']]],
+['Masking and protection',[
+ ['Painters tape, 1.5 in, multi-surface','Clean lines on trim and edges. Use delicate-surface tape where needed.','e','painters tape 1.5 inch'],
+ ['Painters tape, 2 in','Wider masking for baseboards and windows.','e','painters tape 2 inch'],
+ ['Plastic sheeting and masking film','Cover furniture, floors and windows. Pre-taped film speeds masking.','e','pre-taped masking film plastic'],
+ ['Canvas drop cloths, 9x12 ft','Floors that people walk on. Plastic is slippery and can slip.','e','canvas drop cloth 9x12'],
+ ['Rosin or floor protection paper','Protects finished floors on bigger jobs.','r','rosin paper floor protection roll'],
+ ['Hand masker with paper','Fast masking around windows and trim before spraying.','r','hand masker paper tape dispenser']]],
+['Ladders and access',[
+ ['6 ft fiberglass step ladder','Interior work. Fiberglass is the safe choice near electrical.','e','6 ft fiberglass step ladder type 1A'],
+ ['24 to 28 ft extension ladder','Exterior walls up to two stories. Follow the height rating and set it at the right angle.','e','28 ft fiberglass extension ladder'],
+ ['Ladder levelers and stand-off','Safer footing on uneven ground and keeps the ladder off gutters.','r','ladder leveler stand-off stabilizer'],
+ ['Pump jack or scaffold (rent when needed)','Long exterior walls and tall work. Rent first before buying.','r','rolling scaffold painters']]],
+['Safety',[
+ ['Respirator with organic vapor and P100 cartridges','Oil-based paint, sprays, and sanding dust. Get fitted and replace cartridges on schedule.','e','half mask respirator organic vapor P100'],
+ ['Safety glasses','Overhead rolling and sanding.','e','safety glasses clear anti fog'],
+ ['Nitrile gloves','Keeps solvents and primers off your skin.','e','nitrile gloves box'],
+ ['Knee pads','Baseboards and floors. Your knees will thank you.','r','knee pads work gel'],
+ ['Hearing protection for spraying','Airless pumps are loud over a full day.','r','ear muffs hearing protection'],
+ ['First aid kit and eye wash','Required on many commercial sites and just smart on every job.','e','first aid kit eyewash jobsite'],
+ ['Lead test swabs and lead-safe supplies','Homes built before 1978 need lead-safe practices. Check EPA rules for your work.','e','lead test swabs EPA RRP']]],
+['Cleanup and daily use',[
+ ['Roller and brush spinner and comb','Extends the life of brushes and covers.','r','paint brush spinner comb cleaner'],
+ ['Five gallon buckets with lids','Mixing, cleaning and hauling. Lids keep leftovers fresh.','e','5 gallon bucket with lid'],
+ ['Paint can opener and pour spouts','Clean pours and fewer spills.','e','paint can pour spout opener'],
+ ['Rags and shop towels','Wiping drips. Dispose of oily rags in a metal container with water, never in a pile.','e','shop towels rags paint'],
+ ['Paint stirrer sticks and mixing paddle','Mixing paint evenly. A drill paddle saves time on five-gallon pails.','e','paint mixing paddle drill 5 gallon'],
+ ['Heavy contractor trash bags','Debris and used masking. Keep sites clean.','e','contractor trash bags 42 gallon']]]
+];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let have={};try{have=JSON.parse(localStorage.getItem('mat_have')||'{}');}catch(e){}
+let onlyNeed=false;try{onlyNeed=localStorage.getItem('mat_need')==='1';}catch(e){}
+$('need').checked=onlyNeed;
+const hasAff=Object.keys(AFFILIATE).length>0;
+function link(name,q){const a=AFFILIATE[name];if(a)return `<a class="go buy" href="${esc(a)}" target="_blank" rel="sponsored noopener">Buy</a>`;return `<a class="go" href="https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q)}" target="_blank" rel="noopener">Compare prices</a>`;}
+function draw(){let total=0,owned=0;
+ $('list').innerHTML=G.map(([t,items],gi)=>{const rows=items.filter(([n])=>!(onlyNeed&&have[n]));items.forEach(([n])=>{total++;if(have[n])owned++;});
+  if(!rows.length)return '';
+  return `<details open><summary>${esc(t)} <span class="muted" style="font-weight:400">(${items.filter(([n])=>have[n]).length} of ${items.length} owned)</span></summary><div class="card">${rows.map(([n,w,p,q])=>`<div class="it"><input type="checkbox" data-n="${esc(n)}" ${have[n]?'checked':''} aria-label="I have ${esc(n)}"><div><div class="n">${esc(n)}<span class="tag ${p==='e'?'':'r'}">${p==='e'?'Essential':'Recommended'}</span></div><div class="w">${esc(w)}</div></div>${link(n,q)}</div>`).join('')}</div></details>`;}).join('')||'<p class="muted">You have everything on the list.</p>';
+ $('count').textContent=owned+' of '+total+' owned';$('disc').hidden=!hasAff;}
+document.addEventListener('change',e=>{const t=e.target;
+ if(t.dataset&&t.dataset.n){have[t.dataset.n]=t.checked;try{localStorage.setItem('mat_have',JSON.stringify(have));}catch(x){}draw();}
+ else if(t.id==='need'){onlyNeed=t.checked;try{localStorage.setItem('mat_need',onlyNeed?'1':'0');}catch(x){}draw();}});
+$('print').onclick=()=>{const was=onlyNeed;onlyNeed=true;draw();window.print();onlyNeed=was;draw();};
+draw();
+</script></body></html>

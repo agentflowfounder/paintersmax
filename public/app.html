@@ -28,7 +28,7 @@ small{color:#4A5568}#msg{font-size:13px;margin-top:8px;min-height:18px}
 .ok{color:#0a7a3d}.bad{color:#b42318}
 ul.sum{padding-left:18px;margin:6px 0}
 </style></head><body>
-<header><div><b>PaintersMax</b> Estimating Setup <span id="co" style="opacity:.7;font-size:14px"></span></div><div><a href="/jobs">Jobs</a> &nbsp; <a href="/dashboard">Leads</a></div></header>
+<header><div><b>PaintersMax</b> Estimating Setup <span id="co" style="opacity:.7;font-size:14px"></span></div><div><a href="/jobs">Jobs</a> &nbsp; <a href="/materials">Materials</a> &nbsp; <a href="/insurance">Insurance</a> &nbsp; <a href="/dashboard">Settings and leads</a></div></header>
 <main>
 <div class="bar" id="bar"></div>
 <div id="view"></div>
@@ -44,8 +44,7 @@ const HELP={
  linear:'Linear feet: the total length of the fence or trim run. Walk it with a measuring wheel, or measure it on a satellite map. Add a foot or two per gate or corner.',
  ext:'Exterior prices vary a lot. A simple method: a base price for a typical 1, 2 or 3 story house, then add-ons for doors, shutters, windows and repairs. You can adjust on every job.',
  rooms:'Small: closets, hallways, half baths. Medium: bedrooms, dining rooms, offices. Large: kitchens, living rooms, primary bedroom or bath, garage. Custom: anything else, priced on the job.',
- builder:'Builder rates are the lower per-house or per-sq-ft prices you give a home builder or contractor who keeps you busy all year. Customers never see them.',
- tools:'Affiliate note: we may earn a small commission if you buy tools or materials through links in PaintersMax. It never changes your price.'
+ builder:'Builder rates are the lower per-house or per-sq-ft prices you give a home builder or contractor who keeps you busy all year. Customers never see them.'
 };
 const BRANDS=['Sherwin-Williams','Benjamin Moore','Behr','Valspar','PPG','Dunn-Edwards','Kelly-Moore','Glidden','Diamond Vogel','Kilz','Zinsser','Rust-Oleum','Tnemec','Cabot','Ready Seal'];
 let S={profile:{company:{},trades:[],cities:[],insurance:{},labor:{},warranty:{laborMonths:12},materials:{brands:[]},language:{ui:'en',crewDocs:'en'}},rateCards:{},caps:{services:1,cities:1},plan:'free',step:0,completed:false};
@@ -115,7 +114,6 @@ function view(){
     if(!p.trades.length)h+='<div class="card">Pick your services first (go back one step).</div>';
     p.trades.forEach(t=>{if(t!=='new_construction')h+=renderCard(t,'retail');});
     if(p.trades.includes('new_construction'))h+=['basic','pro'].includes(S.plan)?renderCard('interior','builder'):'<div class="card"><b>Builder rates</b><p>Builder rate cards are on the Basic and Pro plans.</p></div>';
-    h+=`<small>${esc(HELP.tools)}</small>`;
   }
   if(k==='labor'){const l=p.labor||{};h=`<h2>Labor and money</h2><p class="lead">Used for estimates, contracts and invoices.</p><div class="card">
    <div class="row"><div><label>Crew size</label><input id="crewSize" inputmode="numeric" value="${val(l,'crewSize')}"></div><div><label>Your hourly rate ($)</label><input id="hourlyRate" inputmode="decimal" value="${val(l,'hourlyRate')}"></div></div>
@@ -127,7 +125,10 @@ function view(){
    <label>Labor warranty (months)</label><input id="laborMonths" inputmode="numeric" value="${val(w,'laborMonths')}">
    <label>Warranty details (we add the paint maker's warranty and the customer-keeps-receipts note for you)</label><textarea id="wtext" rows="3">${val(w,'text')}</textarea>
    <label>Exclusions</label><textarea id="exclusions" rows="2">${val(w,'exclusions')}</textarea></div>
-   <div class="card"><b>Insurance</b><small> Enter only what is true. Certificate upload comes next.</small>
+   <div class="card"><b>Insurance</b><small> Enter only what is true.</small>
+   <div style="background:#fff8e8;border:1px solid #f0d9a0;border-radius:8px;padding:10px;margin:10px 0"><b>Have a copy of your policy?</b> Upload it and our AI will explain in plain words what it covers, what it does not, which jobs you can take on, and how to get covered for more. Then you can ask it questions.
+   <input type="file" id="ins_file" accept="application/pdf,image/png,image/jpeg,image/webp" style="margin-top:8px"><button class="btn" id="ins_go" type="button" style="margin-top:8px">Read my policy</button> <a href="/insurance">Open the insurance page</a>
+   <div id="ins_msg" style="font-size:13px;margin-top:6px"></div><small>PDF or photo, up to 5 MB. Your file is sent to our AI provider to be read. We keep only the summary and the text it read, not the original file, and you can delete it any time. General information only, not insurance advice.</small></div>
    <div class="row"><div><label>Carrier</label><input id="carrier" value="${val(ins,'carrier')}"></div><div><label>Expires</label><input id="expires" type="date" value="${val(ins,'expires')}"></div></div>
    <label>Coverage summary</label><input id="coverage" value="${val(ins,'coverage')}">
    <label class="chk"><input type="checkbox" id="shareSummary" ${ins.shareSummary?'checked':''}> Customers may see a summary of my coverage</label></div>
@@ -185,4 +186,12 @@ document.addEventListener('change',e=>{if(e.target.classList.contains('method'))
     view();
   }catch(e){}
 })();
+document.addEventListener('click',async e=>{if(e.target.id!=='ins_go')return;const f=$('ins_file').files[0],m=$('ins_msg');
+ if(!f){m.textContent='Choose a file first.';m.style.color='#b42318';return;}
+ if(f.size>5*1024*1024){m.textContent='That file is over 5 MB. Upload just the declarations and exclusions pages.';m.style.color='#b42318';return;}
+ e.target.disabled=true;m.style.color='#4A5568';m.textContent='Reading your policy. This can take up to a minute...';
+ try{const data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=()=>rej(new Error('Could not read that file.'));r.readAsDataURL(f);});
+  const r=await fetch('/api/insurance',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'analyze',fileName:f.name,mime:f.type,data})});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');location.href='/insurance';}
+ catch(x){m.textContent=x.message;m.style.color='#b42318';e.target.disabled=false;}});
 </script></body></html>

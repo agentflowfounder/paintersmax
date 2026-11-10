@@ -90,12 +90,12 @@ export async function buildJobContext(env: Env, companyId: number, jobId: number
   return cut(lines.join("\n"), 7000);
 }
 
-const keyFor = (env: Env, p: "gemini" | "openai" | "anthropic") => (p === "anthropic" ? env.ANTHROPIC_API_KEY : p === "openai" ? env.OPENAI_API_KEY : env.GEMINI_API_KEY);
+export const keyFor = (env: Env, p: "gemini" | "openai" | "anthropic") => (p === "anthropic" ? env.ANTHROPIC_API_KEY : p === "openai" ? env.OPENAI_API_KEY : env.GEMINI_API_KEY);
 
 async function viaGemini(env: Env, system: string, turns: Turn[]): Promise<string> {
   const model = env.MODEL_GEMINI ?? "gemini-flash-latest";
   const call = (thinkingOff: boolean) =>
-    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    fetch(`${env.GEMINI_API_BASE ?? "https://generativelanguage.googleapis.com"}/v1beta/models/${model}:generateContent`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY! },
       body: JSON.stringify({
@@ -139,7 +139,11 @@ const CALLERS = { gemini: viaGemini, openai: viaOpenAI, anthropic: viaAnthropic 
 export async function ask(env: Env, jobContext: string | null, history: Turn[], question: string, language: "en" | "es" = "en"): Promise<string | null> {
   const base = language === "es" ? `${SYSTEM_PROMPT}\n\nAlways answer in Spanish, even if the question is in English.` : SYSTEM_PROMPT;
   const system = jobContext ? `${base}\n\n<job_data>\n${jobContext}\n</job_data>` : base;
-  const turns: Turn[] = [...history, { role: "user", content: question }];
+  return complete(env, system, [...history, { role: "user", content: question }]);
+}
+
+/** Runs a prompt through each provider that has a key, cheapest first. Returns null when none works. */
+export async function complete(env: Env, system: string, turns: Turn[]): Promise<string | null> {
   for (const p of ["gemini", "openai", "anthropic"] as const) {
     if (!keyFor(env, p)) continue;
     try {

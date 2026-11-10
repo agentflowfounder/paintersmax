@@ -1,3 +1,4 @@
+import { handleInsurance } from "./insurance.ts";
 import { handlePublicTicker } from "./ticker.ts";
 import { handleEsign, handleSign } from "./esign.ts";
 import { writeSummary } from "./ai.ts";
@@ -542,6 +543,14 @@ export default {
         return await handleAdmin(request, env);
       } catch (err) {
         console.error("handleAdmin failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/insurance") {
+      try {
+        return await handleInsurance(request, env);
+      } catch (err) {
+        console.error("handleInsurance failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
