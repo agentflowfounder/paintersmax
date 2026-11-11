@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Import customers - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
+main{max-width:820px;margin:0 auto;padding:16px 16px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
+button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:11px 16px;background:#E8A33D;color:#0F1B2D;cursor:pointer}
+button[disabled]{opacity:.5;cursor:default}
+.muted{color:#4A5568}.err{color:#b42318}.ok{color:#0a7a3d;font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{text-align:left;padding:6px 8px;border-top:1px solid #eee}
+.sc{overflow-x:auto}
+</style></head><body>
+<header><div><b>PaintersMax</b> Import customers</div><div><a href="/jobs">Jobs</a><a href="/app">Estimating Setup</a><a href="/dashboard">Settings and leads</a></div></header>
+<main>
+<h1>Import customers from a spreadsheet</h1>
+<div class="card">
+<p class="muted" style="margin-top:0">Save your old customer list as a <b>CSV</b> file (in Excel or Google Sheets: File, Download, CSV). The first row should name each column. I look for Name (or First Name and Last Name, or Company), Email, Phone, Address, City, State, Zip and Notes. Extra columns are ignored.</p>
+<p class="muted">Nothing is emailed or texted to your customers. Customers you already have, or that repeat in the file, are skipped.</p>
+<input type="file" id="f" accept=".csv,text/csv,text/plain">
+<p id="msg" class="muted"></p>
+<div id="prev"></div>
+</div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+var T=window.pmT||function(s){return s};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function msg(t,cls){var m=$('msg');m.textContent=t;m.className=cls||'muted';}
+var rows=[],chunk=200;
+function post(b){return fetch('/api/import/customers',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Something went wrong.');return d;});});}
+$('f').addEventListener('change',function(){
+ var file=this.files[0];$('prev').innerHTML='';if(!file)return;
+ if(file.size>1000000){msg(T('That file is too large (1 MB limit).'),'err');return;}
+ msg(T('Reading your file...'));
+ file.text().then(function(t){return post({csv:t});}).then(function(d){
+  rows=d.rows;chunk=d.chunk||200;
+  var h='<p><b>'+d.rows.length+'</b> '+T('customers ready to import')+', <b>'+d.duplicates+'</b> '+T('already here or repeated')+', <b>'+d.skippedCount+'</b> '+T('skipped')+'.</p>';
+  if(d.skipped.length)h+='<p class="muted">'+d.skipped.slice(0,10).map(function(s){return T('Row')+' '+s.line+': '+T(s.reason)}).map(esc).join('<br>')+'</p>';
+  if(d.rows.length){h+='<div class="sc"><table><tr><th>'+T('Name')+'</th><th>'+T('Email')+'</th><th>'+T('Phone')+'</th><th>'+T('Address')+'</th></tr>';
+   d.rows.slice(0,8).forEach(function(r){h+='<tr><td>'+esc(r.name)+'</td><td>'+esc(r.email)+'</td><td>'+esc(r.phone)+'</td><td>'+esc([r.address,r.city,r.state,r.zip].filter(Boolean).join(', '))+'</td></tr>';});
+   h+='</table></div><p class="muted">'+T('Showing the first 8.')+'</p><button id="go">'+T('Import')+' '+d.rows.length+' '+T('customers')+'</button>';}
+  $('prev').innerHTML=h;msg('');
+  if($('go'))$('go').onclick=run;
+ }).catch(function(e){msg(T(e.message),'err');});
+});
+function run(){
+ var b=$('go');b.disabled=true;var added=0,dup=0,skip=0,i=0;
+ (function next(){
+  if(i>=rows.length){msg(T('Imported')+' '+added+' '+T('customers')+'. '+dup+' '+T('already here or repeated')+', '+skip+' '+T('skipped')+'.','ok');$('prev').innerHTML='<a href="/jobs">'+T('Go to Jobs')+'</a>';return;}
+  msg(T('Importing...')+' '+Math.min(i,rows.length)+' / '+rows.length);
+  post({rows:rows.slice(i,i+chunk)}).then(function(d){added+=d.added;dup+=d.duplicates;skip+=d.skipped;i+=chunk;next();}).catch(function(e){msg(T(e.message)+' ('+added+' '+T('customers')+' '+T('saved so far')+')','err');b.disabled=false;});
+ })();
+}
+</script></body></html>

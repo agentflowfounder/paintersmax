@@ -14,6 +14,7 @@ import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from ".
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import { readSettings, renderQuotePage, sanitize, tenantFromHost } from "./settings.ts";
+import { handleImport } from "./import.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
 import { parsePhotos, parseQuoteRequest } from "./validate.ts";
@@ -471,6 +472,14 @@ export default {
         return await handleLang(request, env);
       } catch (err) {
         console.error("lang failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/import/customers") {
+      try {
+        return await handleImport(request, env);
+      } catch (err) {
+        console.error("import failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

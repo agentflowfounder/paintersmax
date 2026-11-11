@@ -498,5 +498,17 @@
     [/^Incident report \((.+?)\): ([\s\S]+)$/, function (a, d, r) { return 'Reporte de incidente (' + d + '): ' + r; }],
   ]);
 
+  /* ---- Part 8: CSV customer import ---- */
+  pmI18n.add({
+    'Import customers': 'Importar clientes', 'Import customers from a spreadsheet': 'Importar clientes desde una hoja de cálculo',
+    'Save your old customer list as a': 'Guarde su lista de clientes como un archivo', 'Reading your file...': 'Leyendo su archivo...',
+    'customers ready to import': 'clientes listos para importar', 'already here or repeated': 'ya existen o están repetidos', 'skipped': 'omitidos', 'Row': 'Fila',
+    'No name': 'Sin nombre', 'Email looks wrong': 'El correo parece incorrecto', 'Phone looks wrong': 'El teléfono parece incorrecto',
+    'Showing the first 8.': 'Se muestran los primeros 8.', 'Import': 'Importar', 'customers': 'clientes', 'Imported': 'Importados', 'Go to Jobs': 'Ir a Trabajos', 'Importing...': 'Importando...', 'saved so far': 'guardados hasta ahora',
+    'That file is too large (1 MB limit).': 'Ese archivo es demasiado grande (límite de 1 MB).',
+    'The file needs a header row and at least one customer.': 'El archivo necesita una fila de encabezados y al menos un cliente.',
+    'Name': 'Nombre', 'Email': 'Correo', 'Phone': 'Teléfono', 'Address': 'Dirección',
+  });
+
   pmI18n.start();
 })();
