@@ -93,7 +93,7 @@ export async function buildJobContext(env: Env, companyId: number, jobId: number
 export const keyFor = (env: Env, p: "gemini" | "openai" | "anthropic") => (p === "anthropic" ? env.ANTHROPIC_API_KEY : p === "openai" ? env.OPENAI_API_KEY : env.GEMINI_API_KEY);
 
 async function viaGemini(env: Env, system: string, turns: Turn[]): Promise<string> {
-  const model = env.MODEL_GEMINI ?? "gemini-flash-latest";
+  const model = env.MODEL_GEMINI ?? "gemini-2.5-flash";
   const call = (thinkingOff: boolean) =>
     fetch(`${env.GEMINI_API_BASE ?? "https://generativelanguage.googleapis.com"}/v1beta/models/${model}:generateContent`, {
       method: "POST",

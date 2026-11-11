@@ -55,7 +55,7 @@ function parse(text: string): Brief | null {
 }
 
 async function viaGemini(env: Env, text: string, photos: { mime: string; data: string }[]): Promise<string> {
-  const model = env.MODEL_GEMINI ?? "gemini-flash-latest";
+  const model = env.MODEL_GEMINI ?? "gemini-2.5-flash";
   const call = (thinkingOff: boolean) =>
     fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
