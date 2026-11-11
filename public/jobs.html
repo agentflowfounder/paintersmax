@@ -274,8 +274,8 @@ function docCard(m,d){const x=d.docs[m.k];const lang=docs[m.k]?docs[m.k].languag
  <small>${x?'Status: '+esc(x.status):'Not saved yet'}</small></div>`;}
 function invCard(d){const x=d.docs.invoice;
  return `<h3>8. Invoice</h3><div class="card">${d.estimate?`<p class="muted" style="margin-top:0">Uses the price from your saved estimate. Enter what the customer already paid, such as the deposit.</p>
- <div class="btns" style="margin-top:0"><button class="btn sec" data-ivbuild="1">${x?'Rebuild (replaces edits)':'Build invoice'}</button></div>
- <div id="ivf" style="display:none"><div class="row"><div><label>Invoice number</label><input id="iv_num"></div><div><label>Due</label><input id="iv_due" placeholder="Example: on completion, or Dec 1"></div></div>
+ <div class="btns" style="margin-top:0"><button class="btn sec" data-ivbuild="1">${x?'Rebuild (replaces edits)':'Job complete: build invoice'}</button></div>
+ <div id="iv_chk"></div><div id="ivf" style="display:none"><div class="row"><div><label>Invoice number</label><input id="iv_num"></div><div><label>Due</label><input id="iv_due" placeholder="Example: on completion, or Dec 1"></div></div>
  <div id="iv_ms"></div><div class="row"><div><label>Already paid ($)</label><input id="iv_paid" inputmode="decimal"></div><div><label>Language</label><select id="iv_lang"><option value="en">English</option><option value="es">Español</option></select></div></div>
  <label>Notes (how to pay, thank you)</label><textarea id="iv_notes" rows="3"></textarea>
  <div class="btns"><button class="btn" data-ivsave="1">Save</button><button class="btn sec" data-ivview="1" ${x?'':'disabled'}>View / print</button><button class="btn sec" data-ivsend="1" ${x&&d.job.customerEmail?'':'disabled'}>Email to customer</button><button class="btn sec" data-ivpaid="1" ${x?'':'disabled'}>Mark as paid</button></div></div>
@@ -298,7 +298,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  else if(ds.dkview){const x=J.docs[ds.dkview];if(x)window.open('/api/doc?id='+x.id,'_blank');}
  else if(ds.dkadd){const k=ds.dkadd;docs[k].items.push({text:'',detail:'',qty:0,unit:''});wDraw(k);}
  else if(ds.dkdel){const[k,i]=ds.dkdel.split(':');docs[k].items.splice(+i,1);wDraw(k);}
- else if(ds.ivbuild){if(inv.number&&!confirm('This replaces the invoice on screen. Continue?'))return;const r=await jd({action:'draft',kind:'invoice',language:'en'});if(r){inv=r.invoice;msOpts=r.milestones||[];ivFill();}}
+ else if(ds.ivbuild){if(inv.number&&!confirm('This replaces the invoice on screen. Continue?'))return;const r=await jd({action:'draft',kind:'invoice',language:'en'});if(r){inv=r.invoice;msOpts=r.milestones||[];ivFill();const c=$('iv_chk'),T=window.pmT||function(q){return q};if(c)c.innerHTML=(r.checks&&r.checks.length)?'<div style="background:#fff7e6;border:1px solid #E8A33D;border-radius:8px;padding:10px 12px;margin:10px 0"><b>'+T('Check before you send')+'</b><ul style="margin:6px 0 0;padding-left:18px">'+r.checks.map(x=>'<li>'+esc(T(x))+'</li>').join('')+'</ul></div>':'<p class="muted">'+T('No problems found. Review the amounts, then save and send.')+'</p>';}}
  else if(ds.ivsave){const r=await jd({action:'save',kind:'invoice',invoice:ivRead()});if(r)rel().then(()=>msg('Invoice saved.',true));}
  else if(ds.ivsend){if(!confirm('Email this invoice to '+J.job.customerEmail+'?'))return;const r=await jd({action:'send',kind:'invoice',invoice:ivRead()});if(r)rel().then(()=>msg('Invoice emailed.',true));}
  else if(ds.ivview){const x=J.docs.invoice;if(x)window.open('/api/doc?id='+x.id,'_blank');}

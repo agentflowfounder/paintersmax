@@ -507,6 +507,12 @@
     'Showing the first 8.': 'Se muestran los primeros 8.', 'Import': 'Importar', 'customers': 'clientes', 'Imported': 'Importados', 'Go to Jobs': 'Ir a Trabajos', 'Importing...': 'Importando...', 'saved so far': 'guardados hasta ahora',
     'That file is too large (1 MB limit).': 'Ese archivo es demasiado grande (límite de 1 MB).',
     'The file needs a header row and at least one customer.': 'El archivo necesita una fila de encabezados y al menos un cliente.',
+    'Check before you send': 'Revise antes de enviar', 'No problems found. Review the amounts, then save and send.': 'No se encontraron problemas. Revise los montos, luego guarde y envíe.',
+    'Job complete: build invoice': 'Trabajo terminado: crear factura',
+    'The estimate has not been signed by the customer.': 'El cliente no ha firmado el presupuesto.',
+    'This customer has no email address, so you can only print the invoice.': 'Este cliente no tiene correo electrónico, así que solo puede imprimir la factura.',
+    'No punch list was saved. A completed punch list helps if the customer questions the work.': 'No se guardó una lista de pendientes. Una lista terminada ayuda si el cliente cuestiona el trabajo.',
+    'The estimate total is zero.': 'El total del presupuesto es cero.', 'The amount already paid is more than the total.': 'El monto ya pagado es mayor que el total.', 'The balance due is zero or less.': 'El saldo pendiente es cero o menos.',
     'Name': 'Nombre', 'Email': 'Correo', 'Phone': 'Teléfono', 'Address': 'Dirección',
   });
 

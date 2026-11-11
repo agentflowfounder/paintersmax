@@ -6,7 +6,7 @@ import { ask, buildJobContext, sanitizeHistory } from "./assistant.ts";
 import type { Env } from "./types.ts";
 import { computeTotals, draftLines, milestoneAmounts, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
-import { CUSTOMER_KINDS, docTitle, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
+import { CUSTOMER_KINDS, docTitle, invoiceChecks, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
 import { readSettings } from "./settings.ts";
@@ -527,9 +527,16 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
       const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM documents WHERE company_id = ? AND kind = 'invoice'").bind(user.companyId).first<{ n: number }>();
       const sched = storedEstimate(stored).schedule;
       const amounts = milestoneAmounts(stored.totals?.totalCents ?? 0, sched);
+      const paid = sched.length ? 0 : (stored.totals?.depositCents ?? 0) / 100;
+      const signed = await env.DB.prepare("SELECT 1 AS ok FROM signature_requests WHERE job_id = ? AND company_id = ? AND kind IN ('estimate','contract') AND status = 'signed' LIMIT 1").bind(jobId, user.companyId).first();
+      const co = await env.DB.prepare("SELECT COUNT(*) AS n FROM job_events WHERE job_id = ? AND company_id = ? AND kind = 'change_order'").bind(jobId, user.companyId).first<{ n: number }>();
+      const punch = await env.DB.prepare("SELECT 1 AS ok FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'punch' LIMIT 1").bind(jobId, user.companyId).first();
+      const total = stored.totals?.totalCents ?? 0;
+      const checks = invoiceChecks({ estimateSigned: !!signed, customerEmail: j.row.customerEmail, changeOrders: co?.n ?? 0, hasPunchList: !!punch, totalCents: total, paidCents: Math.round(paid * 100), billCents: sched.length ? (amounts[0] ?? total) : total });
       return json({
-        invoice: { number: String(1001 + (n?.n ?? 0)), dueDate: j.profile.labor?.paymentTerms ?? "", paid: sched.length ? 0 : (stored.totals?.depositCents ?? 0) / 100, notes: "", language: lang, milestone: sched.length ? 0 : null },
+        invoice: { number: String(1001 + (n?.n ?? 0)), dueDate: j.profile.labor?.paymentTerms ?? "", paid, notes: "", language: lang, milestone: sched.length ? 0 : null },
         milestones: sched.map((m, i) => ({ label: m.label, pct: m.pct, amountCents: amounts[i] })),
+        checks,
       });
     }
     const doc = starterDoc(kind, { trade: jobMeta?.trade ?? "interior", profile: j.profile, company: j.company.name, customer: j.row.customerName, startDate: text(b?.startDate, 10), completionDate: text(b?.completionDate, 40) }, lang);

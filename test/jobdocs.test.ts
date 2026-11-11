@@ -90,3 +90,13 @@ test("milestone invoice shows the payment, paid to date and what remains", () =>
   assert.equal(sanitizeInvoice({ milestone: "" }).milestone, null);
   assert.equal(sanitizeInvoice({}).milestone, null);
 });
+
+import { invoiceChecks } from "../src/jobdocs.ts";
+test("invoiceChecks flags things to review", () => {
+  const ok = { estimateSigned: true, customerEmail: "a@b.com", changeOrders: 0, hasPunchList: true, totalCents: 100000, paidCents: 30000, billCents: 100000 };
+  assert.deepEqual(invoiceChecks(ok), []);
+  const bad = invoiceChecks({ ...ok, estimateSigned: false, customerEmail: null, changeOrders: 2, hasPunchList: false, paidCents: 100000 });
+  assert.equal(bad.length, 5);
+  assert.match(bad[2], /2 change orders were/);
+  assert.ok(invoiceChecks({ ...ok, paidCents: 200000 }).some((x) => /more than the total/.test(x)));
+});

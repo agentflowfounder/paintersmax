@@ -313,3 +313,27 @@ export function renderInvoiceHtml(ctx: DocContext, inv: InvoiceInput, est: Estim
 ${t.discountCents ? sum(es ? "Descuento" : "Discount", -t.discountCents) : ""}${t.taxCents ? sum(es ? "Impuesto" : "Tax", t.taxCents) : ""}${sum(es ? "Total" : "Total", t.totalCents)}${inv.paidCents ? sum(es ? "Pagado" : "Already paid", -inv.paidCents) : ""}${sum(es ? "Saldo a pagar" : "Balance due", balance, "tot")}</tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
   return shell(ctx, inv.language, docTitle("invoice", inv.language), body);
 }
+
+export interface InvoiceCheckInput {
+  estimateSigned: boolean;
+  customerEmail: string | null | undefined;
+  changeOrders: number;
+  hasPunchList: boolean;
+  totalCents: number;
+  paidCents: number;
+  /** Amount this invoice bills, in cents (whole job or one milestone). */
+  billCents: number;
+}
+
+/** Plain-language things to look at before sending an invoice. They never block; the painter decides. Money is checked in code, never by AI. */
+export function invoiceChecks(i: InvoiceCheckInput): string[] {
+  const out: string[] = [];
+  if (!i.estimateSigned) out.push("The estimate has not been signed by the customer.");
+  if (!i.customerEmail) out.push("This customer has no email address, so you can only print the invoice.");
+  if (i.changeOrders > 0) out.push(`${i.changeOrders} change order${i.changeOrders === 1 ? " was" : "s were"} logged on this job. Add any extra cost to the invoice notes or estimate, because the price below comes only from the saved estimate.`);
+  if (!i.hasPunchList) out.push("No punch list was saved. A completed punch list helps if the customer questions the work.");
+  if (i.totalCents <= 0) out.push("The estimate total is zero.");
+  if (i.paidCents > i.totalCents) out.push("The amount already paid is more than the total.");
+  else if (i.billCents - i.paidCents <= 0 && i.totalCents > 0) out.push("The balance due is zero or less.");
+  return out;
+}
