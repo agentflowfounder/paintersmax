@@ -15,6 +15,7 @@ import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import { readSettings, renderQuotePage, sanitize, tenantFromHost } from "./settings.ts";
 import { handleImport } from "./import.ts";
+import { sendInvoiceReminders } from "./reminders.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
 import { parsePhotos, parseQuoteRequest } from "./validate.ts";
@@ -356,6 +357,7 @@ async function handleSettings(request: Request, env: Env): Promise<Response> {
 export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(sendChatDigests(env).catch((err) => console.error("chat digest failed", String(err))));
+    ctx.waitUntil(sendInvoiceReminders(env).catch((err) => console.error("invoice reminders failed", String(err))));
     ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

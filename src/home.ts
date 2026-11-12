@@ -42,7 +42,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     env.DB.prepare(`SELECT j.id, j.title, s.signer_name, s.kind, s.expires_at FROM signature_requests s JOIN jobs j ON j.id = s.job_id
                     WHERE s.company_id = ? AND s.status = 'pending' AND s.expires_at BETWEEN strftime('%Y-%m-%dT%H:%M:%fZ','now') AND strftime('%Y-%m-%dT%H:%M:%fZ','now','+5 days') LIMIT 5`).bind(c).all().catch(() => ({ results: [] })),
     env.DB.prepare(`SELECT j.id, j.title, cu.name AS customer, CAST((julianday('now') - julianday(d.updated_at)) AS INTEGER) AS days FROM documents d JOIN jobs j ON j.id = d.job_id JOIN customers cu ON cu.id = j.customer_id
-                    WHERE d.company_id = ? AND d.kind = 'invoice' AND d.status = 'sent' AND d.updated_at < datetime('now','-14 days') ORDER BY d.updated_at LIMIT 5`).bind(c).all(),
+                    WHERE d.company_id = ? AND d.kind = 'invoice' AND d.status = 'sent' AND d.updated_at < datetime('now','-7 days') ORDER BY d.updated_at LIMIT 5`).bind(c).all(),
     env.DB.prepare(`SELECT e.kind, e.text, e.created_at AS at, j.id AS jobId, j.title FROM job_events e JOIN jobs j ON j.id = e.job_id WHERE e.company_id = ? ORDER BY e.id DESC LIMIT 12`).bind(c).all(),
     env.DB.prepare("SELECT summary FROM insurance_policies WHERE company_id = ?").bind(c).first<{ summary: string }>().catch(() => null),
   ]);

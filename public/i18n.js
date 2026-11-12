@@ -515,6 +515,7 @@
     'The estimate total is zero.': 'El total del presupuesto es cero.', 'The amount already paid is more than the total.': 'El monto ya pagado es mayor que el total.', 'The balance due is zero or less.': 'El saldo pendiente es cero o menos.',
     'Write a thank-you note': 'Escribir una nota de agradecimiento', 'The note never includes amounts. You can edit it before you save.': 'La nota nunca incluye montos. Puede editarla antes de guardar.', 'Note added. Review it, then save.': 'Nota agregada. Revísela y luego guarde.',
     'The writing helper is paused right now. Try again soon.': 'El asistente de redacción está en pausa. Intente de nuevo pronto.', 'The invoice writing helper is not included in your plan.': 'El asistente de redacción de facturas no está incluido en su plan.', "You have used this month's invoice notes. Upgrade your plan for more.": 'Ya usó las notas de factura de este mes. Mejore su plan para obtener más.', 'The writing helper could not answer. Write your own note or try again.': 'El asistente no pudo responder. Escriba su propia nota o intente de nuevo.',
+    'Email the customer a friendly reminder if this is still unpaid after 7 and 14 days': 'Enviar al cliente un recordatorio amable si sigue sin pagar a los 7 y 14 días', 'The reminder names the invoice but never states an amount. It stops when you mark the invoice paid.': 'El recordatorio menciona la factura pero nunca indica un monto. Se detiene cuando marca la factura como pagada.',
     'Name': 'Nombre', 'Email': 'Correo', 'Phone': 'Teléfono', 'Address': 'Dirección',
   });
 

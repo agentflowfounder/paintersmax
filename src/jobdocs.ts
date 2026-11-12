@@ -271,6 +271,8 @@ export interface InvoiceInput {
   language: "en" | "es";
   /** Which payment on the estimate's milestone schedule this invoice bills (0 = first). Null bills the whole job. */
   milestone: number | null;
+  /** The painter chose to have friendly payment reminders emailed to the customer (day 7 and day 14). */
+  reminders: boolean;
 }
 
 export function sanitizeInvoice(input: any): InvoiceInput {
@@ -281,6 +283,7 @@ export function sanitizeInvoice(input: any): InvoiceInput {
     paidCents: Number.isFinite(paid) && paid >= 0 && paid <= 10_000_000 ? Math.round(paid * 100) : 0,
     notes: str(input?.notes, 2000),
     language: input?.language === "es" ? "es" : "en",
+    reminders: input?.reminders === true,
     milestone: Number.isInteger(Number(input?.milestone)) && input?.milestone !== null && input?.milestone !== "" && Number(input.milestone) >= 0 && Number(input.milestone) < 12 ? Number(input.milestone) : null,
   };
 }
