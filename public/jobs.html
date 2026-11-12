@@ -90,6 +90,9 @@ const COVC={likely_covered:['#e6f4ea','#0a7a3d','Insured: appears covered'],chec
 function covPill(c){const x=COVC[c];return x?`<span class="sg" style="background:${x[0]};color:${x[1]}">${x[2]}</span>`:'';}
 function covBanner(c){if(!c)return `<div class="card" style="background:#f4f1ea"><small>Want to know if your insurance covers each job? <a href="/insurance">Upload your policy</a> and PaintersMax will check every lead and job for you. No insurance yet? Customers often ask for proof before they hire, so you may win more jobs with coverage. <a href="/insurance-guide">Read the insurance guide</a>.</small></div>`;const x=COVC[c.status];return `<div class="card" style="background:${x[0]};border-color:${x[1]}33"><b style="color:${x[1]}">${esc(c.headline)}</b>${c.note?`<br><small>${esc(c.note)}</small>`:''}<br><small>This is general information from your saved policy summary, not insurance advice. Confirm with your agent before a big job. <a href="/insurance">Open your policy</a></small></div>`;}
 
+function portalCard(d){const j=d.job||{};return `<h3>Customer portal</h3><div class="card"><p class="muted" style="margin-top:0">One private link where your customer sees what you have sent them: estimate, contract, signature status, schedule, invoice and proof of insurance. Drafts are never shown.</p>
+ <div id="pt_box"></div><div class="btns" style="margin-top:0"><button class="btn sec" data-ptshow="1">Show link</button><button class="btn sec" data-ptmail="1" ${j.customerEmail?'':'disabled'}>Email link to customer</button><button class="btn sec" data-ptnew="1">Make a new link</button></div><small class="muted">Making a new link turns the old one off.</small></div>`;}
+function ptShow(l){$('pt_box').innerHTML='<input readonly id="pt_link" value="'+esc(l)+'" style="width:100%;margin:6px 0" onclick="this.select()"><a href="'+esc(l)+'" target="_blank" rel="noopener">Open the customer view</a>';}
 function protectCard(d){const j=d.job||{};const has=!!d.coverage;const can=has&&j.customerEmail;
  return `<div class="card"><b>Protect this job</b> <small class="muted">before, during and after the work</small>
  <div class="btns" style="margin-top:8px;align-items:center"><button class="btn sec" data-inssend="1" ${can?'':'disabled'}>Email my proof of insurance to the customer</button>
@@ -197,6 +200,7 @@ async function detail(id){
    <small>${esc([j.customerEmail,j.customerPhone].filter(Boolean).join(' · ')||'No contact details')}<br>${esc([j.address,j.city,j.zip].filter(Boolean).join(', ')||'No address yet')} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div>
   ${covBanner(d.coverage)}
   ${protectCard(d)}
+  ${portalCard(d)}
   ${assistantCard(j.id)}
   <h3>1. Measurements and quantities</h3>
   <div class="card">${d.rateCard?`<small>Using your ${esc(TRADES[j.trade]||j.trade)} prices. Enter how many of each; leave blank for none.</small>
@@ -308,6 +312,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
 document.addEventListener('change',e=>{if(e.target.id==='iv_msel'){const v=e.target.value;let paid=0;if(v!=='')for(let i=0;i<+v;i++)paid+=msOpts[i].amountCents;$('iv_paid').value=v!==''?(paid/100||''):'';}});
 document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if(!J)return;
  if(ds.claimopen){const b=$('claimbox');b.style.display=b.style.display==='none'?'block':'none';if(b.style.display==='block'&&!$('cl_date').value)$('cl_date').value=new Date().toISOString().slice(0,10);}
+ else if(ds.ptshow||ds.ptmail||ds.ptnew){try{msg('');if(ds.ptnew&&!confirm('The old link will stop working. Continue?'))return;const r=await api('/api/portal',{jobId:J.job.id,action:ds.ptmail?'email':ds.ptnew?'reset':'show',language:'en'});ptShow(r.link);if(r.emailed)msg('Link emailed to the customer.',true);}catch(x){if(x)msg(x.message);}}
  else if(ds.inssend){try{msg('');t.disabled=true;await api('/api/insurance',{action:'email_customer',jobId:J.job.id,language:$('ins_lang').value});msg('Proof of insurance emailed to the customer.',true);}catch(x){if(x)msg(x.message);}t.disabled=false;}
  else if(ds.claimbuild){try{msg('');const what=$('cl_what').value.trim();if(!what){msg('Describe what happened first.');return;}
   let s={};try{const r=await api('/api/insurance');s=(r.policy&&r.policy.summary)||{};}catch(_){}

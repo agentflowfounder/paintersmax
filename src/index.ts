@@ -15,6 +15,7 @@ import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import { readSettings, renderQuotePage, sanitize, tenantFromHost } from "./settings.ts";
 import { handleImport } from "./import.ts";
+import { handlePortalManage, handlePortalPage } from "./portal.ts";
 import { sendInvoiceReminders } from "./reminders.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
@@ -475,6 +476,22 @@ export default {
       } catch (err) {
         console.error("lang failed", String(err));
         return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/portal") {
+      try {
+        return await handlePortalManage(request, env);
+      } catch (err) {
+        console.error("portal manage failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname.startsWith("/portal/")) {
+      try {
+        return await handlePortalPage(request, env);
+      } catch (err) {
+        console.error("portal page failed", String(err));
+        return new Response("Something went wrong.", { status: 500 });
       }
     }
     if (pathname === "/api/import/customers") {
