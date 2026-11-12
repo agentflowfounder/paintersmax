@@ -15,6 +15,7 @@ import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import { readSettings, renderQuotePage, sanitize, tenantFromHost } from "./settings.ts";
 import { handleImport } from "./import.ts";
+import { slugForHost } from "./domains.ts";
 import { handlePortalManage, handlePortalPage } from "./portal.ts";
 import { sendInvoiceReminders } from "./reminders.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
@@ -364,7 +365,8 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { pathname, hostname } = new URL(request.url);
     // A client's own address: rivera-painting.paintersmax.app shows their quote page. Owners sign in on the main site.
-    const tenant = tenantFromHost(hostname);
+    // A client's own domain (managed in Cloudflare and mapped to a company in the admin page) behaves like their subdomain.
+    const tenant = tenantFromHost(hostname) ?? (await slugForHost(env, hostname).catch(() => null));
     if (tenant) {
       if (pathname === "/" || pathname === "/quote") return handleQuotePage(request, env, tenant);
       if (["/login", "/dashboard", "/app", "/jobs", "/insurance", "/materials", "/admin", "/start"].includes(pathname)) {

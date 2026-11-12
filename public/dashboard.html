@@ -46,7 +46,8 @@ details.acc .in{padding:0 12px 12px}
 <h2>Your quote page</h2>
 <div class="card"><p style="margin:0 0 8px">Share this link, or paste the embed code into any website.</p>
 <label>Link</label><code id="lnk"></code>
-<label>Embed code</label><textarea id="emb" rows="2" readonly></textarea></div>
+<label>Embed code</label><textarea id="emb" rows="2" readonly></textarea>
+<label>Quote button for your own website</label><div class="hint">Paste this one line before the closing body tag on any website. It adds a floating "Get a free quote" button that opens your quote form. Add data-inline="#some-id" to show the form on the page instead.</div><textarea id="emb2" rows="2" readonly></textarea></div>
 <h2>Settings</h2>
 <div class="card"><form id="sf">
 <div id="billing" style="margin-bottom:14px"><label>Plan and billing</label><div class="hint">Update your card, see invoices or cancel on Stripe's secure page.</div><button type="button" class="btn" id="bill_btn" style="margin-top:6px">Manage my plan and card</button></div>
@@ -98,6 +99,7 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
   const url=location.origin+'/q/'+st.slug;
   document.getElementById('lnk').textContent=url;
   document.getElementById('emb').value='<iframe src="'+url+'" style="width:100%;max-width:560px;height:900px;border:0" title="Free estimate"></iframe>';
+  document.getElementById('emb2').value='<script src="https://paintersmax.app/embed.js" data-company="'+st.slug+'" async><\/script>';
   document.getElementById('s_name').value=st.name||''; document.getElementById('s_email').value=st.notifyEmail||'';
   document.getElementById('s_lang').value=window.PM_LANG||'en';
   document.getElementById('bill_btn').onclick=async()=>{try{const r=await fetch('/api/billing',{method:'POST'});const j=await r.json();if(!r.ok)throw new Error(j.error||'Billing is not available yet.');location.href=j.url;}catch(e){alert(e.message);}};

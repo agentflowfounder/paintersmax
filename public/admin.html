@@ -26,6 +26,10 @@ small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#
 <header><div><b>PaintersMax</b> Admin</div><div><a href="/jobs">Jobs</a><a href="/dashboard">Leads</a></div></header>
 <main><h2>Live stats ticker</h2>
 <div class="card" id="tk">Loading...</div>
+<h2>Client domains</h2>
+<div class="card"><small>For a client with their own domain: add the domain to your Cloudflare account, add it to the paintersmax-site worker (Workers, Settings, Domains and Routes, Add custom domain), then connect it here. Add both the bare domain and the www version if you want both. The client still signs in at paintersmax.app.</small>
+<div class="row"><div><label>Domain</label><input id="dm_host" placeholder="rivera-painting.com"></div><div><label>Client</label><select id="dm_slug"></select></div></div>
+<div><button class="btn" id="dm_add">Connect domain</button></div><div id="dm_list" style="margin-top:10px"></div></div>
 <h2>Clients</h2><div id="msg"></div>
 <div class="card" id="list">Loading...</div>
 <h2 style="font-size:20px">Add a client</h2>
@@ -38,7 +42,7 @@ const $=id=>document.getElementById(id);
 function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
 async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
 const PLANS=['free','starter','basic','pro'];
-async function load(){try{const {clients}=await api('/api/admin');$('list').innerHTML=clients.map(c=>`<div class="c"><div><b>${esc(c.name)}</b> <small>${esc(c.slug)}</small><br><small>${esc(c.owners||'no login yet')} &middot; ${c.jobs} jobs &middot; ${c.leads} leads</small></div><select data-id="${c.id}">${PLANS.map(p=>`<option value="${p}" ${p===c.plan?'selected':''}>${p}</option>`).join('')}</select></div>`).join('');}catch(e){if(e)$('list').textContent='You do not have access to this page.';}}
+async function load(){try{const {clients}=await api('/api/admin');$('dm_slug').innerHTML=clients.map(c=>`<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join('');$('list').innerHTML=clients.map(c=>`<div class="c"><div><b>${esc(c.name)}</b> <small>${esc(c.slug)}</small><br><small>${esc(c.owners||'no login yet')} &middot; ${c.jobs} jobs &middot; ${c.leads} leads</small></div><select data-id="${c.id}">${PLANS.map(p=>`<option value="${p}" ${p===c.plan?'selected':''}>${p}</option>`).join('')}</select></div>`).join('');}catch(e){if(e)$('list').textContent='You do not have access to this page.';}}
 document.addEventListener('change',async e=>{const id=e.target.dataset&&e.target.dataset.id;if(!id)return;try{await api('/api/admin',{action:'plan',companyId:+id,plan:e.target.value});msg('Plan updated.',true);}catch(x){if(x)msg(x.message);}});
 $('go').onclick=async()=>{try{msg('');const r=await api('/api/admin',{action:'create',name:$('n').value,email:$('e').value,plan:$('p').value});msg(r.created?'Client created. Sign-in link sent.':'That email already has an account. Nothing changed.',true);$('n').value='';$('e').value='';load();}catch(x){if(x)msg(x.message);}};
 async function tkLoad(){try{const v=await api('/api/admin?ticker=1');const c=v.config;
@@ -54,6 +58,10 @@ async function tkLoad(){try{const v=await api('/api/admin?ticker=1');const c=v.c
  prev(v.preview);
  $('tk_save').onclick=async()=>{try{msg('');const stats=[...document.querySelectorAll('#tk [data-k]:checked')].map(x=>x.dataset.k);await api('/api/admin',{action:'ticker_save',config:{enabled:$('tk_on').checked,stats,minValue:Number($('tk_min').value)||0}});msg('Ticker settings saved.',true);tkLoad();}catch(x){if(x)msg(x.message);}};
 }catch(x){$('tk').textContent='Could not load ticker settings.';}}
+async function dmLoad(){try{const v=await api('/api/admin?domains=1');$('dm_list').innerHTML=v.domains.length?v.domains.map(d=>`<div class="c"><div><b>${esc(d.host)}</b> <small>shows ${esc(d.slug)}</small></div><button class="btn" data-dmrm="${esc(d.host)}">Remove</button></div>`).join(''):'<small>No client domains connected yet.</small>';}catch(e){}}
+document.addEventListener('click',async e=>{const h=e.target.dataset&&e.target.dataset.dmrm;if(!h)return;if(!confirm('Disconnect '+h+'?'))return;try{await api('/api/admin',{action:'domain_remove',host:h});msg('Domain disconnected.',true);dmLoad();}catch(x){if(x)msg(x.message);}});
+$('dm_add').onclick=async()=>{try{msg('');await api('/api/admin',{action:'domain_set',host:$('dm_host').value,slug:$('dm_slug').value});$('dm_host').value='';msg('Domain connected.',true);dmLoad();}catch(x){if(x)msg(x.message);}};
 tkLoad();
+dmLoad();
 load();
 </script></body></html>
