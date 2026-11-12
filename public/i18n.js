@@ -529,6 +529,25 @@
     'Name': 'Nombre', 'Email': 'Correo', 'Phone': 'Teléfono', 'Address': 'Dirección',
   });
 
+  /* ---- Part 9: setup flow redesign ---- */
+  pmI18n.add({
+    'Your company info': 'Datos de su empresa', 'Services you offer': 'Servicios que ofrece', 'Cities you serve': 'Ciudades que atiende', 'Your prices': 'Sus precios', 'Labor and money': 'Mano de obra y dinero', 'Warranty and insurance': 'Garantía y seguro', 'Review': 'Revisión',
+    'Save and go to dashboard': 'Guardar e ir al panel', 'What services do you offer?': '¿Qué servicios ofrece?',
+    'Choose the work you do.': 'Elija el trabajo que hace.', 'Services': 'Servicios',
+    'Pick your services first.': 'Primero elija sus servicios.', 'Choose services': 'Elegir servicios',
+    'Cities you serve (separate with commas)': 'Ciudades que atiende (separadas por comas)',
+    'Here is what we saved. Tap Edit to change any part. You can come back to any step later.': 'Esto es lo que guardamos. Toque Editar para cambiar cualquier parte. Puede volver a cualquier paso después.',
+    'Edit': 'Editar', 'You are set up.': 'Todo listo.', 'Your business profile is saved. Opening your dashboard...': 'Su perfil de negocio está guardado. Abriendo su panel...',
+    'What happens next': 'Qué sigue',
+    'When you finish, you go to your dashboard. Your prices fill in your estimates, and you can build your first job from Jobs.': 'Al terminar, va a su panel. Sus precios llenan sus presupuestos y puede crear su primer trabajo desde Trabajos.',
+    'Do not remind me': 'No me lo recuerde', 'Setup': 'Configuración',
+    'Finish setting up your estimating prices so estimates fill in for you. It takes a few minutes and you can stop any time.': 'Termine de configurar sus precios para que los presupuestos se llenen solos. Toma unos minutos y puede parar cuando quiera.',
+  }, [
+    [/^(\d+) of (\d+) steps done\. Tap any step to jump to it\. Everything saves when you move\.$/, function (a, n, t) { return n + ' de ' + t + ' pasos listos. Toque cualquier paso para ir a él. Todo se guarda al moverse.'; }],
+    [/^Your plan \((\w+)\) includes up to (\d+) services\. You can change this any time\.$/, function (a, pl, n) { return 'Su plan (' + pl + ') incluye hasta ' + n + ' servicios. Puede cambiarlo cuando quiera.'; }],
+    [/^Your plan \((\w+)\) includes up to (\d+) cities\. These show on your quote page and help us set rates for your market\.$/, function (a, pl, n) { return 'Su plan (' + pl + ') incluye hasta ' + n + ' ciudades. Se muestran en su página de cotización y nos ayudan a fijar precios para su mercado.'; }],
+  ]);
+
   pmI18n.add({}, [
     [/^Your free trial has (\d+) days? left\. You have extra AI use until it ends\. Choose a plan to keep it\.$/, function (a, n) { return 'Su prueba gratis tiene ' + n + (n === '1' ? ' día' : ' días') + ' restantes. Tiene más uso de IA hasta que termine. Elija un plan para conservarlo.'; }],
   ]);

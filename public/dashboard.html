@@ -116,13 +116,14 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
     const money=c=>'$'+Math.round(c/100).toLocaleString('en-US');
     const card=(v,l,g)=>`<div class="sc ${g?'g':''}"><div class="v">${v}</div><div class="l">${l}</div></div>`;
     const lk=a=>a.jobId?`/jobs?id=${a.jobId}`:(a.link||'#');
-    const TT={lead:'Lead',estimate:'Estimate',signature:'Signature',invoice:'Invoice',insurance:'Insurance',billing:'Billing'};
+    const TT={lead:'Lead',estimate:'Estimate',signature:'Signature',invoice:'Invoice',insurance:'Insurance',billing:'Billing',setup:'Setup'};
     el.innerHTML=`<div class="sg">${card(money(S.paidMonthCents),'Jobs paid this month ('+S.paidMonthJobs+')',true)}${card(money(S.bookedCents),'Booked work, signed and not finished ('+S.bookedCount+')')}${card(money(S.waitingCents),'Estimates waiting on customers ('+S.waitingCount+')')}${card(S.newLeads,'New leads to follow up ('+S.newLeadsWeek+' this week)')}${card(S.inProgress,'Jobs in progress')}${card(S.signedWeek,'Signed in the last 7 days')}</div>
     <h3 style="margin:0 0 8px">Needs your attention</h3>
-    <div class="at">${h.attention.length?h.attention.map(a=>`<div><span class="pilltag ${a.type==='insurance'?'i':''}">${TT[a.type]||''}</span><a href="${lk(a)}">${esc(a.text)}</a></div>`).join(''):'<div style="color:#4A5568">Nothing urgent. You are caught up.</div>'}</div>
+    <div class="at">${h.attention.length?h.attention.map(a=>`<div><span class="pilltag ${a.type==='insurance'?'i':''}">${TT[a.type]||''}</span><a href="${lk(a)}">${esc(a.text)}</a>${a.dismiss?` <a href="#" class="dis" data-d="${a.dismiss}" style="font-size:12px;color:#4A5568">Do not remind me</a>`:''}</div>`).join(''):'<div style="color:#4A5568">Nothing urgent. You are caught up.</div>'}</div>
     <h3 style="margin:0 0 8px">Recent activity</h3>
     <div class="at ac">${h.activity.length?h.activity.map(a=>`<div><a href="/jobs?id=${a.jobId}"><b>${esc(a.title)}</b></a> &middot; ${esc(String(a.text).slice(0,140))} <small style="color:#4A5568">${esc(a.at)}</small></div>`).join(''):'<div style="color:#4A5568">No activity yet. Create a job to get started.</div>'}</div>`;
     el.className='';
+    el.querySelectorAll('.dis').forEach(b=>b.onclick=async ev=>{ev.preventDefault();try{await fetch('/api/home',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({dismiss:b.dataset.d})});b.parentElement.remove();}catch{}});
   }catch(e){el.textContent='Could not load your numbers.';}})();
   (async()=>{const el=document.getElementById('sigs');try{
     const g=await (await fetch('/api/esign?all=1')).json();

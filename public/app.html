@@ -10,7 +10,14 @@ header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-cont
 header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
 header a{color:#E8A33D;font-size:14px;text-decoration:none}
 main{max-width:640px;margin:0 auto;padding:16px 16px 96px}
-.bar{display:flex;gap:4px;margin:4px 0 16px}.bar i{flex:1;height:6px;border-radius:3px;background:#dcd8cf}.bar i.on{background:#E8A33D}
+.steps{display:flex;gap:6px;overflow-x:auto;margin:4px 0 6px;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.steps button{flex:0 0 auto;padding:8px 12px;border-radius:999px;border:1px solid #cfd5dc;background:#fff;color:#0F1B2D;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.steps button.done{border-color:#0a7a3d}.steps button.done::before{content:"\2713 ";color:#0a7a3d}
+.steps button.cur{background:#0F1B2D;color:#fff;border-color:#0F1B2D}.steps button.cur::before{color:#E8A33D}
+.prog{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#4A5568;margin:0 0 14px;gap:8px;flex-wrap:wrap}
+.prog a{color:#0F1B2D;font-weight:600}
+.edit{font-size:13px;color:#0F1B2D;font-weight:600;margin-left:6px}
+.done-card{background:#eaf6ee;border:1px solid #b7dfc3;border-radius:10px;padding:16px;margin:0 0 14px}
 h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 4px;font-size:26px}
 p.lead{color:#4A5568;margin:0 0 16px}
 .card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
@@ -30,13 +37,14 @@ ul.sum{padding-left:18px;margin:6px 0}
 </style></head><body>
 <header><div><b>PaintersMax</b> Estimating Setup <span id="co" style="opacity:.7;font-size:14px"></span></div><div><a href="/jobs">Jobs</a> &nbsp; <a href="/materials">Materials</a> &nbsp; <a href="/insurance">Insurance</a> &nbsp; <a href="/dashboard">Settings and leads</a></div></header>
 <main>
-<div class="bar" id="bar"></div>
+<div class="steps" id="steps" role="tablist"></div><div class="prog" id="prog"></div>
 <div id="view"></div>
 <div id="msg"></div>
 </main>
 <div class="nav"><button class="back" id="back">Back</button><button class="next" id="next">Save and continue</button></div>
 <script>
-const STEPS=['company','services','pricing','labor','extras','review'];
+const STEPS=['company','services','cities','pricing','labor','extras','review'];
+const STEP_LABELS={company:'Your company info',services:'Services you offer',cities:'Cities you serve',pricing:'Your prices',labor:'Labor and money',extras:'Warranty and insurance',review:'Review'};
 const TRADE_LABELS={interior:'Interior painting',exterior:'Exterior painting',commercial:'Commercial',new_construction:'New construction (builders)',power_washing:'Power washing',drywall:'Drywall repair',cabinets:'Cabinet painting',decks_fences:'Decks and fence staining',fencing:'Fence installation',remodeling:'Remodeling',epoxy_floors:'Epoxy floors',industrial:'Industrial coatings'};
 const HELP={
  floor:'Floor area: length x width of each room, added together. Example: a 12 ft x 15 ft bedroom is 180 sq ft. Most repaints are quoted from the whole home floor area.',
@@ -92,26 +100,45 @@ function renderCard(trade,aud){
    ${trade==='power_washing'||trade==='exterior'?'<small>Power washing is always its own line on the estimate.</small>':''}</div>`;
 }
 
+// ---- progress ----
+function stepDone(k){
+  const p=S.profile,c=p.company||{},l=p.labor||{};
+  if(k==='company')return!!(c.legalName&&(c.phone||c.email));
+  if(k==='services')return p.trades.length>0;
+  if(k==='cities')return(p.cities||[]).length>0;
+  if(k==='pricing')return p.trades.length>0&&p.trades.every(t=>{const cd=t==='new_construction'?card('interior','builder'):card(t,'retail');return!!cd.method&&Object.keys(cd.data||{}).length>0;});
+  if(k==='labor')return!!(l.crewSize||l.hourlyRate);
+  if(k==='extras')return(p.warranty||{}).laborMonths!=null&&(p.warranty||{}).laborMonths!=='';
+  return S.completed;
+}
+function nextOpen(){const i=STEPS.findIndex(k=>k!=='review'&&!stepDone(k));return i<0?STEPS.length-1:i;}
+function renderSteps(){
+  $('steps').innerHTML=STEPS.map((k,i)=>`<button type="button" role="tab" data-step="${i}" class="${i===S.step?'cur':''} ${stepDone(k)?'done':''}">${esc(STEP_LABELS[k])}</button>`).join('');
+  const n=STEPS.filter(k=>k!=='review'&&stepDone(k)).length;
+  $('prog').innerHTML=`<span>${n} of ${STEPS.length-1} steps done. Tap any step to jump to it. Everything saves when you move.</span><a href="#" id="exit">Save and go to dashboard</a>`;
+  const cur=document.querySelector('#steps .cur');if(cur&&cur.scrollIntoView)cur.scrollIntoView({block:'nearest',inline:'center'});
+}
+
 // ---- views ----
 function view(){
-  const k=STEPS[S.step];$('bar').innerHTML=STEPS.map((_,i)=>`<i class="${i<=S.step?'on':''}"></i>`).join('');
+  const k=STEPS[S.step];renderSteps();
   $('back').style.visibility=S.step===0?'hidden':'visible';
   $('next').textContent=k==='review'?'Finish setup':'Save and continue';
   const p=S.profile,c=p.company||{};
   let h='';
-  if(k==='company')h=`<h2>Your company</h2><p class="lead">We save this once and use it on every estimate and contract.</p><div class="card">
+  if(k==='company')h=`<h2>Your company info</h2><p class="lead">We save this once and use it on every estimate and contract.</p><div class="card">
    <label>Company name</label><input id="legalName" value="${val(c,'legalName')}">
    <div class="row"><div><label>Phone</label><input id="phone" type="tel" value="${val(c,'phone')}"></div><div><label>Email</label><input id="email" type="email" value="${val(c,'email')}"></div></div>
    <label>Address</label><input id="address" value="${val(c,'address')}">
    <div class="row"><div><label>City</label><input id="city" value="${val(c,'city')}"></div><div><label>State</label><input id="state" value="${val(c,'state')}"></div></div>
    <div class="row"><div><label>ZIP</label><input id="zip" value="${val(c,'zip')}"></div><div><label>License number (if you have one)</label><input id="license" value="${val(c,'license')}"></div></div>
    <label>Website (https://...)</label><input id="website" value="${val(c,'website')}"></div>`;
-  if(k==='services')h=`<h2>What you do, and where</h2><p class="lead">Your plan (${esc(S.plan)}) includes up to <b>${S.caps.services}</b> services and <b>${S.caps.cities}</b> cities.</p><div class="card"><b>Services</b>
-   ${Object.keys(TRADE_LABELS).map(t=>`<label class="chk"><input type="checkbox" class="trade" value="${t}" ${p.trades.includes(t)?'checked':''}> ${esc(TRADE_LABELS[t])}</label>`).join('')}</div>
-   <div class="card"><label>Cities you serve (separate with commas)</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div>`;
+  if(k==='services')h=`<h2>What services do you offer?</h2><p class="lead">Choose the work you do. Your plan (${esc(S.plan)}) includes up to <b>${S.caps.services}</b> services. You can change this any time.</p><div class="card"><b>Services</b>
+   ${Object.keys(TRADE_LABELS).map(t=>`<label class="chk"><input type="checkbox" class="trade" value="${t}" ${p.trades.includes(t)?'checked':''}> ${esc(TRADE_LABELS[t])}</label>`).join('')}</div>`;
+  if(k==='cities')h=`<h2>Cities you serve</h2><p class="lead">Your plan (${esc(S.plan)}) includes up to <b>${S.caps.cities}</b> cities. These show on your quote page and help us set rates for your market.</p><div class="card"><label>Cities you serve (separate with commas)</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div>`;
   if(k==='pricing'){
     h=`<h2>How you price</h2><p class="lead">Set your prices once. PaintersMax uses them for every estimate and you can adjust any job. Tap the ? for measuring help.</p>`;
-    if(!p.trades.length)h+='<div class="card">Pick your services first (go back one step).</div>';
+    if(!p.trades.length)h+='<div class="card">Pick your services first. <a href="#" data-go="1">Choose services</a></div>';
     p.trades.forEach(t=>{if(t!=='new_construction')h+=renderCard(t,'retail');});
     if(p.trades.includes('new_construction'))h+=['basic','pro'].includes(S.plan)?renderCard('interior','builder'):'<div class="card"><b>Builder rates</b><p>Builder rate cards are on the Basic and Pro plans.</p></div>';
   }
@@ -135,13 +162,13 @@ function view(){
    <div class="card"><b>Paint brands you use</b>${BRANDS.map(b=>`<label class="chk"><input type="checkbox" class="brand" value="${esc(b)}" ${(m.brands||[]).includes(b)?'checked':''}> ${esc(b)}</label>`).join('')}
    <label>Other products or notes</label><textarea id="mnotes" rows="2">${val(m,'notes')}</textarea></div>
    <div class="card"><b>Language</b><label>App language (the pages you use every day)</label><select id="uiLang" onchange="pmSetLang(this.value)"><option value="en">English</option><option value="es" ${window.PM_LANG==='es'?'selected':''}>Español</option></select><label>Crew documents (materials, schedule, instructions, punch list)</label><select id="crewDocs"><option value="en" ${lg.crewDocs!=='es'?'selected':''}>English</option><option value="es" ${lg.crewDocs==='es'?'selected':''}>Spanish</option></select></div>`;}
-  if(k==='review'){const l=p.labor||{};h=`<h2>Ready</h2><p class="lead">Here is what we saved. You can change any of it later.</p><div class="card">
-   <b>${esc(c.legalName||'(company name missing)')}</b><br><small>${esc([c.phone,c.email].filter(Boolean).join(' | '))}</small>
-   <ul class="sum"><li>Services: ${esc(p.trades.map(t=>TRADE_LABELS[t]).join(', ')||'none yet')}</li><li>Cities: ${esc((p.cities||[]).join(', ')||'none yet')}</li>
-   <li>Pricing set for: ${esc(Object.keys(S.rateCards).map(k=>k.split('|')[0]+(k.endsWith('builder')?' (builder)':'')).join(', ')||'none yet')}</li>
-   <li>Labor: crew of ${esc(l.crewSize||'?')}, $${esc(l.hourlyRate||'?')}/hr, deposit ${esc(l.depositPct||'?')}%</li>
-   <li>Warranty: ${esc((p.warranty||{}).laborMonths||'?')} months labor</li></ul></div>
-   <div class="card"><b>What happens next</b><p>Your estimates, contracts, material lists and schedules will use these settings. Estimate and contract documents are the next steps we are building.</p></div>`;}
+  if(k==='review'){const l=p.labor||{};const ed=i=>` <a href="#" class="edit" data-go="${i}">Edit</a>`;h=`<h2>Review</h2><p class="lead">Here is what we saved. Tap Edit to change any part. You can come back to any step later.</p><div class="card">
+   <b>${esc(c.legalName||'(company name missing)')}</b>${ed(0)}<br><small>${esc([c.phone,c.email].filter(Boolean).join(' | '))}</small>
+   <ul class="sum"><li>Services: ${esc(p.trades.map(t=>TRADE_LABELS[t]).join(', ')||'none yet')}${ed(1)}</li><li>Cities: ${esc((p.cities||[]).join(', ')||'none yet')}${ed(2)}</li>
+   <li>Pricing set for: ${esc(Object.keys(S.rateCards).map(k=>k.split('|')[0]+(k.endsWith('builder')?' (builder)':'')).join(', ')||'none yet')}${ed(3)}</li>
+   <li>Labor: crew of ${esc(l.crewSize||'?')}, $${esc(l.hourlyRate||'?')}/hr, deposit ${esc(l.depositPct||'?')}%${ed(4)}</li>
+   <li>Warranty: ${esc((p.warranty||{}).laborMonths||'?')} months labor${ed(5)}</li></ul></div>
+   <div class="card"><b>What happens next</b><p>When you finish, you go to your dashboard. Your prices fill in your estimates, and you can build your first job from Jobs.</p></div>`;}
   $('view').innerHTML=h;msg('');
 }
 
@@ -149,8 +176,9 @@ function view(){
 function collect(){
   const k=STEPS[S.step],p=S.profile,g=id=>{const e=$(id);return e?e.value.trim():undefined;};
   if(k==='company')p.company={legalName:g('legalName'),phone:g('phone'),email:g('email'),address:g('address'),city:g('city'),state:g('state'),zip:g('zip'),license:g('license'),website:g('website')};
-  if(k==='services'){p.trades=[...document.querySelectorAll('.trade:checked')].map(e=>e.value);p.cities=g('cities').split(',').map(s=>s.trim()).filter(Boolean);
-    if(p.trades.length>S.caps.services)throw new Error('Your plan includes up to '+S.caps.services+' services.');
+  if(k==='services'){p.trades=[...document.querySelectorAll('.trade:checked')].map(e=>e.value);
+    if(p.trades.length>S.caps.services)throw new Error('Your plan includes up to '+S.caps.services+' services.');}
+  if(k==='cities'){p.cities=g('cities').split(',').map(s=>s.trim()).filter(Boolean);
     if(p.cities.length>S.caps.cities)throw new Error('Your plan includes up to '+S.caps.cities+' cities.');}
   if(k==='labor')p.labor={crewSize:g('crewSize'),hourlyRate:g('hourlyRate'),helperRate:g('helperRate'),minimumJob:g('minimumJob'),markupPct:g('markupPct'),overheadPct:g('overheadPct'),depositPct:g('depositPct'),paymentTerms:g('paymentTerms')};
   if(k==='extras'){p.warranty={laborMonths:g('laborMonths'),text:g('wtext'),exclusions:g('exclusions')};p.insurance={carrier:g('carrier'),expires:g('expires'),coverage:g('coverage'),shareSummary:$('shareSummary').checked};
@@ -163,15 +191,34 @@ async function saveCards(){
     await api('/api/ratecard',body);S.rateCards[rcKey(body.trade,body.audience)]={method:body.method,data};
   }
 }
-async function go(delta){
+async function save(target,finishing){
+  if(STEPS[S.step]!=='review'){collect();if(STEPS[S.step]==='pricing')await saveCards();}
+  await api('/api/profile',{profile:S.profile,setupStep:STEPS[target].replace(/[^a-z]/g,''),completed:finishing||S.completed});
+}
+async function jump(target){
   try{
-    if(delta>0||STEPS[S.step]!=='review'){collect();if(STEPS[S.step]==='pricing')await saveCards();}
-    const finishing=STEPS[S.step]==='review'&&delta>0;
-    await api('/api/profile',{profile:S.profile,setupStep:STEPS[Math.min(S.step+(delta>0?1:0),STEPS.length-1)].replace(/[^a-z]/g,''),completed:finishing||S.completed});
-    if(finishing){S.completed=true;msg('Saved. Your business profile is complete.',true);return;}
-    S.step=Math.max(0,Math.min(STEPS.length-1,S.step+delta));view();window.scrollTo(0,0);
+    target=Math.max(0,Math.min(STEPS.length-1,target));
+    await save(target,false);
+    S.step=target;view();window.scrollTo(0,0);
   }catch(e){if(e)msg(e.message||'Could not save.');}
 }
+async function go(delta){
+  if(STEPS[S.step]==='review'&&delta>0)return finish();
+  return jump(S.step+delta);
+}
+async function finish(){
+  try{
+    await save(STEPS.length-1,true);S.completed=true;renderSteps();
+    $('view').innerHTML='<div class="done-card"><b>You are set up.</b><p>Your business profile is saved. Opening your dashboard...</p></div>';
+    $('next').disabled=true;$('back').disabled=true;
+    setTimeout(()=>{location.href='/dashboard';},900);
+  }catch(e){if(e)msg(e.message||'Could not save.');}
+}
+document.addEventListener('click',async e=>{
+  const st=e.target.closest('#steps [data-step]');if(st){await jump(Number(st.dataset.step));return;}
+  const gt=e.target.closest('[data-go]');if(gt){e.preventDefault();await jump(Number(gt.dataset.go));return;}
+  if(e.target.id==='exit'){e.preventDefault();try{await save(S.step,false);location.href='/dashboard';}catch(x){if(x)msg(x.message||'Could not save.');}}
+});
 $('next').onclick=()=>go(1);$('back').onclick=()=>go(-1);
 document.addEventListener('change',e=>{if(e.target.classList.contains('method')){try{const el=e.target.closest('[data-trade]');const t=el.dataset.trade,a=el.dataset.aud;
   const cur=card(t,a);S.rateCards[rcKey(t,a)]={method:e.target.value,data:{}};el.outerHTML=renderCard(t,a);}catch{}}});
@@ -182,7 +229,7 @@ document.addEventListener('change',e=>{if(e.target.classList.contains('method'))
     Object.assign(S.profile,j.profile||{});S.profile.company=S.profile.company||{};S.profile.trades=S.profile.trades||[];S.profile.cities=S.profile.cities||[];
     S.profile.labor=S.profile.labor||{};S.profile.warranty=S.profile.warranty||{laborMonths:12};S.profile.insurance=S.profile.insurance||{};S.profile.materials=S.profile.materials||{brands:[]};S.profile.language=S.profile.language||{};
     (j.rateCards||[]).forEach(r=>{S.rateCards[rcKey(r.trade,r.audience)]={method:r.method,data:r.data};});
-    const i=STEPS.indexOf(({company:'services',services:'pricing',pricing:'labor',labor:'extras',extras:'review'})[j.setupStep]||j.setupStep);S.step=i>=0?i:0;
+    const i=STEPS.indexOf(j.setupStep);S.step=S.completed?STEPS.length-1:(i>0?i:nextOpen());
     view();
   }catch(e){}
 })();

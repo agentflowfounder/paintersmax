@@ -20,10 +20,13 @@ export type Trade = (typeof TRADES)[number];
 /** How many trades and cities each plan can list in the business profile. */
 export const PROFILE_CAPS: Record<Plan, { services: number; cities: number }> = {
   free: { services: 1, cities: 1 },
-  starter: { services: 2, cities: 2 },
-  basic: { services: 5, cities: 6 },
-  pro: { services: 15, cities: 25 },
+  starter: { services: 2, cities: 3 },
+  basic: { services: 5, cities: 10 },
+  pro: { services: 15, cities: 30 },
 };
+
+/** Service radius in miles by plan (Pro can go further by request). Used by the Cities page. */
+export const RADIUS_MILES: Record<Plan, number> = { free: 15, starter: 25, basic: 50, pro: 100 };
 
 export const METHODS = ["room_size", "sqft_floor", "sqft_wall", "items", "line_items", "lump_sum", "per_linear_ft"] as const;
 
@@ -42,6 +45,8 @@ export interface Profile {
   warranty: { laborMonths?: number; text?: string; exclusions?: string };
   materials: { brands?: string[]; notes?: string };
   language: { ui?: "en" | "es"; crewDocs?: "en" | "es" };
+  /** noResume: the painter turned off the "finish setup" reminder on Home. */
+  setup: { noResume?: boolean };
 }
 
 /** Keeps only valid, size-limited values. Anything unexpected is dropped, never stored. */
@@ -102,6 +107,7 @@ export function sanitizeProfile(input: any, plan: string): Profile {
       ui: lang.ui === "es" ? "es" : "en",
       crewDocs: lang.crewDocs === "es" ? "es" : "en",
     },
+    setup: { noResume: input?.setup?.noResume === true ? true : undefined },
   };
   return out;
 }

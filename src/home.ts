@@ -20,8 +20,31 @@ export function parsePolicyDate(s: string | undefined | null): number | null {
 export async function handleHome(request: Request, env: Env): Promise<Response> {
   const user = await getSessionUser(env, request);
   if (!user) return json({ error: "Not signed in." }, 401);
-  if (request.method !== "GET") return json({ error: "Not found." }, 404);
   const c = user.companyId;
+  if (request.method === "POST") {
+    // Turn off the "finish setup" reminder. Only this one switch can be changed here.
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "Invalid JSON." }, 400);
+    }
+    if (body?.dismiss !== "setup") return json({ error: "Not found." }, 404);
+    const row = await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(c).first<{ data: string }>();
+    let data: any = {};
+    try {
+      data = row ? JSON.parse(row.data) : {};
+    } catch {
+      data = {};
+    }
+    data.setup = { ...(data.setup ?? {}), noResume: true };
+    await env.DB.prepare(
+      `INSERT INTO company_profiles (company_id, data, setup_step, completed, updated_at) VALUES (?, ?, 'start', 0, datetime('now'))
+       ON CONFLICT(company_id) DO UPDATE SET data = excluded.data, updated_at = datetime('now')`,
+    ).bind(c, JSON.stringify(data)).run();
+    return json({ ok: true });
+  }
+  if (request.method !== "GET") return json({ error: "Not found." }, 404);
   const one = async (sql: string, ...b: unknown[]) => (await env.DB.prepare(sql).bind(...b).first<any>()) ?? {};
 
   const [paid, open, leads, progress, signedWeek, booked, attLeads, attEst, attOpened, attExpiring, attInvoice, events, policy] = await Promise.all([
@@ -48,7 +71,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     env.DB.prepare("SELECT summary FROM insurance_policies WHERE company_id = ?").bind(c).first<{ summary: string }>().catch(() => null),
   ]);
 
-  const attention: { type: string; text: string; jobId?: number; link?: string }[] = [];
+  const attention: { type: string; text: string; jobId?: number; link?: string; dismiss?: string }[] = [];
   for (const r of attLeads.results as any[]) attention.push({ type: "lead", jobId: r.id, text: `New lead waiting ${r.days} day${r.days === 1 ? "" : "s"}: ${r.customer}, ${r.title}` });
   for (const r of attEst.results as any[]) attention.push({ type: "estimate", jobId: r.id, text: `Estimate sent ${r.days} days ago, no answer yet: ${r.customer}, ${r.title}` });
   for (const r of attOpened.results as any[]) attention.push({ type: "signature", jobId: r.id, text: `${r.signer_name} opened the ${r.kind} but has not signed: ${r.title}` });
@@ -66,6 +89,14 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
       /* ignore unreadable summary */
     }
   }
+  const prof = await env.DB.prepare("SELECT data, setup_step, completed FROM company_profiles WHERE company_id = ?").bind(c).first<{ data: string; setup_step: string; completed: number }>().catch(() => null);
+  let noResume = false;
+  try {
+    noResume = prof ? JSON.parse(prof.data)?.setup?.noResume === true : false;
+  } catch {
+    /* ignore unreadable profile */
+  }
+  if (!noResume && prof?.completed !== 1) attention.push({ type: "setup", link: "/app", dismiss: "setup", text: "Finish setting up your estimating prices so estimates fill in for you. It takes a few minutes and you can stop any time." });
   const pastDue = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(pastDueKey(c)).first<{ value: string }>().catch(() => null);
   const co = await env.DB.prepare("SELECT plan, created_at AS createdAt FROM companies WHERE id = ?").bind(c).first<{ plan: string; createdAt: string }>().catch(() => null);
   const trial = co ? trialDaysLeft(co) : 0;

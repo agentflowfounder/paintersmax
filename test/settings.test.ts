@@ -76,3 +76,10 @@ test("client subdomains: only real client names count", () => {
   assert.equal(tenantFromHost("dfwpainters.pro"), null);
   assert.equal(tenantFromHost("evil-paintersmax.app"), null);
 });
+
+test("plan city limits follow the approved ladder and the resume switch is kept", () => {
+  assert.deepEqual([PROFILE_CAPS.free.cities, PROFILE_CAPS.starter.cities, PROFILE_CAPS.basic.cities, PROFILE_CAPS.pro.cities], [1, 3, 10, 30]);
+  assert.equal(sanitizeProfile({ setup: { noResume: true } }, "pro").setup.noResume, true);
+  assert.equal(sanitizeProfile({ setup: { noResume: "yes" } }, "pro").setup.noResume, undefined);
+  assert.equal(sanitizeProfile({}, "pro").setup.noResume, undefined);
+});
