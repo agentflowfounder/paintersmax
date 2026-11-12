@@ -2,7 +2,7 @@ import { coiLink, coverageFor, loadSummary } from "./insurance.ts";
 import { getSessionUser } from "./auth.ts";
 import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } from "./profile.ts";
 import { consume, normalizePlan, refund } from "./usage.ts";
-import { ask, buildJobContext, sanitizeHistory } from "./assistant.ts";
+import { ask, buildJobContext, draftCoverNote, sanitizeHistory } from "./assistant.ts";
 import type { Env } from "./types.ts";
 import { computeTotals, draftLines, milestoneAmounts, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
@@ -541,6 +541,23 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
     }
     const doc = starterDoc(kind, { trade: jobMeta?.trade ?? "interior", profile: j.profile, company: j.company.name, customer: j.row.customerName, startDate: text(b?.startDate, 10), completionDate: text(b?.completionDate, 40) }, lang);
     return json({ doc });
+  }
+
+  if (b.action === "note") {
+    if (kind !== "invoice") return json({ error: "Unknown action." }, 400);
+    const company = await env.DB.prepare("SELECT id, plan FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string }>();
+    if (!company) return json({ error: "Not found." }, 404);
+    const used = await consume(env, company, "ai_invoice");
+    if (!used.allowed) {
+      const msg = used.reason === "kill_switch" ? "The writing helper is paused right now. Try again soon." : used.reason === "not_in_plan" ? "The invoice writing helper is not included in your plan." : "You have used this month's invoice notes. Upgrade your plan for more.";
+      return json({ error: msg, code: used.reason }, 429);
+    }
+    const note = await draftCoverNote(env, { company: user.companyName, customerFirst: String(j.row.customerName ?? "").split(/\s+/)[0] ?? "", title: j.row.title, trade: jobMeta?.trade ?? "", scope: String(stored.estimate?.scope ?? "") }, lang);
+    if (!note) {
+      await refund(env, company, "ai_invoice");
+      return json({ error: "The writing helper could not answer. Write your own note or try again." }, 503);
+    }
+    return json({ note });
   }
 
   const existing = await env.DB.prepare("SELECT id FROM documents WHERE job_id = ? AND company_id = ? AND kind = ? ORDER BY id DESC LIMIT 1").bind(jobId, user.companyId, kind).first<{ id: number }>();
