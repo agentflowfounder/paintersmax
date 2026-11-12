@@ -389,7 +389,7 @@ export default {
     if (tenant) {
       const ao = pathname.match(/^\/areas\/([a-z0-9-]{3,70})\/?$/);
       if (ao) return handleCityPage(request, env, tenant, ao[1], visitorOrigin(request));
-      if (pathname === "/sitemap.xml") return citySitemap(env, tenant, visitorOrigin(request));
+      if (pathname === "/sitemap.xml" || pathname === "/sitemap-areas.xml") return citySitemap(env, tenant, visitorOrigin(request));
       if (pathname === "/" || pathname === "/quote") return handleQuotePage(request, env, tenant);
       if (["/login", "/dashboard", "/app", "/jobs", "/insurance", "/materials", "/admin", "/start"].includes(pathname)) {
         return Response.redirect(`https://paintersmax.app${pathname}`, 302);
