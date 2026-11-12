@@ -123,6 +123,8 @@ export function computeTotals(
   return { subtotalCents, minimumTopUpCents, discountCents, taxCents, totalCents, depositCents };
 }
 
+import { catalogItem } from "./ratecatalog.ts";
+
 const LABELS: Record<string, string> = {
   small: "Small room",
   medium: "Medium room",
@@ -186,8 +188,11 @@ export function draftLines(method: string, data: Record<string, any>, qty: Recor
     if (q("cost") > 0) add("Project total", 1, "lump sum", q("cost") * (1 + price("markup_pct") / 100));
   }
   for (const k of Object.keys(data ?? {})) {
-    if (isPct(k) || !LABELS[k] || !(k in qty)) continue;
-    add(LABELS[k], q(k), UNITS[k] ?? "ea", price(k));
+    if (isPct(k) || !(k in qty)) continue;
+    const item = LABELS[k] ? undefined : catalogItem(k);
+    const label = LABELS[k] ?? item?.label;
+    if (!label) continue;
+    add(label, q(k), UNITS[k] ?? item?.short ?? "ea", price(k));
   }
   return out;
 }

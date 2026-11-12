@@ -4,6 +4,7 @@ import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } fro
 import { consume, normalizePlan, refund } from "./usage.ts";
 import { ask, buildJobContext, draftCoverNote, sanitizeHistory } from "./assistant.ts";
 import type { Env } from "./types.ts";
+import { labelsFor } from "./ratecatalog.ts";
 import { computeTotals, draftLines, milestoneAmounts, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
 import { CUSTOMER_KINDS, docTitle, invoiceChecks, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
@@ -196,7 +197,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
   ]);
   return json({
     job,
-    rateCard: card ? { method: card.method, data: parse(card.data) } : null,
+    rateCard: card ? { method: card.method, data: parse(card.data), labels: labelsFor(parse(card.data)) } : null,
     estimate: doc ? { id: doc.id, status: doc.status, ...parse(doc.body) } : null,
     contract: contractDoc ? { id: contractDoc.id, status: contractDoc.status, ...parse(contractDoc.body) } : null,
     docs: Object.fromEntries(

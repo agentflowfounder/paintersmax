@@ -1,3 +1,4 @@
+import { loadMarkets, saveMarkets } from "./ratecatalog.ts";
 import { listDomains, removeDomain, setDomain } from "./domains.ts";
 import { RESERVED_SLUGS } from "./settings.ts";
 import { adminTickerView, saveConfig } from "./ticker.ts";
@@ -86,6 +87,9 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
       const cfg = await saveConfig(env, b.config);
       return json({ ok: true, config: cfg });
     }
+    if (b?.action === "markets_set") {
+      return json({ ok: true, markets: await saveMarkets(env, b.markets) });
+    }
     if (b?.action === "domain_set") {
       const r = await setDomain(env, b.host, b.slug);
       return r.ok ? json({ ok: true, host: r.host }) : json({ error: r.error }, 400);
@@ -102,6 +106,7 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
     return json({ error: "Unknown action." }, 400);
   }
 
+  if (new URL(request.url).searchParams.get("markets") === "1") return json({ markets: await loadMarkets(env) });
   if (new URL(request.url).searchParams.get("domains") === "1") return json({ domains: await listDomains(env) });
   if (new URL(request.url).searchParams.get("ticker") === "1") return json(await adminTickerView(env));
 

@@ -26,6 +26,10 @@ small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#
 <header><div><b>PaintersMax</b> Admin</div><div><a href="/jobs">Jobs</a><a href="/dashboard">Leads</a></div></header>
 <main><h2>Live stats ticker</h2>
 <div class="card" id="tk">Loading...</div>
+<h2>Market price levels</h2>
+<div class="card"><small>Starting rates are multiplied by these numbers for each client's market. 1.00 is the average market. These are my starting guesses, not market data: change them as you learn what your clients see. Allowed range 0.50 to 2.00.</small>
+<div class="row"><div><label>High-cost market</label><input id="mk_high" inputmode="decimal"></div><div><label>Average market</label><input id="mk_average" inputmode="decimal"></div><div><label>Lower-cost or rural</label><input id="mk_low" inputmode="decimal"></div></div>
+<div><button class="btn" id="mk_save">Save market levels</button></div></div>
 <h2>Client domains</h2>
 <div class="card"><small>For a client with their own domain: add the domain to your Cloudflare account, add it to the paintersmax-site worker (Workers, Settings, Domains and Routes, Add custom domain), then connect it here. Add both the bare domain and the www version if you want both. The client still signs in at paintersmax.app.</small>
 <div class="row"><div><label>Domain</label><input id="dm_host" placeholder="rivera-painting.com"></div><div><label>Client</label><select id="dm_slug"></select></div></div>
@@ -61,7 +65,10 @@ async function tkLoad(){try{const v=await api('/api/admin?ticker=1');const c=v.c
 async function dmLoad(){try{const v=await api('/api/admin?domains=1');$('dm_list').innerHTML=v.domains.length?v.domains.map(d=>`<div class="c"><div><b>${esc(d.host)}</b> <small>shows ${esc(d.slug)}</small></div><button class="btn" data-dmrm="${esc(d.host)}">Remove</button></div>`).join(''):'<small>No client domains connected yet.</small>';}catch(e){}}
 document.addEventListener('click',async e=>{const h=e.target.dataset&&e.target.dataset.dmrm;if(!h)return;if(!confirm('Disconnect '+h+'?'))return;try{await api('/api/admin',{action:'domain_remove',host:h});msg('Domain disconnected.',true);dmLoad();}catch(x){if(x)msg(x.message);}});
 $('dm_add').onclick=async()=>{try{msg('');await api('/api/admin',{action:'domain_set',host:$('dm_host').value,slug:$('dm_slug').value});$('dm_host').value='';msg('Domain connected.',true);dmLoad();}catch(x){if(x)msg(x.message);}};
+async function mkLoad(){try{const v=await api('/api/admin?markets=1');['high','average','low'].forEach(k=>{$('mk_'+k).value=v.markets[k];});}catch(e){}}
+$('mk_save').onclick=async()=>{try{msg('');const r=await api('/api/admin',{action:'markets_set',markets:{high:$('mk_high').value,average:$('mk_average').value,low:$('mk_low').value}});['high','average','low'].forEach(k=>{$('mk_'+k).value=r.markets[k];});msg('Market levels saved.',true);}catch(x){if(x)msg(x.message);}};
 tkLoad();
+mkLoad();
 dmLoad();
 load();
 </script></body></html>

@@ -28,7 +28,7 @@ export const PROFILE_CAPS: Record<Plan, { services: number; cities: number }> = 
 /** Service radius in miles by plan (Pro can go further by request). Used by the Cities page. */
 export const RADIUS_MILES: Record<Plan, number> = { free: 15, starter: 25, basic: 50, pro: 100 };
 
-export const METHODS = ["room_size", "sqft_floor", "sqft_wall", "items", "line_items", "lump_sum", "per_linear_ft"] as const;
+export const METHODS = ["room_size", "sqft_floor", "sqft_wall", "items", "line_items", "lump_sum", "per_linear_ft", "catalog"] as const;
 
 const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
 const num = (v: unknown, min: number, max: number): number | undefined => {
@@ -47,6 +47,9 @@ export interface Profile {
   language: { ui?: "en" | "es"; crewDocs?: "en" | "es" };
   /** noResume: the painter turned off the "finish setup" reminder on Home. */
   setup: { noResume?: boolean };
+  /** Home market for starting rates, and what shows on printed rate cards. */
+  market: { tier?: "high" | "average" | "low" };
+  ratecard: { hidePreparedWith?: boolean };
 }
 
 /** Keeps only valid, size-limited values. Anything unexpected is dropped, never stored. */
@@ -108,6 +111,8 @@ export function sanitizeProfile(input: any, plan: string): Profile {
       crewDocs: lang.crewDocs === "es" ? "es" : "en",
     },
     setup: { noResume: input?.setup?.noResume === true ? true : undefined },
+    market: { tier: ["high", "average", "low"].includes(input?.market?.tier) ? input.market.tier : undefined },
+    ratecard: { hidePreparedWith: input?.ratecard?.hidePreparedWith === true ? true : undefined },
   };
   return out;
 }

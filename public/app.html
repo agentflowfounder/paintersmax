@@ -17,6 +17,20 @@ main{max-width:640px;margin:0 auto;padding:16px 16px 96px}
 .prog{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#4A5568;margin:0 0 14px;gap:8px;flex-wrap:wrap}
 .prog a{color:#0F1B2D;font-weight:600}
 .edit{font-size:13px;color:#0F1B2D;font-weight:600;margin-left:6px}
+.seg{display:flex;gap:6px;margin:8px 0}.seg button{flex:1;padding:10px 6px;border-radius:8px;border:1px solid #cfd5dc;background:#fff;font:inherit;font-weight:700;cursor:pointer;color:#0F1B2D}
+.seg button.on{background:#0F1B2D;color:#fff;border-color:#0F1B2D}
+.poshelp{font-size:13px;color:#4A5568;margin:0 0 8px}
+details.grp{border:1px solid #e3e0d8;border-radius:8px;margin:8px 0;background:#fcfbf8}
+details.grp>summary{cursor:pointer;padding:10px 12px;font-weight:700;font-size:14px}
+.it{display:grid;grid-template-columns:1fr 104px;gap:4px 10px;align-items:center;padding:8px 12px;border-top:1px solid #eee}
+.it .il small{display:block}.it .ir{grid-column:1/3;font-size:12px;color:#4A5568}.it .sn{color:#8a5a00}
+.it input{padding:9px}
+.ex{background:#eef3fa;border-radius:8px;padding:10px 12px;font-size:14px;margin:10px 0}
+.link{background:none;border:0;padding:0;color:#0F1B2D;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+#modal{display:none;position:fixed;inset:0;background:rgba(15,27,45,.55);z-index:30;align-items:flex-start;justify-content:center;padding:20px 12px;overflow:auto}
+#modal .box{background:#fff;border-radius:12px;max-width:560px;width:100%;padding:18px 18px 22px;line-height:1.5}
+#modal h3{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:22px;margin:0 0 6px}#modal h4{margin:14px 0 2px;font-size:15px}
+#modal p{margin:4px 0}
 .done-card{background:#eaf6ee;border:1px solid #b7dfc3;border-radius:10px;padding:16px;margin:0 0 14px}
 h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 4px;font-size:26px}
 p.lead{color:#4A5568;margin:0 0 16px}
@@ -41,6 +55,7 @@ ul.sum{padding-left:18px;margin:6px 0}
 <div id="view"></div>
 <div id="msg"></div>
 </main>
+<div id="modal" role="dialog" aria-modal="true"><div class="box"><div id="modal_body"></div><div style="margin-top:14px"><button class="btn link" id="modal_close" type="button">Close</button></div></div></div>
 <div class="nav"><button class="back" id="back">Back</button><button class="next" id="next">Save and continue</button></div>
 <script>
 const STEPS=['company','services','cities','pricing','labor','extras','review'];
@@ -54,6 +69,37 @@ const HELP={
  rooms:'Small: closets, hallways, half baths. Medium: bedrooms, dining rooms, offices. Large: kitchens, living rooms, primary bedroom or bath, garage. Custom: anything else, priced on the job.',
  builder:'Builder rates are the lower per-house or per-sq-ft prices you give a home builder or contractor who keeps you busy all year. Customers never see them.'
 };
+const SERVICE_HELP={
+ interior:'Repainting rooms, walls, ceilings, trim and doors inside homes. Pick the items you do and set a price for each.',
+ exterior:'Painting house exteriors: siding, stucco, brick, trim, doors and garage doors, plus the prep that goes with them.',
+ commercial:'Painting commercial buildings such as warehouses, retail centers and apartments. Most contractors need insurance to bid commercial work, and commercial bids are on the Basic (one free try) and Pro plans.',
+ power_washing:'Pressure and soft washing for houses, concrete, decks, roofs and commercial areas.',
+ cabinets:'Spraying or brushing kitchen and bath cabinets, priced by the door, drawer, panel or linear foot.',
+ decks_fences:'Staining and sealing decks, fences, pergolas, pavilions, gazebos and concrete patios.',
+ epoxy_floors:'Garage, basement and commercial floor coatings: epoxy, flake, metallic and polyaspartic systems with their prep.',
+ builder:'Builder rates are the lower per-house or per-sq-ft prices you give a home builder or contractor who keeps you busy all year. Customers never see them.'
+};
+const POS_HELP=['Win jobs on price. A fit if you are building reviews, or your area is price-sensitive.','A fair rate for a solid local painter. Most painters start here.','For a higher-end finish, careful prep, a tidy crew and strong reviews.'];
+const POS_NAMES=['Value','Standard','Premium'];
+const TIERS=['high','average','low'];
+const TIER_NAMES={high:'High-cost market',average:'Average market',low:'Lower-cost or rural market'};
+const TIER_HELP={high:'Large metro areas and places where homes, labor and living costs are high.',average:'Mid-size cities and suburbs where costs are typical.',low:'Small towns and rural areas where customers expect lower prices.'};
+let CAT=null;
+const roundPrice=v=>v>=100?Math.round(v/5)*5:v>=10?Math.round(v):Math.round(v*20)/20;
+const priceFor=(it,pos,mult)=>roundPrice((pos===0?it.low:pos===2?it.high:(it.low+it.high)/2)*mult);
+const tierMult=()=>{const t=(S.profile.market||{}).tier||'average';return(CAT&&CAT.markets&&CAT.markets[t])||1;};
+const curTier=()=>(S.profile.market||{}).tier||'average';
+const fmt$=n=>'$'+(Number(n)%1?Number(n).toFixed(2):Number(n).toLocaleString('en-US'));
+function catKey(trade,aud){if(!CAT)return null;if(aud==='builder')return 'builder';return trade!=='builder'&&CAT.catalog[trade]?trade:null;}
+const help2=t=>`<button type="button" class="help" data-tog="1" aria-label="Help">?</button><div class="tip">${esc(t)}</div>`;
+function openModal(html){$('modal_body').innerHTML=html;$('modal').style.display='flex';window.scrollTo(0,0);}
+const MORE_INFO=`<h3>How to choose your prices</h3>
+<h4>What a rate card is</h4><p>A painter rate card is a standardized pricing reference used by painting contractors to calculate consistent, repeatable estimates or present transparent service tiers. It breaks down labor, production speeds, materials, and standard unit pricing.</p>
+<h4>Pick your level</h4><p><b>Value:</b> you are newer to the trade, still building reviews, or your area is very price-sensitive.</p><p><b>Standard:</b> you are an established painter with steady work and good reviews. Most painters start here.</p><p><b>Premium:</b> you are known for a high-quality finish, careful prep, a tidy crew and reliable scheduling, usually in a higher-cost area.</p>
+<h4>Your market</h4><p>Prices follow what customers in your area pay. A large coastal city usually costs more than a small town. We start you from the market you choose, and you can change any number.</p>
+<h4>What goes into a price</h4><p><b>Loaded labor rate:</b> what an hour of labor really costs you, including taxes, insurance and benefits.</p><p><b>Production rates:</b> how much a crew finishes per hour, such as square feet or doors.</p><p><b>Materials and waste:</b> paint, primer and supplies, plus a little extra for waste.</p><p><b>Overhead and markup:</b> your truck, tools, insurance and office time, plus profit.</p>
+<h4>Not sure? Keep Standard.</h4><p>Then watch your first few estimates. If nearly everyone says yes, you may be too low. If very few do, check whether you are too high. You can change any number at any time.</p>
+<p style="color:#4A5568;font-size:13px">These starting ranges come from the PaintersMax rate card guide. They are a starting point, not market data or a guarantee.</p>`;
 const BRANDS=['Sherwin-Williams','Benjamin Moore','Behr','Valspar','PPG','Dunn-Edwards','Kelly-Moore','Glidden','Diamond Vogel','Kilz','Zinsser','Rust-Oleum','Tnemec','Cabot','Ready Seal'];
 let S={profile:{company:{},trades:[],cities:[],insurance:{},labor:{},warranty:{laborMonths:12},materials:{brands:[]},language:{ui:'en',crewDocs:'en'}},rateCards:{},caps:{services:1,cities:1},plan:'free',step:0,completed:false};
 
@@ -61,7 +107,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const val=(o,k)=>o&&o[k]!=null?esc(o[k]):'';
 const help=k=>`<button type="button" class="help" data-help="${k}" aria-label="Help">?</button><div class="tip" id="tip_${k}">${esc(HELP[k])}</div>`;
-document.addEventListener('click',e=>{const b=e.target.closest('[data-help]');if(b){const t=$('tip_'+b.dataset.help);t.style.display=t.style.display==='block'?'none':'block';}});
+document.addEventListener('click',e=>{const tg=e.target.closest('[data-tog]');if(tg){const t=tg.nextElementSibling;t.style.display=t.style.display==='block'?'none':'block';return;}const b=e.target.closest('[data-help]');if(b){const t=$('tip_'+b.dataset.help);t.style.display=t.style.display==='block'?'none':'block';}});
 
 function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
 async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Could not save.');return j;}
@@ -89,7 +135,60 @@ function fieldsFor(trade,method){
 }
 function helpKeyFor(trade,method){return method==='sqft_wall'?'wall':method==='sqft_floor'?'floor':method==='per_linear_ft'?'linear':method==='items'?'ext':method==='room_size'?'rooms':null;}
 
+function ensureSeed(trade,aud){
+  const k=catKey(trade,aud);if(!k)return;
+  const c=S.rateCards[rcKey(trade,aud)];
+  if(c&&c.method==='catalog')return;
+  if(c&&c.method)return; // an older card: leave it alone until the painter switches
+  const m=tierMult(),d={position:1,tier:TIERS.indexOf(curTier())};
+  CAT.catalog[k].forEach(it=>{d[it.id]=priceFor(it,1,m);});
+  S.rateCards[rcKey(trade,aud)]={method:'catalog',data:d};
+}
+function exampleHtml(key,data){
+  const ex=CAT.examples[key];if(!ex)return'';
+  let total=0;
+  for(const [match,qty] of ex.parts){const it=CAT.catalog[key].find(i=>i.label.startsWith(match)||i.label.includes(match));const pr=it?Number(data[it.id]):0;if(!(pr>0))return'';total+=pr*qty;}
+  return `<b>Example only:</b> ${esc(ex.text)} would come to about <b>${fmt$(Math.round(total))}</b> at your prices. This is what your numbers mean in a real job.`;
+}
+function renderCatalogCard(trade,aud){
+  ensureSeed(trade,aud);
+  const key=catKey(trade,aud),c=card(trade,aud),d=c.data||{},pos=typeof d.position==='number'?d.position:1,m=tierMult();
+  const title=aud==='builder'?'Builder rates':(TRADE_LABELS[trade]||trade);
+  const groups=[];CAT.catalog[key].forEach(it=>{let g=groups.find(x=>x.n===it.group);if(!g)groups.push(g={n:it.group,rows:[]});g.rows.push(it);});
+  const rows=g=>g.rows.map(it=>{const lo=roundPrice(it.low*m),hi=roundPrice(it.high*m),v=d[it.id];return `<div class="it" data-item="${esc(it.id)}"><div class="il"><b style="font-weight:600">${esc(it.label)}</b>${it.note?help2(it.note):''}<small>${esc(it.unit)}</small></div><input inputmode="decimal" data-k="${esc(it.id)}" data-lo="${it.low}" data-hi="${it.high}" value="${v!=null?esc(v):''}" placeholder="not offered"><div class="ir">Typical range for your market: <span class="rg">${fmt$(lo)} to ${fmt$(hi)}</span> <span class="sn"></span></div></div>`;}).join('');
+  return `<div class="card" data-trade="${trade}" data-aud="${aud||'retail'}" data-cat="${key}" data-pos="${pos}">
+   <b style="font-size:17px">${esc(title)}</b>${help2(SERVICE_HELP[key]||'')}
+   <div class="poshelp" style="margin-top:6px">Where do you want to price? Standard is already filled in for you.</div>
+   <div class="seg">${POS_NAMES.map((n,i)=>`<button type="button" data-pos="${i}" class="${i===pos?'on':''}">${n}</button>`).join('')}</div>
+   <div class="poshelp" data-poshelp>${esc(POS_HELP[pos])}</div>
+   ${groups.map((g,i)=>`<details class="grp" ${i===0?'open':''}><summary>${esc(g.n)} (${g.rows.length})</summary>${rows(g)}</details>`).join('')}
+   <div class="ex" data-ex>${exampleHtml(key,d)}</div>
+   <details class="grp"><summary>How this rate is built</summary><div style="padding:4px 12px 12px;font-size:14px"><p><b>Loaded labor rate:</b> what an hour of labor really costs you with taxes, insurance and benefits.</p><p><b>Production rates:</b> how much a crew finishes per hour.</p><p><b>Materials and waste:</b> paint, primer and supplies, plus waste.</p><p><b>Overhead and markup:</b> truck, tools, insurance, office time and profit.</p></div></details>
+   <button type="button" class="link" data-more="1">More information: how to set your prices</button>
+  </div>`;
+}
+function refreshCatalogCard(el){
+  const key=el.dataset.cat,m=tierMult(),d={};
+  el.querySelectorAll('input[data-k]').forEach(i=>{const n=Number(i.value);if(i.value.trim()!==''&&n>0)d[i.dataset.k]=n;});
+  el.querySelectorAll('.it').forEach(row=>{const i=row.querySelector('input'),n=Number(i.value),lo=Number(i.dataset.lo)*m,hi=Number(i.dataset.hi)*m,sn=row.querySelector('.sn');row.querySelector('.rg').textContent=fmt$(roundPrice(lo))+' to '+fmt$(roundPrice(hi));
+    sn.textContent=i.value.trim()===''||!(n>0)?'':(n<lo*0.75?'This is below the usual range for your market. Is that on purpose?':n>hi*1.25?'This is above the usual range for your market. Is that on purpose?':'');});
+  el.querySelector('[data-ex]').innerHTML=exampleHtml(key,d);
+}
+function applyPosition(el,pos,askFirst){
+  const key=el.dataset.cat,m=tierMult();
+  if(askFirst){let changed=false;const old=Number(el.dataset.pos);el.querySelectorAll('input[data-k]').forEach(i=>{const it=CAT.catalog[key].find(x=>x.id===i.dataset.k);if(it&&Number(i.value)!==priceFor(it,old,m))changed=true;});
+    if(changed&&!confirm('You changed some prices. Reset every price to '+POS_NAMES[pos]+'?'))return false;}
+  el.querySelectorAll('input[data-k]').forEach(i=>{const it=CAT.catalog[key].find(x=>x.id===i.dataset.k);if(it)i.value=priceFor(it,pos,m);});
+  el.dataset.pos=pos;el.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',Number(b.dataset.pos)===pos));
+  el.querySelector('[data-poshelp]').textContent=POS_HELP[pos];refreshCatalogCard(el);return true;
+}
+
 function renderCard(trade,aud){
+  if(catKey(trade,aud)){ensureSeed(trade,aud);const cc=card(trade,aud);if(cc.method==='catalog')return renderCatalogCard(trade,aud);}
+  const legacy=renderLegacyCard(trade,aud);
+  return catKey(trade,aud)?legacy.replace(/<\/div>\s*$/,'<div style="margin-top:8px"><button type="button" class="link" data-switch="1">Switch to the new price list with starting rates</button></div></div>'):legacy;
+}
+function renderLegacyCard(trade,aud){
   const c=card(trade,aud);const methods=methodsFor(trade);const method=c.method||methods[0][0];
   const fs=fieldsFor(trade,method);const hk=helpKeyFor(trade,method);
   return `<div class="card" data-trade="${trade}" data-aud="${aud||'retail'}">
@@ -106,7 +205,7 @@ function stepDone(k){
   if(k==='company')return!!(c.legalName&&(c.phone||c.email));
   if(k==='services')return p.trades.length>0;
   if(k==='cities')return(p.cities||[]).length>0;
-  if(k==='pricing')return p.trades.length>0&&p.trades.every(t=>{const cd=t==='new_construction'?card('interior','builder'):card(t,'retail');return!!cd.method&&Object.keys(cd.data||{}).length>0;});
+  if(k==='pricing')return p.trades.length>0&&p.trades.every(t=>{const cd=t==='new_construction'?card('interior','builder'):card(t,'retail');return!!cd.method&&Object.keys(cd.data||{}).filter(x=>x!=='position'&&x!=='tier').length>0;});
   if(k==='labor')return!!(l.crewSize||l.hourlyRate);
   if(k==='extras')return(p.warranty||{}).laborMonths!=null&&(p.warranty||{}).laborMonths!=='';
   return S.completed;
@@ -137,10 +236,13 @@ function view(){
    ${Object.keys(TRADE_LABELS).map(t=>`<label class="chk"><input type="checkbox" class="trade" value="${t}" ${p.trades.includes(t)?'checked':''}> ${esc(TRADE_LABELS[t])}</label>`).join('')}</div>`;
   if(k==='cities')h=`<h2>Cities you serve</h2><p class="lead">Your plan (${esc(S.plan)}) includes up to <b>${S.caps.cities}</b> cities. These show on your quote page and help us set rates for your market.</p><div class="card"><label>Cities you serve (separate with commas)</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div>`;
   if(k==='pricing'){
-    h=`<h2>How you price</h2><p class="lead">Set your prices once. PaintersMax uses them for every estimate and you can adjust any job. Tap the ? for measuring help.</p>`;
+    const mk=curTier(),pw=!((p.ratecard||{}).hidePreparedWith);
+    h=`<h2>Your prices</h2><p class="lead">Your rate card is your price list. We fill in starting rates for you, so you can keep them or change any number. PaintersMax uses them for every estimate, and you can adjust any job.</p>
+    <div class="card"><b>Your market</b>${help2('Prices follow what customers in your area pay. Pick the one that sounds most like where you work. You can change it any time.')}<select id="mk" style="margin-top:6px">${TIERS.map(t=>`<option value="${t}" ${t===mk?'selected':''}>${TIER_NAMES[t]}</option>`).join('')}</select><div class="poshelp" id="mkhelp" style="margin-top:6px">${esc(TIER_HELP[mk])}</div><small>Starting rates are PaintersMax benchmark ranges, not guarantees. Adjust them to your own costs and quality of work.</small></div>`;
     if(!p.trades.length)h+='<div class="card">Pick your services first. <a href="#" data-go="1">Choose services</a></div>';
     p.trades.forEach(t=>{if(t!=='new_construction')h+=renderCard(t,'retail');});
     if(p.trades.includes('new_construction'))h+=['basic','pro'].includes(S.plan)?renderCard('interior','builder'):'<div class="card"><b>Builder rates</b><p>Builder rate cards are on the Basic and Pro plans.</p></div>';
+    if(p.trades.length&&CAT)h+=`<div class="card"><b>Your rate card</b><p style="margin:6px 0">Download a branded copy of your rates to share with customers or builders.</p><label class="chk"><input type="checkbox" id="pw" ${pw?'checked':''}> Add "Prepared with PaintersMax" at the bottom</label><div style="margin-top:8px"><button type="button" class="link" data-pdf="retail">Download my rate card (PDF)</button></div><small>Uses your logo from Settings. Prices are saved when you tap Download.</small></div>`;
   }
   if(k==='labor'){const l=p.labor||{};h=`<h2>Labor and money</h2><p class="lead">Used for estimates, contracts and invoices.</p><div class="card">
    <div class="row"><div><label>Crew size</label><input id="crewSize" inputmode="numeric" value="${val(l,'crewSize')}"></div><div><label>Your hourly rate ($)</label><input id="hourlyRate" inputmode="decimal" value="${val(l,'hourlyRate')}"></div></div>
@@ -180,6 +282,7 @@ function collect(){
     if(p.trades.length>S.caps.services)throw new Error('Your plan includes up to '+S.caps.services+' services.');}
   if(k==='cities'){p.cities=g('cities').split(',').map(s=>s.trim()).filter(Boolean);
     if(p.cities.length>S.caps.cities)throw new Error('Your plan includes up to '+S.caps.cities+' cities.');}
+  if(k==='pricing'){p.market={tier:g('mk')||curTier()};p.ratecard={hidePreparedWith:$('pw')?!$('pw').checked:(p.ratecard||{}).hidePreparedWith};}
   if(k==='labor')p.labor={crewSize:g('crewSize'),hourlyRate:g('hourlyRate'),helperRate:g('helperRate'),minimumJob:g('minimumJob'),markupPct:g('markupPct'),overheadPct:g('overheadPct'),depositPct:g('depositPct'),paymentTerms:g('paymentTerms')};
   if(k==='extras'){p.warranty={laborMonths:g('laborMonths'),text:g('wtext'),exclusions:g('exclusions')};p.insurance={carrier:g('carrier'),expires:g('expires'),coverage:g('coverage'),shareSummary:$('shareSummary').checked};
     p.materials={brands:[...document.querySelectorAll('.brand:checked')].map(e=>e.value),notes:g('mnotes')};p.language={ui:window.PM_LANG||'en',crewDocs:g('crewDocs')};}
@@ -187,7 +290,9 @@ function collect(){
 async function saveCards(){
   for(const el of document.querySelectorAll('[data-trade]')){
     const data={};el.querySelectorAll('input[data-k]').forEach(i=>{if(i.value.trim()!=='')data[i.dataset.k]=i.value.trim();});
-    const body={trade:el.dataset.trade,audience:el.dataset.aud,method:el.querySelector('.method').value,data};
+    const isCat=!!el.dataset.cat;
+    if(isCat){data.position=Number(el.dataset.pos);data.tier=TIERS.indexOf(curTier());}
+    const body={trade:el.dataset.trade,audience:el.dataset.aud,method:isCat?'catalog':el.querySelector('.method').value,data};
     await api('/api/ratecard',body);S.rateCards[rcKey(body.trade,body.audience)]={method:body.method,data};
   }
 }
@@ -220,14 +325,28 @@ document.addEventListener('click',async e=>{
   if(e.target.id==='exit'){e.preventDefault();try{await save(S.step,false);location.href='/dashboard';}catch(x){if(x)msg(x.message||'Could not save.');}}
 });
 $('next').onclick=()=>go(1);$('back').onclick=()=>go(-1);
-document.addEventListener('change',e=>{if(e.target.classList.contains('method')){try{const el=e.target.closest('[data-trade]');const t=el.dataset.trade,a=el.dataset.aud;
+document.addEventListener('click',async e=>{
+  const pb=e.target.closest('.seg [data-pos]');if(pb){const el=pb.closest('[data-cat]');applyPosition(el,Number(pb.dataset.pos),true);return;}
+  if(e.target.closest('[data-more]')){openModal(MORE_INFO);return;}
+  if(e.target.id==='modal_close'||e.target.id==='modal'){$('modal').style.display='none';return;}
+  const sw=e.target.closest('[data-switch]');if(sw){if(!confirm('This replaces the prices on this card with the new price list and starting rates. Continue?'))return;const el=sw.closest('[data-trade]');const t=el.dataset.trade,a=el.dataset.aud;delete S.rateCards[rcKey(t,a)];ensureSeed(t,a);el.outerHTML=renderCard(t,a);return;}
+  const pd=e.target.closest('[data-pdf]');if(pd){e.preventDefault();try{await save(S.step,false);window.open('/api/ratecard/doc?audience='+pd.dataset.pdf,'_blank');}catch(x){if(x)msg(x.message||'Could not save.');}}
+});
+document.addEventListener('input',e=>{const el=e.target.closest&&e.target.closest('[data-cat]');if(el&&e.target.matches('input[data-k]'))refreshCatalogCard(el);});
+document.addEventListener('change',e=>{
+  if(e.target.id==='mk'){const old=curTier(),nt=e.target.value;let changed=false;
+    document.querySelectorAll('[data-cat]').forEach(el=>{const key=el.dataset.cat,om=(CAT.markets[old]||1),pos=Number(el.dataset.pos);el.querySelectorAll('input[data-k]').forEach(i=>{const it=CAT.catalog[key].find(x=>x.id===i.dataset.k);if(it&&Number(i.value)!==priceFor(it,pos,om))changed=true;});});
+    if(changed&&!confirm('You changed some prices. Reset every price for the '+TIER_NAMES[nt]+'?')){e.target.value=old;return;}
+    S.profile.market={tier:nt};$('mkhelp').textContent=TIER_HELP[nt];
+    document.querySelectorAll('[data-cat]').forEach(el=>applyPosition(el,Number(el.dataset.pos),false));return;}
+  if(e.target.classList.contains('method')){try{const el=e.target.closest('[data-trade]');const t=el.dataset.trade,a=el.dataset.aud;
   const cur=card(t,a);S.rateCards[rcKey(t,a)]={method:e.target.value,data:{}};el.outerHTML=renderCard(t,a);}catch{}}});
 
 (async()=>{
-  try{const j=await api('/api/profile');
+  try{CAT=await api('/api/catalog').catch(()=>null);const j=await api('/api/profile');
     $('co').textContent=j.company;S.plan=j.plan;S.caps=j.caps;S.completed=j.completed;
     Object.assign(S.profile,j.profile||{});S.profile.company=S.profile.company||{};S.profile.trades=S.profile.trades||[];S.profile.cities=S.profile.cities||[];
-    S.profile.labor=S.profile.labor||{};S.profile.warranty=S.profile.warranty||{laborMonths:12};S.profile.insurance=S.profile.insurance||{};S.profile.materials=S.profile.materials||{brands:[]};S.profile.language=S.profile.language||{};
+    S.profile.labor=S.profile.labor||{};S.profile.warranty=S.profile.warranty||{laborMonths:12};S.profile.insurance=S.profile.insurance||{};S.profile.materials=S.profile.materials||{brands:[]};S.profile.language=S.profile.language||{};S.profile.market=S.profile.market||{};S.profile.ratecard=S.profile.ratecard||{};
     (j.rateCards||[]).forEach(r=>{S.rateCards[rcKey(r.trade,r.audience)]={method:r.method,data:r.data};});
     const i=STEPS.indexOf(j.setupStep);S.step=S.completed?STEPS.length-1:(i>0?i:nextOpen());
     view();

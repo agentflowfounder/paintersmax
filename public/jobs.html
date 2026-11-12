@@ -130,7 +130,7 @@ async function list(){
 function qtyFields(rc){
   if(!rc)return[];
   const out=[...(BASE[rc.method]||[])];
-  for(const k of Object.keys(rc.data||{})){if(k.endsWith('_pct')||!QL[k])continue;if(typeof rc.data[k]==='number'&&rc.data[k]>0)out.push([k,QL[k]]);}
+  for(const k of Object.keys(rc.data||{})){const L=(rc.labels&&rc.labels[k])?rc.labels[k].label+' ('+rc.labels[k].unit+')':QL[k];if(k.endsWith('_pct')||!L)continue;if(typeof rc.data[k]==='number'&&rc.data[k]>0)out.push([k,L]);}
   return out;
 }
 function totals(){

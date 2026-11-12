@@ -18,6 +18,8 @@ import { handleImport } from "./import.ts";
 import { handleSchedule, scheduledJobs } from "./schedule.ts";
 import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
+import { handleCatalog } from "./ratecatalog.ts";
+import { handleRateCardDoc } from "./ratecardpdf.ts";
 import { handlePortalManage, handlePortalPage } from "./portal.ts";
 import { sendInvoiceReminders } from "./reminders.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
@@ -527,6 +529,22 @@ export default {
         return await handleImport(request, env);
       } catch (err) {
         console.error("import failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/ratecard/doc") {
+      try {
+        return await handleRateCardDoc(request, env);
+      } catch (err) {
+        console.error("ratecard doc failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/catalog") {
+      try {
+        return await handleCatalog(request, env);
+      } catch (err) {
+        console.error("catalog failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

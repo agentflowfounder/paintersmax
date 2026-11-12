@@ -1,0 +1,121 @@
+// GENERATED from the "Master Painting and Coatings Rate Card Estimator" workbook supplied by Rogelio (2026-11-12).
+// Value = Low rate, Premium = High rate, Standard = their average. These are STARTING RANGES to review, not guarantees or market statistics.
+// [id, group, label, unit, low, high, note]
+export type CatalogRow = [id: string, group: string, label: string, unit: string, low: number, high: number, note: string];
+export const CATALOG_ROWS: Record<string, CatalogRow[]> = {
+ "cabinets": [
+  ["cb_standard_cabinet_door", "Base Unit Rates", "Standard Cabinet Door", "Per Door", 100.0, 185.0, "Both sides of door and corresponding face frame"],
+  ["cb_drawer_front", "Base Unit Rates", "Drawer Front", "Per Drawer", 50.0, 100.0, "Exterior face and edges only"],
+  ["cb_end_side_panels", "Base Unit Rates", "End / Side Panels", "Per Panel", 95.0, 155.0, "Exposed refrigerator panels, island backs, cabinet ends"],
+  ["cb_linear_footage_rate_ballpark", "Base Unit Rates", "Linear Footage Rate (Ballpark)", "Per Linear Ft", 30.0, 70.0, "Upper and lower boxes combined"],
+  ["cb_interior_box_painting", "Base Unit Rates", "Interior Box Painting", "Per Box", 75.0, 150.0, "Optional add-on for open shelving or glass-front cabinets"],
+  ["cb_hardware_installation", "Base Unit Rates", "Hardware Installation", "Per Piece", 3.0, 15.0, "Drilling new pull/knob holes and installing soft-close hinges"],
+  ["cb_stain_to_paint_conversion_prim", "Add-Ons & Prep", "Stain-to-Paint Conversion (Primer Upgrade)", "Per Kitchen", 500.0, 1200.0, "Shellac or high-build stain-blocking primer for dark/oiled wood"],
+  ["cb_two_tone_island_lower_accent", "Add-Ons & Prep", "Two-Tone Island / Lower Accent", "Per Color", 250.0, 500.0, "Extra masking, sprayer flushing, and paint minimums"]
+ ],
+ "decks_fences": [
+  ["df_wood_decks_horizontal_boards", "Structures & Surfaces", "Wood Decks (Horizontal Boards)", "Per Sq Ft", 2.0, 5.0, "Includes wash and stain; add railings separately"],
+  ["df_deck_spindles_railings", "Structures & Surfaces", "Deck Spindles & Railings", "Per Linear Ft", 3.0, 7.0, "Balusters, top rails, and posts"],
+  ["df_fences_1_side_6_ft_privacy", "Structures & Surfaces", "Fences (1 Side - 6 ft Privacy)", "Per Linear Ft", 4.0, 7.0, "Spray application with back-brushing"],
+  ["df_fences_both_sides_6_ft_privacy", "Structures & Surfaces", "Fences (Both Sides - 6 ft Privacy)", "Per Linear Ft", 7.0, 14.0, "Adds 75-80% over single-side pricing"],
+  ["df_concrete_patios_1_color_stain", "Structures & Surfaces", "Concrete Patios (1-Color Stain + Sealer)", "Per Sq Ft", 3.0, 6.0, "Acid or water-based stain plus clear protective sealer"],
+  ["df_concrete_decorative_scoring", "Structures & Surfaces", "Concrete Decorative Scoring", "Per Sq Ft", 3.0, 5.0, "Saw-cut geometric/tile pattern add-on"],
+  ["df_pergolas", "Structures & Surfaces", "Pergolas", "Per Structure", 300.0, 1000.0, "Or $3-$6/sq ft footprint; lattice tops drive up labor"],
+  ["df_pavilions", "Structures & Surfaces", "Pavilions", "Per Structure", 800.0, 2500.0, "Heavy timber posts, trusses, and T&G ceiling decking"],
+  ["df_gazebos", "Structures & Surfaces", "Gazebos", "Per Structure", 750.0, 2200.0, "High spindle counts, octagonal framing, benches, cupola"],
+  ["df_chemical_wash_wood_brightener", "Surface Prep", "Chemical Wash & Wood Brightener", "Per Sq Ft", 0.5, 1.25, "Removes gray UV oxidation, mildew, and algae"],
+  ["df_full_stripping_sanding", "Surface Prep", "Full Stripping & Sanding", "Per Sq Ft", 2.0, 5.0, "Removes failed solid stain or peeling deck paint"],
+  ["df_concrete_grinding_etching", "Surface Prep", "Concrete Grinding / Etching", "Per Sq Ft", 1.5, 3.0, "Removes old acrylic sealer or slick troweled finishes"],
+  ["df_overspray_landscape_masking", "Surface Prep", "Overspray & Landscape Masking", "Flat Fee", 150.0, 400.0, "Extensive plant tarping, brick masking, tight lot lines"]
+ ],
+ "epoxy_floors": [
+  ["ep_water_based_thin_mil_epoxy", "Residential Systems", "Water-Based / Thin-Mil Epoxy", "Per Sq Ft", 3.0, 5.0, "Entry-level 1-2 coat solid color for light foot traffic"],
+  ["ep_100_solids_solid_color_epoxy", "Residential Systems", "100% Solids Solid-Color Epoxy", "Per Sq Ft", 4.5, 7.0, "High-build self-leveling base with urethane/polyaspartic topcoat"],
+  ["ep_full_broadcast_vinyl_flake", "Residential Systems", "Full-Broadcast Vinyl Flake", "Per Sq Ft", 5.5, 9.0, "Polyurea/epoxy base, full chip rejection, UV-stable polyaspartic top"],
+  ["ep_metallic_epoxy_designer_floor", "Residential Systems", "Metallic Epoxy Designer Floor", "Per Sq Ft", 8.0, 15.0, "Multi-layer 3D pigment manipulation for basements/showrooms"],
+  ["ep_double_broadcast_quartz", "Residential Systems", "Double-Broadcast Quartz", "Per Sq Ft", 7.0, 13.0, "Heavy-duty colored silica sand for maximum slip/impact resistance"],
+  ["ep_standard_commercial_epoxy_10_1", "Commercial Systems", "Standard Commercial Epoxy (10-15 mils)", "Per Sq Ft", 3.0, 5.5, "2-coat high-solids epoxy for dry storage and retail backrooms"],
+  ["ep_high_build_industrial_epoxy_20", "Commercial Systems", "High-Build Industrial Epoxy (20-30 mils)", "Per Sq Ft", 5.0, 9.0, "Designed for forklift traffic, oil, and abrasion resistance"],
+  ["ep_1_day_polyaspartic_system", "Commercial Systems", "1-Day Polyaspartic System", "Per Sq Ft", 6.0, 12.0, "Rapid-cure aliphatic polyurea; 24-hour return to service"],
+  ["ep_urethane_cement_mortar_1_4_in", "Commercial Systems", "Urethane Cement / Mortar (1/4 in)", "Per Sq Ft", 10.0, 18.0, "Thermal-shock slurry for commercial kitchens, breweries, food plants"],
+  ["ep_moisture_vapor_barrier_mvb_pri", "Prep & Details", "Moisture Vapor Barrier (MVB) Primer", "Per Sq Ft", 1.5, 2.75, "Required when moisture tests exceed 3 lbs/1,000 sq ft"],
+  ["ep_old_coating_or_glue_removal_pc", "Prep & Details", "Old Coating or Glue Removal (PCD)", "Per Sq Ft", 1.5, 3.5, "Stripping failing paint, mastic, or tile adhesive"],
+  ["ep_stem_walls_vertical_curbs_4_12", "Prep & Details", "Stem Walls & Vertical Curbs (4-12 in)", "Per Linear Ft", 4.0, 8.0, "Grinding and coating garage stem walls"],
+  ["ep_integral_sanitary_cove_base_4", "Prep & Details", "Integral Sanitary Cove Base (4-6 in)", "Per Linear Ft", 10.0, 18.0, "Hand-troweled commercial radius cove base"],
+  ["ep_deep_joint_spall_repair", "Prep & Details", "Deep Joint & Spall Repair", "Per Linear Ft", 1.5, 3.5, "Routing and filling control joints with semi-rigid polyurea"]
+ ],
+ "builder": [
+  ["bd_production_tract_builder_int_e", "Turnkey Packages", "Production / Tract Builder (Int + Ext)", "Per Livable Sq Ft", 2.25, 3.5, "PVA primer + 1-2 coats flat wall, sprayed trim, 1-color ext"],
+  ["bd_semi_custom_builder_int_ext", "Turnkey Packages", "Semi-Custom Builder (Int + Ext)", "Per Livable Sq Ft", 3.5, 5.5, "Separate ceiling/wall colors, enameled trim, 2-coat ext"],
+  ["bd_high_end_custom_home_int_ext", "Turnkey Packages", "High-End Custom Home (Int + Ext)", "Per Livable Sq Ft", 5.5, 8.5, "Level-5 drywall prep, sprayed lacquer millwork, stained beams"],
+  ["bd_interior_drywall_prime_2_coats", "SOV Unit Rates", "Interior Drywall (Prime + 2 Coats)", "Per Wall Sq Ft", 0.85, 1.6, "Spray and back-roll PVA primer + 2 coats flat/eggshell"],
+  ["bd_ceilings_flat_spray", "SOV Unit Rates", "Ceilings (Flat Spray)", "Per Floor Sq Ft", 0.5, 0.95, "Add $0.25-$0.45/sq ft for vaulted or coffered ceilings"],
+  ["bd_baseboards_casing", "SOV Unit Rates", "Baseboards & Casing", "Per Linear Ft", 0.65, 1.5, "Nail-hole putty, caulking, primer, and 2 sprayed enamel coats"],
+  ["bd_crown_molding_wainscoting", "SOV Unit Rates", "Crown Molding & Wainscoting", "Per Linear Ft", 1.25, 3.0, "Detailed caulking, masking, and multi-angle spray passes"],
+  ["bd_interior_doors_jambs", "SOV Unit Rates", "Interior Doors & Jambs", "Per Opening", 45.0, 95.0, "Both sides of slab, hinges masked, full door jamb sprayed"],
+  ["bd_exterior_siding_fiber_cement", "SOV Unit Rates", "Exterior Siding / Fiber Cement", "Per Wall Sq Ft", 1.15, 2.25, "Elastomeric seam caulking + 2 coats exterior acrylic"],
+  ["bd_exterior_cornice_soffit_fascia", "SOV Unit Rates", "Exterior Cornice, Soffit & Fascia", "Per Linear Ft", 1.5, 3.5, "Perimeter eaves, trim boards, and porch ceilings"],
+  ["bd_garage_interior_tape_bed_paint", "SOV Unit Rates", "Garage Interior (Tape/Bed + Paint)", "Per Car Bay", 350.0, 650.0, "Basic 1-2 coat spray finish on walls and ceiling"],
+  ["bd_accent_colors_dark_tones", "Change Orders", "Accent Colors & Dark Tones", "Per Room", 150.0, 350.0, "Additional wall color beyond standard builder package"],
+  ["bd_stain_grade_woodwork_beams_t_g", "Change Orders", "Stain-Grade Woodwork (Beams/T&G)", "Per Sq Ft", 3.5, 7.5, "Stain and clear-coat; entry doors run $250-$600 each"],
+  ["bd_brick_or_stucco_masonry_upgrad", "Change Orders", "Brick or Stucco Masonry Upgrade", "Per Wall Sq Ft", 1.25, 2.5, "Primer + 2 elastomeric/masonry coats over standard siding rate"]
+ ],
+ "interior": [
+  ["in_whole_home_ballpark_walls_only", "Whole-Home / Room", "Whole-Home Ballpark (Walls Only)", "Per Floor Sq Ft", 2.0, 3.5, "Furniture covering, minor nail-hole spackling, 2 coats"],
+  ["in_whole_home_full_scope_walls_ce", "Whole-Home / Room", "Whole-Home Full Scope (Walls, Ceiling, Trim)", "Per Floor Sq Ft", 4.7, 6.75, "Complete interior repaint including doors and baseboards"],
+  ["in_standard_bedroom_12x12_full_sc", "Whole-Home / Room", "Standard Bedroom (12x12 - Full Scope)", "Per Room", 650.0, 1150.0, "Walls-only runs $350-$650; includes 1-2 doors and baseboards"],
+  ["in_primary_suite_16x20_bath_full", "Whole-Home / Room", "Primary Suite (16x20 + Bath - Full Scope)", "Per Suite", 1100.0, 1950.0, "Walls-only runs $650-$1,100; accounts for tray/vaulted ceilings"],
+  ["in_living_family_room_full_scope", "Whole-Home / Room", "Living / Family Room (Full Scope)", "Per Room", 950.0, 1800.0, "Walls-only runs $550-$1,000; higher for mantels and built-ins"],
+  ["in_two_story_foyer_stairwell_full", "Whole-Home / Room", "Two-Story Foyer / Stairwell (Full Scope)", "Per Area", 1300.0, 2500.0, "Extension ladders, stair scaffolding, and safety staging"],
+  ["in_interior_walls_2_coats", "Unit Line Items", "Interior Walls (2 Coats)", "Per Wall Sq Ft", 1.25, 3.0, "Scuff sanding, spot priming patches, caulking, 2 coats"],
+  ["in_flat_ceilings", "Unit Line Items", "Flat Ceilings", "Per Ceiling Sq Ft", 1.0, 2.5, "Add $0.50-$1.25/sq ft for textured or vaulted ceilings"],
+  ["in_baseboards_door_casing", "Unit Line Items", "Baseboards & Door Casing", "Per Linear Ft", 1.25, 3.5, "Cleaning, caulking seams, light sanding, 1-2 enamel coats"],
+  ["in_crown_molding_chair_rail", "Unit Line Items", "Crown Molding & Chair Rail", "Per Linear Ft", 1.75, 4.5, "Dual-edge caulking and precision cut-in lines"],
+  ["in_interior_doors_frames", "Unit Line Items", "Interior Doors & Frames", "Per Opening", 65.0, 135.0, "Both sides of door slab plus jamb and casing"],
+  ["in_window_trim_sills", "Unit Line Items", "Window Trim & Sills", "Per Window", 50.0, 125.0, "Sash, sill, apron, and casing cut-in"],
+  ["in_closet_interiors", "Unit Line Items", "Closet Interiors", "Per Closet", 125.0, 275.0, "Walls and ceiling painted around existing shelving"],
+  ["in_wallpaper_removal_wall_skimmin", "Heavy Prep", "Wallpaper Removal & Wall Skimming", "Per Wall Sq Ft", 1.5, 4.0, "Stripping wallpaper, washing adhesive, skim-coating drywall"],
+  ["in_popcorn_ceiling_removal_skim", "Heavy Prep", "Popcorn Ceiling Removal & Skim", "Per Ceiling Sq Ft", 2.0, 5.0, "Scraping acoustic texture, skim-coating, and priming"]
+ ],
+ "exterior": [
+  ["ex_fiber_cement_hardie_wood_sidin", "Residential Bodies", "Fiber Cement (Hardie) / Wood Siding", "Per Wall Sq Ft", 1.25, 3.0, "Pressure wash, joint caulking, spot prime, 2 coats acrylic"],
+  ["ex_vinyl_or_aluminum_siding", "Residential Bodies", "Vinyl or Aluminum Siding", "Per Wall Sq Ft", 1.25, 3.0, "Mildew wash, bonding primer, 2 coats vinyl-safe urethane"],
+  ["ex_stucco_eifs", "Residential Bodies", "Stucco & EIFS", "Per Wall Sq Ft", 1.5, 4.0, "High-volume spray and back-roll with elastomeric/masonry paint"],
+  ["ex_brick_masonry", "Residential Bodies", "Brick & Masonry", "Per Wall Sq Ft", 1.5, 4.5, "Efflorescence wash, masonry primer, 2 breathable coats"],
+  ["ex_concrete_block_tilt_wall", "Residential Bodies", "Concrete Block / Tilt-Wall", "Per Wall Sq Ft", 1.25, 3.5, "Block filler primer + 1-2 coats industrial acrylic"],
+  ["ex_soffit_fascia_combined_eaves", "Trim & Components", "Soffit & Fascia (Combined Eaves)", "Per Linear Ft", 4.0, 14.0, "Standalone fascia runs $2.00-$7.00/lin ft"],
+  ["ex_window_door_casing_trim", "Trim & Components", "Window & Door Casing Trim", "Per Linear Ft", 1.5, 4.5, "Perimeter masking, elastomeric caulk, 2 brush/roll coats"],
+  ["ex_window_sashes_multi_pane_grids", "Trim & Components", "Window Sashes & Multi-Pane Grids", "Per Window", 75.0, 200.0, "Higher for wood divided-light windows requiring glazing"],
+  ["ex_exterior_entry_doors", "Trim & Components", "Exterior Entry Doors", "Per Door", 125.0, 350.0, "Light sanding, jamb painting, 2 coats exterior enamel"],
+  ["ex_garage_doors_single_double", "Trim & Components", "Garage Doors (Single / Double)", "Per Door", 150.0, 450.0, "Degreasing, scuff sanding, spray DTM or acrylic finish"],
+  ["ex_shutters_louvers", "Trim & Components", "Shutters & Louvers", "Per Pair", 60.0, 160.0, "Removed, sprayed off-wall, and reinstalled"],
+  ["ex_gutters_downspouts", "Trim & Components", "Gutters & Downspouts", "Per Linear Ft", 1.5, 3.5, "Cleaned, solvent/bonding prep, coated to match trim"],
+  ["ex_heavy_scraping_peel_stop_prime", "Prep & Access", "Heavy Scraping & Peel-Stop Primer", "Per Wall Sq Ft", 0.75, 2.25, "Widespread peeling or sun-baked south/west exposures"],
+  ["ex_pre_1978_lead_safe_containment", "Prep & Access", "Pre-1978 Lead-Safe Containment (RRP)", "Per Structure", 1500.0, 4000.0, "Mandatory EPA plastic containment, HEPA scraping, disposal"]
+ ],
+ "commercial": [
+  ["cm_warehouses_tilt_wall_logistics", "Commercial Exterior", "Warehouses & Tilt-Wall Logistics", "Per Wall Sq Ft", 1.25, 2.25, "Airless spray with boom lifts; wash, caulk, 1-2 coats"],
+  ["cm_self_storage_metal_buildings", "Commercial Exterior", "Self-Storage & Metal Buildings", "Per Wall Sq Ft", 1.25, 2.0, "Spot rust-inhibitive priming + DTM acrylic over panels"],
+  ["cm_retail_strip_centers_offices", "Commercial Exterior", "Retail Strip Centers & Offices", "Per Wall Sq Ft", 1.75, 3.5, "Storefront masking, EIFS/stucco elastomeric, canopy accents"],
+  ["cm_multi_family_apartment_complex", "Commercial Exterior", "Multi-Family & Apartment Complexes", "Per Wall Sq Ft", 2.0, 4.5, "Balconies, breezeways, railings, stairwells, multi-color"]
+ ],
+ "power_washing": [
+  ["pw_house_soft_wash_vinyl_painted", "Residential Wash", "House Soft Wash (Vinyl / Painted)", "Per Floor Sq Ft", 0.15, 0.35, "Low-pressure SH + surfactant wash; add 20-40% for 2 stories"],
+  ["pw_brick_stone_stucco_siding_wash", "Residential Wash", "Brick, Stone & Stucco Siding Wash", "Per Wall Sq Ft", 0.2, 0.5, "Stronger chemical ratios and longer dwell times"],
+  ["pw_driveways_sidewalks_patios", "Residential Wash", "Driveways, Sidewalks & Patios", "Per Sq Ft", 0.15, 0.35, "Rotary surface cleaner + post-treatment wash"],
+  ["pw_roof_soft_wash_shingle_tile", "Residential Wash", "Roof Soft Wash (Shingle / Tile)", "Per Roof Sq Ft", 0.3, 0.65, "Zero-pressure biocide/SH treatment for black streaks & moss"],
+  ["pw_wood_decks_fences_wash_brighte", "Residential Wash", "Wood Decks & Fences (Wash & Brighten)", "Per Sq Ft", 0.3, 0.55, "Sodium percarbonate wash + oxalic acid brightener prep"],
+  ["pw_pool_decks_screened_lanais", "Residential Wash", "Pool Decks & Screened Lanais", "Per Sq Ft", 0.2, 0.45, "Pool cage framing, screen rinsing, algae-free deck wash"],
+  ["pw_gutter_brightening_tiger_strip", "Residential Wash", "Gutter Brightening (Tiger Stripes)", "Per Linear Ft", 1.0, 2.5, "Oxidation remover brushed onto exterior aluminum faces"],
+  ["pw_sidewalks_storefronts", "Commercial Wash", "Sidewalks & Storefronts", "Per Sq Ft", 0.1, 0.3, "Routine maintenance wash; monthly/quarterly routes"],
+  ["pw_parking_lots_garages_routine", "Commercial Wash", "Parking Lots & Garages (Routine)", "Per Sq Ft", 0.08, 0.2, "High-GPM surface cleaning for open expanses >10,000 sq ft"],
+  ["pw_drive_thrus_dumpster_pads", "Commercial Wash", "Drive-Thrus & Dumpster Pads", "Per Sq Ft", 0.4, 1.0, "Requires 200F+ hot water, caustic degreasers, heavy agitation"],
+  ["pw_commercial_building_soft_wash", "Commercial Wash", "Commercial Building Soft Wash (1-3 Story)", "Per Wall Sq Ft", 0.12, 0.35, "EIFS, tilt-wall concrete, or metal panel soft wash"],
+  ["pw_apartment_breezeways_stairwell", "Commercial Wash", "Apartment Breezeways & Stairwells", "Per Unit", 35.0, 75.0, "Concrete landings, stairs, railings, cobweb/mildew removal"],
+  ["pw_fleet_washing_trucks_trailers", "Commercial Wash", "Fleet Washing (Trucks / Trailers)", "Per Vehicle", 35.0, 95.0, "Two-step brushless acid/alkaline wash"],
+  ["pw_rust_battery_acid_fertilizer_r", "Specialty & Fees", "Rust, Battery Acid & Fertilizer Removal", "Per Spot", 75.0, 200.0, "Or $0.25-$0.50/sq ft using specialty acid rust removers"],
+  ["pw_red_clay_oil_stain_extraction", "Specialty & Fees", "Red Clay & Oil Stain Extraction", "Per Area", 100.0, 300.0, "Hot-water extraction and poultice/degreaser treatment"],
+  ["pw_chewing_gum_removal", "Specialty & Fees", "Chewing Gum Removal", "Per Spot", 1.0, 2.5, "Or $0.15-$0.35/sq ft using high-heat steam tips"],
+  ["pw_water_tank_haul_in_fee", "Specialty & Fees", "Water Tank / Haul-In Fee", "Flat Fee", 150.0, 350.0, "When no on-site spigot is available or flow < 5 GPM"]
+ ]
+};
