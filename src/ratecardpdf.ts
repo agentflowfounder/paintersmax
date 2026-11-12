@@ -70,6 +70,7 @@ export interface RateDocContext {
   preparedWith: boolean;
   intro?: string;
   footerNote?: string;
+  blocks?: { title: string; text: string }[];
 }
 
 export function renderRateCardHtml(ctx: RateDocContext, sections: RateSection[]): string {
@@ -110,6 +111,7 @@ td{padding:7px 8px;border-bottom:1px solid #e5e5e5;vertical-align:top}.r{text-al
 <div class="muted" style="text-align:right">${x(ctx.date)}${ctx.subtitle ? `<br>${x(ctx.subtitle)}` : ""}</div></div>
 ${ctx.intro ? `<p>${x(ctx.intro)}</p>` : ""}
 ${body || "<p>No prices yet.</p>"}
+${(ctx.blocks ?? []).map((b) => `<h2>${x(b.title)}</h2><p style="white-space:pre-wrap">${x(b.text)}</p>`).join("")}
 <div class="foot">${x(ctx.footerNote ?? "Prices are estimates and are subject to site inspection and changes in scope.")}${ctx.preparedWith ? "<br>Prepared with PaintersMax." : ""}</div>
 </div></body></html>`;
 }
@@ -134,6 +136,8 @@ export async function loadRateDocParts(env: Env, companyId: number, audience: "r
   const s = readSettings(co.settings);
   const c = prof.company ?? {};
   return {
+    cards,
+    profile: prof,
     sections: buildSections(cards, audience),
     ctx: {
       company: { name: co.name, phone: c.phone, email: c.email, address: [c.address, c.city, c.state, c.zip].filter(Boolean).join(", "), license: c.license, website: c.website },

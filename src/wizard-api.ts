@@ -5,6 +5,7 @@ import { consume, normalizePlan, refund } from "./usage.ts";
 import { ask, buildJobContext, draftCoverNote, sanitizeHistory } from "./assistant.ts";
 import type { Env } from "./types.ts";
 import { labelsFor } from "./ratecatalog.ts";
+import { commercialBlockedMessage, loadCommercialStatus } from "./commercial.ts";
 import { computeTotals, draftLines, milestoneAmounts, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
 import { CUSTOMER_KINDS, docTitle, invoiceChecks, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
@@ -206,6 +207,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     crewLanguage: parse((await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(user.companyId).first<{ data: string }>())?.data)?.language?.crewDocs === "es" ? "es" : "en",
     events: events.results,
     coverage: coverageFor(await loadSummary(env, user.companyId), job.trade),
+    commercial: job.trade === "commercial" ? await loadCommercialStatus(env, user.companyId, job.id) : null,
   });
 }
 
@@ -244,6 +246,10 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
   }
 
   const est = sanitizeEstimate(b?.estimate);
+  if ((b.action === "save" || b.action === "send") && job.trade === "commercial") {
+    const cs = await loadCommercialStatus(env, user.companyId, job.id);
+    if (!cs.allowed) return json({ error: commercialBlockedMessage(cs), upgrade: true }, 403);
+  }
   if ((b.action === "save" || b.action === "send") && !scheduleIsValid(est.schedule)) return json({ error: "The payment percentages must add up to 100." }, 400);
   const totals = computeTotals(est, { minimumJobCents: Math.round((profile?.labor?.minimumJob ?? 0) * 100), depositPct: profile?.labor?.depositPct });
 

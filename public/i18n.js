@@ -603,6 +603,32 @@
     'Painting commercial buildings such as warehouses, retail centers and apartments. Most contractors need insurance to bid commercial work, and commercial bids are on the Basic (one free try) and Pro plans.': 'Pintura de edificios comerciales como bodegas, centros comerciales y apartamentos. La mayoría de los contratistas necesita seguro para ofertar trabajo comercial, y las ofertas comerciales están en los planes Basic (una prueba gratis) y Pro.',
   });
 
+  /* ---- Part 11: builder rate sheets ---- */
+  pmI18n.add({
+    'Builder rate sheets': 'Hojas de tarifas para constructores', 'Builder rates': 'Tarifas para constructores',
+    'Give each home builder their own rate sheet. Every sheet starts from your builder rates and can have its own discount, its own prices, fewer or more details, and its own private link. Builders only see what you put on their sheet.': 'Dé a cada constructor su propia hoja de tarifas. Cada hoja parte de sus tarifas para constructores y puede tener su propio descuento, sus propios precios, más o menos detalles y su propio enlace privado. Los constructores solo ven lo que usted ponga en su hoja.',
+    'Share your builder rates': 'Comparta sus tarifas para constructores', 'Open builder rate sheets': 'Abrir hojas de tarifas para constructores',
+    'Builder or company name': 'Nombre del constructor o empresa', 'How much detail does this builder want?': '¿Cuánto detalle quiere este constructor?',
+    'Summary: prices only': 'Resumen: solo precios', 'Standard: prices and units': 'Estándar: precios y unidades', 'Detailed: adds scope notes, terms, insurance and warranty': 'Detallado: agrega notas de alcance, términos, seguro y garantía',
+    'Discount or increase for this builder (%)': 'Descuento o aumento para este constructor (%)', 'Prices valid for (days)': 'Precios válidos por (días)',
+    'Note at the top (optional)': 'Nota al inicio (opcional)', 'Also show': 'Mostrar también',
+    'Terms for this builder (payment schedule, change orders, schedule)': 'Términos para este constructor (calendario de pagos, órdenes de cambio, calendario)',
+    'Change or hide individual lines': 'Cambiar u ocultar líneas individuales', 'Create sheet': 'Crear hoja', 'Save changes': 'Guardar cambios', 'Open PDF': 'Abrir PDF', 'Preview': 'Vista previa', 'Make a new link': 'Crear un enlace nuevo', 'Delete': 'Eliminar', 'New builder sheet': 'Nueva hoja para constructor',
+    'My labor warranty': 'Mi garantía de mano de obra',
+    'Builder rate sheets are on the Basic and Pro plans.': 'Las hojas de tarifas para constructores están en los planes Basic y Pro.',
+    'Set your builder rates first.': 'Primero fije sus tarifas para constructores.',
+  });
+
+  /* ---- Part 12: commercial trial ---- */
+  pmI18n.add({
+    'Commercial bids are on the Basic and Pro plans.': 'Las ofertas comerciales están en los planes Basic y Pro.',
+    'Try your first commercial bid on us.': 'Pruebe su primera oferta comercial por nuestra cuenta.',
+    'You have used your free commercial bid.': 'Ya usó su oferta comercial gratis.',
+    'Pro includes unlimited commercial bids.': 'Pro incluye ofertas comerciales ilimitadas.',
+    'Most contractors also need insurance to bid commercial work.': 'La mayoría de los contratistas también necesita seguro para ofertar trabajo comercial.',
+    'See plans': 'Ver planes',
+  });
+
   pmI18n.add({}, [
     [/^Your free trial has (\d+) days? left\. You have extra AI use until it ends\. Choose a plan to keep it\.$/, function (a, n) { return 'Su prueba gratis tiene ' + n + (n === '1' ? ' día' : ' días') + ' restantes. Tiene más uso de IA hasta que termine. Elija un plan para conservarlo.'; }],
   ]);

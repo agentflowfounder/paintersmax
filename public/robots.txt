@@ -9,5 +9,6 @@ Disallow: /sign/
 Disallow: /coi/
 Disallow: /q/
 Disallow: /portal/
+Disallow: /rates/
 Disallow: /cal/
 Sitemap: https://paintersmax.app/sitemap.xml

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F1B2D">
+<meta name="robots" content="noindex">
+<title>Builder rate sheets</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:10px}
+main{max-width:720px;margin:0 auto;padding:16px 16px 80px}
+h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 4px;font-size:26px}
+p.lead{color:#4A5568;margin:0 0 14px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chk{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #cfd5dc;border-radius:8px;margin:6px 0;font-weight:500}
+.chk input{width:auto}
+.btn{padding:11px 16px;border-radius:8px;border:0;font:inherit;font-weight:700;cursor:pointer;background:#E8A33D;color:#0F1B2D}
+.btn.sec{background:#eceae4}.btn.bad{background:#fbe9e7;color:#b42318}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+small,.muted{color:#4A5568}
+#msg{font-size:14px;margin:8px 0;min-height:18px}.ok{color:#0a7a3d}.bad{color:#b42318}
+.it{display:grid;grid-template-columns:1fr 92px 28px;gap:6px 8px;align-items:center;padding:7px 0;border-top:1px solid #eee;font-size:14px}
+.it input{padding:7px}
+.linkbox{background:#eef3fa;border-radius:8px;padding:10px;word-break:break-all;font-size:13px;margin:10px 0}
+details{margin-top:10px}summary{cursor:pointer;font-weight:700}
+</style></head><body>
+<header><div><b>PaintersMax</b> Builder rate sheets</div><div><a href="/jobs">Jobs</a><a href="/app">Estimating Setup</a><a href="/dashboard">Settings and leads</a></div></header>
+<main>
+<h2>Builder rate sheets</h2>
+<p class="lead">Give each home builder their own rate sheet. Every sheet starts from your builder rates and can have its own discount, its own prices, fewer or more details, and its own private link. Builders only see what you put on their sheet.</p>
+<div id="msg"></div>
+<div id="body">Loading...</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
+async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
+let D=null;
+const roundPrice=v=>v>=100?Math.round(v/5)*5:v>=10?Math.round(v):Math.round(v*20)/20;
+const DET={summary:'Summary: prices only',standard:'Standard: prices and units',detailed:'Detailed: adds scope notes, terms, insurance and warranty'};
+
+function sheetForm(s){
+  s=s||{name:'',detail:'standard',adjustPct:0,overrides:{},hidden:[],sections:{terms:true,insurance:false,warranty:false},terms:'',note:'',validDays:30,preparedWith:'default'};
+  const id=s.id||'new';
+  const adj=Number(s.adjustPct)||0;
+  const rows=D.items.map(it=>{const base=D.base[it.id];const adjd=base>0?roundPrice(base*(1+adj/100)):0;const ov=s.overrides[it.id];const hid=s.hidden.includes(it.id);
+    return `<div class="it" data-it="${esc(it.id)}"><div>${esc(it.label)}<br><small>${esc(it.unit)}${adjd?' &middot; your rate '+adjd:' &middot; not priced'}</small></div><input inputmode="decimal" data-ov="${esc(it.id)}" placeholder="${adjd||''}" value="${ov!=null?esc(ov):''}" aria-label="Price override"><label style="margin:0;font-weight:400" title="Hide this line"><input type="checkbox" data-hide="${esc(it.id)}" ${hid?'checked':''}></label></div>`;}).join('');
+  return `<div class="card" data-sheet="${id}">
+   <label>Builder or company name</label><input data-f="name" value="${esc(s.name)}" placeholder="ABC Homes">
+   <label>How much detail does this builder want?</label>
+   <select data-f="detail">${Object.keys(DET).map(k=>`<option value="${k}" ${k===s.detail?'selected':''}>${esc(DET[k])}</option>`).join('')}</select>
+   <div class="row"><div><label>Discount or increase for this builder (%)</label><input data-f="adjustPct" inputmode="decimal" value="${esc(s.adjustPct)}"><small>Example: -5 is 5% off your builder rates. Use the prices below to change one line only.</small></div>
+   <div><label>Prices valid for (days)</label><input data-f="validDays" inputmode="numeric" value="${esc(s.validDays)}"></div></div>
+   <label>Note at the top (optional)</label><textarea data-f="note" rows="2" placeholder="Thank you for the opportunity to bid your upcoming homes.">${esc(s.note)}</textarea>
+   <label>Also show</label>
+   <label class="chk"><input type="checkbox" data-sec="terms" ${s.sections.terms?'checked':''}> Terms (shown when you fill them in below)</label>
+   <label class="chk"><input type="checkbox" data-sec="insurance" ${s.sections.insurance?'checked':''}> My insurance (only if you allow customers to see it in Settings)</label>
+   <label class="chk"><input type="checkbox" data-sec="warranty" ${s.sections.warranty?'checked':''}> My labor warranty</label>
+   <label>Terms for this builder (payment schedule, change orders, schedule)</label><textarea data-f="terms" rows="3">${esc(s.terms)}</textarea>
+   <label class="chk"><input type="checkbox" data-f="prep" ${s.preparedWith==='off'?'checked':''}> Hide "Prepared with PaintersMax" on this sheet</label>
+   <details><summary>Change or hide individual lines</summary><small>Type a price to replace that line for this builder. Tick the box to leave a line off this sheet.</small>${rows}</details>
+   <div class="btns"><button class="btn" data-save="${id}">${s.id?'Save changes':'Create sheet'}</button>${s.id?`<button class="btn sec" data-copy="${esc(s.link)}">Copy link</button><a class="btn sec" style="text-decoration:none" href="${esc(s.link)}.pdf" target="_blank">Open PDF</a><a class="btn sec" style="text-decoration:none" href="${esc(s.link)}" target="_blank">Preview</a><button class="btn sec" data-reset="${s.id}">Make a new link</button><button class="btn bad" data-del="${s.id}">Delete</button>`:''}</div>
+   ${s.id?`<div class="linkbox">${esc(s.link)}</div><small>Anyone with this link can see this builder's rates. Make a new link to turn the old one off.</small>`:''}
+  </div>`;
+}
+function draw(){
+  if(!D)return;
+  let h='';
+  if(D.limit===0){$('body').innerHTML='<div class="card"><b>Builder rate sheets are on the Basic and Pro plans.</b><p>Basic includes 1 builder sheet. Pro includes unlimited sheets, one for every builder you work with.</p></div>';return;}
+  if(!D.hasBuilderCard){$('body').innerHTML='<div class="card"><b>Set your builder rates first.</b><p>Open <a href="/app">Estimating Setup</a>, choose "New construction (builders)" under services, and save your prices on the Your prices step. Then come back here.</p></div>';return;}
+  const n=D.sheets.length,can=D.limit===null||n<D.limit;
+  h+=D.sheets.map(s=>sheetForm(s)).join('');
+  h+=can?`<h2 style="font-size:20px;margin-top:18px">New builder sheet</h2>${sheetForm(null)}`:`<div class="card"><b>You have used your ${D.limit} builder sheet${D.limit===1?'':'s'}.</b> Pro has unlimited sheets.</div>`;
+  h=`<p class="muted">${n} sheet${n===1?'':'s'}${D.limit===null?'':' of '+D.limit}</p>`+h;
+  $('body').innerHTML=h;
+}
+function read(el){
+  const g=f=>{const e=el.querySelector('[data-f="'+f+'"]');return e?e.value:'';};
+  const overrides={};el.querySelectorAll('[data-ov]').forEach(i=>{if(i.value.trim()!=='')overrides[i.dataset.ov]=i.value.trim();});
+  return {name:g('name'),detail:g('detail'),adjustPct:g('adjustPct'),validDays:g('validDays'),note:g('note'),terms:g('terms'),overrides,hidden:[...el.querySelectorAll('[data-hide]:checked')].map(i=>i.dataset.hide),
+    sections:{terms:el.querySelector('[data-sec="terms"]').checked,insurance:el.querySelector('[data-sec="insurance"]').checked,warranty:el.querySelector('[data-sec="warranty"]').checked},preparedWith:el.querySelector('[data-f="prep"]').checked?'off':'default'};
+}
+async function load(){try{D=await api('/api/ratesheets');draw();}catch(e){if(e)$('body').textContent='Could not load your sheets.';}}
+document.addEventListener('click',async e=>{
+  const t=e.target,ds=t.dataset||{};
+  try{
+    if(ds.save){msg('');const el=t.closest('[data-sheet]');await api('/api/ratesheets',{action:'save',id:ds.save==='new'?undefined:ds.save,sheet:read(el)});msg('Saved.',true);await load();}
+    else if(ds.copy){try{await navigator.clipboard.writeText(ds.copy);msg('Link copied.',true);}catch{msg('Select the link below and copy it.');}}
+    else if(ds.reset){if(!confirm('The old link will stop working. Make a new link?'))return;await api('/api/ratesheets',{action:'reset',id:ds.reset});msg('New link ready. Send it to the builder again.',true);await load();}
+    else if(ds.del){if(!confirm('Delete this sheet? Its link will stop working.'))return;await api('/api/ratesheets',{action:'delete',id:ds.del});msg('Deleted.',true);await load();}
+  }catch(x){if(x)msg(x.message);}
+});
+load();
+</script></body></html>

@@ -36,7 +36,7 @@ small,.muted{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{
 .bub{padding:10px 12px;border-radius:10px;margin:8px 0;white-space:pre-wrap;line-height:1.45}.bub.u{background:#eceae4;margin-left:24px}.bub.a{background:#fff8e8;border:1px solid #f0d9a0;margin-right:12px}.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.chip{border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:6px 12px;font-size:13px;cursor:pointer}.mini{border:0;background:none;color:#0F1B2D;text-decoration:underline;font-size:12px;cursor:pointer;padding:2px 0}
 @media(max-width:520px){.line{grid-template-columns:1fr 60px 50px 80px 26px}}
 </style></head><body>
-<header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Estimating Setup</a><a href="/calendar">Calendar</a><a href="/import">Import customers</a><a href="/materials">Materials</a><a href="/insurance">Insurance</a><a href="/dashboard">Settings and leads</a></div></header>
+<header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Estimating Setup</a><a href="/calendar">Calendar</a><a href="/builders">Builder rates</a><a href="/import">Import customers</a><a href="/materials">Materials</a><a href="/insurance">Insurance</a><a href="/dashboard">Settings and leads</a></div></header>
 <main><div id="view">Loading...</div><div id="msg"></div></main>
 <script>
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -88,6 +88,11 @@ function micInit(){const m=$('as_mic');if(m&&(window.SpeechRecognition||window.w
 const GROUPS=[['New leads',['lead'],'Customers who asked for a quote. Build an estimate to bid on them.'],['Estimate approved',['bid:signed'],'The customer signed the estimate. Build and send the contract next.'],['Waiting on the customer',['bid','contract'],'Estimates and contracts you sent. Waiting for the customer to approve or sign.'],['In progress',['scheduled','in_progress','punch'],'Approved jobs that are scheduled or underway.'],['Completed',['invoiced','closed'],'Finished and invoiced jobs.'],['Lost',['lost'],'']];
 const COVC={likely_covered:['#e6f4ea','#0a7a3d','Insured: appears covered'],check_with_agent:['#fff3d6','#8a5a00','Check your insurance'],likely_excluded:['#fdecea','#b42318','Insurance: may not cover'],expired:['#fdecea','#b42318','Policy expired']};
 function covPill(c){const x=COVC[c];return x?`<span class="sg" style="background:${x[0]};color:${x[1]}">${x[2]}</span>`:'';}
+function commBanner(c){if(!c)return'';
+  if(c.limit===0)return `<div class="card" style="background:#fff7e6;border-color:#E8A33D"><b>Commercial bids are on the Basic and Pro plans.</b><br><small>Most contractors also need insurance to bid commercial work. <a href="/dashboard#billing">See plans</a></small></div>`;
+  if(c.allowed&&c.limit!==null)return `<div class="card" style="background:#eef7ee;border-color:#9ccc9c"><b>Try your first commercial bid on us.</b><br><small>Your plan includes ${c.limit} commercial bid to try. Pro has unlimited. Most commercial customers ask for proof of insurance, a schedule and references, so have them ready.</small></div>`;
+  if(!c.allowed)return `<div class="card" style="background:#fff7e6;border-color:#E8A33D"><b>You have used your free commercial bid.</b><br><small>Pro includes unlimited commercial bids. <a href="/dashboard#billing">See plans</a></small></div>`;
+  return '';}
 function covBanner(c){if(!c)return `<div class="card" style="background:#f4f1ea"><small>Want to know if your insurance covers each job? <a href="/insurance">Upload your policy</a> and PaintersMax will check every lead and job for you. No insurance yet? Customers often ask for proof before they hire, so you may win more jobs with coverage. <a href="/insurance-guide">Read the insurance guide</a>.</small></div>`;const x=COVC[c.status];return `<div class="card" style="background:${x[0]};border-color:${x[1]}33"><b style="color:${x[1]}">${esc(c.headline)}</b>${c.note?`<br><small>${esc(c.note)}</small>`:''}<br><small>This is general information from your saved policy summary, not insurance advice. Confirm with your agent before a big job. <a href="/insurance">Open your policy</a></small></div>`;}
 
 function portalCard(d){const j=d.job||{};return `<h3>Customer portal</h3><div class="card"><p class="muted" style="margin-top:0">One private link where your customer sees what you have sent them: estimate, contract, signature status, schedule, invoice and proof of insurance. Drafts are never shown.</p>
@@ -198,6 +203,7 @@ async function detail(id){
   <h2>${esc(j.title)}</h2>
   <div class="card"><b>${esc(j.customerName)}</b> <span class="tag">${esc(STAGE[j.stage]||j.stage)}</span><br>
    <small>${esc([j.customerEmail,j.customerPhone].filter(Boolean).join(' · ')||'No contact details')}<br>${esc([j.address,j.city,j.zip].filter(Boolean).join(', ')||'No address yet')} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div>
+  ${commBanner(d.commercial)}
   ${covBanner(d.coverage)}
   ${protectCard(d)}
   ${portalCard(d)}

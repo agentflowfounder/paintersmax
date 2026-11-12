@@ -20,6 +20,7 @@ import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
 import { handleCatalog } from "./ratecatalog.ts";
 import { handleRateCardDoc } from "./ratecardpdf.ts";
+import { handleRateSheetPage, handleRateSheets } from "./ratesheets.ts";
 import { handlePortalManage, handlePortalPage } from "./portal.ts";
 import { sendInvoiceReminders } from "./reminders.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
@@ -500,6 +501,14 @@ export default {
         return new Response("Something went wrong.", { status: 500 });
       }
     }
+    if (pathname.startsWith("/rates/")) {
+      try {
+        return await handleRateSheetPage(request, env, pathname);
+      } catch (err) {
+        console.error("rate sheet page failed", String(err));
+        return new Response("Something went wrong.", { status: 500 });
+      }
+    }
     if (pathname === "/api/calsettings") {
       try {
         return await handleCalSettings(request, env);
@@ -537,6 +546,14 @@ export default {
         return await handleRateCardDoc(request, env);
       } catch (err) {
         console.error("ratecard doc failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/ratesheets") {
+      try {
+        return await handleRateSheets(request, env);
+      } catch (err) {
+        console.error("ratesheets failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
