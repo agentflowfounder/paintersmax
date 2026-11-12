@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Calendar - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
+main{max-width:980px;margin:0 auto;padding:16px 12px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:14px;margin:0 0 14px}
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:10px}.bar b{flex:1;text-align:center;font-size:18px}
+button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:9px 13px;background:#E8A33D;color:#0F1B2D;cursor:pointer}button.s{background:#eceae4}button.d{background:#fff;border:1px solid #cfd5dc;color:#b42318}
+.g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}.dow{font-size:12px;color:#4A5568;text-align:center;padding:4px 0}
+.day{min-height:78px;background:#fbfaf8;border:1px solid #eee;border-radius:6px;padding:3px;overflow:hidden}.day.o{opacity:.45}.day.t{border-color:#E8A33D;background:#fff7e6}
+.day i{font-style:normal;font-size:12px;color:#4A5568}
+.chip{display:block;width:100%;text-align:left;font-size:11px;font-weight:600;border-radius:4px;padding:2px 4px;margin-top:2px;background:#0F1B2D;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border:0}
+.chip.p{background:#0a7a3d}.chip.c{background:#4A5568}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}input,textarea{font:inherit;width:100%;padding:9px;border:1px solid #cfd5dc;border-radius:8px}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}@media(max-width:560px){.row{grid-template-columns:1fr}.day{min-height:56px}.chip{font-size:10px}}
+.muted{color:#4A5568;font-size:14px}.ok{color:#0a7a3d;font-weight:600}.bad{color:#b42318;font-weight:600}
+.nd{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #eee}.nd:first-of-type{border-top:0}
+</style></head><body>
+<header><div><b>PaintersMax</b> Calendar</div><div><a href="/jobs">Jobs</a><a href="/dashboard">Settings and leads</a></div></header>
+<main>
+<h1>Calendar and crew schedule</h1>
+<div id="msg" class="muted"></div>
+<div class="card"><div class="bar"><button class="s" id="prev">&larr;</button><b id="mon"></b><button class="s" id="next">&rarr;</button><button class="s" id="today">Today</button></div>
+<div class="g" id="dow"></div><div class="g" id="grid"></div></div>
+<div class="card" id="edit" style="display:none"></div>
+<div class="card"><b>Needs a date</b><p class="muted" style="margin:4px 0 6px">Jobs with a contract or already scheduled, but no dates yet.</p><div id="nd"></div></div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+var T=window.pmT||function(s){return s};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function msg(t,c){$('msg').textContent=t||'';$('msg').className=c||'muted';}
+function api(p,b){return fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined).then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});});}
+var jobs=[],needs=[],crew=[],view=new Date();view.setDate(1);
+var iso=function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+$('dow').innerHTML=DOW.map(function(d){return'<div class="dow">'+T(d)+'</div>'}).join('');
+function load(){return api('/api/schedule').then(function(d){jobs=d.jobs;needs=d.needsDate;crew=d.crew;draw();});}
+function draw(){
+ var y=view.getFullYear(),m=view.getMonth();
+ $('mon').textContent=view.toLocaleDateString(window.PM_LANG==='es'?'es-US':'en-US',{month:'long',year:'numeric'});
+ var first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),today=iso(new Date()),h='';
+ for(var i=0;i<42;i++){var d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i),k=iso(d);
+  var chips=jobs.filter(function(j){return j.start<=k&&k<=j.end}).slice(0,3).map(function(j){return'<button class="chip '+(j.stage==='closed'||j.stage==='invoiced'?'c':j.stage==='in_progress'?'p':'')+'" data-job="'+j.jobId+'" title="'+esc(j.title+' - '+j.customer)+'">'+esc((j.startTime&&k===j.start?j.startTime+' ':'')+j.title)+'</button>'}).join('');
+  var more=jobs.filter(function(j){return j.start<=k&&k<=j.end}).length-3;
+  h+='<div class="day'+(d.getMonth()!==m?' o':'')+(k===today?' t':'')+'"><i>'+d.getDate()+'</i>'+chips+(more>0?'<i>+'+more+'</i>':'')+'</div>';}
+ $('grid').innerHTML=h;
+ $('nd').innerHTML=needs.length?needs.map(function(n){return'<div class="nd"><div><b>'+esc(n.title)+'</b><br><span class="muted">'+esc(n.customer)+'</span></div><button class="s" data-need="'+n.jobId+'">'+T('Set dates')+'</button></div>'}).join(''):'<p class="muted">'+T('Nothing waiting.')+'</p>';
+}
+function openEdit(id,fresh){
+ var j=jobs.filter(function(x){return x.jobId===id})[0],n=needs.filter(function(x){return x.jobId===id})[0],t=j||n;if(!t)return;
+ var s=j||{start:iso(new Date()),end:'',startTime:'',crew:[],notes:''};
+ $('edit').style.display='block';
+ $('edit').innerHTML='<b>'+esc(t.title)+'</b> <span class="muted">'+esc(t.customer||'')+(j&&j.address?' &middot; '+esc(j.address):'')+'</span>'+
+ '<div class="row"><div><label>'+T('Start date')+'</label><input type="date" id="e_s" value="'+esc(s.start)+'"></div><div><label>'+T('End date')+'</label><input type="date" id="e_e" value="'+esc(s.end)+'"></div><div><label>'+T('Start time')+'</label><input type="time" id="e_t" value="'+esc(s.startTime)+'"></div></div>'+
+ '<label>'+T('Crew (names, separated by commas)')+'</label><input id="e_c" value="'+esc(s.crew.join(', '))+'" list="crewl" placeholder="Luis, Ana"><datalist id="crewl">'+crew.map(function(c){return'<option value="'+esc(c)+'">'}).join('')+'</datalist>'+
+ '<label>'+T('Notes for the crew')+'</label><textarea id="e_n" rows="2">'+esc(s.notes)+'</textarea>'+
+ '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="e_save" data-id="'+id+'">'+T('Save')+'</button>'+(j?'<button class="d" id="e_clr" data-id="'+id+'">'+T('Remove from calendar')+'</button>':'')+'<a href="/jobs?id='+id+'" style="align-self:center">'+T('Open the job')+'</a></div><div id="e_msg" style="margin-top:8px"></div>';
+ $('edit').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+document.addEventListener('click',function(e){var t=e.target,d=t.dataset||{};
+ if(d.job)openEdit(+d.job);else if(d.need)openEdit(+d.need,true);
+ else if(t.id==='prev'){view.setMonth(view.getMonth()-1);draw();}else if(t.id==='next'){view.setMonth(view.getMonth()+1);draw();}
+ else if(t.id==='today'){view=new Date();view.setDate(1);draw();}
+ else if(t.id==='e_save'){var body={jobId:+d.id,start:$('e_s').value,end:$('e_e').value,startTime:$('e_t').value,crew:$('e_c').value.split(','),notes:$('e_n').value};
+  api('/api/schedule',body).then(function(r){var c=(r.conflicts||[]).map(function(x){return x.crew+' '+T('is also booked on')+' '+x.title});load().then(function(){$('e_msg').className=c.length?'bad':'ok';$('e_msg').textContent=c.length?T('Saved, but check this:')+' '+c.join('; '):T('Saved.');});}).catch(function(x){if(x){$('e_msg').className='bad';$('e_msg').textContent=T(x.message);}});}
+ else if(t.id==='e_clr'){if(!confirm(T('Remove this job from the calendar?')))return;api('/api/schedule',{jobId:+d.id,clear:true}).then(function(){$('edit').style.display='none';load();});}
+});
+load().catch(function(x){if(x)msg(T(x.message),'bad');});
+</script></body></html>

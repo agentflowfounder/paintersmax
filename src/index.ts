@@ -15,6 +15,7 @@ import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import { readSettings, renderQuotePage, sanitize, tenantFromHost } from "./settings.ts";
 import { handleImport } from "./import.ts";
+import { handleSchedule } from "./schedule.ts";
 import { slugForHost } from "./domains.ts";
 import { handlePortalManage, handlePortalPage } from "./portal.ts";
 import { sendInvoiceReminders } from "./reminders.ts";
@@ -494,6 +495,14 @@ export default {
       } catch (err) {
         console.error("portal page failed", String(err));
         return new Response("Something went wrong.", { status: 500 });
+      }
+    }
+    if (pathname === "/api/schedule") {
+      try {
+        return await handleSchedule(request, env);
+      } catch (err) {
+        console.error("schedule failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
       }
     }
     if (pathname === "/api/import/customers") {
