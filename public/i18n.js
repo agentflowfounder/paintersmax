@@ -630,6 +630,8 @@
   });
 
   pmI18n.add({
+    'City pages': 'Páginas de ciudades',
+    'Each city gets its own page on your website. After you finish setup, write them on': 'Cada ciudad tiene su propia página en su sitio web. Al terminar la configuración, escríbalas en',
     'Add a city': 'Agregar una ciudad',
     'Add a city or ZIP code': 'Agregar una ciudad o código postal',
     'Add': 'Agregar',

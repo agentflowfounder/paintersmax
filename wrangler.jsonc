@@ -10,7 +10,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/", "/api/*", "/q/*", "/quote", "/sign/*", "/coi/*", "/portal/*", "/rates/*", "/cal/*", "/login", "/dashboard", "/app", "/jobs", "/insurance", "/materials", "/painting-materials", "/admin", "/start"]
+    "run_worker_first": ["/", "/api/*", "/q/*", "/quote", "/sign/*", "/coi/*", "/portal/*", "/areas/*", "/sitemap.xml", "/rates/*", "/cal/*", "/login", "/dashboard", "/app", "/jobs", "/insurance", "/materials", "/painting-materials", "/admin", "/start"]
   },
   "d1_databases": [
     {

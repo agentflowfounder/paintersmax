@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F1B2D">
+<meta name="robots" content="noindex">
+<title>City pages</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:10px}
+main{max-width:720px;margin:0 auto;padding:16px 16px 80px}
+h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 4px;font-size:26px}
+p.lead{color:#4A5568;margin:0 0 14px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+input,textarea{width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
+.btn{padding:11px 16px;border-radius:8px;border:0;font:inherit;font-weight:700;cursor:pointer;background:#E8A33D;color:#0F1B2D;text-decoration:none;display:inline-block}
+.btn.sec{background:#eceae4}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+small,.muted{color:#4A5568}
+#msg{font-size:14px;margin:8px 0;min-height:18px}.ok{color:#0a7a3d}.bad{color:#b42318}
+.pill{display:inline-block;font-size:12px;padding:2px 9px;border-radius:12px;background:#eceae4;margin-left:8px;vertical-align:middle}.pill.live{background:#d9f3e3;color:#0a7a3d}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+</style></head><body>
+<header><div><b>PaintersMax</b> City pages</div><div><a href="/jobs">Jobs</a><a href="/app">Estimating Setup</a><a href="/dashboard">Settings and leads</a></div></header>
+<main>
+<h2>City pages</h2>
+<p class="lead">Each city you serve gets its own page on your website with your services, a map of paint stores, today's weather, photos and an instant quote box. Write something real for each city. Pages with a real local detail are the ones worth publishing.</p>
+<div id="msg"></div>
+<div id="body">Loading...</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
+async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
+let D=null;
+function card(c){
+  const d=c.data,k=esc(c.key);
+  const faq=[...d.faq,{q:'',a:''},{q:'',a:''}].slice(0,Math.max(2,d.faq.length+1)).map((f,i)=>`<div class="row2"><input data-faq-q="${i}" placeholder="Question" value="${esc(f.q)}"><input data-faq-a="${i}" placeholder="Answer" value="${esc(f.a)}"></div>`).join('');
+  const gal=[...d.gallery,{url:'',caption:''},{url:'',caption:''}].slice(0,Math.max(2,d.gallery.length+1)).map((g,i)=>`<div class="row2"><input data-g-u="${i}" placeholder="Photo link (https://...)" value="${esc(g.url)}"><input data-g-c="${i}" placeholder="Caption" value="${esc(g.caption)}"></div>`).join('');
+  return `<div class="card" data-city="${k}"><b>${esc(c.name)}, ${esc(c.state)}</b><span class="pill ${c.published?'live':''}">${c.published?'Published':'Draft'}</span>
+   <label>Headline</label><input data-f="headline" value="${esc(d.headline)}">
+   <label>Introduction</label><textarea data-f="intro" rows="3" placeholder="A short welcome for people in ${esc(c.name)}.">${esc(d.intro)}</textarea>
+   <label>Services (one per line)</label><textarea data-f="services" rows="4">${esc(d.services.join('\n'))}</textarea>
+   <label>A real local detail (required to publish)</label><textarea data-f="local" rows="4" placeholder="Example: Last spring we repainted a 1990s two-story near the park in ${esc(c.name)}, matching the HOA trim colors.">${esc(d.local)}</textarea>
+   <small>A neighborhood you have painted in, a job you did there, or something about the homes. Do not copy another city's text.</small>
+   <label>About ${esc(c.name)} (optional)</label><textarea data-f="about" rows="3">${esc(d.about)}</textarea>
+   <small>We add public Census facts (population, homes, businesses, new construction) automatically when we have them.</small>
+   <label>Photos of your work (links)</label>${gal}<small>Photo uploads are coming. For now paste a link to a photo.</small>
+   <label>Common questions (optional)</label>${faq}
+   <label>Footer note (optional)</label><input data-f="footerNote" value="${esc(d.footerNote)}">
+   <div class="btns"><button class="btn sec" data-save="${k}" data-pub="0">Save draft</button><button class="btn" data-save="${k}" data-pub="1">${c.published?'Save and keep published':'Publish'}</button>
+   ${c.saved?`<a class="btn sec" href="${esc(c.previewPath)}" target="_blank">Preview</a>`:''}${c.published?`<button class="btn sec" data-copy="${esc(c.livePath)}">Copy page address</button>`:''}</div></div>`;
+}
+function draw(){
+  if(!D.cities.length){$('body').innerHTML='<div class="card"><b>Choose your cities first.</b><p>Open <a href="/app">Estimating Setup</a> and pick the cities you serve. Each one gets a page here.</p></div>';return;}
+  $('body').innerHTML=D.cities.map(card).join('');
+}
+function read(el){
+  const g=f=>{const e=el.querySelector('[data-f="'+f+'"]');return e?e.value:'';};
+  const faq=[],gallery=[];
+  el.querySelectorAll('[data-faq-q]').forEach(i=>{const a=el.querySelector('[data-faq-a="'+i.dataset.faqQ+'"]').value;if(i.value.trim()&&a.trim())faq.push({q:i.value,a});});
+  el.querySelectorAll('[data-g-u]').forEach(i=>{if(i.value.trim())gallery.push({url:i.value.trim(),caption:el.querySelector('[data-g-c="'+i.dataset.gU+'"]').value});});
+  return {headline:g('headline'),intro:g('intro'),services:g('services').split('\n').map(s=>s.trim()).filter(Boolean),local:g('local'),about:g('about'),footerNote:g('footerNote'),faq,gallery};
+}
+async function load(){try{D=await api('/api/citypages');draw();}catch(e){if(e)$('body').textContent='Could not load your cities.';}}
+document.addEventListener('click',async e=>{
+  const t=e.target,ds=t.dataset||{};
+  try{
+    if(ds.save){msg('');await api('/api/citypages',{cityKey:ds.save,data:read(t.closest('[data-city]')),published:ds.pub==='1'});msg(ds.pub==='1'?'Published.':'Draft saved.',true);await load();}
+    else if(ds.copy){const url=(D.domain||('https://'+D.slug+'.paintersmax.app'))+ds.copy;try{await navigator.clipboard.writeText(url);msg('Copied: '+url,true);}catch{msg(url);}}
+  }catch(x){if(x)msg(x.message);}
+});
+load();
+</script></body></html>

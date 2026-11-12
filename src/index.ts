@@ -20,6 +20,7 @@ import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
 import { handleCatalog } from "./ratecatalog.ts";
 import { handleCities, refreshStaleCities } from "./cities.ts";
+import { handleCityPage, handleCityPagesApi, citySitemap } from "./citypages.ts";
 import { handleMaterials, loadMaterials, renderPublicMaterials } from "./materials.ts";
 import { handleRateCardDoc } from "./ratecardpdf.ts";
 import { handleRateSheetPage, handleRateSheets } from "./ratesheets.ts";
@@ -323,6 +324,16 @@ async function sendChatDigests(env: Env): Promise<number> {
 }
 
 /** Public quote page for one company: /q/their-slug. Works as a link and inside an iframe. */
+/**
+ * The address the visitor sees. A client's own Worker forwards /areas/* here and sends X-Forwarded-Host with their domain,
+ * so the page names their domain as canonical. Only a plain hostname is accepted.
+ */
+function visitorOrigin(request: Request): string {
+  const fwd = (request.headers.get("x-forwarded-host") ?? "").toLowerCase().trim();
+  if (/^[a-z0-9]([a-z0-9.-]{0,120}[a-z0-9])?\.[a-z]{2,}$/.test(fwd)) return `https://${fwd}`;
+  return new URL(request.url).origin;
+}
+
 async function handleQuotePage(request: Request, env: Env, slug: string): Promise<Response> {
   const c = await env.DB.prepare("SELECT id, slug, name, settings FROM companies WHERE slug = ?")
     .bind(slug)
@@ -376,6 +387,9 @@ export default {
     // A client's own domain (managed in Cloudflare and mapped to a company in the admin page) behaves like their subdomain.
     const tenant = tenantFromHost(hostname) ?? (await slugForHost(env, hostname).catch(() => null));
     if (tenant) {
+      const ao = pathname.match(/^\/areas\/([a-z0-9-]{3,70})\/?$/);
+      if (ao) return handleCityPage(request, env, tenant, ao[1], visitorOrigin(request));
+      if (pathname === "/sitemap.xml") return citySitemap(env, tenant, visitorOrigin(request));
       if (pathname === "/" || pathname === "/quote") return handleQuotePage(request, env, tenant);
       if (["/login", "/dashboard", "/app", "/jobs", "/insurance", "/materials", "/admin", "/start"].includes(pathname)) {
         return Response.redirect(`https://paintersmax.app${pathname}`, 302);
@@ -570,6 +584,16 @@ export default {
     }
     if (pathname === "/painting-materials" && request.method === "GET") {
       return new Response(renderPublicMaterials(await loadMaterials(env)), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
+    }
+    const am = pathname.match(/^\/areas\/([a-z0-9-]{1,40})\/([a-z0-9-]{3,70})\/?$/);
+    if (am) return handleCityPage(request, env, am[1], am[2], `https://${am[1]}.paintersmax.app`);
+    if (pathname === "/api/citypages") {
+      try {
+        return await handleCityPagesApi(request, env);
+      } catch (err) {
+        console.error("citypages failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
     }
     if (pathname === "/api/cities") {
       try {
