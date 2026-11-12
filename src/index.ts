@@ -39,9 +39,9 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   if (!parsed.ok) return json({ error: parsed.error }, 400);
   const q = parsed.value;
 
-  const company = await env.DB.prepare("SELECT id, name, notify_email, plan, settings FROM companies WHERE slug = ?")
+  const company = await env.DB.prepare("SELECT id, name, notify_email, plan, settings, created_at AS createdAt FROM companies WHERE slug = ?")
     .bind(q.companySlug)
-    .first<{ id: number; name: string; notify_email: string | null; plan: string; settings: string }>();
+    .first<{ id: number; name: string; notify_email: string | null; plan: string; settings: string; createdAt?: string }>();
   if (!company) return json({ error: "Unknown company." }, 404);
 
   const { lowCents, highCents } = priceRange(q.jobType, q.sqft, readSettings(company.settings).rates);
@@ -222,9 +222,9 @@ async function handleConsume(request: Request, env: Env): Promise<Response> {
     return json({ error: "Invalid JSON." }, 400);
   }
   if (!isFeature(body?.feature)) return json({ error: "Unknown feature." }, 400);
-  const company = await env.DB.prepare("SELECT id, plan FROM companies WHERE slug = ?")
+  const company = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE slug = ?")
     .bind(typeof body?.companySlug === "string" ? body.companySlug.slice(0, 60) : "")
-    .first<{ id: number; plan: string }>();
+    .first<{ id: number; plan: string; createdAt?: string }>();
   if (!company) return json({ error: "Unknown company." }, 404);
   const visitor = typeof body?.visitor === "string" && body.visitor ? body.visitor.slice(0, 64) : undefined;
   if (body.refund === true) {
@@ -249,9 +249,9 @@ async function handleBrief(request: Request, env: Env): Promise<Response> {
   const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
   const photos = parsePhotos(body?.photos);
   if (!photos.length) return json({ error: "No usable photos." }, 400);
-  const company = await env.DB.prepare("SELECT id, plan FROM companies WHERE slug = ?")
+  const company = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE slug = ?")
     .bind(str(body?.companySlug, 60))
-    .first<{ id: number; plan: string }>();
+    .first<{ id: number; plan: string; createdAt?: string }>();
   if (!company) return json({ error: "Unknown company." }, 404);
   const visitor = str(body?.visitor, 64) || undefined;
   const use = await consume(env, company, "ai_estimate", visitor);
@@ -683,7 +683,7 @@ export default {
     if (pathname === "/api/usage") {
       const user = await getSessionUser(env, request);
       if (!user) return json({ error: "Not signed in." }, 401);
-      const c = await env.DB.prepare("SELECT id, plan FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string }>();
+      const c = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string; createdAt?: string }>();
       return c ? json(await usageSummary(env, c)) : json({ error: "Not found." }, 404);
     }
     if (pathname === "/api/leads") {

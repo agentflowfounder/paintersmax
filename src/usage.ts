@@ -23,6 +23,24 @@ export const normalizePlan = (v: unknown): Plan => (v === "starter" || v === "ba
 export const monthKey = (d = new Date()) => d.toISOString().slice(0, 7);
 export const dayKey = (d = new Date()) => d.toISOString().slice(0, 10);
 
+/** New free companies get a trial: Basic-level limits for the first 14 days. Basic (not Pro) keeps worst-case AI cost small. */
+export const TRIAL_DAYS = 14;
+export const TRIAL_PLAN: Plan = "basic";
+
+/** Whole days left in a free company's trial (0 when it is over or does not apply). */
+export function trialDaysLeft(company: { plan: string; createdAt?: string | null }, now = Date.now()): number {
+  if (normalizePlan(company.plan) !== "free" || !company.createdAt) return 0;
+  const start = Date.parse(company.createdAt.includes("T") ? company.createdAt : company.createdAt.replace(" ", "T") + "Z");
+  if (!Number.isFinite(start)) return 0;
+  const left = Math.ceil((start + TRIAL_DAYS * 86400000 - now) / 86400000);
+  return left > 0 ? Math.min(left, TRIAL_DAYS) : 0;
+}
+
+/** The plan whose limits apply right now: the real plan, or Basic during the free trial. */
+export function effectivePlan(company: { plan: string; createdAt?: string | null }, now = Date.now()): Plan {
+  return trialDaysLeft(company, now) > 0 ? TRIAL_PLAN : normalizePlan(company.plan);
+}
+
 export type Consume =
   | { allowed: true; used: number; limit: number }
   | { allowed: false; reason: "kill_switch" | "not_in_plan" | "monthly_limit" | "visitor_limit"; used: number; limit: number };
@@ -52,11 +70,11 @@ async function recordMissed(env: Env, companyId: number, feature: Feature) {
 
 export async function consume(
   env: Env,
-  company: { id: number; plan: string },
+  company: { id: number; plan: string; createdAt?: string | null },
   feature: Feature,
   visitorHash?: string,
 ): Promise<Consume> {
-  const limit = PLAN_LIMITS[normalizePlan(company.plan)][feature];
+  const limit = PLAN_LIMITS[effectivePlan(company)][feature];
   if (env.AI_KILL_SWITCH === "1") return { allowed: false, reason: "kill_switch", used: 0, limit };
   if (limit < 1) {
     await recordMissed(env, company.id, feature);
@@ -75,7 +93,7 @@ export async function consume(
   return { allowed: true, used, limit };
 }
 
-export async function usageSummary(env: Env, company: { id: number; plan: string }) {
+export async function usageSummary(env: Env, company: { id: number; plan: string; createdAt?: string | null }) {
   const month = monthKey();
   const rows = await env.DB.prepare(
     "SELECT feature, count FROM usage_counters WHERE company_id = ? AND period = ? AND feature NOT LIKE '%:v:%'",
@@ -83,9 +101,10 @@ export async function usageSummary(env: Env, company: { id: number; plan: string
     .bind(company.id, month)
     .all<{ feature: string; count: number }>();
   const by = new Map(rows.results.map((r) => [r.feature, r.count]));
-  const limits = PLAN_LIMITS[normalizePlan(company.plan)];
+  const limits = PLAN_LIMITS[effectivePlan(company)];
   return {
     plan: normalizePlan(company.plan),
+    trialDaysLeft: trialDaysLeft(company),
     period: month,
     features: FEATURES.map((f) => ({ feature: f, used: by.get(f) ?? 0, limit: limits[f], missed: by.get(`${f}:missed`) ?? 0 })),
   };

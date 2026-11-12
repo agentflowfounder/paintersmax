@@ -522,5 +522,9 @@
     'Name': 'Nombre', 'Email': 'Correo', 'Phone': 'Teléfono', 'Address': 'Dirección',
   });
 
+  pmI18n.add({}, [
+    [/^Your free trial has (\d+) days? left\. You have extra AI use until it ends\. Choose a plan to keep it\.$/, function (a, n) { return 'Su prueba gratis tiene ' + n + (n === '1' ? ' día' : ' días') + ' restantes. Tiene más uso de IA hasta que termine. Elija un plan para conservarlo.'; }],
+  ]);
+
   pmI18n.start();
 })();

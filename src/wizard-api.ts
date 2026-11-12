@@ -545,7 +545,7 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
 
   if (b.action === "note") {
     if (kind !== "invoice") return json({ error: "Unknown action." }, 400);
-    const company = await env.DB.prepare("SELECT id, plan FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string }>();
+    const company = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string; createdAt?: string }>();
     if (!company) return json({ error: "Not found." }, 404);
     const used = await consume(env, company, "ai_invoice");
     if (!used.allowed) {
@@ -645,7 +645,7 @@ export async function handleAssistant(request: Request, env: Env): Promise<Respo
     context = Number.isInteger(jobId) ? await buildJobContext(env, user.companyId, jobId) : null;
     if (!context) return json({ error: "Job not found." }, 404);
   }
-  const company = await env.DB.prepare("SELECT id, plan FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string }>();
+  const company = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string; createdAt?: string }>();
   if (!company) return json({ error: "Not found." }, 404);
   const used = await consume(env, company, "ai_assistant");
   if (!used.allowed) {

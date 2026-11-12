@@ -203,7 +203,7 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
   } catch {
     return json({ error: "Invalid JSON." }, 400);
   }
-  const company = await env.DB.prepare("SELECT id, plan FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string }>();
+  const company = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string; createdAt?: string }>();
   if (!company) return json({ error: "Not found." }, 404);
 
   if (b?.action === "delete") {

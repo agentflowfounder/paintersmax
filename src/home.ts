@@ -1,6 +1,7 @@
 import { getSessionUser } from "./auth.ts";
 import { coverageFor, sanitizeSummary } from "./insurance.ts";
 import { pastDueKey } from "./stripe.ts";
+import { trialDaysLeft } from "./usage.ts";
 import type { Env } from "./types.ts";
 
 /** GET /api/home: real numbers for the painter's Home screen. Nothing is estimated. All counts come from this company's own records. */
@@ -66,6 +67,9 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     }
   }
   const pastDue = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(pastDueKey(c)).first<{ value: string }>().catch(() => null);
+  const co = await env.DB.prepare("SELECT plan, created_at AS createdAt FROM companies WHERE id = ?").bind(c).first<{ plan: string; createdAt: string }>().catch(() => null);
+  const trial = co ? trialDaysLeft(co) : 0;
+  if (trial > 0) attention.unshift({ type: "billing", link: "/dashboard#billing", text: `Your free trial has ${trial} day${trial === 1 ? "" : "s"} left. You have extra AI use until it ends. Choose a plan to keep it.` });
   if (pastDue) attention.unshift({ type: "billing", link: "/dashboard#billing", text: "Your last PaintersMax payment did not go through. Update your card so your plan stays active." });
   if (!policy) {
     attention.push({
