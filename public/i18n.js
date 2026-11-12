@@ -629,6 +629,20 @@
     'See plans': 'Ver planes',
   });
 
+  pmI18n.add({
+    'Add a city': 'Agregar una ciudad',
+    'Add a city or ZIP code': 'Agregar una ciudad o código postal',
+    'Add': 'Agregar',
+    'Pro: you can pick cities by ZIP code.': 'Pro: puede elegir ciudades por código postal.',
+    'ZIP code selection is on the Pro plan.': 'La selección por código postal está en el plan Pro.',
+    'No nearby cities found yet. Add your company address first, or type a city above.': 'Aún no hay ciudades cercanas. Agregue primero la dirección de su empresa, o escriba una ciudad arriba.',
+  });
+
+  pmI18n.add({}, [
+    [/^(\d+) of (\d+) cities chosen$/, function (a, n, m) { return n + ' de ' + m + ' ciudades elegidas'; }],
+    [/^Up to (\d+) miles from your address\.$/, function (a, n) { return 'Hasta ' + n + ' millas de su dirección.'; }],
+  ]);
+
   pmI18n.add({}, [
     [/^Your free trial has (\d+) days? left\. You have extra AI use until it ends\. Choose a plan to keep it\.$/, function (a, n) { return 'Su prueba gratis tiene ' + n + (n === '1' ? ' día' : ' días') + ' restantes. Tiene más uso de IA hasta que termine. Elija un plan para conservarlo.'; }],
   ]);

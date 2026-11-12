@@ -19,6 +19,7 @@ import { handleSchedule, scheduledJobs } from "./schedule.ts";
 import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
 import { handleCatalog } from "./ratecatalog.ts";
+import { handleCities, refreshStaleCities } from "./cities.ts";
 import { handleMaterials, loadMaterials, renderPublicMaterials } from "./materials.ts";
 import { handleRateCardDoc } from "./ratecardpdf.ts";
 import { handleRateSheetPage, handleRateSheets } from "./ratesheets.ts";
@@ -367,6 +368,7 @@ export default {
     ctx.waitUntil(sendChatDigests(env).catch((err) => console.error("chat digest failed", String(err))));
     ctx.waitUntil(sendInvoiceReminders(env).catch((err) => console.error("invoice reminders failed", String(err))));
     ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
+    ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { pathname, hostname } = new URL(request.url);
@@ -568,6 +570,14 @@ export default {
     }
     if (pathname === "/painting-materials" && request.method === "GET") {
       return new Response(renderPublicMaterials(await loadMaterials(env)), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
+    }
+    if (pathname === "/api/cities") {
+      try {
+        return await handleCities(request, env);
+      } catch (err) {
+        console.error("cities failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
     }
     if (pathname === "/api/catalog") {
       try {

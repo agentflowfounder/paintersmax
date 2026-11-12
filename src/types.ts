@@ -19,6 +19,8 @@ export interface Env {
   AI_KILL_SWITCH?: string; // set to "1" to stop all metered AI features at once
   STRIPE_SECRET_KEY?: string; // sk_test_... while testing; secret, never in the repo
   STRIPE_WEBHOOK_SECRET?: string; // whsec_... from the Stripe webhook endpoint; secret
+  GOOGLE_MAPS_BROWSER_KEY?: string; // public by design; locked to our websites in Google Cloud
+  GOOGLE_MAPS_SERVER_KEY?: string; // secret: geocoding and weather, never sent to a browser
   GOOGLE_CLIENT_ID?: string; // from Google Cloud Console (OAuth client)
   GOOGLE_CLIENT_SECRET?: string; // secret, never in the repo
   GOOGLE_REDIRECT_BASE?: string; // canonical site address, default https://paintersmax.app

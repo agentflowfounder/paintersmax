@@ -40,6 +40,8 @@ export interface Profile {
   company: { legalName?: string; phone?: string; email?: string; address?: string; city?: string; state?: string; zip?: string; license?: string; website?: string };
   trades: Trade[];
   cities: string[];
+  /** Keys of rows in the shared cities table, in the same order as `cities`. */
+  cityKeys: string[];
   insurance: { carrier?: string; coverage?: string; expires?: string; shareSummary?: boolean };
   labor: { crewSize?: number; hourlyRate?: number; helperRate?: number; markupPct?: number; overheadPct?: number; minimumJob?: number; depositPct?: number; paymentTerms?: string };
   warranty: { laborMonths?: number; text?: string; exclusions?: string };
@@ -81,6 +83,7 @@ export function sanitizeProfile(input: any, plan: string): Profile {
     },
     trades,
     cities,
+    cityKeys: Array.isArray(input?.cityKeys) ? Array.from(new Set(input.cityKeys.map((x: unknown) => str(x, 70)).filter((k: string) => /^[a-z]{2}-[a-z0-9-]{1,60}$/.test(k)))).slice(0, caps.cities) as string[] : [],
     insurance: {
       carrier: str(ins.carrier, 120) || undefined,
       coverage: str(ins.coverage, 200) || undefined,

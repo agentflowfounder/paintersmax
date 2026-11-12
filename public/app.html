@@ -234,7 +234,7 @@ function view(){
    <label>Website (https://...)</label><input id="website" value="${val(c,'website')}"></div>`;
   if(k==='services')h=`<h2>What services do you offer?</h2><p class="lead">Choose the work you do. Your plan (${esc(S.plan)}) includes up to <b>${S.caps.services}</b> services. You can change this any time.</p><div class="card"><b>Services</b>
    ${Object.keys(TRADE_LABELS).map(t=>`<label class="chk"><input type="checkbox" class="trade" value="${t}" ${p.trades.includes(t)?'checked':''}> ${esc(TRADE_LABELS[t])}</label>`).join('')}</div>`;
-  if(k==='cities')h=`<h2>Cities you serve</h2><p class="lead">Your plan (${esc(S.plan)}) includes up to <b>${S.caps.cities}</b> cities. These show on your quote page and help us set rates for your market.</p><div class="card"><label>Cities you serve (separate with commas)</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div>`;
+  if(k==='cities')h=`<h2>Cities you serve</h2><p class="lead">Your plan (${esc(S.plan)}) includes up to <b>${S.caps.cities}</b> cities. These show on your quote page, become your city pages, and help us set rates for your market.</p><div id="cityBox"><div class="card"><label>Cities you serve (separate with commas)</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div></div>`;
   if(k==='pricing'){
     const mk=curTier(),pw=!((p.ratecard||{}).hidePreparedWith);
     h=`<h2>Your prices</h2><p class="lead">Your rate card is your price list. We fill in starting rates for you, so you can keep them or change any number. PaintersMax uses them for every estimate, and you can adjust any job.</p>
@@ -272,7 +272,62 @@ function view(){
    <li>Warranty: ${esc((p.warranty||{}).laborMonths||'?')} months labor${ed(5)}</li></ul></div>
    <div class="card"><b>What happens next</b><p>When you finish, you go to your dashboard. Your prices fill in your estimates, and you can build your first job from Jobs.</p></div>`;}
   $('view').innerHTML=h;msg('');
+  CM.on=false;if(k==='cities')loadCities();
 }
+
+// ---- cities map ----
+const CM={on:false,sel:[],list:[],data:null,map:null,mk:{}};
+function cmSel(key){return CM.sel.some(c=>c.key===key);}
+function cmDraw(){
+  const D=CM.data,box=$('cityBox');if(!box||!D)return;
+  const rows=CM.list.map(c=>`<label class="chk"><input type="checkbox" class="cityck" value="${esc(c.key)}" ${cmSel(c.key)?'checked':''}> ${esc(c.name)}, ${esc(c.state)} <small>&middot; ${c.miles!=null?c.miles+' mi':''}</small></label>`).join('');
+  box.innerHTML=`<div class="card"><div id="cmap" style="height:260px;border-radius:8px;background:#eceae4"></div>
+   <p class="muted" id="cmcount"></p>
+   <label>Add a city${D.zipSearch?' or ZIP code':''}</label><div class="row"><input id="cadd" placeholder="${D.zipSearch?'Plano or 75024':'Plano'}"><button class="btn sec" type="button" id="caddbtn">Add</button></div>
+   <small>${D.zipSearch?'Pro: you can pick cities by ZIP code.':'ZIP code selection is on the Pro plan.'} Up to ${D.radius} miles from your address.</small>
+   <div style="margin-top:10px">${rows||'<small>No nearby cities found yet. Add your company address first, or type a city above.</small>'}</div></div>`;
+  cmCount();cmMap();
+}
+function cmCount(){const e=$('cmcount');if(e)e.textContent=CM.sel.length+' of '+CM.data.cap+' cities chosen';}
+function cmMap(){
+  const D=CM.data;if(!D.browserKey||!D.base||!$('cmap'))return;
+  const go=()=>{try{
+    const g=window.google.maps;CM.map=new g.Map($('cmap'),{center:{lat:D.base.lat,lng:D.base.lng},zoom:8,mapTypeControl:false,streetViewControl:false});
+    new g.Circle({map:CM.map,center:{lat:D.base.lat,lng:D.base.lng},radius:D.radius*1609.34,strokeColor:'#E8A33D',fillColor:'#E8A33D',fillOpacity:.08,strokeWeight:2});
+    CM.mk={};CM.list.forEach(c=>{CM.mk[c.key]=new g.Marker({map:CM.map,position:{lat:c.lat,lng:c.lng},title:c.name,opacity:cmSel(c.key)?1:.45});});
+  }catch(e){}};
+  if(window.google&&window.google.maps)return go();
+  window.__cmInit=go;const sc=document.createElement('script');sc.async=true;sc.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(D.browserKey)+'&callback=__cmInit';document.head.appendChild(sc);
+}
+async function loadCities(){
+  try{
+    const D=await api('/api/cities');
+    if(!D||!D.configured||!$('cityBox'))return;
+    CM.data=D;CM.on=true;
+    const have=new Map();(D.chosen||[]).forEach(c=>have.set(c.key,c));
+    CM.sel=(D.chosen||[]).slice(0,D.cap);
+    CM.list=[...(D.chosen||[]).map(c=>({...c,miles:null})),...(D.nearby||[]).filter(c=>!have.has(c.key))];
+    cmDraw();
+  }catch(e){}
+}
+document.addEventListener('change',e=>{
+  const c=e.target.closest('.cityck');if(!c)return;
+  const city=CM.list.find(x=>x.key===c.value);if(!city)return;
+  if(c.checked){if(CM.sel.length>=CM.data.cap){c.checked=false;msg('Your plan includes up to '+CM.data.cap+' cities.');return;}CM.sel.push(city);}
+  else CM.sel=CM.sel.filter(x=>x.key!==c.value);
+  if(CM.mk[c.value])CM.mk[c.value].setOpacity(c.checked?1:.45);
+  cmCount();msg('');
+});
+document.addEventListener('click',async e=>{
+  if(e.target.id!=='caddbtn')return;
+  const q=$('cadd').value.trim();if(!q)return;
+  try{
+    const j=await api('/api/cities',{action:'add',query:q});
+    if(!CM.list.some(x=>x.key===j.city.key))CM.list.unshift(j.city);
+    if(!cmSel(j.city.key)){if(CM.sel.length>=CM.data.cap){msg('Your plan includes up to '+CM.data.cap+' cities. Untick one first.');cmDraw();return;}CM.sel.push(j.city);}
+    cmDraw();msg('');
+  }catch(x){if(x)msg(x.message||'Could not add that city.');}
+});
 
 // ---- collect and save ----
 function collect(){
@@ -280,7 +335,9 @@ function collect(){
   if(k==='company')p.company={legalName:g('legalName'),phone:g('phone'),email:g('email'),address:g('address'),city:g('city'),state:g('state'),zip:g('zip'),license:g('license'),website:g('website')};
   if(k==='services'){p.trades=[...document.querySelectorAll('.trade:checked')].map(e=>e.value);
     if(p.trades.length>S.caps.services)throw new Error('Your plan includes up to '+S.caps.services+' services.');}
-  if(k==='cities'){p.cities=g('cities').split(',').map(s=>s.trim()).filter(Boolean);
+  if(k==='cities'){
+    if(CM.on){p.cityKeys=CM.sel.map(c=>c.key);p.cities=CM.sel.map(c=>c.name+', '+c.state);}
+    else{p.cities=g('cities').split(',').map(s=>s.trim()).filter(Boolean);}
     if(p.cities.length>S.caps.cities)throw new Error('Your plan includes up to '+S.caps.cities+' cities.');}
   if(k==='pricing'){p.market={tier:g('mk')||curTier()};p.ratecard={hidePreparedWith:$('pw')?!$('pw').checked:(p.ratecard||{}).hidePreparedWith};}
   if(k==='labor')p.labor={crewSize:g('crewSize'),hourlyRate:g('hourlyRate'),helperRate:g('helperRate'),minimumJob:g('minimumJob'),markupPct:g('markupPct'),overheadPct:g('overheadPct'),depositPct:g('depositPct'),paymentTerms:g('paymentTerms')};
