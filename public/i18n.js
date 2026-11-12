@@ -524,6 +524,8 @@
     'Save': 'Guardar', 'Saved.': 'Guardado.', 'Remove from calendar': 'Quitar del calendario', 'Open the job': 'Abrir el trabajo', 'Remove this job from the calendar?': '¿Quitar este trabajo del calendario?', 'is also booked on': 'también está asignado a', 'Saved, but check this:': 'Guardado, pero revise esto:', 'Today': 'Hoy',
     'Sun': 'Dom', 'Mon': 'Lun', 'Tue': 'Mar', 'Wed': 'Mié', 'Thu': 'Jue', 'Fri': 'Vie', 'Sat': 'Sáb',
     'Pick a valid start date.': 'Elija una fecha de inicio válida.', 'Pick a valid end date.': 'Elija una fecha de fin válida.', 'The end date cannot be before the start date.': 'La fecha de fin no puede ser anterior a la de inicio.', 'A job block can be at most 120 days.': 'Un trabajo puede durar como máximo 120 días.',
+    'Crew contacts': 'Contactos del equipo', 'Save crew contacts': 'Guardar contactos del equipo', 'Crew contacts saved.': 'Contactos del equipo guardados.', 'Email the crew this schedule': 'Enviar este horario al equipo por correo', 'Emailed:': 'Enviado a:', 'No email on file for:': 'Sin correo registrado para:', 'Could not email:': 'No se pudo enviar a:',
+    'Google Calendar feed': 'Calendario para Google Calendar', 'Copy link': 'Copiar enlace', 'New link ready. Add it to your calendar again.': 'Enlace nuevo listo. Agréguelo de nuevo a su calendario.',
     'Name': 'Nombre', 'Email': 'Correo', 'Phone': 'Teléfono', 'Address': 'Dirección',
   });
 

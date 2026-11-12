@@ -15,7 +15,8 @@ import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import { readSettings, renderQuotePage, sanitize, tenantFromHost } from "./settings.ts";
 import { handleImport } from "./import.ts";
-import { handleSchedule } from "./schedule.ts";
+import { handleSchedule, scheduledJobs } from "./schedule.ts";
+import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
 import { handlePortalManage, handlePortalPage } from "./portal.ts";
 import { sendInvoiceReminders } from "./reminders.ts";
@@ -494,6 +495,22 @@ export default {
         return await handlePortalPage(request, env);
       } catch (err) {
         console.error("portal page failed", String(err));
+        return new Response("Something went wrong.", { status: 500 });
+      }
+    }
+    if (pathname === "/api/calsettings") {
+      try {
+        return await handleCalSettings(request, env);
+      } catch (err) {
+        console.error("calsettings failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname.startsWith("/cal/")) {
+      try {
+        return await handleFeed(request, env, (id) => scheduledJobs(env, id));
+      } catch (err) {
+        console.error("calendar feed failed", String(err));
         return new Response("Something went wrong.", { status: 500 });
       }
     }

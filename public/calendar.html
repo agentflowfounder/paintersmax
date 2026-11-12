@@ -30,6 +30,10 @@ label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}input,texta
 <div class="card"><div class="bar"><button class="s" id="prev">&larr;</button><b id="mon"></b><button class="s" id="next">&rarr;</button><button class="s" id="today">Today</button></div>
 <div class="g" id="dow"></div><div class="g" id="grid"></div></div>
 <div class="card" id="edit" style="display:none"></div>
+<div class="card"><b>Crew contacts</b><p class="muted" style="margin:4px 0 6px">One person per line: name, email, phone. Add <code>es</code> at the end to send that person Spanish emails. Emails go out only when you tick "Email the crew" while saving a job's dates. Text messages are not available yet.</p>
+<textarea id="crew_t" rows="4" placeholder="Luis, luis@example.com, 214-555-0101, es"></textarea><div style="margin-top:8px"><button class="s" id="crew_save">Save crew contacts</button></div></div>
+<div class="card"><b>Google Calendar feed</b><p class="muted" style="margin:4px 0 6px">Add your schedule to Google Calendar, Apple Calendar or Outlook. In Google Calendar on a computer: Other calendars, the plus sign, From URL, paste this link. Updates can take several hours to appear. Anyone with the link can see your job addresses, so do not share it.</p>
+<input id="feed" readonly onclick="this.select()"><div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="s" id="feed_copy">Copy link</button><button class="d" id="feed_reset">Make a new link</button></div></div>
 <div class="card"><b>Needs a date</b><p class="muted" style="margin:4px 0 6px">Jobs with a contract or already scheduled, but no dates yet.</p><div id="nd"></div></div>
 </main>
 <script>
@@ -62,6 +66,7 @@ function openEdit(id,fresh){
  '<div class="row"><div><label>'+T('Start date')+'</label><input type="date" id="e_s" value="'+esc(s.start)+'"></div><div><label>'+T('End date')+'</label><input type="date" id="e_e" value="'+esc(s.end)+'"></div><div><label>'+T('Start time')+'</label><input type="time" id="e_t" value="'+esc(s.startTime)+'"></div></div>'+
  '<label>'+T('Crew (names, separated by commas)')+'</label><input id="e_c" value="'+esc(s.crew.join(', '))+'" list="crewl" placeholder="Luis, Ana"><datalist id="crewl">'+crew.map(function(c){return'<option value="'+esc(c)+'">'}).join('')+'</datalist>'+
  '<label>'+T('Notes for the crew')+'</label><textarea id="e_n" rows="2">'+esc(s.notes)+'</textarea>'+
+ '<label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" id="e_mail" style="width:auto"> '+T('Email the crew this schedule')+'</label>'+
  '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="e_save" data-id="'+id+'">'+T('Save')+'</button>'+(j?'<button class="d" id="e_clr" data-id="'+id+'">'+T('Remove from calendar')+'</button>':'')+'<a href="/jobs?id='+id+'" style="align-self:center">'+T('Open the job')+'</a></div><div id="e_msg" style="margin-top:8px"></div>';
  $('edit').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -69,9 +74,14 @@ document.addEventListener('click',function(e){var t=e.target,d=t.dataset||{};
  if(d.job)openEdit(+d.job);else if(d.need)openEdit(+d.need,true);
  else if(t.id==='prev'){view.setMonth(view.getMonth()-1);draw();}else if(t.id==='next'){view.setMonth(view.getMonth()+1);draw();}
  else if(t.id==='today'){view=new Date();view.setDate(1);draw();}
- else if(t.id==='e_save'){var body={jobId:+d.id,start:$('e_s').value,end:$('e_e').value,startTime:$('e_t').value,crew:$('e_c').value.split(','),notes:$('e_n').value};
-  api('/api/schedule',body).then(function(r){var c=(r.conflicts||[]).map(function(x){return x.crew+' '+T('is also booked on')+' '+x.title});load().then(function(){$('e_msg').className=c.length?'bad':'ok';$('e_msg').textContent=c.length?T('Saved, but check this:')+' '+c.join('; '):T('Saved.');});}).catch(function(x){if(x){$('e_msg').className='bad';$('e_msg').textContent=T(x.message);}});}
+ else if(t.id==='e_save'){var body={jobId:+d.id,start:$('e_s').value,end:$('e_e').value,startTime:$('e_t').value,crew:$('e_c').value.split(','),notes:$('e_n').value,notify:$('e_mail').checked};
+  api('/api/schedule',body).then(function(r){var c=(r.conflicts||[]).map(function(x){return x.crew+' '+T('is also booked on')+' '+x.title});var n=r.notified,extra='';if(n){if(n.emailed.length)extra+=' '+T('Emailed:')+' '+n.emailed.join(', ')+'.';if(n.noEmail.length)extra+=' '+T('No email on file for:')+' '+n.noEmail.join(', ')+'.';if(n.failed.length)extra+=' '+T('Could not email:')+' '+n.failed.join(', ')+'.';}load().then(function(){$('e_msg').className=c.length||(n&&(n.noEmail.length||n.failed.length))?'bad':'ok';$('e_msg').textContent=(c.length?T('Saved, but check this:')+' '+c.join('; '):T('Saved.'))+extra;});}).catch(function(x){if(x){$('e_msg').className='bad';$('e_msg').textContent=T(x.message);}});}
  else if(t.id==='e_clr'){if(!confirm(T('Remove this job from the calendar?')))return;api('/api/schedule',{jobId:+d.id,clear:true}).then(function(){$('edit').style.display='none';load();});}
 });
+function loadSet(){return api('/api/calsettings').then(function(d){$('feed').value=d.feedUrl;$('crew_t').value=d.crew;});}
+$('crew_save').onclick=function(){api('/api/calsettings',{crew:$('crew_t').value}).then(function(d){$('crew_t').value=d.crew;msg(T('Crew contacts saved.'),'ok');}).catch(function(x){if(x)msg(T(x.message),'bad');});};
+$('feed_copy').onclick=function(){var f=$('feed');f.select();try{navigator.clipboard.writeText(f.value);msg(T('Copied.'),'ok');}catch(e){msg(T('Press Ctrl+C or Command+C to copy.'));}};
+$('feed_reset').onclick=function(){if(!confirm(T('The old link will stop working. Continue?')))return;api('/api/calsettings',{action:'feed_reset'}).then(function(d){$('feed').value=d.feedUrl;msg(T('New link ready. Add it to your calendar again.'),'ok');});};
+loadSet().catch(function(){});
 load().catch(function(x){if(x)msg(T(x.message),'bad');});
 </script></body></html>

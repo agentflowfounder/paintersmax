@@ -1,5 +1,6 @@
 import { getSessionUser } from "./auth.ts";
 import { addJobEvent } from "./crm.ts";
+import { loadCrew, notifyCrew } from "./calfeed.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -63,7 +64,7 @@ const parse = (s: string | null | undefined) => {
   }
 };
 
-async function scheduledJobs(env: Env, companyId: number) {
+export async function scheduledJobs(env: Env, companyId: number) {
   const { results } = await env.DB.prepare(
     `SELECT j.id, j.title, j.stage, j.data, cu.name AS customer, p.address, p.city
        FROM jobs j JOIN customers cu ON cu.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id
@@ -110,7 +111,14 @@ export async function handleSchedule(request: Request, env: Env): Promise<Respon
     await addJobEvent(env, user.companyId, jobId, "note", `Scheduled ${c.schedule.start}${c.schedule.end !== c.schedule.start ? " to " + c.schedule.end : ""}${c.schedule.crew.length ? ", crew: " + c.schedule.crew.join(", ") : ""}.`);
     const all = await scheduledJobs(env, user.companyId);
     const conflicts = findConflicts({ jobId, start: c.schedule.start, end: c.schedule.end, crew: c.schedule.crew }, all);
-    return json({ ok: true, conflicts });
+    let notified: { emailed: string[]; noEmail: string[]; failed: string[] } | undefined;
+    if (b?.notify === true && c.schedule.crew.length) {
+      const me = await env.DB.prepare("SELECT co.name, co.notify_email FROM companies co WHERE co.id = ?").bind(user.companyId).first<{ name: string; notify_email: string | null }>();
+      const job2 = all.find((x) => x.jobId === jobId);
+      if (me && job2) notified = await notifyCrew(env, { name: me.name, replyTo: me.notify_email || user.email }, job2, await loadCrew(env, user.companyId));
+      if (notified?.emailed.length) await addJobEvent(env, user.companyId, jobId, "note", `Schedule emailed to crew: ${notified.emailed.join(", ")}.`);
+    }
+    return json({ ok: true, conflicts, notified });
   }
 
   const scheduled = await scheduledJobs(env, user.companyId);
