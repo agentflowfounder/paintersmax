@@ -30,6 +30,14 @@ small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#
 <div class="card"><small>Starting rates are multiplied by these numbers for each client's market. 1.00 is the average market. These are my starting guesses, not market data: change them as you learn what your clients see. Allowed range 0.50 to 2.00.</small>
 <div class="row"><div><label>High-cost market</label><input id="mk_high" inputmode="decimal"></div><div><label>Average market</label><input id="mk_average" inputmode="decimal"></div><div><label>Lower-cost or rural</label><input id="mk_low" inputmode="decimal"></div></div>
 <div><button class="btn" id="mk_save">Save market levels</button></div></div>
+<h2>Materials list</h2>
+<div class="card"><small>The list painters see at /materials and everyone sees at paintersmax.app/painting-materials. Add a photo address (https) and a how-to for each item. Add buy links one per line as: Label | https://link | affiliate (write the word affiliate only if it is an affiliate link). The affiliate disclosure appears only when at least one link is marked affiliate. Photo uploads will come after R2 is on.</small>
+<div class="row"><div><label>Group</label><input id="m_group" placeholder="Brushes and rollers"></div><div><label>Name</label><input id="m_name"></div></div>
+<label>What it is for</label><textarea id="m_why" rows="2"></textarea><label>How to use it</label><textarea id="m_how" rows="2"></textarea>
+<div class="row"><div><label>Photo address (https)</label><input id="m_photo"></div><div><label>Importance</label><select id="m_need"><option value="essential">Essential</option><option value="recommended">Nice to have</option></select></div></div>
+<label>Buy links</label><textarea id="m_links" rows="2" placeholder="Buy at Store | https://example.com/item | affiliate"></textarea>
+<div><button class="btn" id="m_save">Save item</button> <button class="btn" id="m_clear" style="background:#eceae4;color:#0F1B2D">New item</button> <button class="btn" id="m_reset" style="background:#fbe9e7;color:#b42318">Reset to starting list</button></div>
+<div id="m_list" style="margin-top:10px"></div></div>
 <h2>Client domains</h2>
 <div class="card"><small>For a client with their own domain: add the domain to your Cloudflare account, add it to the paintersmax-site worker (Workers, Settings, Domains and Routes, Add custom domain), then connect it here. Add both the bare domain and the www version if you want both. The client still signs in at paintersmax.app.</small>
 <div class="row"><div><label>Domain</label><input id="dm_host" placeholder="rivera-painting.com"></div><div><label>Client</label><select id="dm_slug"></select></div></div>
@@ -67,7 +75,18 @@ document.addEventListener('click',async e=>{const h=e.target.dataset&&e.target.d
 $('dm_add').onclick=async()=>{try{msg('');await api('/api/admin',{action:'domain_set',host:$('dm_host').value,slug:$('dm_slug').value});$('dm_host').value='';msg('Domain connected.',true);dmLoad();}catch(x){if(x)msg(x.message);}};
 async function mkLoad(){try{const v=await api('/api/admin?markets=1');['high','average','low'].forEach(k=>{$('mk_'+k).value=v.markets[k];});}catch(e){}}
 $('mk_save').onclick=async()=>{try{msg('');const r=await api('/api/admin',{action:'markets_set',markets:{high:$('mk_high').value,average:$('mk_average').value,low:$('mk_low').value}});['high','average','low'].forEach(k=>{$('mk_'+k).value=r.markets[k];});msg('Market levels saved.',true);}catch(x){if(x)msg(x.message);}};
+let MAT=[],MID='';
+function mClear(){MID='';['group','name','why','how','photo','links'].forEach(k=>$('m_'+k).value='');$('m_need').value='essential';}
+async function mLoad(){try{const v=await api('/api/materials');MAT=v.items;$('m_list').innerHTML=MAT.map(m=>`<div class="c"><div><b>${esc(m.name)}</b> <small>${esc(m.group)}${m.links.length?' &middot; '+m.links.length+' link(s)':''}${m.photo?' &middot; photo':''}</small></div><span><button class="btn" data-me="${esc(m.id)}">Edit</button> <button class="btn" data-md="${esc(m.id)}">Delete</button></span></div>`).join('');}catch(e){}}
+$('m_save').onclick=async()=>{try{msg('');const links=$('m_links').value.split('\n').map(l=>l.split('|').map(x=>x.trim())).filter(a=>a[1]).map(a=>({label:a[0],url:a[1],affiliate:/affiliate/i.test(a[2]||'')}));
+ await api('/api/materials',{action:'save',item:{id:MID||undefined,group:$('m_group').value,name:$('m_name').value,why:$('m_why').value,how:$('m_how').value,photo:$('m_photo').value,need:$('m_need').value,links}});mClear();msg('Item saved.',true);mLoad();}catch(x){if(x)msg(x.message);}};
+$('m_clear').onclick=mClear;
+$('m_reset').onclick=async()=>{if(!confirm('Replace the whole list with the starting list? Your edits are lost.'))return;try{await api('/api/materials',{action:'reset'});mClear();msg('Reset.',true);mLoad();}catch(x){if(x)msg(x.message);}};
+document.addEventListener('click',async e=>{const d=e.target.dataset||{};
+ if(d.me){const m=MAT.find(x=>x.id===d.me);MID=m.id;$('m_group').value=m.group;$('m_name').value=m.name;$('m_why').value=m.why;$('m_how').value=m.how;$('m_photo').value=m.photo;$('m_need').value=m.need;$('m_links').value=m.links.map(l=>l.label+' | '+l.url+(l.affiliate?' | affiliate':'')).join('\n');window.scrollTo(0,$('m_group').offsetTop-80);}
+ if(d.md){if(!confirm('Delete this item?'))return;try{await api('/api/materials',{action:'delete',id:d.md});msg('Deleted.',true);mLoad();}catch(x){if(x)msg(x.message);}}});
 tkLoad();
+mLoad();
 mkLoad();
 dmLoad();
 load();

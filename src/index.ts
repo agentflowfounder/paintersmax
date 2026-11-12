@@ -19,6 +19,7 @@ import { handleSchedule, scheduledJobs } from "./schedule.ts";
 import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
 import { handleCatalog } from "./ratecatalog.ts";
+import { handleMaterials, loadMaterials, renderPublicMaterials } from "./materials.ts";
 import { handleRateCardDoc } from "./ratecardpdf.ts";
 import { handleRateSheetPage, handleRateSheets } from "./ratesheets.ts";
 import { handlePortalManage, handlePortalPage } from "./portal.ts";
@@ -556,6 +557,17 @@ export default {
         console.error("ratesheets failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
+    }
+    if (pathname === "/api/materials") {
+      try {
+        return await handleMaterials(request, env);
+      } catch (err) {
+        console.error("materials failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/painting-materials" && request.method === "GET") {
+      return new Response(renderPublicMaterials(await loadMaterials(env)), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
     }
     if (pathname === "/api/catalog") {
       try {
