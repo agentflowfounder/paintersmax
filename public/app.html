@@ -34,6 +34,7 @@ details.grp>summary{cursor:pointer;padding:10px 12px;font-weight:700;font-size:1
 .done-card{background:#eaf6ee;border:1px solid #b7dfc3;border-radius:10px;padding:16px;margin:0 0 14px}
 h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 4px;font-size:26px}
 p.lead{color:#4A5568;margin:0 0 16px}
+.coach{background:#fff8e6;border-left:4px solid #E8A33D;border-radius:6px;padding:10px 12px;margin:0 0 14px;font-size:14px}
 .card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
 label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
 input,select,textarea{width:100%;padding:12px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
@@ -274,7 +275,55 @@ function view(){
    <div class="card"><b>What happens next</b><p>When you finish, you go to your dashboard. Your prices fill in your estimates, and you can build your first job from Jobs.</p></div>`;}
   $('view').innerHTML=h;msg('');
   CM.on=false;if(k==='cities')loadCities();if(k==='review')loadPreview();
+  const ld=$('view').querySelector('p.lead')||$('view').querySelector('h2');if(ld)ld.insertAdjacentHTML('afterend','<div class="coach" id="coach" hidden></div>');updateCoach();
 }
+
+// ---- coach lines: one short, honest tip per step, based on what is on screen right now ----
+function coachText(k){
+  const v=id=>{const e=$(id);return e?e.value.trim():'';},num=id=>Number(v(id).replace(/[^0-9.]/g,''))||0;
+  if(k==='company'){
+    if(!v('legalName'))return 'Start with your company name. It appears on every estimate and contract.';
+    if(!v('phone')&&!v('email'))return 'Add a phone and email. Customers reply to them and they show in your customer portal.';
+    if(!v('phone'))return 'Add a phone number so customers can reach you quickly from an estimate.';
+    if(!v('email'))return 'Add an email. Customer replies to estimates go here.';
+    return 'Looks good. You only type this once and we use it everywhere.';
+  }
+  if(k==='services'){
+    const t=[...document.querySelectorAll('.trade:checked')].map(e=>e.value),cap=S.caps.services;
+    if(!t.length)return 'Choose the work you do. You can change this any time.';
+    if(t.length>=cap)return 'You have used all '+cap+' service'+(cap===1?'':'s')+' on your plan.';
+    if(t.includes('exterior')&&!t.includes('power_washing'))return 'Exterior jobs usually start with washing the surface, so power washing is a natural one to add.';
+    return 'Each service gets its own price list on the Your prices step.';
+  }
+  if(k==='cities'){
+    const n=CM.on?CM.sel.length:v('cities').split(',').filter(s=>s.trim()).length,cap=S.caps.cities;
+    if(!n)return 'Pick the cities you work in. Each one can get its own page on your website.';
+    if(n>=cap)return 'You have used all '+cap+' cit'+(cap===1?'y':'ies')+' on your plan.';
+    return n+' of '+cap+' chosen. Each city can get its own page on your website.';
+  }
+  if(k==='pricing'){
+    const all=[...document.querySelectorAll('input[data-k]')],pr=all.filter(i=>Number(i.value)>0).length;
+    if(!all.length)return '';
+    if(!pr)return 'Pick Value, Standard or Premium above to fill in starting prices. You can change every number.';
+    if(pr<all.length)return 'You have priced '+pr+' of '+all.length+' items. Items without a price are left off estimates until you add one.';
+    return 'Every item has a price. Check the example under each list to see what a real job comes to.';
+  }
+  if(k==='labor'){
+    const dep=num('depositPct'),hr=num('hourlyRate');
+    if(dep>50)return 'A deposit above 50% is high. Some states also limit deposits on home improvement work, so check your state\'s rule.';
+    if(hr>0&&hr<25)return 'Use your loaded rate: wages plus taxes, insurance and benefits, not just what you pay the painter.';
+    if(!hr&&!dep)return 'Your hourly rate and deposit help the assistant and your estimates. You can edit any estimate before it goes out.';
+    return 'Good. Every number here can still be changed on a single job.';
+  }
+  if(k==='extras'){
+    if(!v('carrier'))return 'Insurance is optional here, but customers and builders often ask for proof. You can add it later on the Insurance page.';
+    return 'Good. Upload the policy on the Insurance page so we can check whether each job looks covered.';
+  }
+  if(k==='review')return 'Last look. You can come back to any step later.';
+  return '';
+}
+function updateCoach(){const e=$('coach');if(!e)return;const t=coachText(STEPS[S.step]);e.hidden=!t;e.textContent=t;}
+document.addEventListener('input',updateCoach);document.addEventListener('change',updateCoach);
 
 // ---- estimate preview ----
 async function loadPreview(){

@@ -3,6 +3,8 @@ import { coverageFor, sanitizeSummary } from "./insurance.ts";
 import { pastDueKey } from "./stripe.ts";
 import { trialDaysLeft } from "./usage.ts";
 import { buildProgress } from "./progress.ts";
+import { buildNudges, SNOOZE_DAYS } from "./nudges.ts";
+import { effectivePlan } from "./usage.ts";
 import type { Env } from "./types.ts";
 
 /** GET /api/home: real numbers for the painter's Home screen. Nothing is estimated. All counts come from this company's own records. */
@@ -29,6 +31,19 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
       body = await request.json();
     } catch {
       return json({ error: "Invalid JSON." }, 400);
+    }
+    if (typeof body?.snooze === "string" && /^[a-z_]{3,30}$/.test(body.snooze)) {
+      const key = `nudge:${c}`;
+      const cur = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(key).first<{ value: string }>();
+      let m: Record<string, string> = {};
+      try {
+        m = cur ? JSON.parse(cur.value) : {};
+      } catch {
+        m = {};
+      }
+      m[body.snooze] = new Date(Date.now() + SNOOZE_DAYS * 86400000).toISOString();
+      await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')").bind(key, JSON.stringify(m)).run();
+      return json({ ok: true });
     }
     if (body?.dismiss !== "setup") return json({ error: "Not found." }, 404);
     const row = await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(c).first<{ data: string }>();
@@ -72,7 +87,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     env.DB.prepare("SELECT summary FROM insurance_policies WHERE company_id = ?").bind(c).first<{ summary: string }>().catch(() => null),
   ]);
 
-  const attention: { type: string; text: string; jobId?: number; link?: string; dismiss?: string }[] = [];
+  const attention: { type: string; text: string; jobId?: number; link?: string; dismiss?: string; snooze?: string }[] = [];
   for (const r of attLeads.results as any[]) attention.push({ type: "lead", jobId: r.id, text: `New lead waiting ${r.days} day${r.days === 1 ? "" : "s"}: ${r.customer}, ${r.title}` });
   for (const r of attEst.results as any[]) attention.push({ type: "estimate", jobId: r.id, text: `Estimate sent ${r.days} days ago, no answer yet: ${r.customer}, ${r.title}` });
   for (const r of attOpened.results as any[]) attention.push({ type: "signature", jobId: r.id, text: `${r.signer_name} opened the ${r.kind} but has not signed: ${r.title}` });
@@ -154,6 +169,30 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     leads: lc.n ?? 0,
     estimatesSent: es.n ?? 0,
   });
+
+  // Gentle nudges: at most two, each from a real fact, each snoozable.
+  const cardTrades = new Set(((await env.DB.prepare("SELECT DISTINCT trade FROM rate_cards WHERE company_id = ? AND audience = 'retail'").bind(c).all<{ trade: string }>().catch(() => ({ results: [] }))).results ?? []).map((r) => r.trade));
+  const chosen: string[] = Array.isArray(pdata.trades) ? pdata.trades : [];
+  const LBL: Record<string, string> = { interior: "interior painting", exterior: "exterior painting", commercial: "commercial work", power_washing: "power washing", cabinets: "cabinet painting", decks_fences: "deck and fence staining", epoxy_floors: "epoxy floors" };
+  const [staleDr, cityDr, commUsed, snz] = await Promise.all([
+    one("SELECT COUNT(*) AS n FROM documents d JOIN jobs j ON j.id = d.job_id WHERE d.company_id = ? AND d.kind = 'estimate' AND d.status = 'draft' AND d.updated_at < datetime('now','-2 days') AND j.stage IN ('lead','bid')", c).catch(() => ({ n: 0 })),
+    one("SELECT COUNT(*) AS n FROM city_pages WHERE company_id = ? AND published = 0", c).catch(() => ({ n: 0 })),
+    one("SELECT COUNT(*) AS n FROM jobs j WHERE j.company_id = ? AND j.trade = 'commercial' AND EXISTS (SELECT 1 FROM documents d WHERE d.job_id = j.id AND d.kind = 'estimate')", c).catch(() => ({ n: 0 })),
+    env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(`nudge:${c}`).first<{ value: string }>().catch(() => null),
+  ]);
+  let snoozed: Record<string, string> = {};
+  try {
+    snoozed = snz ? JSON.parse(snz.value) : {};
+  } catch {
+    snoozed = {};
+  }
+  const nudges = buildNudges({
+    tradesWithoutPrices: chosen.filter((t) => LBL[t] && !cardTrades.has(t)).map((t) => LBL[t]),
+    staleDraftEstimates: staleDr.n ?? 0,
+    cityDraftPages: cityDr.n ?? 0,
+    commercialBidUnused: !!co && effectivePlan({ plan: co.plan, createdAt: co.createdAt }) === "basic" && chosen.includes("commercial") && (commUsed.n ?? 0) === 0,
+  }, snoozed);
+  for (const n of nudges) attention.push({ type: "nudge", link: n.link, text: n.text, snooze: n.key });
 
   return json({
     progress: progress2,

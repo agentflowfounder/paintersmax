@@ -630,6 +630,27 @@
   });
 
   pmI18n.add({
+    'Start with your company name. It appears on every estimate and contract.': 'Empiece con el nombre de su empresa. Aparece en cada presupuesto y contrato.',
+    'Add a phone and email. Customers reply to them and they show in your customer portal.': 'Agregue un teléfono y un correo. Los clientes responden ahí y aparecen en su portal de clientes.',
+    'Add a phone number so customers can reach you quickly from an estimate.': 'Agregue un teléfono para que los clientes puedan llamarle rápido desde un presupuesto.',
+    'Add an email. Customer replies to estimates go here.': 'Agregue un correo. Las respuestas de los clientes a los presupuestos llegan aquí.',
+    'Looks good. You only type this once and we use it everywhere.': 'Se ve bien. Solo lo escribe una vez y lo usamos en todas partes.',
+    'Choose the work you do. You can change this any time.': 'Elija el trabajo que hace. Puede cambiarlo en cualquier momento.',
+    'Exterior jobs usually start with washing the surface, so power washing is a natural one to add.': 'Los trabajos exteriores suelen empezar lavando la superficie, así que lavado a presión es una opción natural.',
+    'Each service gets its own price list on the Your prices step.': 'Cada servicio tiene su propia lista de precios en el paso Sus precios.',
+    'Pick the cities you work in. Each one can get its own page on your website.': 'Elija las ciudades donde trabaja. Cada una puede tener su propia página en su sitio web.',
+    'Pick Value, Standard or Premium above to fill in starting prices. You can change every number.': 'Elija Valor, Estándar o Premium arriba para llenar precios iniciales. Puede cambiar cada número.',
+    'Every item has a price. Check the example under each list to see what a real job comes to.': 'Cada artículo tiene precio. Vea el ejemplo bajo cada lista para saber cuánto cuesta un trabajo real.',
+    'Use your loaded rate: wages plus taxes, insurance and benefits, not just what you pay the painter.': 'Use su tarifa completa: sueldo más impuestos, seguro y beneficios, no solo lo que le paga al pintor.',
+    'Your hourly rate and deposit help the assistant and your estimates. You can edit any estimate before it goes out.': 'Su tarifa por hora y su depósito ayudan al asistente y a sus presupuestos. Puede editar cualquier presupuesto antes de enviarlo.',
+    'Good. Every number here can still be changed on a single job.': 'Bien. Cada número aquí se puede cambiar en un trabajo individual.',
+    'Insurance is optional here, but customers and builders often ask for proof. You can add it later on the Insurance page.': 'El seguro es opcional aquí, pero los clientes y constructores suelen pedir comprobante. Puede agregarlo después en la página Seguro.',
+    'Good. Upload the policy on the Insurance page so we can check whether each job looks covered.': 'Bien. Suba la póliza en la página Seguro para revisar si cada trabajo parece cubierto.',
+    'Last look. You can come back to any step later.': 'Última revisión. Puede volver a cualquier paso después.',
+    'Not now': 'Ahora no',
+  });
+
+  pmI18n.add({
     'What your estimate will look like': 'Cómo se verá su presupuesto',
     'A sample job priced with the prices you just saved. The job and sizes are made up for this preview. Nothing is sent to anyone.': 'Un trabajo de ejemplo con los precios que acaba de guardar. El trabajo y las medidas son inventados para esta vista previa. No se envía nada a nadie.',
     'Your estimate preview': 'Vista previa de su presupuesto',
