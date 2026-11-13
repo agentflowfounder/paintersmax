@@ -699,5 +699,16 @@
     [/^Your free trial has (\d+) days? left\. You have extra AI use until it ends\. Choose a plan to keep it\.$/, function (a, n) { return 'Su prueba gratis tiene ' + n + (n === '1' ? ' día' : ' días') + ' restantes. Tiene más uso de IA hasta que termine. Elija un plan para conservarlo.'; }],
   ]);
 
+  pmI18n.add({
+    'Work orders and change orders': 'Órdenes de trabajo y de cambio',
+    'New work order': 'Nueva orden de trabajo', 'New change order': 'Nueva orden de cambio',
+    'Email to customer': 'Enviar por correo al cliente', 'Get link': 'Obtener enlace', 'Copy link': 'Copiar enlace', 'Email again': 'Enviar de nuevo',
+    'Edit': 'Editar', 'View': 'Ver', 'Print': 'Imprimir', 'Delete': 'Borrar', 'Close': 'Cerrar', 'Save': 'Guardar',
+    'Title': 'Título', 'Why is this needed?': '¿Por qué es necesario?', 'What will be done': 'Qué se hará', 'Extra days': 'Días adicionales',
+    '+ Add a line': '+ Agregar una línea', 'Customer language': 'Idioma del cliente', 'Price each ($)': 'Precio c/u ($)',
+    'None yet.': 'Todavía ninguna.',
+    'A change order is for extra work after the estimate was approved. Your customer approves it on a private page, or you can print it. Approved change orders add to the job total.': 'Una orden de cambio es para trabajo extra después de aprobar el presupuesto. Su cliente la aprueba en una página privada, o puede imprimirla. Las órdenes de cambio aprobadas se suman al total del trabajo.',
+  });
+
   pmI18n.start();
 })();

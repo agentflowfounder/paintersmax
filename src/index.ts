@@ -20,6 +20,7 @@ import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
 import { handleCatalog } from "./ratecatalog.ts";
 import { handleCities, refreshStaleCities } from "./cities.ts";
+import { handleWorkOrders, handleWoPublic } from "./workorders.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleFiles } from "./files.ts";
 import { handleJobLost } from "./joblost.ts";
@@ -675,6 +676,15 @@ export default {
         return await handleJobDoc(request, env);
       } catch (err) {
         console.error("handleJobDoc failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname.startsWith("/wo/")) return handleWoPublic(request, env);
+    if (pathname === "/api/workorders") {
+      try {
+        return await handleWorkOrders(request, env);
+      } catch (err) {
+        console.error("workorders failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
