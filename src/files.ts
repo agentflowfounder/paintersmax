@@ -55,6 +55,11 @@ export async function companyPlan(env: Env, companyId: number): Promise<Plan> {
   return co ? effectivePlan({ plan: co.plan, createdAt: co.createdAt }) : normalizePlan("free");
 }
 
+/** Remembers when the painter last downloaded their records, for the gentle "download and free up space" reminders. */
+export async function markDownload(env: Env, companyId: number) {
+  await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, datetime('now'), datetime('now')) ON CONFLICT(key) DO UPDATE SET value = datetime('now'), updated_at = datetime('now')").bind(`lastdl:${companyId}`).run();
+}
+
 export async function storageUsed(env: Env, companyId: number): Promise<number> {
   const r = await env.DB.prepare("SELECT COALESCE(SUM(bytes),0) AS n FROM job_files WHERE company_id = ?").bind(companyId).first<{ n: number }>();
   return r?.n ?? 0;
@@ -104,14 +109,14 @@ export async function handleFiles(request: Request, env: Env): Promise<Response>
     const id = Number(u.searchParams.get("id"));
     if (u.searchParams.has("id")) {
       const row = Number.isInteger(id) ? await env.DB.prepare("SELECT r2_key, mime, name FROM job_files WHERE id = ? AND company_id = ?").bind(id, c).first<{ r2_key: string; mime: string; name: string }>() : null;
-      const obj = row && env.FILES ? await env.FILES.get(row.r2_key) : null;
-      if (!row || !obj) return new Response("Not found.", { status: 404 });
+      const obj = row && row.r2_key && env.FILES ? await env.FILES.get(row.r2_key) : null;
+      if (!row || !obj) return new Response(row && !row.r2_key ? "This file was removed from storage after you downloaded it." : "Not found.", { status: 404 });
       return new Response(obj.body, { headers: { "content-type": row.mime, "cache-control": "private, max-age=3600", "content-disposition": `inline; filename="${row.name.replace(/"/g, "")}"`, "x-content-type-options": "nosniff" } });
     }
     const jobId = Number(u.searchParams.get("jobId"));
     const plan = await companyPlan(env, c);
     const files = Number.isInteger(jobId)
-      ? (await env.DB.prepare("SELECT id, kind, name, mime, bytes, uploaded_by AS by, note, created_at AS at FROM job_files WHERE company_id = ? AND job_id = ? ORDER BY id DESC").bind(c, jobId).all()).results
+      ? (await env.DB.prepare("SELECT id, kind, name, mime, bytes, uploaded_by AS by, note, created_at AS at, (r2_key = '') AS removed FROM job_files WHERE company_id = ? AND job_id = ? ORDER BY id DESC").bind(c, jobId).all()).results
       : [];
     return json({ files, storage: storageNotice(await storageUsed(env, c), storageLimitFor(plan), plan), enabled: !!env.FILES });
   }

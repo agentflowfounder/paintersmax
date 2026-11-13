@@ -112,7 +112,7 @@ export async function handleJobChat(request: Request, env: Env): Promise<Respons
   let image: { mime: string; data: string } | undefined;
   let fileId = Number(b?.fileId) > 0 ? Number(b.fileId) : 0;
   if (fileId) {
-    const f = await env.DB.prepare("SELECT r2_key AS k, mime, bytes FROM job_files WHERE id = ? AND company_id = ? AND job_id = ? AND kind IN ('photo','receipt','document')").bind(fileId, user.companyId, jobId).first<{ k: string; mime: string; bytes: number }>();
+    const f = await env.DB.prepare("SELECT r2_key AS k, mime, bytes FROM job_files WHERE id = ? AND company_id = ? AND job_id = ? AND r2_key != '' AND kind IN ('photo','receipt','document')").bind(fileId, user.companyId, jobId).first<{ k: string; mime: string; bytes: number }>();
     const obj = f && f.mime.startsWith("image/") && f.bytes <= 3 * 1024 * 1024 && env.FILES ? await env.FILES.get(f.k) : null;
     if (obj && f) {
       const u8 = new Uint8Array(await obj.arrayBuffer());

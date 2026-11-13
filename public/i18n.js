@@ -777,5 +777,12 @@
     'Account that paid (must exist in QuickBooks)': 'Cuenta que pagó (debe existir en QuickBooks)', 'That account is a': 'Esa cuenta es', 'Bank account (checks)': 'Cuenta bancaria (cheques)', 'Credit card': 'Tarjeta de crédito', 'Save account': 'Guardar cuenta',
   });
 
+  pmI18n.add({
+    'Job file download': 'Descarga del archivo del trabajo', 'Download job file (ZIP)': 'Descargar archivo del trabajo (ZIP)', 'Free up storage': 'Liberar espacio',
+    'One ZIP with everything about this job, organized by section: a summary page, your photos and receipts, documents, work and change orders, crew hours, expenses, mileage, warranty, lessons and your private chat.': 'Un ZIP con todo sobre este trabajo, organizado por sección: una página de resumen, sus fotos y recibos, documentos, órdenes de trabajo y de cambio, horas del equipo, gastos, millas, garantía, lecciones y su chat privado.',
+    'I downloaded the ZIP and it opens': 'Descargué el ZIP y abre bien', "Remove this job's photos and files from storage": 'Quitar las fotos y archivos de este trabajo del almacenamiento',
+    'Year-end package (ZIP)': 'Paquete de fin de año (ZIP)', 'One download for your accountant: expenses, mileage, invoices, crew hours, payments, the 1099 list and both QuickBooks files.': 'Una descarga para su contador: gastos, millas, facturas, horas del equipo, pagos, la lista 1099 y ambos archivos de QuickBooks.',
+  });
+
   pmI18n.start();
 })();

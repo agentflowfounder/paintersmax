@@ -164,7 +164,7 @@ export async function handlePhotoAnalysis(request: Request, env: Env): Promise<R
   }
 
   if (b?.action === "analyze") {
-    const f = await env.DB.prepare("SELECT id, job_id AS jobId, r2_key AS key, mime, bytes FROM job_files WHERE id = ? AND company_id = ? AND kind IN ('photo','receipt')").bind(Number(b.fileId), c).first<{ id: number; jobId: number; key: string; mime: string; bytes: number }>();
+    const f = await env.DB.prepare("SELECT id, job_id AS jobId, r2_key AS key, mime, bytes FROM job_files WHERE id = ? AND company_id = ? AND kind IN ('photo','receipt') AND r2_key != ''").bind(Number(b.fileId), c).first<{ id: number; jobId: number; key: string; mime: string; bytes: number }>();
     if (!f || !f.jobId || !f.mime.startsWith("image/")) return json({ error: "Choose a photo from this job." }, 404);
     if (f.bytes > 3 * 1024 * 1024) return json({ error: "That photo is too large to analyze. Add a smaller copy." }, 400);
     const used = await consume(env, co, "photo_analysis");

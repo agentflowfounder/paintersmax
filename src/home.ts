@@ -5,6 +5,7 @@ import { trialDaysLeft } from "./usage.ts";
 import { buildProgress } from "./progress.ts";
 import { buildNudges, SNOOZE_DAYS } from "./nudges.ts";
 import { effectivePlan } from "./usage.ts";
+import { storageLimitFor, storageUsed } from "./files.ts";
 import type { Env } from "./types.ts";
 
 /** GET /api/home: real numbers for the painter's Home screen. Nothing is estimated. All counts come from this company's own records. */
@@ -186,9 +187,20 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
   } catch {
     snoozed = {};
   }
+  const plan2 = co ? effectivePlan({ plan: co.plan, createdAt: co.createdAt }) : "free";
+  const lastDl = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(`lastdl:${c}`).first<{ value: string }>().catch(() => null);
+  const baseDate = Date.parse((lastDl?.value ?? co?.createdAt ?? "").replace(" ", "T") + "Z");
+  const daysSince = Number.isFinite(baseDate) ? Math.floor((Date.now() - baseDate) / 86400000) : 0;
+  const stored = await storageUsed(env, c).catch(() => 0);
+  const nowD = new Date();
   const warrEnd = await env.DB.prepare("SELECT COUNT(*) AS n FROM app_settings WHERE key LIKE ? AND json_extract(value,'$.status') = 'sent' AND json_extract(value,'$.endOn') BETWEEN date('now') AND date('now','+60 days')").bind(`cert:${c}:%`).first<{ n: number }>().catch(() => ({ n: 0 }));
   const nudges = buildNudges({
     warrantiesEnding: warrEnd?.n ?? 0,
+    plan: plan2,
+    storagePercent: Math.round((100 * stored) / storageLimitFor(plan2 as any)),
+    daysSinceDownload: daysSince,
+    month: nowD.getUTCMonth() + 1,
+    downloadedThisTaxYear: !!lastDl && Date.parse(lastDl.value.replace(" ", "T") + "Z") >= Date.UTC(nowD.getUTCFullYear(), 0, 1),
     tradesWithoutPrices: chosen.filter((t) => LBL[t] && !cardTrades.has(t)).map((t) => LBL[t]),
     staleDraftEstimates: staleDr.n ?? 0,
     cityDraftPages: cityDr.n ?? 0,

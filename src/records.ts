@@ -1,5 +1,5 @@
 import { getSessionUser } from "./auth.ts";
-import { companyPlan } from "./files.ts";
+import { companyPlan, markDownload } from "./files.ts";
 import { iifAccounts, iifFile, qboCsv, type QbExpense } from "./qbexport.ts";
 import { consume, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
@@ -286,6 +286,7 @@ export async function handleRecords(request: Request, env: Env): Promise<Respons
     const trips = ((await env.DB.prepare("SELECT t.id, t.job_id AS jobId, j.title AS jobTitle, t.trip_on AS tripOn, t.miles, t.note FROM mileage_trips t LEFT JOIN jobs j ON j.id = t.job_id WHERE t.company_id = ? AND t.trip_on BETWEEN ? AND ? ORDER BY t.trip_on DESC, t.id DESC LIMIT 5000").bind(c, from, to).all<any>()).results ?? []) as any[];
     const ex = u.searchParams.get("export");
     if (ex) {
+      await markDownload(env, c);
       const head = { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="paintersmax-${ex}-${year}.csv"`, "cache-control": "no-store" };
       if (ex === "expenses") return new Response(toCsv([["Date", "Vendor", "Category", "Amount", "Job", "Note", "Source"], ...expenses.map((e) => [e.spentOn, e.vendor, e.category, (e.amountCents / 100).toFixed(2), e.jobTitle ?? "General (not tied to a job)", e.note, e.source])]), { headers: head });
       if (ex === "mileage") return new Response(toCsv([["Date", "Job", "Miles", "Rate per mile", "Value", "Note"], ...trips.map((t) => [t.tripOn, t.jobTitle ?? "General", t.miles, settings.mileageRateCents ? (settings.mileageRateCents / 100).toFixed(3) : "", settings.mileageRateCents ? (mileageValueCents(t.miles, settings.mileageRateCents) / 100).toFixed(2) : "", t.note])]), { headers: head });
@@ -398,7 +399,7 @@ export async function handleRecords(request: Request, env: Env): Promise<Respons
     return json({ ok: true, added: stmts.length });
   }
   if (b?.action === "readReceipt") {
-    const f = await env.DB.prepare("SELECT id, r2_key AS key, mime, bytes FROM job_files WHERE id = ? AND company_id = ? AND kind = 'receipt'").bind(Number(b.fileId), c).first<{ id: number; key: string; mime: string; bytes: number }>();
+    const f = await env.DB.prepare("SELECT id, r2_key AS key, mime, bytes FROM job_files WHERE id = ? AND company_id = ? AND kind = 'receipt' AND r2_key != ''").bind(Number(b.fileId), c).first<{ id: number; key: string; mime: string; bytes: number }>();
     if (!f || !f.mime.startsWith("image/")) return json({ error: "Choose a receipt photo." }, 404);
     if (f.bytes > 3 * 1024 * 1024) return json({ error: "That photo is too large to read. Add a smaller copy." }, 400);
     const co = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(c).first<{ id: number; plan: string; createdAt?: string }>();
