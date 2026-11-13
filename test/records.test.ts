@@ -19,6 +19,8 @@ test("cleanExpense validates", () => {
 });
 test("csv escape blocks formulas and quotes", () => {
   assert.equal(csvEscape("=SUM(A1)"), "'=SUM(A1)");
+  assert.equal(csvEscape("-120.50"), "-120.50");
+  assert.equal(csvEscape("-cmd|calc"), "'-cmd|calc");
   assert.equal(csvEscape('a,"b"'), '"a,""b"""');
   assert.equal(toCsv([["a", "b"], ["1", "x,y"]]), 'a,b\r\n1,"x,y"\r\n');
 });

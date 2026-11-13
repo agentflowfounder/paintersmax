@@ -767,5 +767,15 @@
     'Photo attached.': 'Foto adjunta.', 'Ask': 'Preguntar', 'Photo': 'Foto',
   });
 
+  pmI18n.add({
+    'Crew hours and 1099 list': 'Horas del equipo y lista 1099',
+    'Files built to the formats QuickBooks publishes. Try a small file first, or make a backup of your company file. We cannot test inside your QuickBooks.': 'Archivos hechos con los formatos que publica QuickBooks. Pruebe primero con un archivo pequeño o haga una copia de seguridad de su archivo de empresa. No podemos probar dentro de su QuickBooks.',
+    'Banking, then Upload transactions. Pick the bank or card account that paid. The file has Date, Description and Amount, with payments as negative amounts. The description shows vendor, category and job, so you can assign them in QuickBooks. If the same charges also come in from your bank feed, they may show twice: upload only the ones that are not in your feed.': 'Banca, luego Subir transacciones. Elija la cuenta bancaria o tarjeta que pagó. El archivo tiene Fecha, Descripción y Monto, con los pagos como montos negativos. La descripción muestra proveedor, categoría y trabajo para que los asigne en QuickBooks. Si los mismos cargos también llegan de su conexión bancaria, pueden aparecer dos veces: suba solo los que no estén en su conexión.',
+    'QuickBooks Online file (CSV)': 'Archivo para QuickBooks Online (CSV)', 'QuickBooks Desktop file (IIF)': 'Archivo para QuickBooks Desktop (IIF)',
+    'File menu, Utilities, Import, IIF Files. First create these expense accounts in QuickBooks, or it may create them as the wrong type:': 'Menú Archivo, Utilidades, Importar, Archivos IIF. Primero cree estas cuentas de gastos en QuickBooks, o podría crearlas con el tipo equivocado:',
+    'Intuit does not provide support for IIF files, so check the imported entries.': 'Intuit no da soporte para archivos IIF, así que revise las entradas importadas.',
+    'Account that paid (must exist in QuickBooks)': 'Cuenta que pagó (debe existir en QuickBooks)', 'That account is a': 'Esa cuenta es', 'Bank account (checks)': 'Cuenta bancaria (cheques)', 'Credit card': 'Tarjeta de crédito', 'Save account': 'Guardar cuenta',
+  });
+
   pmI18n.start();
 })();

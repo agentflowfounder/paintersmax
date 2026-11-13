@@ -1,5 +1,6 @@
 import { getSessionUser } from "./auth.ts";
 import { companyPlan } from "./files.ts";
+import { iifAccounts, iifFile, qboCsv, type QbExpense } from "./qbexport.ts";
 import { consume, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
 
@@ -61,7 +62,7 @@ export const mileageValueCents = (miles: number, rateCents: number) => Math.roun
 // ---------- CSV ----------
 export function csvEscape(v: unknown): string {
   let s = String(v ?? "");
-  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; // keeps spreadsheets from running a cell as a formula
+  if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = "'" + s; // keeps spreadsheets from running a cell as a formula (plain negative numbers are fine)
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 export const toCsv = (rows: unknown[][]) => rows.map((r) => r.map(csvEscape).join(",")).join("\r\n") + "\r\n";
@@ -171,6 +172,9 @@ export interface RecordSettings {
   mileageRateCents: number | null; // cents per mile; null until the painter sets it (the IRS rate changes every year)
   threshold1099Cents: number;
   rules: Rules;
+  /** QuickBooks Desktop (IIF) export: the bank or card account in QuickBooks that paid, and whether it is a bank (check) or a card. */
+  qbPayAccount: string;
+  qbPayType: "check" | "card";
 }
 export const DEFAULT_1099_CENTS = 200000; // IRS reporting threshold for payments after Dec 31, 2025: editable, confirm with your accountant
 const setKey = (c: number) => `records:${c}`;
@@ -183,7 +187,9 @@ export function cleanSettings(raw: any): RecordSettings {
       const kk = vendorKey(k);
       if (kk && typeof v === "string" && v.trim()) rules[kk] = v.trim().slice(0, 60);
     }
-  return { mileageRateCents: Number.isFinite(rate) && rate > 0 && rate < 1000 ? Math.round(rate * 100) / 100 : null, threshold1099Cents: Number.isFinite(th) && th >= 0 && th < 100_000_000 ? Math.round(th) : DEFAULT_1099_CENTS, rules };
+  const qbType: "check" | "card" = raw?.qbPayType === "card" ? "card" : "check";
+  const qbAcct = typeof raw?.qbPayAccount === "string" ? raw.qbPayAccount.replace(/[\t\r\n":]+/g, " ").trim().slice(0, 60) : "";
+  return { mileageRateCents: Number.isFinite(rate) && rate > 0 && rate < 1000 ? Math.round(rate * 100) / 100 : null, threshold1099Cents: Number.isFinite(th) && th >= 0 && th < 100_000_000 ? Math.round(th) : DEFAULT_1099_CENTS, rules, qbPayAccount: qbAcct || (qbType === "card" ? "Credit Card" : "Checking"), qbPayType: qbType };
 }
 export async function loadSettings(env: Env, c: number): Promise<RecordSettings> {
   const r = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(setKey(c)).first<{ value: string }>();
@@ -283,6 +289,11 @@ export async function handleRecords(request: Request, env: Env): Promise<Respons
       const head = { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="paintersmax-${ex}-${year}.csv"`, "cache-control": "no-store" };
       if (ex === "expenses") return new Response(toCsv([["Date", "Vendor", "Category", "Amount", "Job", "Note", "Source"], ...expenses.map((e) => [e.spentOn, e.vendor, e.category, (e.amountCents / 100).toFixed(2), e.jobTitle ?? "General (not tied to a job)", e.note, e.source])]), { headers: head });
       if (ex === "mileage") return new Response(toCsv([["Date", "Job", "Miles", "Rate per mile", "Value", "Note"], ...trips.map((t) => [t.tripOn, t.jobTitle ?? "General", t.miles, settings.mileageRateCents ? (settings.mileageRateCents / 100).toFixed(3) : "", settings.mileageRateCents ? (mileageValueCents(t.miles, settings.mileageRateCents) / 100).toFixed(2) : "", t.note])]), { headers: head });
+      if (ex === "qbo" || ex === "iif") {
+        const qb: QbExpense[] = expenses.map((e) => ({ spentOn: e.spentOn, vendor: e.vendor ?? "", category: e.category, amountCents: e.amountCents, jobTitle: e.jobTitle ?? null, note: e.note ?? "" }));
+        if (ex === "qbo") return new Response(qboCsv(qb), { headers: { ...head, "content-disposition": `attachment; filename="paintersmax-quickbooks-online-${year}.csv"` } });
+        return new Response(iifFile(qb, { payAccount: settings.qbPayAccount, payType: settings.qbPayType }), { headers: { "content-type": "text/plain; charset=utf-8", "content-disposition": `attachment; filename="paintersmax-quickbooks-desktop-${year}.iif"`, "cache-control": "no-store" } });
+      }
       if (ex === "income") {
         const inv = ((await env.DB.prepare("SELECT d.id, d.title, d.status, d.body, d.created_at AS at, j.title AS jobTitle, cu.name AS customer FROM documents d JOIN jobs j ON j.id = d.job_id JOIN customers cu ON cu.id = j.customer_id WHERE d.company_id = ? AND d.kind = 'invoice' AND substr(d.created_at,1,4) = ? ORDER BY d.id").bind(c, year).all<any>()).results ?? []) as any[];
         return new Response(toCsv([["Invoice date", "Customer", "Job", "Status", "Paid to date entered on the invoice"], ...inv.map((d) => {
@@ -301,7 +312,7 @@ export async function handleRecords(request: Request, env: Env): Promise<Respons
     const co = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(c).first<{ id: number; plan: string; createdAt?: string }>();
     const rr = co ? (await usageSummary(env, co)).features.find((x) => x.feature === "receipt_read") : null;
     const jobs = ((await env.DB.prepare("SELECT j.id, j.title, cu.name AS customer FROM jobs j JOIN customers cu ON cu.id = j.customer_id WHERE j.company_id = ? ORDER BY j.id DESC LIMIT 300").bind(c).all<any>()).results ?? []) as any[];
-    return json({ year, expenses, trips, jobs, categories: [...DEFAULT_CATEGORIES.filter((x) => x !== "Other"), ...custom.map((x) => x.name).filter((n) => !DEFAULT_CATEGORIES.includes(n)), "Other"], customCategories: custom, settings, summary: summarize({ expenses, trips, rateCents: settings.mileageRateCents }), receiptAllowance: rr ? { used: rr.used, limit: rr.limit } : null, plan: await companyPlan(env, c) });
+    return json({ year, expenses, trips, jobs, qbAccounts: iifAccounts(expenses.map((e) => ({ spentOn: e.spentOn, vendor: e.vendor ?? "", category: e.category, amountCents: e.amountCents, jobTitle: null, note: "" }))), categories: [...DEFAULT_CATEGORIES.filter((x) => x !== "Other"), ...custom.map((x) => x.name).filter((n) => !DEFAULT_CATEGORIES.includes(n)), "Other"], customCategories: custom, settings, summary: summarize({ expenses, trips, rateCents: settings.mileageRateCents }), receiptAllowance: rr ? { used: rr.used, limit: rr.limit } : null, plan: await companyPlan(env, c) });
   }
   if (request.method !== "POST") return json({ error: "Not found." }, 404);
   let b: any;
@@ -362,7 +373,7 @@ export async function handleRecords(request: Request, env: Env): Promise<Respons
     return json({ ok: true });
   }
   if (b?.action === "saveSettings") {
-    const next = cleanSettings({ mileageRateCents: b.mileageRateCents ?? settings.mileageRateCents, threshold1099Cents: b.threshold1099Cents ?? settings.threshold1099Cents, rules: b.rules ?? settings.rules });
+    const next = cleanSettings({ mileageRateCents: b.mileageRateCents ?? settings.mileageRateCents, threshold1099Cents: b.threshold1099Cents ?? settings.threshold1099Cents, rules: b.rules ?? settings.rules, qbPayAccount: b.qbPayAccount ?? settings.qbPayAccount, qbPayType: b.qbPayType ?? settings.qbPayType });
     await saveSettings(env, c, next);
     return json({ ok: true, settings: next });
   }
