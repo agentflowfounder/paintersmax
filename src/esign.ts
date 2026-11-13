@@ -1,6 +1,7 @@
 import { getSessionUser, randomToken, sha256Hex } from "./auth.ts";
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
+import { portalNote } from "./portal.ts";
 import { renderDocPage } from "./wizard-api.ts";
 import { documentAttachment, htmlToPdf } from "./pdf.ts";
 import type { Env } from "./types.ts";
@@ -168,9 +169,9 @@ export async function handleEsign(request: Request, env: Env): Promise<Response>
     user.companyName,
     user.email,
     es ? `Por favor firme su ${what} de ${user.companyName}` : `Please review and sign your ${what} from ${user.companyName}`,
-    es
+    (es
       ? `Hola ${signerName},\n\nPuede leer y firmar su ${what} aquí:\n${link}\n\nEl enlace funciona por ${LINK_DAYS} días. Responda a este correo si tiene preguntas.\n\n${user.companyName}`
-      : `Hi ${signerName},\n\nYou can read and sign your ${what} here:\n${link}\n\nThe link works for ${LINK_DAYS} days. Reply to this email with any questions.\n\n${user.companyName}`,
+      : `Hi ${signerName},\n\nYou can read and sign your ${what} here:\n${link}\n\nThe link works for ${LINK_DAYS} days. Reply to this email with any questions.\n\n${user.companyName}`) + (await portalNote(env, user.companyId, rendered.jobId, es)),
   );
   await addJobEvent(env, user.companyId, rendered.jobId, "note", `Sent the ${rendered.kind} for signature to ${signerEmail}${result === "sent" ? "" : " (email not sent; copy the link)"}.`);
   return json({ ok: true, id: Number(ins.meta.last_row_id), link, emailed: result === "sent" });
@@ -248,7 +249,7 @@ export async function handleSign(request: Request, env: Env): Promise<Response> 
     await sendCustomerEmail(
       env, r.signer_email, r.company_name, companyEmail,
       es ? `Su ${what} firmado de ${r.company_name}` : `Your signed ${what} from ${r.company_name}`,
-      es ? `Hola ${name},\n\nGracias. Adjuntamos su copia firmada.\n\n${r.company_name}` : `Hi ${name},\n\nThank you. Your signed copy is attached.\n\n${r.company_name}`,
+      (es ? `Hola ${name},\n\nGracias. Adjuntamos su copia firmada.\n\n${r.company_name}` : `Hi ${name},\n\nThank you. Your signed copy is attached.\n\n${r.company_name}`) + (await portalNote(env, r.company_id, r.job_id, es)),
       attach,
     );
     if (companyEmail) {
@@ -259,7 +260,7 @@ export async function handleSign(request: Request, env: Env): Promise<Response> 
         attach,
       );
     }
-    return json({ ok: true });
+    return json({ ok: true, portal: (await portalNote(env, r.company_id, r.job_id, es)).split("\n").pop() || null });
   }
   return json({ error: "Not found." }, 404);
 }

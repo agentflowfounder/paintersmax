@@ -37,8 +37,8 @@ button:disabled{opacity:.5}
 const $=id=>document.getElementById(id);
 const t=location.pathname.split('/')[2]||'';
 let es=false,drew=false;
-const T={en:{h:'Review and sign',name:'Type your full name',draw:'Draw your signature (optional)',clear:'Clear',agree:'I agree to sign this document electronically. I understand my typed name and drawing have the same effect as a handwritten signature.',go:'Sign document',done:'Thank you. Your signed copy was emailed to you.',signed:'This document has been signed.',expired:'This link has expired. Please ask the company for a new one.',gone:'This request was cancelled. Please ask the company for a new link.',bad:'This signing link is not valid.',working:'Signing...'},
-es:{h:'Revise y firme',name:'Escriba su nombre completo',draw:'Dibuje su firma (opcional)',clear:'Borrar',agree:'Acepto firmar este documento electrónicamente. Entiendo que mi nombre escrito y mi dibujo tienen el mismo efecto que una firma a mano.',go:'Firmar documento',done:'Gracias. Le enviamos su copia firmada por correo.',signed:'Este documento ya fue firmado.',expired:'El enlace venció. Pida uno nuevo a la empresa.',gone:'Esta solicitud fue cancelada. Pida un enlace nuevo a la empresa.',bad:'Este enlace no es válido.',working:'Firmando...'}};
+const T={en:{h:'Review and sign',name:'Type your full name',draw:'Draw your signature (optional)',clear:'Clear',agree:'I agree to sign this document electronically. I understand my typed name and drawing have the same effect as a handwritten signature.',go:'Sign document',done:'Thank you. Your signed copy was emailed to you.',signed:'This document has been signed.',expired:'This link has expired. Please ask the company for a new one.',gone:'This request was cancelled. Please ask the company for a new link.',bad:'This signing link is not valid.',working:'Signing...',track:'Follow your project progress'},
+es:{h:'Revise y firme',name:'Escriba su nombre completo',draw:'Dibuje su firma (opcional)',clear:'Borrar',agree:'Acepto firmar este documento electrónicamente. Entiendo que mi nombre escrito y mi dibujo tienen el mismo efecto que una firma a mano.',go:'Firmar documento',done:'Gracias. Le enviamos su copia firmada por correo.',signed:'Este documento ya fue firmado.',expired:'El enlace venció. Pida uno nuevo a la empresa.',gone:'Esta solicitud fue cancelada. Pida un enlace nuevo a la empresa.',bad:'Este enlace no es válido.',working:'Firmando...',track:'Siga el avance de su proyecto'}};
 const tx=k=>T[es?'es':'en'][k];
 function size(){const f=$('doc');try{f.style.height=(f.contentDocument.documentElement.scrollHeight+20)+'px';}catch(e){}}
 $('doc').onload=size;
@@ -72,6 +72,7 @@ $('go').onclick=async()=>{
   const v=await (await fetch('/api/sign/view?t='+encodeURIComponent(t))).json();
   if(v.html)$('doc').srcdoc=v.html;
   end('done',true);window.scrollTo(0,0);
+  if(j.portal&&/^https:\/\/paintersmax\.app\/portal\//.test(j.portal)){const a=document.createElement('a');a.href=j.portal;a.textContent=tx('track');a.style.cssText='display:block;margin-top:10px;font-weight:700';$('state').appendChild(a);}
  }catch(e){$('msg').textContent=e.message;$('go').disabled=false;$('go').textContent=tx('go');}
 };
 </script></body></html>

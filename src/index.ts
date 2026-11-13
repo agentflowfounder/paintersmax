@@ -24,7 +24,7 @@ import { handleCityPage, handleCityPagesApi, citySitemap } from "./citypages.ts"
 import { handleMaterials, loadMaterials, renderPublicMaterials } from "./materials.ts";
 import { handleRateCardDoc } from "./ratecardpdf.ts";
 import { handleRateSheetPage, handleRateSheets } from "./ratesheets.ts";
-import { handlePortalManage, handlePortalPage } from "./portal.ts";
+import { handlePortalManage, handlePortalPage, portalNote, renderLookupPage, handleProjectLookup } from "./portal.ts";
 import { sendInvoiceReminders } from "./reminders.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
@@ -112,6 +112,7 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   );
 
   // Confirmation to the customer (replies go to the company).
+  const portalTxt = await portalNote(env, company.id, fileIds?.jobId, false);
   const lowD = Math.round(lowCents / 100).toLocaleString("en-US");
   const highD = Math.round(highCents / 100).toLocaleString("en-US");
   ctx.waitUntil(
@@ -135,7 +136,7 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
         "You can reply to this email with questions or photos.",
         "",
         company.name,
-      ].join("\n"),
+      ].join("\n") + portalTxt,
     ),
   );
 
@@ -389,6 +390,11 @@ export default {
     if (tenant) {
       const ao = pathname.match(/^\/areas\/([a-z0-9-]{3,70})\/?$/);
       if (ao) return handleCityPage(request, env, tenant, ao[1], visitorOrigin(request));
+      if (pathname === "/check-project") {
+        const co = await env.DB.prepare("SELECT name, settings FROM companies WHERE slug = ?").bind(tenant).first<{ name: string; settings: string }>();
+        return co ? new Response(renderLookupPage(co.name, readSettings(co.settings).brandColor), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } }) : new Response("Not found.", { status: 404 });
+      }
+      if (pathname === "/api/portal/lookup") return handleProjectLookup(request, env, tenant);
       if (pathname === "/sitemap.xml" || pathname === "/sitemap-areas.xml") return citySitemap(env, tenant, visitorOrigin(request));
       if (pathname === "/" || pathname === "/quote") return handleQuotePage(request, env, tenant);
       if (["/login", "/dashboard", "/app", "/jobs", "/insurance", "/materials", "/admin", "/start"].includes(pathname)) {

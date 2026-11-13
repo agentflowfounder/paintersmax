@@ -1,4 +1,5 @@
 import { sendCustomerEmail } from "./email.ts";
+import { portalNote } from "./portal.ts";
 import { addJobEvent } from "./crm.ts";
 import type { Env } from "./types.ts";
 
@@ -56,7 +57,7 @@ export async function sendInvoiceReminders(env: Env): Promise<void> {
       inv = {};
     }
     const t = reminderText({ n: due, es: r.language === "es", customer: r.customer, company: r.company, number: String(inv.number ?? ""), jobTitle: r.title, notes: "" });
-    const res = await sendCustomerEmail(env, r.email, r.company, r.notify_email, t.subject, t.body);
+    const res = await sendCustomerEmail(env, r.email, r.company, r.notify_email, t.subject, t.body + (await portalNote(env, r.company_id, r.job_id, r.language === "es")));
     if (res !== "sent") continue;
     await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')")
       .bind(key, JSON.stringify({ u: r.updated_at, n: due })).run();

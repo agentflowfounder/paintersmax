@@ -11,6 +11,7 @@ import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract
 import { CUSTOMER_KINDS, docTitle, invoiceChecks, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
+import { portalNote } from "./portal.ts";
 import { readSettings } from "./settings.ts";
 import { documentAttachment, htmlToPdf } from "./pdf.ts";
 
@@ -281,9 +282,9 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
         user.companyName,
         profile?.company?.email || user.email,
         est.language === "es" ? `Su presupuesto de ${user.companyName}` : `Your estimate from ${user.companyName}`,
-        est.language === "es"
+        (est.language === "es"
           ? `Hola ${cust.name},\n\nAdjunto su presupuesto. Ábralo en su navegador y use Imprimir para guardarlo como PDF. Responda a este correo con cualquier pregunta.\n\n${user.companyName}`
-          : `Hi ${cust.name},\n\nYour estimate is attached. Open it in your browser and use Print to save it as a PDF. Reply to this email with any questions.\n\n${user.companyName}`,
+          : `Hi ${cust.name},\n\nYour estimate is attached. Open it in your browser and use Print to save it as a PDF. Reply to this email with any questions.\n\n${user.companyName}`) + (await portalNote(env, user.companyId, job.id, est.language === "es")),
         [await documentAttachment(env, "estimate", page)],
       );
       if (result !== "sent") return json({ error: "The email could not be sent. Your estimate is saved.", docId }, 502);
@@ -431,9 +432,9 @@ export async function handleContract(request: Request, env: Env): Promise<Respon
         user.companyName,
         j.company.email || user.email,
         contract.language === "es" ? `Su contrato de ${user.companyName}` : `Your work agreement from ${user.companyName}`,
-        contract.language === "es"
+        (contract.language === "es"
           ? `Hola ${j.row.customerName},\n\nAdjunto su contrato. Léalo, imprímalo, fírmelo y devuélvanoslo, o responda a este correo con cualquier pregunta.\n\n${user.companyName}`
-          : `Hi ${j.row.customerName},\n\nYour work agreement is attached. Please read it, print it, sign it and send it back to us, or reply to this email with any questions.\n\n${user.companyName}`,
+          : `Hi ${j.row.customerName},\n\nYour work agreement is attached. Please read it, print it, sign it and send it back to us, or reply to this email with any questions.\n\n${user.companyName}`) + (await portalNote(env, user.companyId, jobId, contract.language === "es")),
         [await documentAttachment(env, "contract", page)],
       );
       if (result !== "sent") return json({ error: "The email could not be sent. Your contract is saved.", docId }, 502);
@@ -616,9 +617,9 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
         user.companyName,
         j.company.email || user.email,
         `${label} - ${user.companyName}`,
-        es
+        (es
           ? `Hola ${j.row.customerName},\n\nAdjunto: ${label}. Ábralo en su navegador y use Imprimir para guardarlo como PDF.\n\n${user.companyName}`
-          : `Hi ${j.row.customerName},\n\nAttached: ${label}. Open it in your browser and use Print to save it as a PDF.\n\n${user.companyName}`,
+          : `Hi ${j.row.customerName},\n\nAttached: ${label}. Open it in your browser and use Print to save it as a PDF.\n\n${user.companyName}`) + (await portalNote(env, user.companyId, jobId, es)),
         [await documentAttachment(env, kind, page)],
       );
       if (result !== "sent") return json({ error: "The email could not be sent. Your document is saved.", docId }, 502);

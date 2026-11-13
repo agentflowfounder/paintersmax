@@ -3,6 +3,7 @@ import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
 import { coiLink, showsCustomers } from "./insurance.ts";
 import { renderDocPage } from "./wizard-api.ts";
+import { readSettings } from "./settings.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -39,6 +40,21 @@ export async function portalLink(env: Env, companyId: number, jobId: number, ori
     await putSetting(env, hashKey(await sha256Hex(token)), `${companyId}:${jobId}`);
   }
   return `${origin}/portal/${token}`;
+}
+
+/**
+ * A short "track your project" paragraph for customer emails, or "" if anything goes wrong (an email must never fail because of this).
+ * The link is the job's private portal link, created on first use.
+ */
+export async function portalNote(env: Env, companyId: number, jobId: number | null | undefined, es: boolean): Promise<string> {
+  if (!jobId) return "";
+  try {
+    const link = await portalLink(env, companyId, jobId);
+    return es ? `\n\nVea el avance de su proyecto en cualquier momento:\n${link}` : `\n\nFollow your project any time:\n${link}`;
+  } catch (err) {
+    console.error("portal note failed", String(err));
+    return "";
+  }
 }
 
 /** Turns the link off by deleting the lookup. The next "show link" makes a brand new one. */
@@ -106,7 +122,7 @@ const CSS = `*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif
 
 export function renderPortal(d: {
   es: boolean; company: string; phone: string; email: string; customer: string; title: string; stage: string;
-  docs: { id: number; kind: string; status: string; label: string }[]; signed: Record<string, string>; pendingSign: string[]; proofUrl: string | null; token: string;
+  docs: { id: number; kind: string; status: string; label: string }[]; signed: Record<string, string>; pendingSign: string[]; proofUrl: string | null; token: string; logoUrl?: string; color?: string;
 }): string {
   const es = d.es;
   const L = (en: string, sp: string) => (es ? sp : en);
@@ -122,8 +138,8 @@ export function renderPortal(d: {
     })
     .join("");
   const contact = [d.phone ? `<a href="tel:${esc(d.phone.replace(/[^\d+]/g, ""))}">${esc(d.phone)}</a>` : "", d.email ? `<a href="mailto:${esc(d.email)}">${esc(d.email)}</a>` : ""].filter(Boolean).join(" &middot; ");
-  return `<!doctype html><html lang="${es ? "es" : "en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${esc(d.company)} - ${esc(d.title)}</title><style>${CSS}</style></head><body>
-<header><b>${esc(d.company)}</b></header><main>
+  return `<!doctype html><html lang="${es ? "es" : "en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${esc(d.company)} - ${esc(d.title)}</title><style>${CSS}${d.color && /^#[0-9a-fA-F]{6}$/.test(d.color) ? `header{border-bottom:4px solid ${d.color}}` : ""}</style></head><body>
+<header>${d.logoUrl && /^https:\/\/[^\s"'<>]{3,300}$/.test(d.logoUrl) ? `<img src="${esc(d.logoUrl)}" alt="${esc(d.company)}" style="max-height:40px;max-width:180px">` : `<b>${esc(d.company)}</b>`}</header><main>
 <p class="muted" style="margin:6px 0 0">${L("Hi", "Hola")} ${esc(first)},</p><h1>${esc(d.title)}</h1><div class="st">${esc(stageText(d.stage, es))}</div>
 <div class="card"><h2>${L("Your documents", "Sus documentos")}</h2>${rows || `<p class="muted">${L("Nothing has been shared yet. Check back soon.", "Todavía no se ha compartido nada. Vuelva pronto.")}</p>`}</div>
 ${d.proofUrl ? `<div class="card"><h2>${L("Proof of insurance", "Comprobante de seguro")}</h2><p class="muted" style="margin:0 0 8px">${L("See that the work is insured and what to do if something happens.", "Vea que el trabajo está asegurado y qué hacer si algo sucede.")}</p><a class="b" href="${esc(d.proofUrl)}" target="_blank" rel="noopener">${L("View proof of insurance", "Ver comprobante de seguro")}</a></div>` : ""}
@@ -151,7 +167,7 @@ export async function handlePortalPage(request: Request, env: Env): Promise<Resp
   if (parts.length !== 2) return htmlResp("<p>Not found.</p>", 404);
 
   const job = await env.DB.prepare(
-    "SELECT j.title, j.stage, cu.name AS customer, co.name AS company, cp.data AS profile FROM jobs j JOIN customers cu ON cu.id = j.customer_id JOIN companies co ON co.id = j.company_id LEFT JOIN company_profiles cp ON cp.company_id = j.company_id WHERE j.id = ? AND j.company_id = ?",
+    "SELECT j.title, j.stage, cu.name AS customer, co.name AS company, co.settings AS cosettings, cp.data AS profile FROM jobs j JOIN customers cu ON cu.id = j.customer_id JOIN companies co ON co.id = j.company_id LEFT JOIN company_profiles cp ON cp.company_id = j.company_id WHERE j.id = ? AND j.company_id = ?",
   ).bind(jobId, companyId).first<any>();
   if (!job) return htmlResp("<p>Not found.</p>", 404);
   let profile: any = {};
@@ -180,7 +196,47 @@ export async function handlePortalPage(request: Request, env: Env): Promise<Resp
   const first = [...latest.values()][0];
   const es = (profile.language?.customer ?? first?.language) === "es";
   const c = profile.company ?? {};
+  const brand = readSettings(job.cosettings);
   return htmlResp(
-    renderPortal({ es, company: job.company, phone: String(c.phone ?? ""), email: String(c.email ?? ""), customer: job.customer, title: job.title, stage: job.stage, docs: [...latest.values()].map((d) => ({ id: d.id, kind: d.kind, status: d.status, label: d.kind })), signed, pendingSign, proofUrl, token: parts[1] }),
+    renderPortal({ logoUrl: brand.logoUrl, color: brand.brandColor, es, company: job.company, phone: String(c.phone ?? ""), email: String(c.email ?? ""), customer: job.customer, title: job.title, stage: job.stage, docs: [...latest.values()].map((d) => ({ id: d.id, kind: d.kind, status: d.status, label: d.kind })), signed, pendingSign, proofUrl, token: parts[1] }),
   );
+}
+
+/**
+ * Public "Check my project" page and lookup for a painter's own website: the customer types the email they used and we EMAIL them
+ * their private portal links. The answer is always the same, so nobody can use it to learn who is a customer.
+ * Limited to one email per address every 10 minutes.
+ */
+export function renderLookupPage(company: string, color: string | undefined): string {
+  const c = color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : "#E8A33D";
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Check my project | ${esc(company)}</title>
+<style>body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0;padding:24px 16px}main{max-width:460px;margin:0 auto;background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:24px}h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:26px;margin:0 0 8px}p{color:#4A5568}input{width:100%;box-sizing:border-box;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit}button{margin-top:12px;width:100%;padding:13px;border:0;border-radius:8px;background:${c};color:#0F1B2D;font:inherit;font-weight:700;cursor:pointer}#m{margin-top:12px}</style></head><body><main>
+<h1>Check my project</h1><p>Enter the email you used with ${esc(company)}. If we find your project, we will email you a private link to follow its progress.</p>
+<form id="f"><input id="e" type="email" required placeholder="you@example.com" autocomplete="email"><button>Email me my link</button></form><p id="m"></p></main>
+<script>document.getElementById('f').onsubmit=async function(ev){ev.preventDefault();var m=document.getElementById('m');m.textContent='Sending...';try{await fetch('/api/portal/lookup',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:document.getElementById('e').value})});}catch(e){}m.textContent='If we found a project for that email, we sent you a link. Check your inbox.';};</script></body></html>`;
+}
+
+export async function handleProjectLookup(request: Request, env: Env, slug: string): Promise<Response> {
+  const ok = json({ ok: true });
+  if (request.method !== "POST") return json({ error: "Not found." }, 404);
+  let b: any;
+  try {
+    b = await request.json();
+  } catch {
+    return ok;
+  }
+  const email = typeof b?.email === "string" ? b.email.trim().toLowerCase().slice(0, 200) : "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return ok;
+  const co = await env.DB.prepare("SELECT id, name, notify_email FROM companies WHERE slug = ?").bind(slug).first<{ id: number; name: string; notify_email: string | null }>();
+  if (!co) return ok;
+  const gate = `lookup:${co.id}:${await sha256Hex(email)}`;
+  const last = await getSetting(env, gate);
+  if (last && Date.now() - Number(last) < 10 * 60 * 1000) return ok;
+  const jobs = (await env.DB.prepare("SELECT j.id, j.title FROM jobs j JOIN customers cu ON cu.id = j.customer_id WHERE j.company_id = ? AND lower(cu.email) = ? ORDER BY j.id DESC LIMIT 3").bind(co.id, email).all<{ id: number; title: string }>()).results ?? [];
+  if (!jobs.length) return ok;
+  await putSetting(env, gate, String(Date.now()));
+  const lines: string[] = [];
+  for (const j of jobs) lines.push(`${j.title}\n${await portalLink(env, co.id, j.id)}`);
+  await sendCustomerEmail(env, email, co.name, co.notify_email, `Your project links from ${co.name}`, `Hi,\n\nHere ${jobs.length === 1 ? "is the private link" : "are the private links"} to follow your project:\n\n${lines.join("\n\n")}\n\nIf you did not ask for this, you can ignore this email.\n\n${co.name}`);
+  return ok;
 }
