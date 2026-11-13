@@ -83,6 +83,9 @@ export async function deleteFile(env: Env, companyId: number, id: number): Promi
   await env.FILES?.delete(row.r2_key).catch(() => undefined);
   await env.DB.prepare("DELETE FROM job_files WHERE id = ? AND company_id = ?").bind(id, companyId).run();
   await env.DB.prepare("DELETE FROM job_photo_findings WHERE file_id = ? AND company_id = ?").bind(id, companyId).run();
+  await env.DB.prepare("UPDATE workers SET photo_file_id = NULL WHERE photo_file_id = ? AND company_id = ?").bind(id, companyId).run();
+  await env.DB.prepare("UPDATE workers SET w9_file_id = NULL WHERE w9_file_id = ? AND company_id = ?").bind(id, companyId).run();
+  await env.DB.prepare("UPDATE expenses SET file_id = NULL WHERE file_id = ? AND company_id = ?").bind(id, companyId).run();
   return true;
 }
 
@@ -128,6 +131,8 @@ export async function handleFiles(request: Request, env: Env): Promise<Response>
     if ((kind === "worker_photo" || kind === "w9") && !workerId) return json({ error: "Choose a worker." }, 400);
     if (!companyLevel && (!Number.isInteger(jobId) || !(await env.DB.prepare("SELECT id FROM jobs WHERE id = ? AND company_id = ?").bind(jobId, c).first()))) return json({ error: "Job not found." }, 404);
     const r = await saveFile(env, { companyId: c, jobId: companyLevel ? null : jobId, workerId, kind, file, by: "painter", note: String(fd.get("note") ?? "") });
+    if (r.ok && workerId && kind === "worker_photo") await env.DB.prepare("UPDATE workers SET photo_file_id = ? WHERE id = ? AND company_id = ?").bind(r.id, workerId, c).run();
+    if (r.ok && workerId && kind === "w9") await env.DB.prepare("UPDATE workers SET w9_file_id = ? WHERE id = ? AND company_id = ?").bind(r.id, workerId, c).run();
     return r.ok ? json({ ok: true, id: r.id, storage: r.notice }) : json({ error: r.error }, r.status);
   }
   let b: any;

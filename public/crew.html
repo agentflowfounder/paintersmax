@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Crew and hours - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
+main{max-width:980px;margin:0 auto;padding:16px 12px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:14px;margin:0 0 14px}
+button,.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:9px 13px;background:#E8A33D;color:#0F1B2D;cursor:pointer;text-decoration:none;display:inline-block}button.s,.btn.s{background:#eceae4}button.d{background:#fff;border:1px solid #cfd5dc;color:#b42318}button.mini,.btn.mini{padding:4px 9px;font-size:13px}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}input,textarea,select{font:inherit;width:100%;padding:9px;border:1px solid #cfd5dc;border-radius:8px;background:#fff}
+.row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}@media(max-width:620px){.row,.row3{grid-template-columns:1fr 1fr}}
+.muted{color:#4A5568;font-size:14px}.ok{color:#0a7a3d;font-weight:600}.bad{color:#b42318;font-weight:600}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 14px}.tabs button{background:#eceae4}.tabs button.on{background:#0F1B2D;color:#fff}
+table{width:100%;border-collapse:collapse}th,td{padding:7px 4px;border-bottom:1px solid #eee;text-align:left;font-size:14px;vertical-align:top}td.r,th.r{text-align:right}
+.scroll{overflow-x:auto}.note{background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px;font-size:14px}
+.wk{display:flex;gap:8px;align-items:center;margin-bottom:8px}.wk b{flex:1;text-align:center}
+.ph{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#eceae4;display:inline-block;vertical-align:middle;margin-right:8px}
+.lock{background:repeating-linear-gradient(135deg,#fff,#fff 10px,#faf7f0 10px,#faf7f0 20px)}
+</style></head><body>
+<header><div><b>PaintersMax</b> Crew and hours</div><div><a href="/jobs">Jobs</a><a href="/records">Records</a><a href="/calendar">Calendar</a><a href="/dashboard">Settings and leads</a></div></header>
+<main>
+<h1>Crew, hours and pay records</h1>
+<p class="muted">Records for your accountant, not tax advice. We do not store Social Security or tax ID numbers. Pay records are visible only to the owner login.</p>
+<div id="msg" class="muted"></div>
+<div id="body"></div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+var T=window.pmT||function(s){return s};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function msg(t,c){$('msg').textContent=t||'';$('msg').className=c||'muted';}
+function api(p,b){return fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined).then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});});}
+function $$(c){return '$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+var D=null,tab='crew',year=String(new Date().getFullYear()),EDIT=null,SEL=0,WEEK='',TS=null;
+var today=function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+function shiftWeek(w,n){var d=new Date(w+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+7*n);return d.toISOString().slice(0,10);}
+var UNIT={hour:'per hour',day:'per day',job:'per job'};
+function load(){return api('/api/crew?year='+year).then(function(r){D=r;if(!SEL&&D.workers&&D.workers.length)SEL=D.workers.filter(function(w){return w.active})[0]?D.workers.filter(function(w){return w.active})[0].id:0;draw();}).catch(function(e){if(e)msg(e.message,'bad');});}
+function tabs(){return '<div class="tabs" id="tabs">'+[['crew','Crew'],['time','Time sheet'],['pay','Payments'],['rep','Reports and 1099']].map(function(t){return '<button data-t="'+t[0]+'"'+(tab===t[0]?' class="on"':'')+'>'+T(t[1])+'</button>'}).join('')+'</div>';}
+function teaser(){return '<div class="card lock"><h3 style="margin-top:0">'+T('Crew pay and 1099 tracking')+'</h3><p>'+T('Keep every worker in one place: photo, position, start date and pay rate, a weekly time sheet, hours and pay per job, week, month and year, and a year-end list of contractors who need a 1099.')+'</p><ul><li>'+T('Printable employee profile for your paper records')+'</li><li>'+T('W-9 file on record, no tax ID numbers stored')+'</li><li>'+T('CSV downloads for your accountant')+'</li></ul><p class="muted">'+T('Example: Luis, painter, $22 per hour, 38.5 hours this week on the Smith job.')+'</p><a class="btn" href="/dashboard#billing">'+T('See Basic and Pro plans')+'</a></div>';}
+function draw(){var b=$('body');if(!D)return;if(D.locked){b.innerHTML=teaser();return;}
+ b.innerHTML='<div class="row3"><div><label for="yr">'+T('Year')+'</label><select id="yr">'+yearOpts()+'</select></div></div>'+tabs()+'<div id="pane"></div>';
+ var p=$('pane');if(tab==='crew')p.innerHTML=crewPane();else if(tab==='time')p.innerHTML=timePane();else if(tab==='pay')p.innerHTML=payPane();else p.innerHTML=repPane();
+ if(tab==='time'&&SEL)loadTs();}
+function yearOpts(){var y=new Date().getFullYear(),h='';for(var i=y;i>=y-5;i--)h+='<option'+(String(i)===year?' selected':'')+'>'+i+'</option>';return h;}
+function active(){return D.workers.filter(function(w){return w.active});}
+function jobOpts(sel){return '<option value="">'+T('No job')+'</option>'+D.jobs.map(function(j){return '<option value="'+j.id+'"'+(String(sel)===String(j.id)?' selected':'')+'>'+esc(j.title+' - '+j.customer)+'</option>'}).join('');}
+function workerOpts(sel){return active().map(function(w){return '<option value="'+w.id+'"'+(w.id===sel?' selected':'')+'>'+esc(w.name)+'</option>'}).join('');}
+function crewPane(){
+ var list=D.workers.map(function(w){return '<tr'+(w.active?'':' style="opacity:.55"')+'><td>'+(w.photoFileId?'<img class="ph" src="/api/files?id='+w.photoFileId+'" alt="">':'<span class="ph"></span>')+'<b>'+esc(w.name)+'</b><div class="muted">'+(w.kind==='contractor'?T('1099 contractor'):T('Employee'))+(w.position?' &middot; '+esc(w.position):'')+(w.active?'':' &middot; '+T('removed'))+'</div></td><td>'+(w.payCents?$$(w.payCents)+' '+T(UNIT[w.payUnit]):'')+'</td><td class="r">'+w.hours+' '+T('hrs')+'</td><td class="r"><button class="mini s" data-edit="'+w.id+'">'+T('Edit')+'</button> <button class="mini s" data-ts="'+w.id+'">'+T('Time sheet')+'</button> <a class="btn mini s" href="/api/crew?profile='+w.id+'&year='+year+'" target="_blank">'+T('Profile')+'</a></td></tr>'}).join('');
+ return '<div class="card scroll"><table><thead><tr><th>'+T('Name')+'</th><th>'+T('Pay rate')+'</th><th class="r">'+year+'</th><th></th></tr></thead><tbody>'+(list||'<tr><td colspan="4" class="muted">'+T('No workers yet. Add your first one below.')+'</td></tr>')+'</tbody></table></div>'+(EDIT?editCard(EDIT):'<button id="w_new">'+T('Add a worker')+'</button>');}
+function editCard(w){var f=w.id?D.workers.find(function(x){return x.id===w.id}):w;f=f||w;
+ return '<div class="card"><b>'+(f.id?T('Edit worker'):T('New worker'))+'</b><div class="row"><div style="grid-column:span 2"><label>'+T('Name')+'</label><input id="w_name" maxlength="80" value="'+esc(f.name||'')+'"></div><div><label>'+T('Type')+'</label><select id="w_kind"><option value="employee"'+(f.kind==='contractor'?'':' selected')+'>'+T('Employee')+'</option><option value="contractor"'+(f.kind==='contractor'?' selected':'')+'>'+T('1099 contractor')+'</option></select></div><div><label>'+T('Position')+'</label><input id="w_pos" maxlength="60" value="'+esc(f.position||'')+'"></div></div>'+
+ '<div class="row"><div><label>'+T('Pay ($)')+'</label><input id="w_pay" inputmode="decimal" value="'+(f.payCents?f.payCents/100:'')+'"></div><div><label>'+T('Paid by')+'</label><select id="w_unit">'+['hour','day','job'].map(function(u){return '<option value="'+u+'"'+(f.payUnit===u?' selected':'')+'>'+T(UNIT[u])+'</option>'}).join('')+'</select></div><div><label>'+T('Start date')+'</label><input id="w_start" type="date" value="'+esc(f.startedOn||'')+'"></div><div><label>'+T('Phone')+'</label><input id="w_phone" maxlength="30" value="'+esc(f.phone||'')+'"></div></div>'+
+ '<label>Email</label><input id="w_email" maxlength="120" value="'+esc(f.email||'')+'"><label>'+T('Notes')+'</label><textarea id="w_notes" rows="2" maxlength="1000">'+esc(f.notes||'')+'</textarea>'+
+ (f.id?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center"><label class="btn s" style="margin:0;cursor:pointer">'+T('Add or change photo')+'<input type="file" accept="image/*" data-up="worker_photo" style="display:none"></label>'+(f.kind==='contractor'?'<label class="btn s" style="margin:0;cursor:pointer">'+T('Upload W-9')+'<input type="file" accept="image/*,application/pdf" data-up="w9" style="display:none"></label><span class="muted">'+(f.w9FileId?T('W-9 on file')+' <a href="/api/files?id='+f.w9FileId+'" target="_blank">'+T('View')+'</a> <button class="mini d" data-delfile="'+f.w9FileId+'">'+T('Delete file')+'</button>':T('No W-9 on file'))+'</span>':'')+(f.photoFileId?'<button class="mini d" data-delfile="'+f.photoFileId+'">'+T('Delete photo')+'</button>':'')+'</div><small class="muted">'+T('Print the profile, then delete files here if you want to free up storage. The hours and pay records stay.')+'</small>':'<small class="muted">'+T('Save first, then you can add a photo and W-9.')+'</small>')+
+ '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="w_save" data-id="'+(f.id||'')+'">'+T('Save worker')+'</button><button class="s" id="w_cancel">'+T('Cancel')+'</button>'+(f.id&&f.active?'<button class="d" id="w_rm" data-id="'+f.id+'">'+T('Remove from active crew')+'</button>':'')+'</div></div>';}
+function timePane(){if(!active().length)return '<div class="card muted">'+T('Add a worker first.')+'</div>';if(!WEEK)WEEK=today();
+ return '<div class="card"><div class="row"><div style="grid-column:span 2"><label>'+T('Worker')+'</label><select id="t_w">'+workerOpts(SEL)+'</select></div></div><div class="wk"><button class="s" id="t_prev">&larr;</button><b id="t_lbl"></b><button class="s" id="t_next">&rarr;</button></div><div id="t_list" class="scroll"></div></div>'+
+ '<div class="card"><b>'+T('Add hours')+'</b><div class="row"><div><label>'+T('Date')+'</label><input id="t_date" type="date" value="'+today()+'"></div><div style="grid-column:span 3"><label>'+T('Job')+'</label><select id="t_job">'+jobOpts('')+'</select></div></div><div class="row"><div><label>'+T('Clock in')+'</label><input id="t_in" type="time"></div><div><label>'+T('Clock out')+'</label><input id="t_out" type="time"></div><div><label>'+T('Break (minutes)')+'</label><input id="t_brk" inputmode="numeric" placeholder="0"></div><div><label>'+T('or Hours')+'</label><input id="t_hrs" inputmode="decimal" placeholder="8"></div></div><label>'+T('Note (optional)')+'</label><input id="t_note" maxlength="200"><div style="margin-top:10px"><button id="t_add">'+T('Save hours')+'</button></div></div>';}
+function loadTs(){api('/api/crew?timesheet='+SEL+'&week='+WEEK).then(function(r){TS=r;$('t_lbl').textContent=T('Week of')+' '+r.week+' ('+r.totalHours+' '+T('hrs')+')';$('t_list').innerHTML='<table><thead><tr><th>'+T('Date')+'</th><th>'+T('Job')+'</th><th>'+T('In')+'</th><th>'+T('Out')+'</th><th class="r">'+T('Hours')+'</th><th></th></tr></thead><tbody>'+(r.entries.map(function(e){return '<tr><td>'+esc(e.workDate)+'</td><td>'+esc(e.jobTitle||'')+(e.note?'<div class="muted">'+esc(e.note)+'</div>':'')+'</td><td>'+esc(e.clockIn||'')+'</td><td>'+esc(e.clockOut||'')+'</td><td class="r">'+e.hours+'</td><td><button class="mini d" data-tdel="'+e.id+'">'+T('Delete')+'</button></td></tr>'}).join('')||'<tr><td colspan="6" class="muted">'+T('No hours this week.')+'</td></tr>')+'</tbody></table>';}).catch(function(e){if(e)msg(e.message,'bad');});}
+function payPane(){if(!active().length)return '<div class="card muted">'+T('Add a worker first.')+'</div>';
+ var wn=function(id){var w=D.workers.find(function(x){return x.id===id});return w?w.name:''};
+ return '<div class="card"><b>'+T('Record a payment')+'</b><p class="muted">'+T('Record what you actually paid. For contractors, this is what the 1099 list adds up.')+'</p><div class="row"><div><label>'+T('Worker')+'</label><select id="p_w">'+workerOpts(SEL)+'</select></div><div><label>'+T('Date')+'</label><input id="p_date" type="date" value="'+today()+'"></div><div><label>'+T('Amount ($)')+'</label><input id="p_amt" inputmode="decimal"></div><div><label>'+T('Job')+'</label><select id="p_job">'+jobOpts('')+'</select></div></div><label>'+T('Note (optional)')+'</label><input id="p_note" maxlength="200"><div style="margin-top:10px"><button id="p_add">'+T('Save payment')+'</button></div></div>'+
+ '<div class="card scroll"><table><thead><tr><th>'+T('Date')+'</th><th>'+T('Worker')+'</th><th>'+T('Job')+'</th><th class="r">'+T('Amount')+'</th><th></th></tr></thead><tbody>'+(D.payments.map(function(p){return '<tr><td>'+esc(p.paidOn)+'</td><td>'+esc(wn(p.workerId))+(p.note?'<div class="muted">'+esc(p.note)+'</div>':'')+'</td><td>'+esc(p.jobTitle||'')+'</td><td class="r">'+$$(p.amountCents)+'</td><td><button class="mini d" data-pdel="'+p.id+'">'+T('Delete')+'</button></td></tr>'}).join('')||'<tr><td colspan="5" class="muted">'+T('No payments recorded this year.')+'</td></tr>')+'</tbody></table></div>';}
+function repPane(){
+ var rows=D.workers.filter(function(w){return w.hours>0||w.paidCents>0}).map(function(w){var months=Object.keys(w.byMonth).sort().map(function(m){return m+': '+w.byMonth[m]}).join(', '),jobs=Object.keys(w.byJob).map(function(j){return esc(j)+': '+w.byJob[j]}).join(', ');
+  return '<tr><td><b>'+esc(w.name)+'</b><div class="muted">'+(w.kind==='contractor'?T('1099 contractor'):T('Employee'))+'</div></td><td class="r">'+w.hours+'</td><td class="r">'+(w.payCents?$$(w.estimatedCents):'')+'</td><td class="r">'+$$(w.paidCents)+'</td></tr><tr><td colspan="4" class="muted" style="border-bottom:1px solid #ddd">'+T('By month')+': '+esc(months||'-')+'<br>'+T('By job')+': '+(jobs||'-')+'</td></tr>'}).join('');
+ var l=D.list1099.map(function(x){return '<tr><td>'+esc(x.name)+'</td><td class="r">'+$$(x.paidCents)+'</td><td>'+(x.crossed?'<b class="bad">'+T('Needs a 1099')+'</b>':'<span class="muted">'+T('Under the threshold')+'</span>')+'</td><td>'+(x.w9?'<span class="ok">'+T('W-9 on file')+'</span>':'<span class="bad">'+T('No W-9')+'</span>')+'</td></tr>'}).join('');
+ return '<div class="card scroll"><b>'+T('Hours and pay')+' '+year+'</b><table><thead><tr><th>'+T('Worker')+'</th><th class="r">'+T('Hours')+'</th><th class="r">'+T('Worked out from rate')+'</th><th class="r">'+T('Paid')+'</th></tr></thead><tbody>'+(rows||'<tr><td colspan="4" class="muted">'+T('Nothing recorded yet.')+'</td></tr>')+'</tbody></table></div>'+
+ '<div class="card scroll"><b>'+T('1099 contractors')+' '+year+'</b><p class="muted">'+T('A contractor paid at least the reporting threshold in a year needs a Form 1099-NEC from you by January 31. The threshold is')+' <b>'+$$(D.threshold1099Cents)+'</b> '+T('(change it in')+' <a href="/records">'+T('Records, Settings')+'</a>). '+T('Employees get a W-2, so they are not listed. Confirm with your accountant or IRS.gov.')+'</p><table><thead><tr><th>'+T('Contractor')+'</th><th class="r">'+T('Paid')+'</th><th></th><th>W-9</th></tr></thead><tbody>'+(l||'<tr><td colspan="4" class="muted">'+T('No contractors yet.')+'</td></tr>')+'</tbody></table></div>'+
+ '<div class="card"><b>'+T('Download')+'</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><a class="btn s" href="/api/crew?export=hours&year='+year+'">'+T('Hours (CSV)')+'</a><a class="btn s" href="/api/crew?export=payments&year='+year+'">'+T('Payments (CSV)')+'</a><a class="btn s" href="/api/crew?export=1099&year='+year+'">'+T('1099 list (CSV)')+'</a></div></div>';}
+function dollars(v){var n=Number(String(v).replace(/[$,]/g,''));return Math.round((n||0)*100);}
+function shrink(f){return new Promise(function(res){if(!f.type.startsWith('image/')||f.type==='image/gif'){res(f);return;}var im=new Image();im.onload=function(){var s=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(function(b){res(b?new File([b],(f.name||'photo').replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):f)},'image/jpeg',0.82)};im.onerror=function(){res(f)};im.src=URL.createObjectURL(f)});}
+document.addEventListener('change',function(e){var t=e.target;
+ if(t.id==='yr'){year=t.value;load();}
+ else if(t.id==='t_w'){SEL=+t.value;loadTs();}
+ else if(t.dataset&&t.dataset.up&&t.files[0]){msg(T('Uploading...'),'muted');shrink(t.files[0]).then(function(b){var fd=new FormData();fd.append('file',b);fd.append('kind',t.dataset.up);fd.append('workerId',EDIT.id);return fetch('/api/files',{method:'POST',body:fd})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Could not upload.');return j;})}).then(function(){msg(T('Saved.'),'ok');return load();}).catch(function(x){msg(x.message,'bad')});}
+});
+document.addEventListener('click',function(e){var t=e.target,d=t.dataset||{},id=t.id;
+ var act=function(p,after){p.then(function(){if(after)after();return load();}).catch(function(x){if(x)msg(x.message,'bad')});};
+ if(d.t){tab=d.t;EDIT=null;draw();}
+ else if(id==='w_new'){EDIT={};draw();}
+ else if(d.edit){EDIT={id:+d.edit};draw();}
+ else if(d.ts){SEL=+d.ts;tab='time';draw();}
+ else if(id==='w_cancel'){EDIT=null;draw();}
+ else if(id==='w_save'){act(api('/api/crew',{action:'saveWorker',id:d.id?+d.id:undefined,name:$('w_name').value,kind:$('w_kind').value,position:$('w_pos').value,payCents:dollars($('w_pay').value),payUnit:$('w_unit').value,startedOn:$('w_start').value,phone:$('w_phone').value,email:$('w_email').value,notes:$('w_notes').value}).then(function(r){msg(T('Saved.'),'ok');if(!d.id){SEL=r.id;}EDIT=d.id?null:{id:r.id};}));}
+ else if(id==='w_rm'){if(confirm(T('Remove this worker from the active crew? Their hours and pay records stay.')))act(api('/api/crew',{action:'removeWorker',id:+d.id}),function(){EDIT=null;});}
+ else if(d.delfile){if(confirm(T('Delete this file? This cannot be undone.')))act(api('/api/files',{action:'delete',id:+d.delfile}));}
+ else if(id==='t_prev'){WEEK=shiftWeek(TS?TS.week:WEEK,-1);loadTs();}
+ else if(id==='t_next'){WEEK=shiftWeek(TS?TS.week:WEEK,1);loadTs();}
+ else if(id==='t_add'){api('/api/crew',{action:'addTime',workerId:SEL,workDate:$('t_date').value,jobId:$('t_job').value,clockIn:$('t_in').value,clockOut:$('t_out').value,breakMinutes:$('t_brk').value,hours:$('t_hrs').value,note:$('t_note').value}).then(function(){msg(T('Saved.'),'ok');WEEK=$('t_date').value;$('t_in').value=$('t_out').value=$('t_brk').value=$('t_hrs').value=$('t_note').value='';loadTs();load().then(function(){});}).catch(function(x){if(x)msg(x.message,'bad')});}
+ else if(d.tdel){if(confirm(T('Delete these hours?')))api('/api/crew',{action:'deleteTime',id:+d.tdel}).then(function(){loadTs();}).catch(function(x){if(x)msg(x.message,'bad')});}
+ else if(id==='p_add'){act(api('/api/crew',{action:'addPayment',workerId:+$('p_w').value,paidOn:$('p_date').value,amountCents:dollars($('p_amt').value),jobId:$('p_job').value,note:$('p_note').value}).then(function(){msg(T('Saved.'),'ok')}));}
+ else if(d.pdel){if(confirm(T('Delete this payment?')))act(api('/api/crew',{action:'deletePayment',id:+d.pdel}));}
+});
+load();
+</script></body></html>
