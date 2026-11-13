@@ -54,3 +54,39 @@ test("profile escapes text and has no tax id fields", () => {
   assert.ok(h.includes("$200.00"));
   assert.ok(!/SSN|social security number:/i.test(h.replace("No Social Security or tax ID number is stored here.", "")));
 });
+
+import { absenceSummary, cleanAbsence, cleanMethod } from "../src/crew.ts";
+test("payment methods outside the list become other", () => {
+  assert.equal(cleanMethod("cash_app"), "cash_app");
+  assert.equal(cleanMethod("bitcoin"), "other");
+  assert.equal(cleanMethod(undefined), "other");
+});
+test("time off needs a date and a worker, and keeps paid hours in range", () => {
+  assert.ok("error" in cleanAbsence({ workerId: 1, date: "bad", kind: "sick" }));
+  assert.ok("error" in cleanAbsence({ date: "2026-11-02", kind: "sick" }));
+  const a = cleanAbsence({ workerId: 3, date: "2026-11-02", kind: "sick", hours: 8.1, note: " flu " });
+  assert.ok(!("error" in a));
+  if (!("error" in a)) {
+    assert.equal(a.kind, "sick");
+    assert.equal(a.hours, 8);
+    assert.equal(a.note, "flu");
+  }
+  const odd = cleanAbsence({ workerId: 3, date: "2026-11-02", kind: "weird", hours: 99 });
+  if (!("error" in odd)) {
+    assert.equal(odd.kind, "other");
+    assert.equal(odd.hours, 0);
+  }
+});
+test("the owner sees how often each worker was sick, absent or late, and the last time", () => {
+  const s = absenceSummary([
+    { workerId: 1, kind: "sick", date: "2026-03-04" },
+    { workerId: 1, kind: "sick", date: "2026-06-12" },
+    { workerId: 1, kind: "vacation", date: "2026-07-01" },
+    { workerId: 2, kind: "absent", date: "2026-05-05" },
+  ]);
+  assert.equal(s[1].sick, 2);
+  assert.equal(s[1].vacation, 1);
+  assert.equal(s[1].last, "2026-06-12");
+  assert.equal(s[2].absent, 1);
+  assert.equal(s[2].sick ?? 0, 0);
+});

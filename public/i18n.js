@@ -39,6 +39,40 @@
   function x(s) { var r = tr(norm(s)); return r === null ? s : r; }
   window.pmT = t;
 
+  // ---- Shared helpers for every app page: friendly dates and the little "?" help bubbles ----
+  // Dates are stored as YYYY-MM-DD (so they sort and export cleanly) and shown the way people read them.
+  // pmDate('2026-11-13') -> "Fri, Nov 13, 2026"    pmDate('2026-11-09', 'long') -> "November 9, 2026"    pmDate('2026-11-09', 'month') -> "November 2026"
+  window.pmDate = function (s, mode) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
+    if (!m) return s == null ? '' : String(s);
+    var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    if (isNaN(d.getTime())) return String(s);
+    var o = mode === 'long' ? { month: 'long', day: 'numeric', year: 'numeric' } : mode === 'month' ? { month: 'long', year: 'numeric' } : { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+    o.timeZone = 'UTC';
+    try { return new Intl.DateTimeFormat(lang === 'es' ? 'es-US' : 'en-US', o).format(d); } catch (e) { return String(s); }
+  };
+  // pmHelp('Plain words explaining the box') -> a "?" button that opens the explanation right under it.
+  window.pmHelp = function (text) {
+    return '<button type="button" class="pmq" aria-label="Help" data-pmq="' + String(text).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">?</button>';
+  };
+  (function () {
+    if (typeof document.createElement !== 'function') return;
+    var st = document.createElement('style');
+    st.textContent = '.pmq{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#E8A33D;color:#0F1B2D;font:700 12px/1 system-ui,sans-serif;margin-left:6px;vertical-align:middle}' +
+      '.pmq:focus-visible{outline:2px solid #0F1B2D;outline-offset:2px}.pmqbox{display:block;background:#fff8e6;border:1px solid #f0d9a0;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;line-height:1.45;color:#0F1B2D;font-weight:400;white-space:pre-line}';
+    (document.head || document.documentElement).appendChild(st);
+    document.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('.pmq') : null;
+      if (!b) return;
+      var nx = b.nextElementSibling;
+      if (nx && nx.className === 'pmqbox') { nx.remove(); return; }
+      var box = document.createElement('span');
+      box.className = 'pmqbox';
+      box.textContent = b.getAttribute('data-pmq');
+      b.parentNode.insertBefore(box, b.nextSibling);
+    });
+  })();
+
   var SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, CODE: 1, PRE: 1, NOSCRIPT: 1 };
   var ATTRS = ['placeholder', 'title', 'aria-label', 'alt'];
   var done = new WeakMap(); // text node or element -> what we wrote, so our own edits are not translated twice
@@ -799,6 +833,153 @@
     'Included in Pro.': 'Incluido en Pro.', 'See plans': 'Ver planes', 'Sample numbers': 'Números de ejemplo', 'See what your jobs really earn': 'Vea cuánto ganan realmente sus trabajos',
     'Basic shows your win rate, sales by month and why you lose jobs. Pro adds profit per job and per service, sales by season and city, crew productivity, mileage and materials use.': 'Basic muestra su tasa de éxito, ventas por mes y por qué pierde trabajos. Pro agrega ganancia por trabajo y por servicio, ventas por temporada y ciudad, productividad del equipo, millas y uso de materiales.',
     'Profit per job and per service': 'Ganancia por trabajo y por servicio', 'Sales by season and city': 'Ventas por temporada y ciudad', 'Crew productivity, mileage and materials use': 'Productividad del equipo, millas y uso de materiales', 'Could not load the report.': 'No se pudo cargar el reporte.', 'Analysis': 'Análisis',
+  });
+
+  pmI18n.add({
+    "Add your per-mile rate in Settings to see what these miles are worth": "Agregue su tarifa por milla en Ajustes para ver cuánto valen estas millas",
+    "Your receipt photo": "La foto de su recibo",
+    "We read the receipt for you and fill in the boxes. You can fix anything before saving.": "Leemos el recibo por usted y llenamos las casillas. Puede corregir lo que sea antes de guardar.",
+    "Add the photo to keep it with this expense, then type the details below.": "Agregue la foto para guardarla con este gasto y luego escriba los detalles abajo.",
+    "Edit this expense": "Editar este gasto",
+    "Add an expense": "Agregar un gasto",
+    "Fastest way: take a photo of the receipt.": "La forma más rápida: tome una foto del recibo.",
+    "Categories are the labels on expenses, like Materials or Fuel. Your accountant uses them to sort your costs. Add your own (like Dumpster rental) in the Settings tab and they show up in this list.": "Las categorías son las etiquetas de los gastos, como Materiales o Combustible. Su contador las usa para ordenar sus costos. Agregue las suyas (como Alquiler de contenedor) en la pestaña Ajustes y aparecerán en esta lista.",
+    "The job stays selected after you save, so you can add the next receipt for the same job. After the first time, a vendor fills in its own category.": "El trabajo sigue seleccionado después de guardar, para que pueda agregar el siguiente recibo del mismo trabajo. Después de la primera vez, cada proveedor llena su propia categoría.",
+    "Uploading your photo...": "Subiendo su foto...",
+    "Could not upload that photo. Please try again.": "No se pudo subir esa foto. Inténtelo de nuevo.",
+    "Photo added. Reading receipts is not in your plan, so type the details below.": "Foto agregada. La lectura de recibos no está en su plan, así que escriba los detalles abajo.",
+    "Photo added. You used this month's receipt reads, so type the details below.": "Foto agregada. Ya usó las lecturas de recibos de este mes, así que escriba los detalles abajo.",
+    "Reading your receipt...": "Leyendo su recibo...",
+    "Done. Check the boxes below, fix anything that looks wrong, then save.": "Listo. Revise las casillas de abajo, corrija lo que se vea mal y luego guarde.",
+    "Try reading again": "Intentar leer otra vez",
+    "miles": "millas",
+    "worth about": "valen cerca de",
+    "Your total shows here as you type.": "Su total aparece aquí mientras escribe.",
+    "Edit this trip": "Editar este viaje",
+    "Track your miles on this job": "Registre sus millas en este trabajo",
+    "Pick the job, tell us how far you drove, and you are done. Not sure of the distance? Check your phone's map once, then use \"same drive on several days\" so you never have to type it every day.": "Elija el trabajo, díganos cuánto manejó y listo. ¿No sabe la distancia? Revise el mapa de su teléfono una vez y use \"el mismo recorrido varios días\" para no escribirlo todos los días.",
+    "Tip: if you tell us what your accountant uses per mile, we will show what each trip is worth. You can log miles without it.": "Consejo: si nos dice cuánto usa su contador por milla, le mostraremos cuánto vale cada viaje. Puede registrar millas sin eso.",
+    "Open Settings": "Abrir Ajustes",
+    "Which job was the drive for?": "¿Para qué trabajo fue el recorrido?",
+    "I know the miles": "Sé las millas",
+    "Use my odometer": "Usar mi odómetro",
+    "Odometer when you started": "Odómetro al salir",
+    "Odometer when you finished": "Odómetro al terminar",
+    "Miles for one day (there and back)": "Millas de un día (ida y vuelta)",
+    "Same drive on how many days?": "¿El mismo recorrido cuántos días?",
+    "If you drive the same route every day of a job, type the miles for ONE day, then how many days you drove it. We multiply for you. Example: 18 miles, 5 days = 90 miles.": "Si maneja la misma ruta todos los días de un trabajo, escriba las millas de UN día y luego cuántos días la manejó. Nosotros multiplicamos. Ejemplo: 18 millas, 5 días = 90 millas.",
+    "Your trips": "Sus viajes",
+    "Add a whole month of expenses at once": "Agregar un mes completo de gastos de una vez",
+    "If you pay for paint, fuel and supplies with a business debit card, credit card or bank account, your bank already keeps a list of every purchase. Instead of typing each one, download that list from your bank's website and add it here. You look over the list first, and nothing is saved until you say so.": "Si paga la pintura, el combustible y los suministros con una tarjeta de débito, tarjeta de crédito o cuenta bancaria del negocio, su banco ya guarda una lista de cada compra. En vez de escribirlas una por una, descargue esa lista del sitio web de su banco y agréguela aquí. Usted revisa la lista primero y no se guarda nada hasta que usted lo diga.",
+    "How to get the file": "Cómo obtener el archivo",
+    "Sign in to your bank or card website.": "Entre al sitio web de su banco o tarjeta.",
+    "Open your account and look for Transactions or Statements.": "Abra su cuenta y busque Transacciones o Estados de cuenta.",
+    "Find Download or Export and choose CSV. Some banks call it Excel or spreadsheet. One month at a time works best.": "Busque Descargar o Exportar y elija CSV. Algunos bancos lo llaman Excel u hoja de cálculo. Un mes a la vez funciona mejor.",
+    "Choose that file below.": "Elija ese archivo abajo.",
+    "Works with: CSV files. PDF statements and photos cannot be read yet. We do not keep the file or your account number, only the expenses you check.": "Funciona con: archivos CSV. Los estados de cuenta en PDF y las fotos todavía no se pueden leer. No guardamos el archivo ni su número de cuenta, solo los gastos que usted marque.",
+    "What should the file look like?": "¿Cómo debe verse el archivo?",
+    "Open it in Excel or Google Sheets. It needs a row of headings that includes a date, a description (or merchant), and an amount (or debit). Extra columns are fine.": "Ábralo en Excel o Google Sheets. Necesita una fila de encabezados con una fecha, una descripción (o comercio) y un monto (o débito). Las columnas extra no hay problema.",
+    "These are spreadsheet files (CSV). They open in Excel or Google Sheets, and your accountant can use them. Records only, not tax advice.": "Estos son archivos de hoja de cálculo (CSV). Se abren en Excel o Google Sheets y su contador puede usarlos. Solo registros, no asesoría de impuestos.",
+    "The easiest one. A single download for your accountant with all of the above, plus QuickBooks files if they use it.": "La más fácil. Una sola descarga para su contador con todo lo anterior, más archivos de QuickBooks si los usa.",
+    "Do you use QuickBooks?": "¿Usa QuickBooks?",
+    "QuickBooks is accounting software. Think of it as a checkbook on a computer. Some accountants use it to keep a business's books.": "QuickBooks es un programa de contabilidad. Piense en él como una chequera en la computadora. Algunos contadores lo usan para llevar los libros de un negocio.",
+    "Do not use QuickBooks? You can skip this whole box. The Year-end package above has everything your accountant needs.": "¿No usa QuickBooks? Puede saltarse todo este cuadro. El paquete de fin de año de arriba tiene todo lo que su contador necesita.",
+    "If you or your accountant do use it, these files drop your PaintersMax expenses into QuickBooks so nobody has to type them twice. There are two kinds of QuickBooks. QuickBooks Online is the one you open in a web browser. QuickBooks Desktop is a program installed on a computer. Not sure which you have? Ask your accountant, or skip this.": "Si usted o su contador lo usan, estos archivos pasan sus gastos de PaintersMax a QuickBooks para que nadie tenga que escribirlos dos veces. Hay dos tipos de QuickBooks. QuickBooks Online es el que se abre en un navegador web. QuickBooks Desktop es un programa instalado en una computadora. ¿No sabe cuál tiene? Pregunte a su contador o sáltese esto.",
+    "Download the file below.": "Descargue el archivo de abajo.",
+    "In QuickBooks Online, find Banking (or Transactions) and then Upload transactions.": "En QuickBooks Online, busque Banca (o Transacciones) y luego Cargar transacciones.",
+    "Choose the bank or card account the money came out of.": "Elija la cuenta bancaria o tarjeta de donde salió el dinero.",
+    "When it asks, match the columns: Date, Description and Amount.": "Cuando se lo pida, relacione las columnas: Fecha, Descripción y Monto.",
+    "Look the list over, then accept it.": "Revise la lista y luego acéptela.",
+    "If your bank is already connected to QuickBooks, these purchases may show up twice. Only upload the ones that are not already there.": "Si su banco ya está conectado a QuickBooks, estas compras pueden aparecer dos veces. Suba solo las que todavía no estén.",
+    "Make a backup copy of your company file first, just to be safe.": "Haga primero una copia de seguridad de su archivo de la empresa, por seguridad.",
+    "In QuickBooks, create these expense accounts (the names must match):": "En QuickBooks, cree estas cuentas de gastos (los nombres deben coincidir):",
+    "Tell us the name of the account the money came out of, exactly as it is spelled in QuickBooks, and what kind it is:": "Díganos el nombre de la cuenta de donde salió el dinero, tal como está escrito en QuickBooks, y de qué tipo es:",
+    "Name of that account (for example Business Checking)": "Nombre de esa cuenta (por ejemplo Cuenta de cheques del negocio)",
+    "What kind of account is it?": "¿Qué tipo de cuenta es?",
+    "In QuickBooks, open the File menu, then Utilities, then Import, then IIF Files, and choose the file.": "En QuickBooks, abra el menú Archivo, luego Utilidades, luego Importar, luego Archivos IIF, y elija el archivo.",
+    "These files follow the formats Intuit (the maker of QuickBooks) publishes, but we cannot test inside your copy of QuickBooks. Try a small month first, and check the entries.": "Estos archivos siguen los formatos que publica Intuit (el fabricante de QuickBooks), pero no podemos probarlos dentro de su copia de QuickBooks. Pruebe primero con un mes pequeño y revise las entradas.",
+    "This is how many cents the government lets a business count for each mile driven. We multiply your miles by it to show what your driving is worth. It helps your accountant, and we never file anything. The number changes most years, so we leave it blank on purpose. If it is blank, nothing breaks: we just do not show the dollar value.": "Esta es la cantidad de centavos que el gobierno permite a un negocio contar por cada milla manejada. Multiplicamos sus millas por este número para mostrar cuánto vale su manejo. Ayuda a su contador y nosotros nunca presentamos nada. El número cambia casi todos los años, por eso lo dejamos en blanco a propósito. Si está en blanco, nada se rompe: solo no mostramos el valor en dólares.",
+    "Not sure what to type? Ask your accountant, or look up the current \"standard mileage rate\" for business on IRS.gov. Type it in cents: 70 means 70 cents a mile.": "¿No sabe qué escribir? Pregunte a su contador o busque la \"tarifa estándar por milla\" actual para negocios en IRS.gov. Escríbala en centavos: 70 significa 70 centavos por milla.",
+    "Look it up on IRS.gov": "Búsquela en IRS.gov",
+    "1099 reporting amount ($)": "Monto para reportar 1099 ($)",
+    "If you pay a subcontractor this much or more in a year, the IRS may want a 1099 form from you. We use this number to flag who is over it. The amount changes by law, so check with your accountant.": "Si paga a un subcontratista esta cantidad o más en un año, el IRS puede pedirle un formulario 1099. Usamos este número para marcar quién lo pasa. El monto cambia por ley, así que confírmelo con su contador.",
+    "Categories are the labels on expenses, like Materials, Fuel or Tools. Add your own here. They show up in the Category list when you add an expense (Expenses tab).": "Las categorías son las etiquetas de los gastos, como Materiales, Combustible o Herramientas. Agregue las suyas aquí. Aparecen en la lista de Categoría cuando agrega un gasto (pestaña Gastos).",
+    "Add a label that fits your business. It will appear in the Category list on the Expenses tab.": "Agregue una etiqueta que le sirva a su negocio. Aparecerá en la lista de Categoría en la pestaña Gastos.",
+    "Vendor memory": "Memoria de proveedores",
+    "The first time you save an expense from a store, like Home Depot, as Materials, we remember it. Next time you type Home Depot, the category fills in by itself. If one is wrong, remove it here and it will learn again.": "La primera vez que guarda un gasto de una tienda, como Home Depot, como Materiales, lo recordamos. La próxima vez que escriba Home Depot, la categoría se llena sola. Si alguna está mal, quítela aquí y volverá a aprender.",
+    "Stores we have learned. The first time you save an expense from a store, we remember its category. Next time it fills in by itself. Remove one if it is wrong.": "Tiendas que hemos aprendido. La primera vez que guarda un gasto de una tienda, recordamos su categoría. La próxima vez se llena sola. Quite una si está mal.",
+    "That is a PDF statement. PDFs cannot be read yet. On your bank's website, look for Download or Export and choose CSV (it may be called Excel or spreadsheet), then choose that file here.": "Ese es un estado de cuenta en PDF. Los PDF todavía no se pueden leer. En el sitio web de su banco busque Descargar o Exportar y elija CSV (puede llamarse Excel u hoja de cálculo), y luego elija ese archivo aquí.",
+    "Changes saved.": "Cambios guardados.",
+    "Saved. This vendor will fill its category next time. The job is still selected, so you can add the next one.": "Guardado. Este proveedor llenará su categoría la próxima vez. El trabajo sigue seleccionado para que agregue el siguiente.",
+    "Saved. The job is still selected, so you can add the next one.": "Guardado. El trabajo sigue seleccionado para que agregue el siguiente.",
+    "odometer": "odómetro",
+    "to": "a",
+    "days": "días",
+    "Saved. The job is still selected, so you can add another trip.": "Guardado. El trabajo sigue seleccionado para que agregue otro viaje.",
+    "No W-9 yet": "Todavía sin W-9",
+    "Add it": "Agregarlo",
+    "Record time off or an absence": "Registrar tiempo libre o una ausencia",
+    "Use this for a sick day, vacation, a holiday, a day someone did not show up, or a late arrival. It does not add work hours. It lets you see, at the end of the year, how often each person was out.": "Úselo para un día de enfermedad, vacaciones, un día feriado, un día que alguien no se presentó o una llegada tarde. No suma horas de trabajo. Le deja ver, al final del año, cuántas veces faltó cada persona.",
+    "What happened": "Qué pasó",
+    "Paid hours (optional)": "Horas pagadas (opcional)",
+    "Save time off": "Guardar tiempo libre",
+    "This is for the worker chosen at the top of this tab.": "Esto es para el trabajador elegido arriba en esta pestaña.",
+    "How the money reached them: cash, check, a payment app, or the bank. Your accountant likes to see this, especially for cash.": "Cómo les llegó el dinero: efectivo, cheque, una aplicación de pagos o el banco. A su contador le gusta ver esto, sobre todo en efectivo.",
+    "Check number or reference (optional)": "Número de cheque o referencia (opcional)",
+    "Nothing is here yet because no hours or payments are recorded for": "Todavía no hay nada porque no hay horas ni pagos registrados para",
+    "Add hours on the Time sheet tab and payments on the Payments tab, and this fills in by itself.": "Agregue horas en la pestaña Hoja de horas y pagos en la pestaña Pagos, y esto se llena solo.",
+    "Go to Time sheet": "Ir a la hoja de horas",
+    "Go to Payments": "Ir a Pagos",
+    "Under the amount": "Debajo del monto",
+    "This week": "Esta semana",
+    "This month": "Este mes",
+    "This year": "Este año",
+    "Hours times the pay rate you entered for the worker. It is an estimate to compare with what you really paid.": "Horas por la tarifa de pago que puso para el trabajador. Es un cálculo para comparar con lo que realmente pagó.",
+    "No workers yet.": "Todavía no hay trabajadores.",
+    "Hours by month": "Horas por mes",
+    "Time off and attendance": "Tiempo libre y asistencia",
+    "How many days each person was sick, on vacation, off for a holiday, absent, or late. Record them on the Time sheet tab.": "Cuántos días cada persona estuvo enferma, de vacaciones, libre por un feriado, ausente o llegó tarde. Regístrelos en la pestaña Hoja de horas.",
+    "Sick": "Enfermo",
+    "Vacation": "Vacaciones",
+    "Holiday": "Feriado",
+    "Absent": "Ausente",
+    "Late": "Tarde",
+    "Last sick, absent or late": "Última vez enfermo, ausente o tarde",
+    "Every day recorded": "Todos los días registrados",
+    "No time off recorded yet.": "Todavía no hay tiempo libre registrado.",
+    "Time off (CSV)": "Tiempo libre (CSV)",
+    "1099 contractors and W-9 forms": "Contratistas 1099 y formularios W-9",
+    "What is this? (plain words)": "¿Qué es esto? (en palabras sencillas)",
+    "A contractor is someone who works for you but is not your employee, like a painter you pay by the job. Before you pay a contractor, ask for a W-9. It is a one-page IRS form where they give their legal name, address and tax number. Keep it in your records. If you pay a contractor the reporting amount or more in a year, the IRS may want a 1099-NEC form from you by January 31. Your accountant or tax software files it.": "Un contratista es alguien que trabaja para usted pero no es su empleado, como un pintor al que le paga por trabajo. Antes de pagarle, pídale un W-9. Es un formulario de una página del IRS donde da su nombre legal, dirección y número de impuestos. Guárdelo en sus registros. Si le paga a un contratista el monto de reporte o más en un año, el IRS puede pedirle un formulario 1099-NEC antes del 31 de enero. Su contador o su programa de impuestos lo presenta.",
+    "PaintersMax keeps a scan or photo of the W-9 and adds up what you paid. We do not store tax numbers. Employees are different: they get a W-2, and payroll taxes are handled by you, a payroll service or your accountant. Confirm everything with your accountant or IRS.gov.": "PaintersMax guarda un escaneo o foto del W-9 y suma lo que usted pagó. No guardamos números de impuestos. Los empleados son distintos: reciben un W-2 y los impuestos de nómina los maneja usted, un servicio de nómina o su contador. Confirme todo con su contador o en IRS.gov.",
+    "Get a blank W-9 from IRS.gov": "Obtener un W-9 en blanco en IRS.gov",
+    "The reporting amount is": "El monto de reporte es",
+    "Change it in Records, Settings": "Cámbielo en Registros, Ajustes",
+    "No contractors yet. Add a worker and choose 1099 contractor as the type.": "Todavía no hay contratistas. Agregue un trabajador y elija contratista 1099 como tipo.",
+    "Delete this record?": "¿Eliminar este registro?",
+    "Main menu": "Menú principal",
+    "More": "Más",
+    "Cash": "Efectivo",
+    "Check": "Cheque",
+    "Direct deposit or bank transfer": "Depósito directo o transferencia bancaria",
+    "Zelle": "Zelle",
+    "Cash App": "Cash App",
+    "Venmo": "Venmo",
+    "PayPal": "PayPal",
+    "Absent (did not show up)": "Ausente (no se presentó)",
+    "Other time off": "Otro tiempo libre",
+    "Jan": "ene",
+    "Feb": "feb",
+    "Mar": "mar",
+    "Apr": "abr",
+    "May": "may",
+    "Jun": "jun",
+    "Jul": "jul",
+    "Aug": "ago",
+    "Sep": "sep",
+    "Oct": "oct",
+    "Nov": "nov",
+    "Dec": "dic",
   });
 
   pmI18n.start();

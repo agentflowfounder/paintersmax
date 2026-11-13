@@ -125,6 +125,7 @@ export async function handleJobFile(request: Request, env: Env): Promise<Respons
       [`crew-hours-${year}.csv`, `/api/crew?export=hours&year=${year}`],
       [`crew-payments-${year}.csv`, `/api/crew?export=payments&year=${year}`],
       [`1099-list-${year}.csv`, `/api/crew?export=1099&year=${year}`],
+      [`crew-time-off-${year}.csv`, `/api/crew?export=attendance&year=${year}`],
     ];
     const files: ZipSource[] = [text("README.txt", `PaintersMax year-end records for ${year}\r\nPrepared ${new Date().toISOString().slice(0, 10)} for ${co.name}.\r\n\r\nRecords for your accountant, not tax advice.\r\n- expenses, mileage, invoices: spreadsheets (CSV)\r\n- quickbooks-online: Banking > Upload transactions\r\n- quickbooks-desktop: File > Utilities > Import > IIF Files (create the expense accounts first)\r\n- crew files are included on Basic and Pro. The 1099 list uses the reporting threshold you set in Records > Settings (confirm with your accountant or IRS.gov).\r\n- We never store Social Security or tax ID numbers. W-9 files are in each contractor's profile.\r\n`)];
     for (const [name, path] of parts) files.push({ name, read: () => sub(path) });

@@ -34,4 +34,4 @@ function load(){api('/api/lessons?q='+encodeURIComponent($('q').value)).then(fun
  $('list').innerHTML=r.lessons.length?r.lessons.map(function(l){return '<div class="card"><b>'+esc(l.title)+'</b>'+(l.jobTitle?' <span class="muted">&middot; <a href="/jobs?id='+l.jobId+'">'+esc(l.jobTitle)+'</a></span>':'')+'<div>'+(l.tags?l.tags.split(', ').map(function(g){return '<span class="tag">'+esc(g)+'</span>'}).join(''):'')+'</div><div style="white-space:pre-wrap;margin-top:6px">'+esc(l.body)+'</div></div>'}).join(''):'<div class="card muted">'+(r.total?'No lessons match that search.':'No lessons yet. Open a finished job and tap "Draft lessons from this job".')+'</div>';});}
 $('q').oninput=function(){clearTimeout(t);t=setTimeout(load,250);};
 load();
-</script></body></html>
+</script><script src="/nav.js"></script></body></html>

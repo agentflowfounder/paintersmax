@@ -145,4 +145,4 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
     j.leads.map(l=>`<tr><td>${esc(l.createdAt)}</td><td>${esc(l.name)}</td><td>${esc(l.email)}<br>${esc(l.phone)} ${esc(l.zip)}</td><td>${esc(l.jobType)} ${l.sqft?esc(l.sqft)+' sq ft':''}</td><td>${l.lowCents==null?'':usd(l.lowCents)+' - '+usd(l.highCents)}</td><td>${esc(l.notes)}</td><td>${esc(l.status)}</td></tr>`).join('')+'</tbody></table>';
 })();
 document.getElementById('out').onclick=async()=>{await fetch('/api/auth/logout',{method:'POST'});location.href='/login';};
-</script></body></html>
+</script><script src="/nav.js"></script></body></html>

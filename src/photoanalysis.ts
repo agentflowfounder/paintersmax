@@ -2,6 +2,7 @@ import { getSessionUser } from "./auth.ts";
 import { addJobEvent } from "./crm.ts";
 import { companyPlan } from "./files.ts";
 import { consume, refund, usageSummary } from "./usage.ts";
+import { friendlyVisionError, parseJsonLoose, visionAsk } from "./vision.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -96,31 +97,13 @@ function b64(buf: ArrayBuffer): string {
   return btoa(s);
 }
 
-/** One vision call to Gemini. Returns parsed JSON or null. */
-async function askGemini(env: Env, mime: string, data: string, language: "en" | "es", note: string): Promise<any | null> {
-  if (!env.GEMINI_API_KEY) return null;
-  const model = env.MODEL_GEMINI ?? "gemini-2.5-flash";
+/** One vision call (Gemini first, then OpenAI, then Anthropic). Returns the parsed JSON, or why every provider failed. */
+async function askVision(env: Env, mime: string, data: string, language: "en" | "es", note: string): Promise<{ raw: any } | { why: string }> {
   const lang = language === "es" ? "\nWrite every text field in Spanish." : "";
-  const r = await fetch(`${env.GEMINI_API_BASE ?? "https://generativelanguage.googleapis.com"}/v1beta/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: ANALYSIS_PROMPT + lang }] },
-      contents: [{ role: "user", parts: [{ inline_data: { mime_type: mime, data } }, { text: note ? `The painter's note about this photo: ${note.slice(0, 300)}` : "Look at this photo." }] }],
-      generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1800, thinkingConfig: { thinkingBudget: 0 } },
-    }),
-  });
-  if (!r.ok) {
-    console.error("photo analysis failed", r.status);
-    return null;
-  }
-  const j = (await r.json()) as any;
-  const t = j.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ?? "";
-  try {
-    return JSON.parse(t.replace(/^```json\s*|```$/g, ""));
-  } catch {
-    return null;
-  }
+  const out = await visionAsk(env, { system: ANALYSIS_PROMPT + lang, user: note ? `The painter's note about this photo: ${note.slice(0, 300)}` : "Look at this photo.", mime, data, maxTokens: 2200 });
+  if (!out.ok) return { why: out.why };
+  const raw = parseJsonLoose(out.text);
+  return raw && typeof raw === "object" ? { raw } : { why: `${out.provider} gave an answer we could not read` };
 }
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -177,12 +160,12 @@ export async function handlePhotoAnalysis(request: Request, env: Env): Promise<R
       await refund(env, co, "photo_analysis");
       return json({ error: "Photo not found." }, 404);
     }
-    const raw = await askGemini(env, f.mime, b64(await obj.arrayBuffer()), b?.language === "es" ? "es" : "en", typeof b?.note === "string" ? b.note : "");
-    if (!raw) {
+    const res = await askVision(env, f.mime, b64(await obj.arrayBuffer()), b?.language === "es" ? "es" : "en", typeof b?.note === "string" ? b.note : "");
+    if (!("raw" in res)) {
       await refund(env, co, "photo_analysis");
-      return json({ error: "The photo could not be analyzed right now. Please try again in a minute." }, 503);
+      return json({ error: friendlyVisionError(res.why, "Photo analysis"), detail: res.why, allowance: await left() }, 503);
     }
-    const findings = withPrices(cleanFindings(raw), labor);
+    const findings = withPrices(cleanFindings(res.raw), labor);
     const r = await env.DB.prepare("INSERT INTO job_photo_findings (company_id, job_id, file_id, data) VALUES (?, ?, ?, ?)").bind(c, f.jobId, f.id, JSON.stringify(findings)).run();
     return json({ ok: true, id: Number(r.meta.last_row_id), fileId: f.id, ...findings, hasRate: Number(labor?.hourlyRate) > 0, allowance: await left() });
   }

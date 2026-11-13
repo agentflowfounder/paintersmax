@@ -134,7 +134,25 @@ function fieldsFor(trade,method){
   if(method==='lump_sum')return[f('markup_pct','Markup on cost (%)'),f('minimum','Minimum job ($)')];
   return[];
 }
-function helpKeyFor(trade,method){return method==='sqft_wall'?'wall':method==='sqft_floor'?'floor':method==='per_linear_ft'?'linear':method==='items'?'ext':method==='room_size'?'rooms':null;}
+const TRADE_HELP={
+ power_washing:{sqft_floor:'Power washing is usually priced by the square foot of what you clean: house walls, a driveway, a patio, a deck. Measure length x width of each surface. Example: a 20 ft x 24 ft driveway is 480 sq ft. Set a low and high price per sq ft (harder or dirtier jobs cost more) and a minimum job so small jobs still pay for the trip.',lump_sum:'A lump-sum bid is one price for the whole wash. Add up your labor, chemicals and water costs, add your markup, and that is the price. Minimum job is the least you will take.'},
+ drywall:{sqft_floor:'Drywall work is often priced per square foot of the wall or ceiling you hang, tape and finish. Small patches are better priced with the minimum job. Example: a few nail holes and one fist-size hole is a minimum job; a full room of new board is priced by the sq ft.',lump_sum:'A lump-sum bid is one price for the repair. Add up your hours, materials and dumping or cleanup costs, add your markup, and quote that. Minimum job is the least you will take.'},
+ fencing:{per_linear_ft:'Fence prices are per linear foot, which is the length of the fence run. Walk it with a measuring wheel or measure it on a satellite map. Set a low and high price for the style and height, then add gates and old fence removal.'},
+ remodeling:{sqft_floor:'Remodeling is often priced per square foot of the room or space being rebuilt. Measure length x width. Set a low and high price (simple cosmetic work costs less than moving walls or plumbing) and a minimum job.',lump_sum:'A lump-sum bid is one price for the whole project. Add up labor, materials, subcontractors and permits, add your markup, and quote that. Minimum job is the least you will take.'},
+ industrial:{sqft_floor:'Industrial coatings are usually priced per square foot of the surface being coated (floor, steel or wall). Measure the surface, not the room. Set a low and high price for the system you apply and a minimum job.',lump_sum:'A lump-sum bid is one price for the whole project. Add up prep, coating, labor, equipment and safety costs, add your markup, and quote that. Minimum job is the least you will take.'}
+};
+const GENERIC_HELP={
+ sqft_floor:'Per square foot: measure the area you will work on, length x width. Set a low and high price per sq ft, and a minimum job so small jobs still pay for the trip.',
+ line_items:'Line items: you price each piece of the job separately, like mobilization, lift or scaffold per day, and labor per hour. The estimate adds them up.',
+ lump_sum:'A lump-sum bid is one price for the whole job. Add up your labor, materials and equipment costs, then add your markup percentage. Minimum job is the least you will take.'
+};
+function helpKeyFor(trade,method){
+ const inOld=['interior','exterior','commercial','fencing','decks_fences','new_construction'].includes(trade);
+ const old=method==='sqft_wall'?HELP.wall:method==='sqft_floor'&&(trade==='interior'||trade==='commercial'||trade==='new_construction')?HELP.floor:method==='per_linear_ft'?HELP.linear:method==='items'?HELP.ext:method==='room_size'?HELP.rooms:null;
+ const final=(TRADE_HELP[trade]||{})[method]||(inOld&&old)||(method!=='sqft_floor'&&old)||GENERIC_HELP[method]||null;
+ if(!final)return null;
+ const k='h_'+trade+'_'+method;HELP[k]=final;return k;
+}
 
 function ensureSeed(trade,aud){
   const k=catKey(trade,aud);if(!k)return;
@@ -166,6 +184,7 @@ function renderCatalogCard(trade,aud){
    <div class="ex" data-ex>${exampleHtml(key,d)}</div>
    <details class="grp"><summary>How this rate is built</summary><div style="padding:4px 12px 12px;font-size:14px"><p><b>Loaded labor rate:</b> what an hour of labor really costs you with taxes, insurance and benefits.</p><p><b>Production rates:</b> how much a crew finishes per hour.</p><p><b>Materials and waste:</b> paint, primer and supplies, plus waste.</p><p><b>Overhead and markup:</b> truck, tools, insurance, office time and profit.</p></div></details>
    <button type="button" class="link" data-more="1">More information: how to set your prices</button>
+   ${aud==='builder'?'':`<div style="margin-top:6px"><button type="button" class="link" data-pdf="retail" data-trade="${trade}">Download this service's rate card (PDF)</button></div>`}
   </div>`;
 }
 function refreshCatalogCard(el){
@@ -187,7 +206,10 @@ function applyPosition(el,pos,askFirst){
 function renderCard(trade,aud){
   if(catKey(trade,aud)){ensureSeed(trade,aud);const cc=card(trade,aud);if(cc.method==='catalog')return renderCatalogCard(trade,aud);}
   const legacy=renderLegacyCard(trade,aud);
-  return catKey(trade,aud)?legacy.replace(/<\/div>\s*$/,'<div style="margin-top:8px"><button type="button" class="link" data-switch="1">Switch to the new price list with starting rates</button></div></div>'):legacy;
+  if(!catKey(trade,aud))return legacy;
+  const typed=Object.keys(card(trade,aud).data||{}).some(k=>k!=='position'&&k!=='tier'&&Number(card(trade,aud).data[k])>0);
+  const sw=typed?'<details style="margin-top:8px"><summary class="muted" style="cursor:pointer">Want to start over with the new starting price list?</summary><p class="muted" style="margin:6px 0">This throws away the prices you typed on this card and fills in starting rates instead. You can then change any number. It cannot be undone.</p><button type="button" class="link" data-switch="1">Replace my prices with the starting price list</button></details>':'<div style="margin-top:8px"><button type="button" class="link" data-switch="1">Use the new starting price list (rates already filled in)</button></div>';
+  return legacy.replace(/<\/div>\s*$/,sw+'</div>');
 }
 function renderLegacyCard(trade,aud){
   const c=card(trade,aud);const methods=methodsFor(trade);const method=c.method||methods[0][0];
@@ -197,7 +219,7 @@ function renderLegacyCard(trade,aud){
    <label>How do you price this? ${hk?help(hk):''}</label>
    <select class="method">${methods.map(([v,l])=>`<option value="${v}" ${v===method?'selected':''}>${esc(l)}</option>`).join('')}</select>
    <div class="row">${fs.map(x=>`<div><label>${esc(x.l)}</label><input inputmode="decimal" data-k="${x.k}" value="${val(c.data,x.k)}"></div>`).join('')}</div>
-   ${trade==='power_washing'||trade==='exterior'?'<small>Power washing is always its own line on the estimate.</small>':''}</div>`;
+   ${trade==='power_washing'||trade==='exterior'?'<small>Power washing is always its own line on the estimate.</small>':''}${aud==='builder'?'':`<div style="margin-top:8px"><button type="button" class="link" data-pdf="retail" data-trade="${trade}">Download this service's rate card (PDF)</button></div>`}</div>`;
 }
 
 // ---- progress ----
@@ -456,7 +478,7 @@ document.addEventListener('click',async e=>{
   if(e.target.closest('[data-more]')){openModal(MORE_INFO);return;}
   if(e.target.id==='modal_close'||e.target.id==='modal'){$('modal').style.display='none';return;}
   const sw=e.target.closest('[data-switch]');if(sw){if(!confirm('This replaces the prices on this card with the new price list and starting rates. Continue?'))return;const el=sw.closest('[data-trade]');const t=el.dataset.trade,a=el.dataset.aud;delete S.rateCards[rcKey(t,a)];ensureSeed(t,a);el.outerHTML=renderCard(t,a);return;}
-  const pd=e.target.closest('[data-pdf]');if(pd){e.preventDefault();try{await save(S.step,false);window.open('/api/ratecard/doc?audience='+pd.dataset.pdf,'_blank');}catch(x){if(x)msg(x.message||'Could not save.');}}
+  const pd=e.target.closest('[data-pdf]');if(pd){e.preventDefault();try{await save(S.step,false);window.open('/api/ratecard/doc?audience='+pd.dataset.pdf+(pd.dataset.trade?'&trade='+encodeURIComponent(pd.dataset.trade):''),'_blank');}catch(x){if(x)msg(x.message||'Could not save.');}}
 });
 document.addEventListener('input',e=>{const el=e.target.closest&&e.target.closest('[data-cat]');if(el&&e.target.matches('input[data-k]'))refreshCatalogCard(el);});
 document.addEventListener('change',e=>{
@@ -486,4 +508,4 @@ document.addEventListener('click',async e=>{if(e.target.id!=='ins_go')return;con
   const r=await fetch('/api/insurance',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'analyze',fileName:f.name,mime:f.type,data})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');location.href='/insurance';}
  catch(x){m.textContent=x.message;m.style.color='#b42318';e.target.disabled=false;}});
-</script></body></html>
+</script><script src="/nav.js"></script></body></html>

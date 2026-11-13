@@ -94,7 +94,7 @@ test("every example matches a real item in its list", () => {
 
 import { buildSections, renderRateCardHtml } from "../src/ratecardpdf.ts";
 
-test("printable rate card lists only priced catalog items, escapes text, and honors the brand line", () => {
+test("printable rate card lists priced catalog items and the older fill-in cards, escapes text, and honors the brand line", () => {
   const door = catalogItems("cabinets").find((i) => i.label === "Standard Cabinet Door")!;
   const sections = buildSections(
     [
@@ -104,10 +104,12 @@ test("printable rate card lists only priced catalog items, escapes text, and hon
     ],
     "retail",
   );
-  assert.equal(sections.length, 1);
+  assert.equal(sections.length, 2);
   assert.equal(sections[0].title, "Cabinet painting");
   assert.equal(sections[0].level, "standard");
   assert.equal(sections[0].groups[0].rows.length, 1);
+  assert.equal(sections[1].title, "Interior painting");
+  assert.equal(sections[1].groups[0].rows[0].label.startsWith("Small room"), true);
   const base = { company: { name: "A <b>&</b> Co" }, title: "Rate card", date: "2026-11-12" };
   const on = renderRateCardHtml({ ...base, preparedWith: true }, sections);
   const off = renderRateCardHtml({ ...base, preparedWith: false }, sections);
@@ -116,4 +118,24 @@ test("printable rate card lists only priced catalog items, escapes text, and hon
   assert.ok(on.includes("A &lt;b&gt;&amp;&lt;/b&gt; Co"));
   assert.ok(on.includes("$145"));
   assert.ok(renderRateCardHtml({ ...base, preparedWith: true }, []).includes("No prices yet."));
+});
+
+test("older fill-in cards print ranges and percentages, and empty cards print nothing", () => {
+  const sections = buildSections(
+    [
+      { trade: "drywall", audience: "retail", method: "sqft_floor", data: { low: 2, high: 3.5, minimum: 150 } },
+      { trade: "interior", audience: "retail", method: "room_size", data: { small: "120", high_ceiling_pct: 15 } },
+      { trade: "fencing", audience: "retail", method: "per_linear_ft", data: {} },
+    ],
+    "retail",
+  );
+  assert.equal(sections.length, 2);
+  const dry = sections.find((s) => s.title === "Drywall repair")!;
+  assert.equal(dry.groups[0].rows[0].priceTo, 3.5);
+  assert.equal(dry.groups[0].rows[1].label, "Minimum job");
+  const room = sections.find((s) => s.title === "Interior painting")!;
+  assert.equal(room.groups[0].rows.find((r) => r.pct)?.price, 15);
+  const html = renderRateCardHtml({ company: { name: "Co" }, title: "Rate card", date: "2026-11-13", preparedWith: false }, sections);
+  assert.ok(html.includes("$2 to $3.50"));
+  assert.ok(html.includes("15%"));
 });

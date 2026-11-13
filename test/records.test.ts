@@ -72,3 +72,14 @@ test("settings: rate is never hard-coded and 1099 threshold defaults to $2,000",
   assert.equal(cleanSettings({ mileageRateCents: 72.5, threshold1099Cents: 60000 }).threshold1099Cents, 60000);
   assert.equal(cleanSettings({ mileageRateCents: -4 }).mileageRateCents, null);
 });
+
+test("bank file with account info above the headings still imports", () => {
+  const p = parseBankCsv("Account: Business Checking\nDownloaded 11/13/2026\n\nPosting Date,Description,Amount\n11/01/2026,SHERWIN WILLIAMS,-120.50\n11/03/2026,SHELL OIL,-40.00\n", {});
+  assert.equal(p.error, undefined);
+  assert.equal(p.rows.length, 2);
+});
+test("a PDF statement gets a plain explanation, not a column error", () => {
+  const p = parseBankCsv("%PDF-1.7\n%binary stuff", {});
+  assert.match(p.error ?? "", /PDF/);
+  assert.match(p.error ?? "", /CSV/);
+});

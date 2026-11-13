@@ -10,6 +10,10 @@ export interface RateRow {
   label: string;
   unit: string;
   price: number;
+  /** When set, the row shows a range: price to priceTo. */
+  priceTo?: number;
+  /** A percentage surcharge instead of dollars. */
+  pct?: boolean;
   note: string;
 }
 export interface RateSection {
@@ -27,7 +31,47 @@ const TRADE_TITLES: Record<string, string> = {
   decks_fences: "Decks, patios and fence staining",
   epoxy_floors: "Epoxy floors",
   builder: "Builder rates",
+  drywall: "Drywall repair",
+  fencing: "Fence installation",
+  remodeling: "Remodeling",
+  industrial: "Industrial coatings",
+  new_construction: "New construction",
 };
+
+/**
+ * Prices typed into the older fill-in cards (and trades that have no starting price list yet) are printable too.
+ * Each entry: [field, label, unit, kind]. kind "pct" is a surcharge percentage.
+ */
+type LegacyField = [string, string, string, ("pct" | "usd")?];
+const LEGACY: Record<string, LegacyField[]> = {
+  room_size: [["small", "Small room (closets, hallways, half baths)", "Per room"], ["medium", "Medium room (bedrooms, dining rooms, offices)", "Per room"], ["large", "Large room (kitchens, living rooms, primary bedroom)", "Per room"], ["custom_min", "Custom room, minimum", "Per room"], ["ceiling", "Add-on: ceiling", "Per room"], ["trim", "Add-on: trim and baseboards", "Per room"], ["door_each", "Add-on: door", "Each"], ["accent_wall", "Add-on: accent wall", "Each"], ["repairs_hourly", "Repairs", "Per hour"], ["high_ceiling_pct", "High ceiling surcharge", "Percent", "pct"], ["extra_coat_pct", "Extra coat surcharge", "Percent", "pct"]],
+  items: [["base_1_story", "Typical 1-story house", "Per house"], ["base_2_story", "Typical 2-story house", "Per house"], ["base_3_story", "Typical 3-story house", "Per house"], ["door", "Door", "Each"], ["shutter", "Shutter", "Each"], ["window", "Window", "Each"], ["garage_door", "Garage door", "Each"], ["power_washing", "Power washing, whole house", "Per house"], ["wood_repair_hourly", "Wood repair", "Per hour"], ["color_change", "Each extra color", "Each"]],
+  line_items: [["mobilization", "Mobilization", "Per job"], ["lift_daily", "Lift or scaffold", "Per day"], ["night_weekend_pct", "Night or weekend surcharge", "Percent", "pct"], ["hourly", "Labor", "Per hour"]],
+  lump_sum: [["markup_pct", "Markup on cost", "Percent", "pct"], ["minimum", "Minimum job", "Per job"]],
+};
+const RANGE_UNIT: Record<string, string> = { sqft_floor: "Per sq ft of floor area", sqft_wall: "Per sq ft of wall area", per_linear_ft: "Per linear ft" };
+const EXTRA_LINEAR: LegacyField[] = [["gate_each", "Gate", "Each"], ["removal_per_ft", "Old fence removal", "Per linear ft"], ["stain_per_ft", "Staining or painting", "Per linear ft"]];
+
+export function legacyRows(c: CardRow): RateRow[] {
+  const d = c.data ?? {};
+  const n = (k: string) => {
+    const v = Number(d[k]);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  };
+  const rows: RateRow[] = [];
+  if (RANGE_UNIT[c.method]) {
+    const lo = n("low");
+    const hi = n("high");
+    if (lo || hi) rows.push({ label: "Price", unit: RANGE_UNIT[c.method], price: lo || hi, priceTo: lo && hi && hi !== lo ? Math.max(lo, hi) : undefined, note: "" });
+    if (c.method === "sqft_floor" || c.method === "sqft_wall") {
+      if (n("minimum")) rows.push({ label: "Minimum job", unit: "Per job", price: n("minimum"), note: "" });
+    }
+    if (c.method === "per_linear_ft") for (const [k, label, unit] of EXTRA_LINEAR) if (n(k)) rows.push({ label, unit, price: n(k), note: "" });
+    return rows;
+  }
+  for (const [k, label, unit, kind] of LEGACY[c.method] ?? []) if (n(k)) rows.push({ label, unit, price: n(k), pct: kind === "pct", note: "" });
+  return rows;
+}
 
 export interface CardRow {
   trade: string;
@@ -36,11 +80,16 @@ export interface CardRow {
   data: Record<string, any>;
 }
 
-/** Turns saved rate cards into printable sections. Only catalog cards, and only items the painter priced. */
+/** Turns saved rate cards into printable sections: starting-price-list cards (items the painter priced) and the older fill-in cards. */
 export function buildSections(cards: CardRow[], audience: "retail" | "builder"): RateSection[] {
   const out: RateSection[] = [];
   for (const c of cards) {
-    if (c.audience !== audience || c.method !== "catalog") continue;
+    if (c.audience !== audience) continue;
+    if (c.method !== "catalog") {
+      const rows = legacyRows(c);
+      if (rows.length) out.push({ title: TRADE_TITLES[c.trade] ?? c.trade.replace(/_/g, " "), groups: [{ name: "Your prices", rows }] });
+      continue;
+    }
     const key = catalogKeyFor(c.trade, c.audience);
     if (!key) continue;
     const groups: RateSection["groups"] = [];
@@ -84,7 +133,7 @@ export function renderRateCardHtml(ctx: RateDocContext, sections: RateSection[])
         s.groups
           .map(
             (g) => `<table><thead><tr><th>${x(g.name)}</th><th class="r">Unit</th><th class="r">Price</th></tr></thead><tbody>${g.rows
-              .map((r) => `<tr><td>${x(r.label)}${r.note ? `<div class="n">${x(r.note)}</div>` : ""}</td><td class="r">${x(r.unit)}</td><td class="r">${fmt(r.price)}</td></tr>`)
+              .map((r) => `<tr><td>${x(r.label)}${r.note ? `<div class="n">${x(r.note)}</div>` : ""}</td><td class="r">${x(r.unit)}</td><td class="r">${r.pct ? `${r.price}%` : r.priceTo ? `${fmt(r.price)} to ${fmt(r.priceTo)}` : fmt(r.price)}</td></tr>`)
               .join("")}</tbody></table>`,
           )
           .join(""),
@@ -127,12 +176,12 @@ const parse = (s: unknown): any => {
 };
 
 /** Everything a rate card document needs for one company. */
-export async function loadRateDocParts(env: Env, companyId: number, audience: "retail" | "builder") {
+export async function loadRateDocParts(env: Env, companyId: number, audience: "retail" | "builder", trade?: string) {
   const co = await env.DB.prepare("SELECT name, settings FROM companies WHERE id = ?").bind(companyId).first<{ name: string; settings: string | null }>();
   if (!co) return null;
   const prof = parse((await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(companyId).first<{ data: string }>())?.data);
   const rows = await env.DB.prepare("SELECT trade, audience, method, data FROM rate_cards WHERE company_id = ?").bind(companyId).all<{ trade: string; audience: string; method: string; data: string }>();
-  const cards: CardRow[] = rows.results.map((r) => ({ trade: r.trade, audience: r.audience, method: r.method, data: parse(r.data) }));
+  const cards: CardRow[] = rows.results.filter((r) => !trade || r.trade === trade).map((r) => ({ trade: r.trade, audience: r.audience, method: r.method, data: parse(r.data) }));
   const s = readSettings(co.settings);
   const c = prof.company ?? {};
   return {
@@ -157,10 +206,17 @@ export async function handleRateCardDoc(request: Request, env: Env): Promise<Res
   if (request.method !== "GET") return json({ error: "Not found." }, 404);
   const u = new URL(request.url);
   const audience = u.searchParams.get("audience") === "builder" ? "builder" : "retail";
-  const parts = await loadRateDocParts(env, user.companyId, audience);
+  const tradeOnly = /^[a-z_]{2,30}$/.test(u.searchParams.get("trade") ?? "") ? u.searchParams.get("trade")! : undefined;
+  const parts = await loadRateDocParts(env, user.companyId, audience, tradeOnly);
   if (!parts) return json({ error: "Not found." }, 404);
-  if (!parts.sections.length) return json({ error: "Set your prices first, then download your rate card." }, 400);
-  const html = renderRateCardHtml({ ...parts.ctx, title: audience === "builder" ? "Builder rate card" : "Rate card", date: todayText() }, parts.sections);
+  if (!parts.sections.length) {
+    const msg = "Your rate card is empty because no prices are saved yet. Go to Estimating Setup, type your prices, tap Save and continue, then come back and download it.";
+    if ((request.headers.get("accept") ?? "").includes("text/html")) {
+      return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Rate card</title><style>body{font-family:system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0;padding:24px}main{max-width:520px;margin:40px auto;background:#fff;border:1px solid #ddd;border-radius:10px;padding:22px}a{display:inline-block;margin-top:14px;padding:10px 16px;background:#E8A33D;color:#0F1B2D;border-radius:8px;font-weight:700;text-decoration:none}</style></head><body><main><h2 style="margin-top:0">Almost there</h2><p>${msg}</p><a href="/app">Back to Estimating Setup</a></main></body></html>`, { status: 400, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+    }
+    return json({ error: msg }, 400);
+  }
+  const html = renderRateCardHtml({ ...parts.ctx, title: audience === "builder" ? "Builder rate card" : tradeOnly ? `${TRADE_TITLES[tradeOnly] ?? tradeOnly.replace(/_/g, " ")} rate card` : "Rate card", date: todayText() }, parts.sections);
   if (u.searchParams.get("format") !== "html") {
     const pdf = await htmlToPdf(env, html);
     if (pdf) return new Response(pdf, { headers: { "content-type": "application/pdf", "content-disposition": 'inline; filename="rate-card.pdf"', "cache-control": "no-store", "x-robots-tag": "noindex" } });

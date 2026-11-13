@@ -28,6 +28,7 @@ import { handleJobFile } from "./jobfile.ts";
 import { handleLessons } from "./lessons.ts";
 import { handleCertPublic, handleWarranty } from "./warranty.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
+import { visionAsk } from "./vision.ts";
 import { handleFiles } from "./files.ts";
 import { handleJobLost } from "./joblost.ts";
 import { handleJobChat } from "./jobchat.ts";
@@ -414,6 +415,17 @@ export default {
       }
     }
     if (pathname === "/api/health") {
+      // ?probe=1 (signed in only): one tiny photo question per AI provider, so a failing key, quota or model name shows up here.
+      if (new URL(request.url).searchParams.get("probe") === "1") {
+        if (!(await getSessionUser(env, request))) return json({ error: "Sign in first, then open this address again." }, 401);
+        const px = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+        const result: Record<string, string> = {};
+        for (const p of ["gemini", "openai", "anthropic"] as const) {
+          const out = await visionAsk(env, { system: "Reply with the single word OK.", user: "Reply OK.", mime: "image/png", data: px, maxTokens: 20 }, { json: false, prefer: [p] });
+          result[p] = out.ok ? "works" : out.why;
+        }
+        return json({ ok: true, models: { gemini: env.MODEL_GEMINI ?? "gemini-2.5-flash", openai: env.MODEL_OPENAI ?? "gpt-4.1-mini", anthropic: env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5" }, photoQuestion: result });
+      }
       return json({
         ok: true,
         providers: {

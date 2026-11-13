@@ -53,4 +53,4 @@ $('print').onclick=()=>{const was=onlyNeed;onlyNeed=true;draw();window.print();o
 fetch('/api/materials').then(r=>r.json()).then(j=>{const gs=[];hasAff=!!j.affiliate;
  j.items.forEach(m=>{let g=gs.find(x=>x[0]===m.group);if(!g)gs.push(g=[m.group,[]]);g[1].push([m.name,m.why,m.need==='essential'?'e':'r',m.q]);if(m.links&&m.links[0])LINKS[m.name]=m.links[0];EXTRA[m.name]={how:m.how,photo:m.photo};});
  G=gs;draw();}).catch(()=>{$('list').textContent='Could not load the list.';});
-</script></body></html>
+</script><script src="/nav.js"></script></body></html>

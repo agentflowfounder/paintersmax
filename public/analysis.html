@@ -57,4 +57,4 @@ function render(a){var h='';
   var t=a.totals;h+='<div class="card"><h3>'+T('Materials and mileage')+'</h3><p>'+T('Materials')+': <b>'+$$(t.materialsCents)+'</b>'+(t.materialsPctOfRevenue==null?'':' ('+t.materialsPctOfRevenue+'% '+T('of sales')+')')+' &middot; '+T('Crew payments on jobs')+': <b>'+$$(t.payCents)+'</b> &middot; '+T('Miles')+': <b>'+t.miles+'</b></p></div>';}
  h+=sugg(a.suggestions);$('body').innerHTML=h;}
 fetch('/api/analysis').then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json();}).then(render).catch(function(e){if(e)$('body').textContent=T('Could not load the report.');});
-</script></body></html>
+</script><script src="/nav.js"></script></body></html>

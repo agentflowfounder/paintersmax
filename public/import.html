@@ -58,4 +58,4 @@ function run(){
   post({rows:rows.slice(i,i+chunk)}).then(function(d){added+=d.added;dup+=d.duplicates;skip+=d.skipped;i+=chunk;next();}).catch(function(e){msg(T(e.message)+' ('+added+' '+T('customers')+' '+T('saved so far')+')','err');b.disabled=false;});
  })();
 }
-</script></body></html>
+</script><script src="/nav.js"></script></body></html>

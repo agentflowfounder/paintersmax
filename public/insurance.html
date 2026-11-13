@@ -115,4 +115,4 @@ $('go').onclick=async()=>{const f=$('file').files[0];if(!f){msg('Choose a file f
   const r=await api('/api/insurance',{action:'analyze',fileName:f.name,mime:f.type,data,keepFile:$('keep').checked});storage=!!r.storage;show(r.policy);chat=[];msg('Done. Review the summary below.',true);}
  catch(e){if(e)msg(e.message);}b.disabled=false;};
 api('/api/insurance').then(r=>{storage=!!r.storage;if(!storage){$('keep').disabled=true;$('keeptxt').textContent='Keeping a copy of the original file is not turned on yet. We will still read it and save the summary.';}if(r.policy)show(r.policy);}).catch(()=>{});
-</script></body></html>
+</script><script src="/nav.js"></script></body></html>

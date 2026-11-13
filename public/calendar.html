@@ -84,4 +84,4 @@ $('feed_copy').onclick=function(){var f=$('feed');f.select();try{navigator.clipb
 $('feed_reset').onclick=function(){if(!confirm(T('The old link will stop working. Continue?')))return;api('/api/calsettings',{action:'feed_reset'}).then(function(d){$('feed').value=d.feedUrl;msg(T('New link ready. Add it to your calendar again.'),'ok');});};
 loadSet().catch(function(){});
 load().catch(function(x){if(x)msg(T(x.message),'bad');});
-</script></body></html>
+</script><script src="/nav.js"></script></body></html>

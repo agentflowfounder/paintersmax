@@ -91,6 +91,43 @@ export interface Entry {
 }
 export const hoursOf = (min: number) => Math.round((min / 60) * 100) / 100;
 
+/** How a worker was paid. Kept next to the payment so the accountant can see cash, checks and apps apart. */
+export const PAY_METHODS = ["cash", "check", "direct_deposit", "zelle", "cash_app", "venmo", "paypal", "other"] as const;
+export const cleanMethod = (v: unknown) => ((PAY_METHODS as readonly string[]).includes(v as string) ? (v as string) : "other");
+
+/** Time off and attendance: days a worker was sick, on vacation, off for a holiday, absent, or late. */
+export const ABSENCE_KINDS = ["sick", "vacation", "holiday", "absent", "late", "other"] as const;
+export interface Absence {
+  id: number;
+  workerId: number;
+  date: string;
+  kind: string;
+  hours: number; // paid hours for the day, optional
+  note: string;
+}
+export function cleanAbsence(i: any): Omit<Absence, "id"> | { error: string } {
+  if (!isDate(i?.date)) return { error: "Choose the date." };
+  const workerId = Number(i?.workerId);
+  if (!Number.isInteger(workerId) || workerId <= 0) return { error: "Choose a worker." };
+  const kind = (ABSENCE_KINDS as readonly string[]).includes(i?.kind) ? i.kind : "other";
+  const h = Number(i?.hours);
+  return { workerId, date: i.date, kind, hours: Number.isFinite(h) && h > 0 && h <= 24 ? Math.round(h * 4) / 4 : 0, note: txt(i?.note, 200) };
+}
+/** Days per worker and kind, so the owner can see who calls in sick or misses days. */
+export function absenceSummary(list: Pick<Absence, "workerId" | "kind" | "date">[]): Record<number, Record<string, number> & { last: string }> {
+  const out: Record<number, Record<string, number> & { last: string }> = {};
+  for (const a of list) {
+    const o = (out[a.workerId] ??= { last: "" } as any);
+    o[a.kind] = (o[a.kind] ?? 0) + 1;
+    if (a.kind === "sick" || a.kind === "absent" || a.kind === "late") if (a.date > o.last) o.last = a.date;
+  }
+  return out;
+}
+const friendlyDate = (d: unknown) => {
+  const t = typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d + "T00:00:00Z") : null;
+  return t && !isNaN(t.getTime()) ? t.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }) : String(d ?? "");
+};
+
 /** What the worker earned by the pay rate, worked out in code. Per hour: hours. Per day: days worked. Per job: jobs worked. */
 export function estimatePayCents(unit: PayUnit, payCents: number, entries: Entry[]): number {
   if (unit === "hour") return Math.round((entries.reduce((s, e) => s + e.minutes, 0) / 60) * payCents);
@@ -133,21 +170,38 @@ function b64(buf: ArrayBuffer) {
   return btoa(s);
 }
 
-export function renderProfile(d: { company: string; year: string; w: any; photoDataUrl?: string | null; months: [string, number][]; jobs: [string, number][]; payments: { paidOn: string; amountCents: number; note: string; jobTitle: string | null }[]; paidCents: number; estimatedCents: number; hours: number }): string {
+export function renderProfile(d: { company: string; year: string; w: any; timeOff?: string; photoDataUrl?: string | null; months: [string, number][]; jobs: [string, number][]; payments: { paidOn: string; amountCents: number; note: string; jobTitle: string | null; method?: string; ref?: string }[]; paidCents: number; estimatedCents: number; hours: number }): string {
   const w = d.w;
   const unit = w.payUnit === "hour" ? "per hour" : w.payUnit === "day" ? "per day" : "per job";
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${esc(w.name)} - profile</title>
 <style>body{font-family:Inter,system-ui,sans-serif;color:#0F1B2D;margin:0;background:#F7F5F1}main{max-width:760px;margin:0 auto;padding:18px 16px 50px}.sheet{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:22px}h1{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 4px}h3{margin:18px 0 6px}table{width:100%;border-collapse:collapse}th,td{padding:6px 4px;border-bottom:1px solid #eee;font-size:14px;text-align:left}td.r,th.r{text-align:right}.top{display:flex;gap:16px;align-items:center;flex-wrap:wrap}img{width:96px;height:96px;object-fit:cover;border-radius:50%}.muted{color:#4A5568;font-size:13px}button{padding:9px 14px;border:0;border-radius:8px;background:#E8A33D;font-weight:700;cursor:pointer}@media print{body{background:#fff}.noprint{display:none}.sheet{border:0;padding:0}}</style></head><body><main><div class="sheet">
 <div class="top">${d.photoDataUrl ? `<img src="${d.photoDataUrl}" alt="">` : ""}<div><h1>${esc(w.name)}</h1><div class="muted">${esc(d.company)} &middot; ${w.kind === "contractor" ? "1099 contractor" : "Employee"}${w.position ? " &middot; " + esc(w.position) : ""}</div></div></div>
-<table style="margin-top:12px"><tbody><tr><td>Start date</td><td>${esc(w.startedOn ?? "")}</td></tr><tr><td>Pay rate</td><td>${w.payCents ? money(w.payCents) + " " + unit : ""}</td></tr><tr><td>Phone</td><td>${esc(w.phone ?? "")}</td></tr><tr><td>Email</td><td>${esc(w.email ?? "")}</td></tr>${w.kind === "contractor" ? `<tr><td>W-9</td><td>${w.w9FileId ? "On file" : "Not on file"}</td></tr>` : ""}<tr><td>Notes</td><td>${esc(w.notes ?? "").replace(/\n/g, "<br>")}</td></tr></tbody></table>
+<table style="margin-top:12px"><tbody><tr><td>Start date</td><td>${esc(w.startedOn ? friendlyDate(w.startedOn) : "")}</td></tr><tr><td>Pay rate</td><td>${w.payCents ? money(w.payCents) + " " + unit : ""}</td></tr><tr><td>Phone</td><td>${esc(w.phone ?? "")}</td></tr><tr><td>Email</td><td>${esc(w.email ?? "")}</td></tr>${w.kind === "contractor" ? `<tr><td>W-9</td><td>${w.w9FileId ? "On file" : "Not on file"}</td></tr>` : ""}<tr><td>Notes</td><td>${esc(w.notes ?? "").replace(/\n/g, "<br>")}</td></tr></tbody></table>
 <h3>${esc(d.year)} hours: ${d.hours}</h3>
 ${d.months.length ? `<table><thead><tr><th>Month</th><th class="r">Hours</th></tr></thead><tbody>${d.months.map(([m, h]) => `<tr><td>${esc(m)}</td><td class="r">${h}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">No hours recorded.</p>'}
 ${d.jobs.length ? `<h3>Hours by job</h3><table><tbody>${d.jobs.map(([j, h]) => `<tr><td>${esc(j)}</td><td class="r">${h}</td></tr>`).join("")}</tbody></table>` : ""}
-<h3>Pay in ${esc(d.year)}</h3><p>Worked out from the pay rate: <b>${money(d.estimatedCents)}</b> &middot; Payments recorded: <b>${money(d.paidCents)}</b></p>
-${d.payments.length ? `<table><thead><tr><th>Paid on</th><th>Job</th><th>Note</th><th class="r">Amount</th></tr></thead><tbody>${d.payments.map((p) => `<tr><td>${esc(p.paidOn)}</td><td>${esc(p.jobTitle ?? "")}</td><td>${esc(p.note)}</td><td class="r">${money(p.amountCents)}</td></tr>`).join("")}</tbody></table>` : ""}
+${d.timeOff ? `<h3>Time off and attendance in ${esc(d.year)}</h3><p>Days: ${esc(d.timeOff)}</p>` : ""}<h3>Pay in ${esc(d.year)}</h3><p>Worked out from the pay rate: <b>${money(d.estimatedCents)}</b> &middot; Payments recorded: <b>${money(d.paidCents)}</b></p>
+${d.payments.length ? `<table><thead><tr><th>Paid on</th><th>Job</th><th>Note</th><th class="r">Amount</th></tr></thead><tbody>${d.payments.map((p) => `<tr><td>${esc(friendlyDate(p.paidOn))}</td><td>${esc(p.jobTitle ?? "")}</td><td>${esc([p.method ? String(p.method).replace(/_/g, " ") : "", p.ref, p.note].filter(Boolean).join(" - "))}</td><td class="r">${money(p.amountCents)}</td></tr>`).join("")}</tbody></table>` : ""}
 <p class="muted" style="margin-top:18px">Records for your accountant, not tax advice. No Social Security or tax ID number is stored here.</p>
 <p class="noprint"><button onclick="window.print()">Print or save as PDF</button></p></div></main></body></html>`;
 }
+
+// Payment methods and time-off days live in app_settings (no database change needed). Both are small lists per company.
+const payKey = (c: number) => `crewpay:${c}`;
+const absKey = (c: number) => `crewabs:${c}`;
+async function loadBlob<T>(env: Env, key: string, fallback: T): Promise<T> {
+  const r = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(key).first<{ value: string }>();
+  try {
+    return r ? (JSON.parse(r.value) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+async function saveBlob(env: Env, key: string, v: unknown) {
+  await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')").bind(key, JSON.stringify(v)).run();
+}
+type PayMeta = Record<string, { method: string; ref: string }>;
+type AbsBlob = { next: number; list: Absence[] };
 
 /**
  * /api/crew   (Basic and Pro; other plans get {locked:true})
@@ -156,7 +210,8 @@ ${d.payments.length ? `<table><thead><tr><th>Paid on</th><th>Job</th><th>Note</t
  *  GET ?timesheet=<workerId>&week=YYYY-MM-DD   that week's entries
  *  GET ?profile=<workerId>&year=   printable profile
  *  GET ?export=hours|payments|1099&year=       CSV
- *  POST {action: saveWorker | removeWorker | addTime | deleteTime | addPayment | deletePayment}
+ *  GET ?export=hours|payments|1099|attendance&year=
+ *  POST {action: saveWorker | removeWorker | addTime | deleteTime | addPayment | deletePayment | addAbsence | deleteAbsence}
  */
 export async function handleCrew(request: Request, env: Env): Promise<Response> {
   const user = await getSessionUser(env, request);
@@ -178,6 +233,13 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
     const entriesOf = async (wid: number | null) => ((await env.DB.prepare(`SELECT worker_id AS workerId, job_id AS jobId, work_date AS workDate, minutes FROM time_entries WHERE company_id = ? AND work_date BETWEEN ? AND ?${wid ? " AND worker_id = ?" : ""}`).bind(...(wid ? [c, from, to, wid] : [c, from, to])).all<any>()).results ?? []) as (Entry & { workerId: number })[];
     const payments = ((await env.DB.prepare("SELECT p.id, p.worker_id AS workerId, p.job_id AS jobId, j.title AS jobTitle, p.paid_on AS paidOn, p.amount_cents AS amountCents, p.note FROM worker_payments p LEFT JOIN jobs j ON j.id = p.job_id WHERE p.company_id = ? AND p.paid_on BETWEEN ? AND ? ORDER BY p.paid_on DESC, p.id DESC").bind(c, from, to).all<any>()).results ?? []) as any[];
     const settings = await loadSettings(env, c);
+    const meta = await loadBlob<PayMeta>(env, payKey(c), {});
+    const absAll = (await loadBlob<AbsBlob>(env, absKey(c), { next: 1, list: [] })).list;
+    const absYear = absAll.filter((a) => a.date >= from && a.date <= to).sort((a, b) => (a.date < b.date ? 1 : -1));
+    for (const p of payments) {
+      p.method = meta[String(p.id)]?.method ?? "";
+      p.ref = meta[String(p.id)]?.ref ?? "";
+    }
 
     const ex = u.searchParams.get("export");
     if (ex) {
@@ -187,7 +249,8 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
         const rows = ((await env.DB.prepare("SELECT worker_id, job_id, work_date, clock_in, clock_out, minutes, note FROM time_entries WHERE company_id = ? AND work_date BETWEEN ? AND ? ORDER BY work_date, worker_id").bind(c, from, to).all<any>()).results ?? []) as any[];
         return new Response(toCsv([["Date", "Worker", "Job", "Clock in", "Clock out", "Hours", "Note"], ...rows.map((r) => [r.work_date, name(r.worker_id), r.job_id ? jobTitle(r.job_id) : "", r.clock_in, r.clock_out, hoursOf(r.minutes), r.note])]), { headers: head });
       }
-      if (ex === "payments") return new Response(toCsv([["Paid on", "Worker", "Type", "Job", "Amount", "Note"], ...payments.map((p) => [p.paidOn, name(p.workerId), workers.find((w) => w.id === p.workerId)?.kind ?? "", p.jobTitle ?? "", (p.amountCents / 100).toFixed(2), p.note])]), { headers: head });
+      if (ex === "payments") return new Response(toCsv([["Paid on", "Worker", "Type", "Job", "Amount", "Paid by", "Check number or reference", "Note"], ...payments.map((p) => [p.paidOn, name(p.workerId), workers.find((w) => w.id === p.workerId)?.kind ?? "", p.jobTitle ?? "", (p.amountCents / 100).toFixed(2), p.method ? p.method.replace(/_/g, " ") : "", p.ref, p.note])]), { headers: head });
+      if (ex === "attendance") return new Response(toCsv([["Date", "Worker", "Type", "Paid hours", "Note"], ...[...absYear].reverse().map((a) => [a.date, name(a.workerId), a.kind, a.hours || "", a.note])]), { headers: head });
       if (ex === "1099") {
         const l = list1099(workers.map((w) => ({ id: w.id, name: w.name, kind: w.kind, w9: !!w.w9FileId })), payments, settings.threshold1099Cents);
         return new Response(toCsv([["Contractor", "Paid in year", "At or over threshold", "W-9 on file", `Threshold used: ${(settings.threshold1099Cents / 100).toFixed(2)} (confirm with your accountant or IRS.gov)`], ...l.map((x) => [x.name, (x.paidCents / 100).toFixed(2), x.crossed ? "Yes" : "No", x.w9 ? "Yes" : "No", ""])]), { headers: head });
@@ -209,7 +272,8 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
         if (f && obj && /^image\/(jpeg|png|webp)$/.test(f.mime)) photo = `data:${f.mime};base64,${b64(await obj.arrayBuffer())}`;
       }
       const mine = payments.filter((p) => p.workerId === pid);
-      return new Response(renderProfile({ company: co?.name ?? "", year, w, photoDataUrl: photo, months: Object.entries(r.byMonth).sort() as [string, number][], jobs: Object.entries(r.byJob).map(([k, v]) => [jobTitle(k), v] as [string, number]), payments: mine, paidCents: mine.reduce((s, p) => s + p.amountCents, 0), estimatedCents: estimatePayCents(w.payUnit, w.payCents, ents), hours: r.totalHours }), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+      const off = absenceSummary(absYear.filter((a) => a.workerId === pid))[pid] ?? { last: "" };
+      return new Response(renderProfile({ company: co?.name ?? "", year, w, photoDataUrl: photo, timeOff: ABSENCE_KINDS.filter((k) => off[k]).map((k) => `${k}: ${off[k]}`).join(", "), months: Object.entries(r.byMonth).sort() as [string, number][], jobs: Object.entries(r.byJob).map(([k, v]) => [jobTitle(k), v] as [string, number]), payments: mine, paidCents: mine.reduce((s, p) => s + p.amountCents, 0), estimatedCents: estimatePayCents(w.payUnit, w.payCents, ents), hours: r.totalHours }), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
     }
 
     const wk = Number(u.searchParams.get("timesheet"));
@@ -218,7 +282,8 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
       const end = new Date(day + "T00:00:00Z");
       end.setUTCDate(end.getUTCDate() + 6);
       const rows = ((await env.DB.prepare("SELECT id, job_id AS jobId, work_date AS workDate, clock_in AS clockIn, clock_out AS clockOut, minutes, note FROM time_entries WHERE company_id = ? AND worker_id = ? AND work_date BETWEEN ? AND ? ORDER BY work_date, id").bind(c, wk, day, end.toISOString().slice(0, 10)).all<any>()).results ?? []) as any[];
-      return json({ week: day, entries: rows.map((r) => ({ ...r, hours: hoursOf(r.minutes), jobTitle: r.jobId ? jobTitle(r.jobId) : null })), totalHours: hoursOf(rows.reduce((s, r) => s + r.minutes, 0)) });
+      const endDay = end.toISOString().slice(0, 10);
+      return json({ week: day, entries: rows.map((r) => ({ ...r, hours: hoursOf(r.minutes), jobTitle: r.jobId ? jobTitle(r.jobId) : null })), absences: absAll.filter((a) => a.workerId === wk && a.date >= day && a.date <= endDay).sort((a, b) => (a.date < b.date ? -1 : 1)), totalHours: hoursOf(rows.reduce((s, r) => s + r.minutes, 0)) });
     }
 
     const allEntries = await entriesOf(null);
@@ -229,7 +294,7 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
       return { ...w, hours: r.totalHours, byWeek: r.byWeek, byMonth: r.byMonth, byJob: Object.fromEntries(Object.entries(r.byJob).map(([k, v]) => [jobTitle(k), v])), estimatedCents: estimatePayCents(w.payUnit, w.payCents, ents), paidCents: paid };
     });
     const list = list1099(workers.map((w) => ({ id: w.id, name: w.name, kind: w.kind, w9: !!w.w9FileId })), payments, settings.threshold1099Cents);
-    return json({ year, workers: per, jobs, payments, list1099: list, threshold1099Cents: settings.threshold1099Cents || DEFAULT_1099_CENTS, plan });
+    return json({ year, workers: per, jobs, payments, list1099: list, threshold1099Cents: settings.threshold1099Cents || DEFAULT_1099_CENTS, plan, absences: absYear, absenceSummary: absenceSummary(absYear), payMethods: PAY_METHODS, absenceKinds: ABSENCE_KINDS, today: new Date().toISOString().slice(0, 10) });
   }
   if (request.method !== "POST") return json({ error: "Not found." }, 404);
   let b: any;
@@ -275,10 +340,38 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
     const jobId = Number(b.jobId) > 0 ? Number(b.jobId) : null;
     if (!(await jobOwned(jobId))) return json({ error: "Job not found." }, 404);
     const r = await env.DB.prepare("INSERT INTO worker_payments (company_id, worker_id, job_id, paid_on, amount_cents, note) VALUES (?, ?, ?, ?, ?, ?)").bind(c, Number(b.workerId), jobId, b.paidOn, cents, txt(b.note, 200) || null).run();
-    return json({ ok: true, id: Number(r.meta.last_row_id) });
+    const id = Number(r.meta.last_row_id);
+    const m = await loadBlob<PayMeta>(env, payKey(c), {});
+    m[String(id)] = { method: cleanMethod(b.method), ref: txt(b.ref, 40) };
+    await saveBlob(env, payKey(c), m);
+    return json({ ok: true, id });
   }
   if (b?.action === "deletePayment") {
     await env.DB.prepare("DELETE FROM worker_payments WHERE id = ? AND company_id = ?").bind(Number(b.id), c).run();
+    const m = await loadBlob<PayMeta>(env, payKey(c), {});
+    if (m[String(Number(b.id))]) {
+      delete m[String(Number(b.id))];
+      await saveBlob(env, payKey(c), m);
+    }
+    return json({ ok: true });
+  }
+  if (b?.action === "addAbsence") {
+    const a = cleanAbsence(b);
+    if ("error" in a) return json({ error: a.error }, 400);
+    if (!(await workerOwned(a.workerId))) return json({ error: "Worker not found." }, 404);
+    const blob = await loadBlob<AbsBlob>(env, absKey(c), { next: 1, list: [] });
+    if (blob.list.some((x) => x.workerId === a.workerId && x.date === a.date && x.kind === a.kind)) return json({ error: "That day is already recorded for this worker." }, 400);
+    if (blob.list.length >= 4000) return json({ error: "Too many time-off records. Download them, then ask support to archive old years." }, 400);
+    const id = blob.next;
+    blob.list.push({ id, ...a });
+    blob.next = id + 1;
+    await saveBlob(env, absKey(c), blob);
+    return json({ ok: true, id });
+  }
+  if (b?.action === "deleteAbsence") {
+    const blob = await loadBlob<AbsBlob>(env, absKey(c), { next: 1, list: [] });
+    blob.list = blob.list.filter((x) => x.id !== Number(b.id));
+    await saveBlob(env, absKey(c), blob);
     return json({ ok: true });
   }
   return json({ error: "Unknown action." }, 400);

@@ -80,4 +80,4 @@ const L=(window.PM_LANG==='es')?'es':'en',D=C[L];
 document.title=D.title+' - PaintersMax';document.documentElement.lang=L;
 for(const [id,k] of [['ttl','title'],['h1','h1'],['lead','lead'],['disc','disc'],['c1','c1'],['c2','c2'],['foot','foot']])document.getElementById(id).textContent=D[k];
 document.getElementById('g').innerHTML=D.topics.map((x,i)=>`<details ${i===0?'open':''}><summary>${esc(x.t)}</summary><div class="in">${(x.p||[]).map(p=>`<p>${esc(p)}</p>`).join('')}${x.l?`<ul>${x.l.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}${x.n?`<ol>${x.n.map(l=>`<li>${esc(l)}</li>`).join('')}</ol>`:''}</div></details>`).join('');
-</script></body></html>
+</script><script src="/nav.js"></script></body></html>

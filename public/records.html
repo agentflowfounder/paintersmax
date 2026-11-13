@@ -12,7 +12,7 @@ main{max-width:980px;margin:0 auto;padding:16px 12px 60px}
 h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
 h3{margin:18px 0 6px}
 .card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:14px;margin:0 0 14px}
-button,.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:9px 13px;background:#E8A33D;color:#0F1B2D;cursor:pointer;text-decoration:none;display:inline-block}button.s,.btn.s{background:#eceae4}button.d{background:#fff;border:1px solid #cfd5dc;color:#b42318}button.mini{padding:4px 9px;font-size:13px}
+button,.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:9px 13px;background:#E8A33D;color:#0F1B2D;cursor:pointer;text-decoration:none;display:inline-block}button.s,.btn.s{background:#eceae4}button.d{background:#fff;border:1px solid #cfd5dc;color:#b42318}button.mini{padding:4px 9px;font-size:13px}button:disabled{opacity:.55;cursor:default}
 label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}input,textarea,select{font:inherit;width:100%;padding:9px;border:1px solid #cfd5dc;border-radius:8px;background:#fff}
 .row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}@media(max-width:620px){.row,.row3{grid-template-columns:1fr 1fr}}
 .muted{color:#4A5568;font-size:14px}.ok{color:#0a7a3d;font-weight:600}.bad{color:#b42318;font-weight:600}
@@ -22,8 +22,16 @@ table{width:100%;border-collapse:collapse}th,td{padding:7px 4px;border-bottom:1p
 .bar{height:8px;border-radius:5px;background:#E8A33D}
 .note{background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px;font-size:14px}
 .scroll{overflow-x:auto}
+.thumb{max-width:160px;max-height:160px;border-radius:8px;border:1px solid #cfd5dc;display:block;margin:8px 0}
+.rcrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0}
+.seg{display:flex;gap:6px;margin:6px 0}.seg button{background:#eceae4}.seg button.on{background:#0F1B2D;color:#fff}
+details.g{border:1px solid #e6e3dc;border-radius:8px;margin:8px 0;background:#fff}details.g>summary{cursor:pointer;padding:10px 12px;font-weight:600;list-style:none}details.g>summary::-webkit-details-marker{display:none}details.g>summary:before{content:"\25B8  "}details.g[open]>summary:before{content:"\25BE  "}
+details.g .inner{padding:0 10px 8px}
+.total{background:#f4f1ea;border-radius:8px;padding:8px 10px;margin:10px 0}
+ol.steps{margin:6px 0 6px 18px;padding:0}ol.steps li{margin:4px 0;font-size:14px}
+.sample td,.sample th{font-size:12px;padding:3px 6px;border:1px solid #e6e3dc}
 </style></head><body>
-<header><div><b>PaintersMax</b> Records</div><div><a href="/jobs">Jobs</a><a href="/calendar">Calendar</a><a href="/dashboard">Settings and leads</a></div></header>
+<header><div><b>PaintersMax</b> Records</div><div></div></header>
 <main>
 <h1>Expenses, mileage and records</h1>
 <p class="muted">Records for your accountant, not tax advice. Download them any time.</p>
@@ -36,66 +44,183 @@ table{width:100%;border-collapse:collapse}th,td{padding:7px 4px;border-bottom:1p
 <script>
 var $=function(i){return document.getElementById(i)};
 var T=window.pmT||function(s){return s};
+var DT=window.pmDate||function(s){return s};
+var HELP=window.pmHelp||function(){return ''};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-function msg(t,c){$('msg').textContent=t||'';$('msg').className=c||'muted';}
+// One message line. It shows right above the button you just used, so you never have to scroll to find it.
+var MSG={t:'',c:'muted'};
+function paintMsg(){var el=$('pmsg')||$('msg');if($('msg')!==el)$('msg').textContent='';el.textContent=MSG.t||'';el.className=MSG.c||'muted';}
+function msg(t,c){MSG={t:t||'',c:c||'muted'};paintMsg();}
 function api(p,b){return fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined).then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});});}
 function $$(c){return '$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
-var D=null,tab='exp',year=String(new Date().getFullYear()),PRE=null,RECEIPT=null;
+function dollars(v){var n=Number(String(v).replace(/[$,]/g,''));return Math.round((n||0)*100);}
+var D=null,tab='exp',year=String(new Date().getFullYear()),PRE=null;
 var today=function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 var qs=new URLSearchParams(location.search),JOBQ=qs.get('job')||'';
+// What is typed in the forms is kept here, so a refresh of the lists never wipes it.
+var XF={amt:'',date:'',ven:'',cat:'Materials',job:JOBQ,note:''},EDITX=null,RC={id:null,url:'',status:'',read:false};
+var MF={job:JOBQ,date:'',mode:'miles',mi:'',days:'1',o1:'',o2:'',note:''},EDITT=null,GROUP='month',OPEN={};
 (function(){var y=new Date().getFullYear(),h='';for(var i=y;i>=y-5;i--)h+='<option>'+i+'</option>';$('yr').innerHTML=h;$('yr').value=year;})();
 $('yr').onchange=function(){year=$('yr').value;load();};
-$('tabs').onclick=function(e){var t=e.target.dataset&&e.target.dataset.t;if(!t)return;tab=t;[].forEach.call($('tabs').children,function(b){b.className=b.dataset.t===t?'on':''});draw();};
+function setTab(t){tab=t;MSG={t:'',c:'muted'};[].forEach.call($('tabs').children,function(b){b.className=b.dataset.t===t?'on':''});draw();}
+$('tabs').onclick=function(e){var t=e.target.dataset&&e.target.dataset.t;if(t)setTab(t);};
 function load(){return api('/api/records?year='+year).then(function(r){D=r;draw();}).catch(function(e){if(e)msg(e.message,'bad');});}
 function jobOpts(sel){return '<option value="">'+T('General (not tied to a job)')+'</option>'+D.jobs.map(function(j){return '<option value="'+j.id+'"'+(String(sel)===String(j.id)?' selected':'')+'>'+esc(j.title+' - '+j.customer)+'</option>'}).join('');}
 function catOpts(sel){return D.categories.map(function(c){return '<option'+(c===sel?' selected':'')+'>'+esc(c)+'</option>'}).join('');}
 function drawSum(){var s=D.summary,cats=Object.keys(s.byCategory).sort(function(a,b){return s.byCategory[b]-s.byCategory[a]});
- $('sum').innerHTML='<div><span class="muted">'+T('Expenses this year')+'</span><b>'+$$(s.totalCents)+'</b></div><div><span class="muted">'+T('Miles driven')+'</span><b>'+s.miles+'</b>'+(s.mileageValueCents!=null?'<span class="muted">'+T('Value at your rate')+': '+$$(s.mileageValueCents)+'</span>':'<span class="muted">'+T('Set your mileage rate in Settings')+'</span>')+'</div>'+
+ $('sum').innerHTML='<div><span class="muted">'+T('Expenses this year')+'</span><b>'+$$(s.totalCents)+'</b></div><div><span class="muted">'+T('Miles driven')+'</span><b>'+s.miles+'</b>'+(s.mileageValueCents!=null?'<span class="muted">'+T('Value at your rate')+': '+$$(s.mileageValueCents)+'</span>':'<span class="muted">'+T('Add your per-mile rate in Settings to see what these miles are worth')+'</span>')+'</div>'+
  (cats.length?'<div style="grid-column:span 2"><span class="muted">'+T('By category')+'</span>'+cats.slice(0,6).map(function(c){var w=Math.max(3,Math.round(100*s.byCategory[c]/s.totalCents));return '<div style="display:flex;gap:8px;align-items:center;border:0;padding:2px 0"><span style="width:130px;font-size:13px">'+esc(c)+'</span><span class="bar" style="width:'+w+'%;flex:none;max-width:45%"></span><span style="font-size:13px">'+$$(s.byCategory[c])+'</span></div>'}).join('')+'</div>':'');}
 function draw(){if(!D)return;drawSum();var p=$('pane');
  if(tab==='exp')p.innerHTML=expPane();else if(tab==='mil')p.innerHTML=milPane();else if(tab==='imp')p.innerHTML=impPane();else if(tab==='out')p.innerHTML=outPane();else p.innerHTML=setPane();
- if(tab==='exp'&&!$('x_date').value)$('x_date').value=today();if(tab==='mil'&&!$('m_date').value)$('m_date').value=today();}
+ if(tab==='mil')tripTotal();paintMsg();}
+
+// ---------------- Expenses ----------------
+function rcStatus(){return RC.status?esc(RC.status):'';}
+function rcThumb(){return RC.url?'<img class="thumb" src="'+esc(RC.url)+'" alt="'+T('Your receipt photo')+'">':'';}
 function expPane(){
- var rows=D.expenses.map(function(e){return '<tr><td>'+esc(e.spentOn)+'</td><td>'+esc(e.vendor||'')+(e.note?'<div class="muted">'+esc(e.note)+'</div>':'')+'</td><td>'+esc(e.category)+'</td><td>'+esc(e.jobTitle||T('General'))+'</td><td class="r">'+$$(e.amountCents)+'</td><td>'+(e.fileId?'<a href="/api/files?id='+e.fileId+'" target="_blank">'+T('Receipt')+'</a> ':'')+'<button class="mini d" data-xdel="'+e.id+'">'+T('Delete')+'</button></td></tr>'}).join('');
- var al=D.receiptAllowance;
- return '<div class="card"><b>'+T('Quick add')+'</b><div class="row"><div><label>'+T('Amount ($)')+'</label><input id="x_amt" inputmode="decimal" placeholder="0.00"></div><div><label>'+T('Date')+'</label><input id="x_date" type="date"></div><div><label>'+T('Vendor')+'</label><input id="x_ven" maxlength="80" placeholder="Sherwin-Williams"></div><div><label>'+T('Category')+'</label><select id="x_cat">'+catOpts('Materials')+'</select></div></div>'+
- '<div class="row3"><div><label>'+T('Job')+'</label><select id="x_job">'+jobOpts(JOBQ)+'</select></div><div style="grid-column:span 2"><label>'+T('Note (optional)')+'</label><input id="x_note" maxlength="300"></div></div>'+
- '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center"><button id="x_save">'+T('Save expense')+'</button><label class="btn s" style="margin:0;cursor:pointer">'+T('Add receipt photo')+'<input id="x_file" type="file" accept="image/*" style="display:none"></label><span id="x_rc" class="muted"></span></div>'+
- '<div id="x_read"></div><small class="muted">'+T('After the first time, a vendor fills in its own category. Photos are shrunk on your phone before upload.')+'</small></div>'+
+ if(!XF.date)XF.date=today();
+ var rows=D.expenses.map(function(e){return '<tr><td>'+esc(DT(e.spentOn))+'</td><td>'+esc(e.vendor||'')+(e.note?'<div class="muted">'+esc(e.note)+'</div>':'')+'</td><td>'+esc(e.category)+'</td><td>'+esc(e.jobTitle||T('General'))+'</td><td class="r">'+$$(e.amountCents)+'</td><td style="white-space:nowrap">'+(e.fileId?'<a href="/api/files?id='+e.fileId+'" target="_blank">'+T('Receipt')+'</a> ':'')+'<button class="mini s" data-xedit="'+e.id+'">'+T('Edit')+'</button> <button class="mini d" data-xdel="'+e.id+'">'+T('Delete')+'</button></td></tr>'}).join('');
+ var al=D.receiptAllowance,left=al?Math.max(0,al.limit-al.used):0;
+ var hint=al&&al.limit>0?T('We read the receipt for you and fill in the boxes. You can fix anything before saving.')+' ('+left+' '+T('reads left this month')+')':T('Add the photo to keep it with this expense, then type the details below.');
+ return '<div class="card" id="xcard"><b>'+(EDITX?T('Edit this expense'):T('Add an expense'))+'</b>'+
+ '<p class="muted" style="margin:6px 0">'+T('Fastest way: take a photo of the receipt.')+' '+hint+'</p>'+
+ '<div id="pmsg" class="muted"></div>'+
+ '<div class="rcrow"><label class="btn s" style="margin:0;cursor:pointer">'+T('Add receipt photo')+'<input id="x_file" type="file" accept="image/*" style="display:none"></label><span id="x_rcs" class="muted">'+rcStatus()+'</span></div><div id="x_thumb">'+rcThumb()+'</div>'+
+ '<div class="row"><div><label>'+T('Amount ($)')+'</label><input id="x_amt" inputmode="decimal" placeholder="0.00" value="'+esc(XF.amt)+'"></div><div><label>'+T('Date')+'</label><input id="x_date" type="date" value="'+esc(XF.date)+'"></div><div><label>'+T('Vendor')+'</label><input id="x_ven" maxlength="80" placeholder="Sherwin-Williams" value="'+esc(XF.ven)+'"></div><div><label>'+T('Category')+HELP(T('Categories are the labels on expenses, like Materials or Fuel. Your accountant uses them to sort your costs. Add your own (like Dumpster rental) in the Settings tab and they show up in this list.'))+'</label><select id="x_cat">'+catOpts(XF.cat)+'</select></div></div>'+
+ '<div class="row3"><div><label>'+T('Job')+'</label><select id="x_job">'+jobOpts(XF.job)+'</select></div><div style="grid-column:span 2"><label>'+T('Note (optional)')+'</label><input id="x_note" maxlength="300" value="'+esc(XF.note)+'"></div></div>'+
+ '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button id="x_save">'+(EDITX?T('Save changes'):T('Save expense'))+'</button>'+(EDITX?'<button class="s" id="x_cancel">'+T('Cancel')+'</button>':'')+'</div>'+
+ '<small class="muted">'+T('The job stays selected after you save, so you can add the next receipt for the same job. After the first time, a vendor fills in its own category.')+'</small></div>'+
  '<div class="card scroll"><table><thead><tr><th>'+T('Date')+'</th><th>'+T('Vendor')+'</th><th>'+T('Category')+'</th><th>'+T('Job')+'</th><th class="r">'+T('Amount')+'</th><th></th></tr></thead><tbody>'+(rows||'<tr><td colspan="6" class="muted">'+T('No expenses for this year yet.')+'</td></tr>')+'</tbody></table></div>';}
-function milPane(){var r=D.settings.mileageRateCents;
- var rows=D.trips.map(function(t){return '<tr><td>'+esc(t.tripOn)+'</td><td>'+esc(t.jobTitle||T('General'))+(t.note?'<div class="muted">'+esc(t.note)+'</div>':'')+'</td><td class="r">'+t.miles+'</td><td class="r">'+(r?$$(Math.round(t.miles*r)):'')+'</td><td><button class="mini d" data-tdel="'+t.id+'">'+T('Delete')+'</button></td></tr>'}).join('');
- return '<div class="card"><b>'+T('Add a trip')+'</b>'+(r?'':'<div class="note" style="margin-top:6px">'+T('Set your mileage rate in Settings to see the value of each trip. The IRS rate changes every year, so check the current rate.')+'</div>')+'<div class="row"><div><label>'+T('Miles')+'</label><input id="m_mi" inputmode="decimal"></div><div><label>'+T('Date')+'</label><input id="m_date" type="date"></div><div style="grid-column:span 2"><label>'+T('Job')+'</label><select id="m_job">'+jobOpts(JOBQ)+'</select></div></div><label>'+T('Note (optional)')+'</label><input id="m_note" maxlength="200"><div style="margin-top:10px"><button id="m_save">'+T('Save trip')+'</button></div></div>'+
- '<div class="card scroll"><table><thead><tr><th>'+T('Date')+'</th><th>'+T('Job')+'</th><th class="r">'+T('Miles')+'</th><th class="r">'+T('Value')+'</th><th></th></tr></thead><tbody>'+(rows||'<tr><td colspan="5" class="muted">'+T('No trips for this year yet.')+'</td></tr>')+'</tbody></table></div>';}
+function shrink(f){return new Promise(function(res){if(!f.type.startsWith('image/')||f.type==='image/gif'){res(f);return;}var im=new Image();im.onload=function(){var s=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(function(b){res(b?new File([b],(f.name||'receipt').replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):f)},'image/jpeg',0.82)};im.onerror=function(){res(f)};im.src=URL.createObjectURL(f)});}
+function rcPaint(){if($('x_rcs'))$('x_rcs').textContent=RC.status||'';if($('x_thumb'))$('x_thumb').innerHTML=rcThumb();}
+// Choosing a photo uploads it, shows it, and reads it. No second button to press.
+async function pickReceipt(file){
+ RC={id:null,url:'',status:T('Uploading your photo...'),read:false};msg('');rcPaint();
+ try{
+  var b=await shrink(file);RC.url=URL.createObjectURL(b);rcPaint();
+  var fd=new FormData();fd.append('file',b);fd.append('kind','receipt');
+  var r=await fetch('/api/files',{method:'POST',body:fd});var j=await r.json().catch(function(){return{}});
+  if(r.status===401){location.href='/login';return;}
+  if(!r.ok)throw new Error(j.error||T('Could not upload that photo. Please try again.'));
+  RC.id=j.id;
+  var al=D.receiptAllowance;
+  if(al&&al.limit<=0){RC.status=T('Photo added. Reading receipts is not in your plan, so type the details below.');rcPaint();return;}
+  if(al&&al.used>=al.limit){RC.status=T('Photo added. You used this month\'s receipt reads, so type the details below.');rcPaint();return;}
+  await readNow();
+ }catch(x){if(!x)return;RC.status='';rcPaint();msg(x.message,'bad');}
+}
+async function readNow(){
+ RC.status=T('Reading your receipt...');rcPaint();
+ try{
+  var r=await api('/api/records',{action:'readReceipt',fileId:RC.id});var dr=r.draft;
+  if(dr.vendor){XF.ven=dr.vendor;$('x_ven').value=dr.vendor;}
+  if(dr.spentOn){XF.date=dr.spentOn;$('x_date').value=dr.spentOn;}
+  if(dr.amountCents){XF.amt=(dr.amountCents/100).toFixed(2);$('x_amt').value=XF.amt;}
+  if(dr.category){XF.cat=dr.category;$('x_cat').value=dr.category;}
+  if(dr.note){XF.note=dr.note;$('x_note').value=dr.note;}
+  RC.read=true;if(D.receiptAllowance)D.receiptAllowance.used++;
+  RC.status=T('Done. Check the boxes below, fix anything that looks wrong, then save.');rcPaint();msg('');
+ }catch(x){if(!x)return;RC.status='';rcPaint();
+  msg(x.message,'bad');
+  if($('x_rcs'))$('x_rcs').innerHTML='<button class="mini s" id="x_again">'+T('Try reading again')+'</button>';
+ }
+}
+function resetExp(){XF={amt:'',date:XF.date,ven:'',cat:'Materials',job:XF.job,note:''};EDITX=null;RC={id:null,url:'',status:'',read:false};}
+
+// ---------------- Mileage ----------------
+function tripMiles(){var n=function(v){var x=parseFloat(String(v).replace(/,/g,''));return isFinite(x)?x:0;};
+ if(MF.mode==='odo'){var d=n(MF.o2)-n(MF.o1);return d>0?Math.round(d*10)/10:0;}
+ var days=Math.max(1,Math.round(n(MF.days)||1));return Math.round(n(MF.mi)*days*10)/10;}
+function tripTotal(){var el=$('m_total');if(!el)return;var m=tripMiles(),r=D.settings.mileageRateCents;
+ el.innerHTML=m?'<b>'+m+' '+T('miles')+'</b>'+(r?' &middot; '+T('worth about')+' '+$$(Math.round(m*r)):''):'<span class="muted">'+T('Your total shows here as you type.')+'</span>';}
+function tripGroups(){var g={};D.trips.forEach(function(t){var k=GROUP==='job'?(t.jobTitle||T('General (not tied to a job)')):t.tripOn.slice(0,7);(g[k]=g[k]||[]).push(t);});
+ var keys=Object.keys(g);keys.sort();if(GROUP==='month')keys.reverse();return keys.map(function(k){return{key:k,trips:g[k]};});}
+function milPane(){var r=D.settings.mileageRateCents;if(!MF.date)MF.date=today();
+ var tr=function(t){return '<tr><td>'+esc(DT(t.tripOn))+'</td><td>'+esc(t.jobTitle||T('General'))+(t.note?'<div class="muted">'+esc(t.note)+'</div>':'')+'</td><td class="r">'+t.miles+'</td><td class="r">'+(r?$$(Math.round(t.miles*r)):'')+'</td><td style="white-space:nowrap"><button class="mini s" data-tedit="'+t.id+'">'+T('Edit')+'</button> <button class="mini d" data-tdel="'+t.id+'">'+T('Delete')+'</button></td></tr>'};
+ var groups=tripGroups(),first=true;
+ var list=groups.map(function(g){var mi=Math.round(g.trips.reduce(function(s,t){return s+t.miles},0)*10)/10;
+  var label=GROUP==='job'?esc(g.key):esc(window.pmDate?window.pmDate(g.key+'-01','month'):g.key);
+  var open=(OPEN[g.key]===undefined?first:OPEN[g.key])||(EDITT&&g.trips.some(function(t){return t.id===EDITT}));first=false;
+  return '<details class="g" data-gk="'+esc(g.key)+'"'+(open?' open':'')+'><summary>'+label+' <span class="muted" style="font-weight:400">&middot; '+g.trips.length+' '+T(g.trips.length===1?'trip':'trips')+' &middot; '+mi+' '+T('miles')+(r?' &middot; '+$$(Math.round(mi*r)):'')+'</span></summary><div class="inner scroll"><table><thead><tr><th>'+T('Date')+'</th><th>'+T('Job')+'</th><th class="r">'+T('Miles')+'</th><th class="r">'+T('Value')+'</th><th></th></tr></thead><tbody>'+g.trips.map(tr).join('')+'</tbody></table></div></details>'}).join('');
+ var odo=MF.mode==='odo';
+ return '<div class="card"><b>'+(EDITT?T('Edit this trip'):T('Track your miles on this job'))+'</b>'+
+ '<p class="muted" style="margin:6px 0">'+T('Pick the job, tell us how far you drove, and you are done. Not sure of the distance? Check your phone\'s map once, then use "same drive on several days" so you never have to type it every day.')+'</p>'+
+ (r?'':'<div class="note" style="margin:8px 0">'+T('Tip: if you tell us what your accountant uses per mile, we will show what each trip is worth. You can log miles without it.')+' <button class="mini s" data-goto="set">'+T('Open Settings')+'</button></div>')+
+ '<div id="pmsg" class="muted"></div>'+
+ '<div class="row"><div style="grid-column:span 2"><label>'+T('Which job was the drive for?')+'</label><select id="m_job">'+jobOpts(MF.job)+'</select></div><div style="grid-column:span 2"><label>'+T('Date')+'</label><input id="m_date" type="date" value="'+esc(MF.date)+'"></div></div>'+
+ '<div class="seg" role="group"><button type="button" data-mode="miles" class="'+(odo?'':'on')+'">'+T('I know the miles')+'</button><button type="button" data-mode="odo" class="'+(odo?'on':'')+'">'+T('Use my odometer')+'</button></div>'+
+ (odo?'<div class="row3"><div><label>'+T('Odometer when you started')+'</label><input id="m_o1" inputmode="decimal" value="'+esc(MF.o1)+'"></div><div><label>'+T('Odometer when you finished')+'</label><input id="m_o2" inputmode="decimal" value="'+esc(MF.o2)+'"></div></div>':
+  '<div class="row3"><div><label>'+T('Miles for one day (there and back)')+'</label><input id="m_mi" inputmode="decimal" value="'+esc(MF.mi)+'"></div><div><label>'+T('Same drive on how many days?')+HELP(T('If you drive the same route every day of a job, type the miles for ONE day, then how many days you drove it. We multiply for you. Example: 18 miles, 5 days = 90 miles.'))+'</label><input id="m_days" inputmode="numeric" value="'+esc(MF.days)+'"></div></div>')+
+ '<div class="total" id="m_total"></div>'+
+ '<label>'+T('Note (optional)')+'</label><input id="m_note" maxlength="150" value="'+esc(MF.note)+'">'+
+ '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button id="m_save">'+(EDITT?T('Save changes'):T('Save trip'))+'</button>'+(EDITT?'<button class="s" id="m_cancel">'+T('Cancel')+'</button>':'')+'</div></div>'+
+ '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b>'+T('Your trips')+'</b><span class="seg" style="margin:0"><button type="button" data-group="month" class="'+(GROUP==='month'?'on':'')+'">'+T('By month')+'</button><button type="button" data-group="job" class="'+(GROUP==='job'?'on':'')+'">'+T('By job')+'</button></span></div>'+(list||'<p class="muted">'+T('No trips for this year yet.')+'</p>')+'</div>';}
+
+// ---------------- Import ----------------
 function impPane(){
- var pre=PRE?('<p><b>'+PRE.rows.length+'</b> '+T('expenses found')+(PRE.skipped?' ('+PRE.skipped+' '+T('credits or unreadable rows skipped')+')':'')+'. '+T('Uncheck any that are not business expenses. Duplicates are unchecked for you.')+'</p><div class="scroll"><table><thead><tr><th></th><th>'+T('Date')+'</th><th>'+T('Vendor')+'</th><th>'+T('Category')+'</th><th class="r">'+T('Amount')+'</th></tr></thead><tbody>'+PRE.rows.map(function(r,i){return '<tr><td><input type="checkbox" data-pi="'+i+'" style="width:auto"'+(r.duplicate?'':' checked')+'></td><td>'+esc(r.spentOn)+'</td><td>'+esc(r.vendor)+(r.duplicate?' <span class="muted">('+T('already saved')+')</span>':'')+'</td><td><select data-pc="'+i+'">'+catOpts(r.category)+'</select></td><td class="r">'+$$(r.amountCents)+'</td></tr>'}).join('')+'</tbody></table></div><label>'+T('Put all of these on one job (optional)')+'</label><select id="i_job">'+jobOpts('')+'</select><div style="margin-top:10px"><button id="i_commit">'+T('Add the checked expenses')+'</button> <button class="s" id="i_cancel">'+T('Cancel')+'</button></div>'):'';
- return '<div class="card"><b>'+T('Import a month of expenses')+'</b><p class="muted">'+T('Download your bank or credit card transactions as a CSV file, then choose it here. Nothing is saved until you check the list. No AI is used, so it costs nothing.')+'</p><input id="i_file" type="file" accept=".csv,text/csv">'+pre+'</div>';}
+ var pre=PRE?('<p><b>'+PRE.rows.length+'</b> '+T('expenses found')+(PRE.skipped?' ('+PRE.skipped+' '+T('credits or unreadable rows skipped')+')':'')+'. '+T('Uncheck any that are not business expenses. Duplicates are unchecked for you.')+'</p><div class="scroll"><table><thead><tr><th></th><th>'+T('Date')+'</th><th>'+T('Vendor')+'</th><th>'+T('Category')+'</th><th class="r">'+T('Amount')+'</th></tr></thead><tbody>'+PRE.rows.map(function(r,i){return '<tr><td><input type="checkbox" data-pi="'+i+'" style="width:auto"'+(r.duplicate?'':' checked')+'></td><td>'+esc(DT(r.spentOn))+'</td><td>'+esc(r.vendor)+(r.duplicate?' <span class="muted">('+T('already saved')+')</span>':'')+'</td><td><select data-pc="'+i+'">'+catOpts(r.category)+'</select></td><td class="r">'+$$(r.amountCents)+'</td></tr>'}).join('')+'</tbody></table></div><label>'+T('Put all of these on one job (optional)')+'</label><select id="i_job">'+jobOpts('')+'</select><div style="margin-top:10px"><button id="i_commit">'+T('Add the checked expenses')+'</button> <button class="s" id="i_cancel">'+T('Cancel')+'</button></div>'):'';
+ return '<div class="card"><b>'+T('Add a whole month of expenses at once')+'</b>'+
+ '<p class="muted">'+T('If you pay for paint, fuel and supplies with a business debit card, credit card or bank account, your bank already keeps a list of every purchase. Instead of typing each one, download that list from your bank\'s website and add it here. You look over the list first, and nothing is saved until you say so.')+'</p>'+
+ '<p><b>'+T('How to get the file')+'</b></p><ol class="steps"><li>'+T('Sign in to your bank or card website.')+'</li><li>'+T('Open your account and look for Transactions or Statements.')+'</li><li>'+T('Find Download or Export and choose CSV. Some banks call it Excel or spreadsheet. One month at a time works best.')+'</li><li>'+T('Choose that file below.')+'</li></ol>'+
+ '<p class="muted">'+T('Works with: CSV files. PDF statements and photos cannot be read yet. We do not keep the file or your account number, only the expenses you check.')+'</p>'+
+ '<div id="pmsg" class="muted"></div><input id="i_file" type="file" accept=".csv,.txt,text/csv,text/plain">'+
+ (PRE?'':'<details class="g"><summary>'+T('What should the file look like?')+'</summary><div class="inner"><p class="muted">'+T('Open it in Excel or Google Sheets. It needs a row of headings that includes a date, a description (or merchant), and an amount (or debit). Extra columns are fine.')+'</p><table class="sample"><tr><th>Date</th><th>Description</th><th>Amount</th></tr><tr><td>11/01/2026</td><td>SHERWIN WILLIAMS 1234</td><td>-120.50</td></tr><tr><td>11/03/2026</td><td>SHELL OIL 5678</td><td>-40.00</td></tr></table></div></details>')+pre+'</div>';}
+
+// ---------------- Download ----------------
 function outPane(){var y=year,q=D.settings;
  var csv=function(k,l){return '<a class="btn s" href="/api/records?export='+k+'&year='+y+'">'+T(l)+'</a>';};
- return '<div class="card"><b>'+T('Download your records')+' ('+y+')</b><p class="muted">'+T('Spreadsheet files (CSV) that open in Excel or Google Sheets and that your accountant can use. Records only, not tax advice.')+'</p><div style="display:flex;gap:8px;flex-wrap:wrap">'+csv('expenses','Expenses (CSV)')+csv('mileage','Mileage (CSV)')+csv('income','Invoices (CSV)')+'<a class="btn s" href="/crew">'+T('Crew hours and 1099 list')+'</a></div><p style="margin-top:12px"><a class="btn" href="/api/jobfile?year='+y+'">'+T('Year-end package (ZIP)')+'</a><br><span class="muted">'+T('One download for your accountant: expenses, mileage, invoices, crew hours, payments, the 1099 list and both QuickBooks files.')+'</span></p><p class="muted" style="margin-top:10px">'+T('Your data stays safe here. We still suggest downloading at least once a year, at tax time.')+'</p></div>'+
- '<div class="card"><b>QuickBooks</b><p class="muted">'+T('Files built to the formats QuickBooks publishes. Try a small file first, or make a backup of your company file. We cannot test inside your QuickBooks.')+'</p>'+
- '<p><b>QuickBooks Online</b><br><span class="muted">'+T('Banking, then Upload transactions. Pick the bank or card account that paid. The file has Date, Description and Amount, with payments as negative amounts. The description shows vendor, category and job, so you can assign them in QuickBooks. If the same charges also come in from your bank feed, they may show twice: upload only the ones that are not in your feed.')+'</span><br><span style="display:inline-block;margin-top:6px">'+csv('qbo','QuickBooks Online file (CSV)')+'</span></p>'+
- '<p><b>QuickBooks Desktop</b><br><span class="muted">'+T('File menu, Utilities, Import, IIF Files. First create these expense accounts in QuickBooks, or it may create them as the wrong type:')+' '+(D.qbAccounts.length?esc(D.qbAccounts.join(', ')):'-')+'. '+T('Intuit does not provide support for IIF files, so check the imported entries.')+'</span></p>'+
- '<div class="row3"><div><label>'+T('Account that paid (must exist in QuickBooks)')+'</label><input id="q_acct" maxlength="60" value="'+esc(q.qbPayAccount)+'"></div><div><label>'+T('That account is a')+'</label><select id="q_type"><option value="check"'+(q.qbPayType==='card'?'':' selected')+'>'+T('Bank account (checks)')+'</option><option value="card"'+(q.qbPayType==='card'?' selected':'')+'>'+T('Credit card')+'</option></select></div><div><label>&nbsp;</label><button class="s" id="q_save">'+T('Save account')+'</button></div></div>'+
- '<p style="margin-top:8px">'+csv('iif','QuickBooks Desktop file (IIF)')+'</p></div>';}
+ var cw=function(k,l){return '<a class="btn s" href="/api/crew?export='+k+'&year='+y+'">'+T(l)+'</a>';};
+ return '<div class="card"><b>'+T('Download your records')+' ('+y+')</b><p class="muted">'+T('These are spreadsheet files (CSV). They open in Excel or Google Sheets, and your accountant can use them. Records only, not tax advice.')+'</p>'+
+ '<div style="display:flex;gap:8px;flex-wrap:wrap">'+csv('expenses','Expenses (CSV)')+csv('mileage','Mileage (CSV)')+csv('income','Invoices (CSV)')+cw('hours','Crew hours (CSV)')+cw('payments','Crew payments (CSV)')+cw('1099','1099 list (CSV)')+'</div>'+
+ '<p style="margin-top:14px"><a class="btn" href="/api/jobfile?year='+y+'">'+T('Year-end package (ZIP)')+'</a><br><span class="muted">'+T('The easiest one. A single download for your accountant with all of the above, plus QuickBooks files if they use it.')+'</span></p><p class="muted" style="margin-top:10px">'+T('Your data stays safe here. We still suggest downloading at least once a year, at tax time.')+'</p></div>'+
+ '<div class="card"><b>'+T('Do you use QuickBooks?')+'</b>'+
+ '<p class="muted">'+T('QuickBooks is accounting software. Think of it as a checkbook on a computer. Some accountants use it to keep a business\'s books.')+'</p>'+
+ '<div class="note">'+T('Do not use QuickBooks? You can skip this whole box. The Year-end package above has everything your accountant needs.')+'</div>'+
+ '<p class="muted">'+T('If you or your accountant do use it, these files drop your PaintersMax expenses into QuickBooks so nobody has to type them twice. There are two kinds of QuickBooks. QuickBooks Online is the one you open in a web browser. QuickBooks Desktop is a program installed on a computer. Not sure which you have? Ask your accountant, or skip this.')+'</p>'+
+ '<p><b>QuickBooks Online</b></p><ol class="steps"><li>'+T('Download the file below.')+'</li><li>'+T('In QuickBooks Online, find Banking (or Transactions) and then Upload transactions.')+'</li><li>'+T('Choose the bank or card account the money came out of.')+'</li><li>'+T('When it asks, match the columns: Date, Description and Amount.')+'</li><li>'+T('Look the list over, then accept it.')+'</li></ol><p style="margin:6px 0">'+csv('qbo','QuickBooks Online file (CSV)')+'</p><p class="muted">'+T('If your bank is already connected to QuickBooks, these purchases may show up twice. Only upload the ones that are not already there.')+'</p>'+
+ '<p style="margin-top:14px"><b>QuickBooks Desktop</b></p><ol class="steps"><li>'+T('Make a backup copy of your company file first, just to be safe.')+'</li><li>'+T('In QuickBooks, create these expense accounts (the names must match):')+' <b>'+(D.qbAccounts.length?esc(D.qbAccounts.join(', ')):'-')+'</b></li><li>'+T('Tell us the name of the account the money came out of, exactly as it is spelled in QuickBooks, and what kind it is:')+'</li></ol>'+
+ '<div class="row3"><div><label>'+T('Name of that account (for example Business Checking)')+'</label><input id="q_acct" maxlength="60" value="'+esc(q.qbPayAccount)+'"></div><div><label>'+T('What kind of account is it?')+'</label><select id="q_type"><option value="check"'+(q.qbPayType==='card'?'':' selected')+'>'+T('Bank account (checks)')+'</option><option value="card"'+(q.qbPayType==='card'?' selected':'')+'>'+T('Credit card')+'</option></select></div><div><label>&nbsp;</label><button class="s" id="q_save">'+T('Save account')+'</button></div></div>'+
+ '<ol class="steps" start="4"><li>'+T('Download the file below.')+'</li><li>'+T('In QuickBooks, open the File menu, then Utilities, then Import, then IIF Files, and choose the file.')+'</li></ol><p style="margin:6px 0">'+csv('iif','QuickBooks Desktop file (IIF)')+'</p>'+
+ '<p class="muted">'+T('These files follow the formats Intuit (the maker of QuickBooks) publishes, but we cannot test inside your copy of QuickBooks. Try a small month first, and check the entries.')+'</p></div>';}
+
+// ---------------- Settings ----------------
 function setPane(){var s=D.settings,rules=Object.keys(s.rules);
- return '<div class="card"><b>'+T('Mileage rate')+'</b><p class="muted">'+T('Cents per mile. The IRS rate changes every year, so we do not fill it in. Check the current rate at IRS.gov or ask your accountant.')+'</p><div class="row"><div><label>'+T('Cents per mile')+'</label><input id="s_rate" inputmode="decimal" value="'+(s.mileageRateCents||'')+'"></div><div><label>'+T('1099 reporting threshold ($)')+'</label><input id="s_th" inputmode="decimal" value="'+(s.threshold1099Cents/100)+'"></div></div><small class="muted">'+T('The 1099 amount changes by law (it is $2,000 for payments after Dec 31, 2025). Confirm with your accountant or IRS.gov.')+'</small><div style="margin-top:10px"><button id="s_save">'+T('Save settings')+'</button></div></div>'+
- '<div class="card"><b>'+T('Your own categories')+'</b><div class="row3"><div style="grid-column:span 2"><input id="c_name" maxlength="40" placeholder="'+T('Example: Dumpster rental')+'"></div><div><button id="c_add">'+T('Add category')+'</button></div></div><div style="margin-top:8px">'+(D.customCategories.length?D.customCategories.map(function(c){return '<span class="muted">'+esc(c.name)+' <button class="mini d" data-cdel="'+c.id+'">&times;</button></span> &nbsp; '}).join(''):'<span class="muted">'+T('None yet.')+'</span>')+'</div></div>'+
- '<div class="card"><b>'+T('Saved vendor rules')+'</b><p class="muted">'+T('When you save an expense, its vendor remembers the category. Remove a rule here if it is wrong.')+'</p>'+(rules.length?rules.map(function(k){return '<div style="display:flex;justify-content:space-between;border-top:1px solid #eee;padding:5px 0"><span>'+esc(k)+' &rarr; '+esc(s.rules[k])+'</span><button class="mini d" data-rdel="'+esc(k)+'">'+T('Remove')+'</button></div>'}).join(''):'<span class="muted">'+T('None yet.')+'</span>')+'</div>';}
-function shrink(f){return new Promise(function(res){if(!f.type.startsWith('image/')||f.type==='image/gif'){res(f);return;}var im=new Image();im.onload=function(){var s=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(function(b){res(b?new File([b],(f.name||'receipt').replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):f)},'image/jpeg',0.82)};im.onerror=function(){res(f)};im.src=URL.createObjectURL(f)});}
-function dollars(v){var n=Number(String(v).replace(/[$,]/g,''));return Math.round((n||0)*100);}
-document.addEventListener('change',function(e){var t=e.target;
- if(t.id==='x_ven'){var k=(t.value||'').toLowerCase().trim();if(k){var rules=D.settings.rules;for(var r in rules){if(r&&k.indexOf(r)>=0){$('x_cat').value=rules[r];break;}}}}
- else if(t.id==='x_file'&&t.files[0]){shrink(t.files[0]).then(function(b){var fd=new FormData();fd.append('file',b);fd.append('kind','receipt');return fetch('/api/files',{method:'POST',body:fd})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Could not upload.');return j;})}).then(function(j){RECEIPT=j.id;$('x_rc').textContent=T('Receipt photo added.');var al=D.receiptAllowance;$('x_read').innerHTML='<div style="margin-top:8px"><button class="s" id="x_ai">'+T('Read this receipt for me')+'</button> <span class="muted">'+(al?(al.limit>0?(al.limit-al.used)+' '+T('reads left this month'):T('Not in your plan')):'')+'</span></div>';}).catch(function(x){msg(x.message,'bad')});}
- else if(t.id==='i_file'&&t.files[0]){t.files[0].text().then(function(tx){return api('/api/records',{action:'csvPreview',text:tx})}).then(function(r){PRE=r;draw();}).catch(function(x){if(x)msg(x.message,'bad')});}
+ return '<div class="card"><div id="pmsg" class="muted"></div><b>'+T('Mileage rate')+'</b>'+HELP(T('This is how many cents the government lets a business count for each mile driven. We multiply your miles by it to show what your driving is worth. It helps your accountant, and we never file anything. The number changes most years, so we leave it blank on purpose. If it is blank, nothing breaks: we just do not show the dollar value.'))+
+ '<p class="muted">'+T('Not sure what to type? Ask your accountant, or look up the current "standard mileage rate" for business on IRS.gov. Type it in cents: 70 means 70 cents a mile.')+' <a href="https://www.irs.gov/tax-professionals/standard-mileage-rates" target="_blank" rel="noopener">'+T('Look it up on IRS.gov')+'</a></p><div class="row"><div><label>'+T('Cents per mile')+'</label><input id="s_rate" inputmode="decimal" value="'+(s.mileageRateCents||'')+'"></div><div><label>'+T('1099 reporting amount ($)')+HELP(T('If you pay a subcontractor this much or more in a year, the IRS may want a 1099 form from you. We use this number to flag who is over it. The amount changes by law, so check with your accountant.'))+'</label><input id="s_th" inputmode="decimal" value="'+(s.threshold1099Cents/100)+'"></div></div><small class="muted">'+T('The 1099 amount changes by law (it is $2,000 for payments after Dec 31, 2025). Confirm with your accountant or IRS.gov.')+'</small><div style="margin-top:10px"><button id="s_save">'+T('Save settings')+'</button></div></div>'+
+ '<div class="card"><b>'+T('Your own categories')+'</b>'+HELP(T('Categories are the labels on expenses, like Materials, Fuel or Tools. Add your own here. They show up in the Category list when you add an expense (Expenses tab).'))+'<p class="muted">'+T('Add a label that fits your business. It will appear in the Category list on the Expenses tab.')+'</p><div class="row3"><div style="grid-column:span 2"><input id="c_name" maxlength="40" placeholder="'+T('Example: Dumpster rental')+'"></div><div><button id="c_add">'+T('Add category')+'</button></div></div><div style="margin-top:8px">'+(D.customCategories.length?D.customCategories.map(function(c){return '<span class="muted">'+esc(c.name)+' <button class="mini d" data-cdel="'+c.id+'">&times;</button></span> &nbsp; '}).join(''):'<span class="muted">'+T('None yet.')+'</span>')+'</div></div>'+
+ '<div class="card"><b>'+T('Vendor memory')+'</b>'+HELP(T('The first time you save an expense from a store, like Home Depot, as Materials, we remember it. Next time you type Home Depot, the category fills in by itself. If one is wrong, remove it here and it will learn again.'))+'<p class="muted">'+T('Stores we have learned. The first time you save an expense from a store, we remember its category. Next time it fills in by itself. Remove one if it is wrong.')+'</p>'+(rules.length?rules.map(function(k){return '<div style="display:flex;justify-content:space-between;border-top:1px solid #eee;padding:5px 0"><span>'+esc(k)+' &rarr; '+esc(s.rules[k])+'</span><button class="mini d" data-rdel="'+esc(k)+'">'+T('Remove')+'</button></div>'}).join(''):'<span class="muted">'+T('None yet.')+'</span>')+'</div>';}
+
+// ---------------- Events ----------------
+function syncForm(e){var t=e.target,x={x_amt:'amt',x_date:'date',x_ven:'ven',x_cat:'cat',x_job:'job',x_note:'note'},m={m_mi:'mi',m_days:'days',m_o1:'o1',m_o2:'o2',m_date:'date',m_job:'job',m_note:'note'};
+ if(x[t.id])XF[x[t.id]]=t.value;if(m[t.id]){MF[m[t.id]]=t.value;tripTotal();}
+ if(t.id==='x_job')MF.job=t.value;if(t.id==='m_job')XF.job=t.value;}
+document.addEventListener('input',syncForm);
+document.addEventListener('toggle',function(e){var g=e.target&&e.target.dataset&&e.target.dataset.gk;if(g!==undefined&&g!==null&&e.target.tagName==='DETAILS')OPEN[g]=e.target.open;},true);
+document.addEventListener('change',function(e){var t=e.target;syncForm(e);
+ if(t.id==='x_ven'){var k=(t.value||'').toLowerCase().trim();if(k){var rules=D.settings.rules;for(var r in rules){if(r&&k.indexOf(r)>=0){$('x_cat').value=rules[r];XF.cat=rules[r];break;}}}}
+ else if(t.id==='x_file'&&t.files[0]){pickReceipt(t.files[0]);t.value='';}
+ else if(t.id==='i_file'&&t.files[0]){var f=t.files[0];if(/\.pdf$/i.test(f.name)||f.type==='application/pdf'){msg(T('That is a PDF statement. PDFs cannot be read yet. On your bank\'s website, look for Download or Export and choose CSV (it may be called Excel or spreadsheet), then choose that file here.'),'bad');t.value='';return;}
+  f.text().then(function(tx){return api('/api/records',{action:'csvPreview',text:tx})}).then(function(r){PRE=r;msg('');draw();}).catch(function(x){if(x)msg(x.message,'bad')});}
  else if(t.dataset&&t.dataset.pc!==undefined){PRE.rows[+t.dataset.pc].category=t.value;}
 });
-document.addEventListener('click',function(e){var t=e.target,d=t.dataset||{},id=t.id;
+document.addEventListener('click',function(e){var t=e.target.closest?e.target.closest('button,a,[data-goto]')||e.target:e.target,d=t.dataset||{},id=t.id;
  var act=function(p,after){p.then(function(){if(after)after();return load();}).catch(function(x){if(x)msg(x.message,'bad')});};
- if(id==='x_save'){var amt=dollars($('x_amt').value);act(api('/api/records',{action:'addExpense',amountCents:amt,spentOn:$('x_date').value,vendor:$('x_ven').value,category:$('x_cat').value,jobId:$('x_job').value,note:$('x_note').value,fileId:RECEIPT,source:RECEIPT&&window.RDRAFT?'receipt':'manual'}).then(function(r){msg(r.ruleSaved?T('Saved. This vendor will fill its category next time.'):T('Saved.'),'ok');RECEIPT=null;window.RDRAFT=false;}));}
- else if(id==='x_ai'){t.disabled=true;t.textContent=T('Reading...');api('/api/records',{action:'readReceipt',fileId:RECEIPT}).then(function(r){var dr=r.draft;if(dr.vendor)$('x_ven').value=dr.vendor;if(dr.spentOn)$('x_date').value=dr.spentOn;if(dr.amountCents)$('x_amt').value=(dr.amountCents/100).toFixed(2);if(dr.category)$('x_cat').value=dr.category;if(dr.note)$('x_note').value=dr.note;window.RDRAFT=true;msg(T('Check what was read, fix anything wrong, then save.'),'ok');t.remove();}).catch(function(x){msg(x.message,'bad');t.disabled=false;t.textContent=T('Read this receipt for me');});}
+ if(d.goto){setTab(d.goto);window.scrollTo(0,0);}
+ else if(id==='x_again'){readNow();}
+ else if(id==='x_save'){var wasEdit=!!EDITX;
+  act(api('/api/records',{action:wasEdit?'updateExpense':'addExpense',id:EDITX,amountCents:dollars(XF.amt),spentOn:XF.date,vendor:XF.ven,category:XF.cat,jobId:XF.job,note:XF.note,fileId:RC.id,source:RC.read?'receipt':'manual'}).then(function(r){
+   resetExp();msg(wasEdit?T('Changes saved.'):(r.ruleSaved?T('Saved. This vendor will fill its category next time. The job is still selected, so you can add the next one.'):T('Saved. The job is still selected, so you can add the next one.')),'ok');}),function(){var c=$('xcard');if(c&&c.scrollIntoView)c.scrollIntoView({block:'start',behavior:'smooth'});});}
+ else if(id==='x_cancel'){resetExp();msg('');draw();}
+ else if(d.xedit){var ex=D.expenses.filter(function(x){return x.id===+d.xedit})[0];if(ex){EDITX=ex.id;XF={amt:(ex.amountCents/100).toFixed(2),date:ex.spentOn,ven:ex.vendor||'',cat:ex.category,job:ex.jobId||'',note:ex.note||''};RC={id:ex.fileId||null,url:ex.fileId?'/api/files?id='+ex.fileId:'',status:'',read:false};msg('');draw();var c=$('xcard');if(c&&c.scrollIntoView)c.scrollIntoView({block:'start'});}}
  else if(d.xdel){if(confirm(T('Delete this expense?')))act(api('/api/records',{action:'deleteExpense',id:+d.xdel}));}
- else if(id==='m_save'){act(api('/api/records',{action:'addTrip',miles:$('m_mi').value,tripOn:$('m_date').value,jobId:$('m_job').value,note:$('m_note').value}).then(function(){msg(T('Saved.'),'ok')}));}
+ else if(d.mode){MF.mode=d.mode;draw();}
+ else if(d.group){GROUP=d.group;draw();}
+ else if(id==='m_save'){var mi=tripMiles(),days=Math.max(1,Math.round(parseFloat(MF.days)||1)),note=MF.note.trim(),wasT=!!EDITT;
+  if(MF.mode==='odo'&&mi)note=(note?note+' - ':'')+T('odometer')+' '+MF.o1+' '+T('to')+' '+MF.o2;
+  else if(MF.mode==='miles'&&days>1)note=(note?note+' - ':'')+days+' '+T('days')+' x '+MF.mi+' '+T('miles');
+  act(api('/api/records',{action:wasT?'updateTrip':'addTrip',id:EDITT,miles:mi,tripOn:MF.date,jobId:MF.job,note:note}).then(function(){EDITT=null;MF={job:MF.job,date:MF.date,mode:'miles',mi:'',days:'1',o1:'',o2:'',note:''};msg(wasT?T('Changes saved.'):T('Saved. The job is still selected, so you can add another trip.'),'ok')}));}
+ else if(id==='m_cancel'){EDITT=null;MF={job:MF.job,date:MF.date,mode:'miles',mi:'',days:'1',o1:'',o2:'',note:''};msg('');draw();}
+ else if(d.tedit){var tt=D.trips.filter(function(x){return x.id===+d.tedit})[0];if(tt){EDITT=tt.id;MF={job:tt.jobId||'',date:tt.tripOn,mode:'miles',mi:String(tt.miles),days:'1',o1:'',o2:'',note:tt.note||''};msg('');draw();window.scrollTo(0,0);}}
  else if(d.tdel){if(confirm(T('Delete this trip?')))act(api('/api/records',{action:'deleteTrip',id:+d.tdel}));}
  else if(id==='i_cancel'){PRE=null;draw();}
  else if(id==='i_commit'){var rows=[];document.querySelectorAll('[data-pi]').forEach(function(c){if(c.checked)rows.push(PRE.rows[+c.dataset.pi]);});act(api('/api/records',{action:'csvCommit',rows:rows,jobId:$('i_job').value}).then(function(r){msg(r.added+' '+T('expenses added.'),'ok');PRE=null;}));}
@@ -105,6 +230,6 @@ document.addEventListener('click',function(e){var t=e.target,d=t.dataset||{},id=
  else if(d.cdel){act(api('/api/records',{action:'deleteCategory',id:+d.cdel}));}
  else if(d.rdel){var r2=Object.assign({},D.settings.rules);delete r2[d.rdel];act(api('/api/records',{action:'saveSettings',rules:r2}));}
 });
-if(JOBQ){tab='exp';}
+var TAB0=qs.get('tab');if(['exp','mil','imp','out','set'].indexOf(TAB0)>=0){tab=TAB0;[].forEach.call($('tabs').children,function(b){b.className=b.dataset.t===tab?'on':''});}
 load();
-</script></body></html>
+</script><script src="/nav.js"></script></body></html>
