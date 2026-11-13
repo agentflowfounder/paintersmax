@@ -784,5 +784,22 @@
     'Year-end package (ZIP)': 'Paquete de fin de año (ZIP)', 'One download for your accountant: expenses, mileage, invoices, crew hours, payments, the 1099 list and both QuickBooks files.': 'Una descarga para su contador: gastos, millas, facturas, horas del equipo, pagos, la lista 1099 y ambos archivos de QuickBooks.',
   });
 
+  pmI18n.add({
+    'How your business is doing': 'Cómo va su negocio', 'Worked out from your own jobs, costs and hours. Plain math, no guessing. Records for your accountant, not tax advice.': 'Calculado con sus propios trabajos, costos y horas. Matemática simple, sin adivinar. Registros para su contador, no es asesoría fiscal.',
+    'Jobs won': 'Trabajos ganados', 'of': 'de', 'jobs': 'trabajos', 'Win rate': 'Tasa de éxito', 'won vs lost': 'ganados vs perdidos', 'Sales from won jobs': 'Ventas de trabajos ganados', 'Recorded expenses': 'Gastos registrados', 'Miles driven': 'Millas recorridas',
+    'Sales by year': 'Ventas por año', 'Sales by month': 'Ventas por mes', 'Sales by season': 'Ventas por temporada', 'Sales by city': 'Ventas por ciudad', 'Why jobs were lost': 'Por qué se perdieron trabajos', 'Nothing yet.': 'Todavía nada.',
+    'Spring': 'Primavera', 'Summer': 'Verano', 'Fall': 'Otoño', 'Winter': 'Invierno', 'Unknown': 'Desconocida',
+    'Profit by service': 'Ganancia por servicio', 'Sales minus the expenses and crew payments you recorded on each job. Only as complete as your records.': 'Ventas menos los gastos y pagos al equipo que registró en cada trabajo. Solo es tan completo como sus registros.',
+    'Service': 'Servicio', 'Jobs': 'Trabajos', 'Sales': 'Ventas', 'Costs': 'Costos', 'Profit': 'Ganancia', 'Margin': 'Margen', 'Most profitable jobs': 'Trabajos más rentables', 'Least profitable jobs': 'Trabajos menos rentables',
+    'Crew productivity': 'Productividad del equipo', 'Record crew hours on your jobs to see sales per labor hour.': 'Registre las horas del equipo en sus trabajos para ver ventas por hora de trabajo.', 'Sales per labor hour': 'Ventas por hora de trabajo', 'workers': 'trabajadores',
+    'Materials and mileage': 'Materiales y millas', 'Materials': 'Materiales', 'of sales': 'de las ventas', 'Crew payments on jobs': 'Pagos al equipo en trabajos',
+    'Data we suggest collecting next': 'Datos que le sugerimos recopilar', 'The more complete your records, the more these reports can tell you.': 'Mientras más completos sus registros, más le dicen estos reportes.', 'Start here': 'Empiece aquí',
+    'Job start and end dates': 'Fechas de inicio y fin del trabajo', 'Crew hours on every job': 'Horas del equipo en cada trabajo', 'Materials and fuel on every job': 'Materiales y combustible en cada trabajo', 'Mileage per job': 'Millas por trabajo',
+    'Hours estimated vs actual': 'Horas estimadas vs reales', 'Square footage actually painted': 'Pies cuadrados realmente pintados', 'Where each lead came from': 'De dónde vino cada cliente', 'Paint brand and gallons used': 'Marca de pintura y galones usados', 'Rework and callback hours': 'Horas de retrabajo y regresos',
+    'Included in Pro.': 'Incluido en Pro.', 'See plans': 'Ver planes', 'Sample numbers': 'Números de ejemplo', 'See what your jobs really earn': 'Vea cuánto ganan realmente sus trabajos',
+    'Basic shows your win rate, sales by month and why you lose jobs. Pro adds profit per job and per service, sales by season and city, crew productivity, mileage and materials use.': 'Basic muestra su tasa de éxito, ventas por mes y por qué pierde trabajos. Pro agrega ganancia por trabajo y por servicio, ventas por temporada y ciudad, productividad del equipo, millas y uso de materiales.',
+    'Profit per job and per service': 'Ganancia por trabajo y por servicio', 'Sales by season and city': 'Ventas por temporada y ciudad', 'Crew productivity, mileage and materials use': 'Productividad del equipo, millas y uso de materiales', 'Could not load the report.': 'No se pudo cargar el reporte.', 'Analysis': 'Análisis',
+  });
+
   pmI18n.start();
 })();
