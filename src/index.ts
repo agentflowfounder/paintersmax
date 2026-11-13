@@ -21,6 +21,7 @@ import { slugForHost } from "./domains.ts";
 import { handleCatalog } from "./ratecatalog.ts";
 import { handleCities, refreshStaleCities } from "./cities.ts";
 import { handleWorkOrders, handleWoPublic } from "./workorders.ts";
+import { handleRecords } from "./records.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleFiles } from "./files.ts";
 import { handleJobLost } from "./joblost.ts";
@@ -680,6 +681,14 @@ export default {
       }
     }
     if (pathname.startsWith("/wo/")) return handleWoPublic(request, env);
+    if (pathname === "/api/records") {
+      try {
+        return await handleRecords(request, env);
+      } catch (err) {
+        console.error("records failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
     if (pathname === "/api/workorders") {
       try {
         return await handleWorkOrders(request, env);

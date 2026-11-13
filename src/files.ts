@@ -121,8 +121,13 @@ export async function handleFiles(request: Request, env: Env): Promise<Response>
     const kind = String(fd.get("kind") ?? "photo") as FileKind;
     if (!(file instanceof File)) return json({ error: "Choose a file." }, 400);
     if (!(KINDS as readonly string[]).includes(kind)) return json({ error: "Unknown file type." }, 400);
-    if (!Number.isInteger(jobId) || !(await env.DB.prepare("SELECT id FROM jobs WHERE id = ? AND company_id = ?").bind(jobId, c).first())) return json({ error: "Job not found." }, 404);
-    const r = await saveFile(env, { companyId: c, jobId, kind, file, by: "painter", note: String(fd.get("note") ?? "") });
+    // Receipts, worker photos and W-9 files may belong to the company or a worker instead of a job.
+    const companyLevel = ["receipt", "worker_photo", "w9"].includes(kind) && !fd.get("jobId");
+    const workerId = Number(fd.get("workerId")) || null;
+    if (workerId && !(await env.DB.prepare("SELECT id FROM workers WHERE id = ? AND company_id = ?").bind(workerId, c).first())) return json({ error: "Worker not found." }, 404);
+    if ((kind === "worker_photo" || kind === "w9") && !workerId) return json({ error: "Choose a worker." }, 400);
+    if (!companyLevel && (!Number.isInteger(jobId) || !(await env.DB.prepare("SELECT id FROM jobs WHERE id = ? AND company_id = ?").bind(jobId, c).first()))) return json({ error: "Job not found." }, 404);
+    const r = await saveFile(env, { companyId: c, jobId: companyLevel ? null : jobId, workerId, kind, file, by: "painter", note: String(fd.get("note") ?? "") });
     return r.ok ? json({ ok: true, id: r.id, storage: r.notice }) : json({ error: r.error }, r.status);
   }
   let b: any;
