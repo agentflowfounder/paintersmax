@@ -2,6 +2,7 @@ import { getSessionUser } from "./auth.ts";
 import { coverageFor, sanitizeSummary } from "./insurance.ts";
 import { pastDueKey } from "./stripe.ts";
 import { trialDaysLeft } from "./usage.ts";
+import { buildProgress } from "./progress.ts";
 import type { Env } from "./types.ts";
 
 /** GET /api/home: real numbers for the painter's Home screen. Nothing is estimated. All counts come from this company's own records. */
@@ -122,7 +123,40 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     }
   }
 
+  let pdata: any = {};
+  try {
+    pdata = prof ? JSON.parse(prof.data) : {};
+  } catch {
+    pdata = {};
+  }
+  const cset = await env.DB.prepare("SELECT settings FROM companies WHERE id = ?").bind(c).first<{ settings: string }>().catch(() => null);
+  let logo = false;
+  try {
+    logo = !!JSON.parse(cset?.settings || "{}")?.logoUrl;
+  } catch {
+    logo = false;
+  }
+  const [rc, cp, lc, es] = await Promise.all([
+    one("SELECT COUNT(*) AS n FROM rate_cards WHERE company_id = ?", c).catch(() => ({ n: 0 })),
+    one("SELECT COUNT(*) AS n FROM city_pages WHERE company_id = ? AND published = 1", c).catch(() => ({ n: 0 })),
+    one("SELECT COUNT(*) AS n FROM jobs WHERE company_id = ?", c).catch(() => ({ n: 0 })),
+    one("SELECT COUNT(*) AS n FROM documents WHERE company_id = ? AND kind = 'estimate' AND status IN ('sent','signed','paid')", c).catch(() => ({ n: 0 })),
+  ]);
+  const co2 = pdata.company ?? {};
+  const progress2 = buildProgress({
+    companyInfo: !!(co2.legalName && co2.phone && co2.email),
+    services: Array.isArray(pdata.trades) ? pdata.trades.length : 0,
+    cities: Array.isArray(pdata.cities) ? pdata.cities.length : 0,
+    rateCards: rc.n ?? 0,
+    insurance: !!policy,
+    brand: logo,
+    cityPagePublished: cp.n ?? 0,
+    leads: lc.n ?? 0,
+    estimatesSent: es.n ?? 0,
+  });
+
   return json({
+    progress: progress2,
     stats: {
       paidMonthCents: paid.cents ?? 0,
       paidMonthJobs: paid.n ?? 0,
