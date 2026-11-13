@@ -630,6 +630,15 @@
   });
 
   pmI18n.add({
+    'What your estimate will look like': 'Cómo se verá su presupuesto',
+    'A sample job priced with the prices you just saved. The job and sizes are made up for this preview. Nothing is sent to anyone.': 'Un trabajo de ejemplo con los precios que acaba de guardar. El trabajo y las medidas son inventados para esta vista previa. No se envía nada a nadie.',
+    'Your estimate preview': 'Vista previa de su presupuesto',
+    'Save your prices on the Your prices step and a sample estimate shows up here.': 'Guarde sus precios en el paso Sus precios y aquí aparecerá un presupuesto de ejemplo.',
+    'Minimum job adjustment': 'Ajuste por trabajo mínimo',
+    'Deposit to schedule': 'Depósito para programar',
+  });
+
+  pmI18n.add({
     'City pages': 'Páginas de ciudades',
     'Each city gets its own page on your website. After you finish setup, write them on': 'Cada ciudad tiene su propia página en su sitio web. Al terminar la configuración, escríbalas en',
     'Add a city': 'Agregar una ciudad',

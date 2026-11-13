@@ -270,9 +270,29 @@ function view(){
    <li>Pricing set for: ${esc(Object.keys(S.rateCards).map(k=>k.split('|')[0]+(k.endsWith('builder')?' (builder)':'')).join(', ')||'none yet')}${ed(3)}</li>
    <li>Labor: crew of ${esc(l.crewSize||'?')}, $${esc(l.hourlyRate||'?')}/hr, deposit ${esc(l.depositPct||'?')}%${ed(4)}</li>
    <li>Warranty: ${esc((p.warranty||{}).laborMonths||'?')} months labor${ed(5)}</li></ul></div>
+   <div id="prev"></div>
    <div class="card"><b>What happens next</b><p>When you finish, you go to your dashboard. Your prices fill in your estimates, and you can build your first job from Jobs.</p></div>`;}
   $('view').innerHTML=h;msg('');
-  CM.on=false;if(k==='cities')loadCities();
+  CM.on=false;if(k==='cities')loadCities();if(k==='review')loadPreview();
+}
+
+// ---- estimate preview ----
+async function loadPreview(){
+  const box=$('prev');if(!box)return;
+  try{
+    const j=await api('/api/estimate-preview');
+    if(!$('prev'))return;
+    if(!j.previews||!j.previews.length){box.innerHTML='<div class="card"><b>Your estimate preview</b><p class="muted">Save your prices on the Your prices step and a sample estimate shows up here.</p></div>';return;}
+    const m=c=>'$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    box.innerHTML='<h3 style="margin:18px 0 6px">What your estimate will look like</h3><p class="muted" style="margin:0 0 10px">A sample job priced with the prices you just saved. The job and sizes are made up for this preview. Nothing is sent to anyone.</p>'+j.previews.map(p=>{
+      const t=p.totals;
+      return `<div class="card"><b>${esc(p.title)}</b><br><small>Sample: ${esc(p.text)}</small>
+       <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:14px"><thead><tr style="text-align:left;color:#4A5568"><th>Item</th><th>Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Amount</th></tr></thead><tbody>
+       ${p.lines.map(l=>`<tr><td style="padding:4px 0">${esc(l.description)}</td><td>${esc(l.qty)} ${esc(l.unit)}</td><td style="text-align:right">${m(l.unitCents)}</td><td style="text-align:right">${m(l.totalCents)}</td></tr>`).join('')}
+       ${t.minimumTopUpCents?`<tr><td colspan="3">Minimum job adjustment</td><td style="text-align:right">${m(t.minimumTopUpCents)}</td></tr>`:''}
+       <tr style="border-top:1px solid #ddd"><td colspan="3"><b>Total</b></td><td style="text-align:right"><b>${m(t.totalCents)}</b></td></tr>
+       ${t.depositCents?`<tr><td colspan="3" class="muted">Deposit to schedule</td><td style="text-align:right">${m(t.depositCents)}</td></tr>`:''}</tbody></table></div>`;}).join('');
+  }catch(e){}
 }
 
 // ---- cities map ----

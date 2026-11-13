@@ -20,6 +20,7 @@ import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
 import { handleCatalog } from "./ratecatalog.ts";
 import { handleCities, refreshStaleCities } from "./cities.ts";
+import { handleEstimatePreview } from "./estimate-preview.ts";
 import { handleCityPage, handleCityPagesApi, citySitemap } from "./citypages.ts";
 import { handleMaterials, loadMaterials, renderPublicMaterials } from "./materials.ts";
 import { handleRateCardDoc } from "./ratecardpdf.ts";
@@ -598,6 +599,14 @@ export default {
         return await handleCityPagesApi(request, env);
       } catch (err) {
         console.error("citypages failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/estimate-preview") {
+      try {
+        return await handleEstimatePreview(request, env);
+      } catch (err) {
+        console.error("estimate preview failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
