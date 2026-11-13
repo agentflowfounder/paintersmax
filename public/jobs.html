@@ -66,24 +66,34 @@ function assistantCard(jobId){
  <div style="display:flex;justify-content:space-between;gap:10px;align-items:end;flex-wrap:wrap"><label for="as_in" style="margin:0">${jobId?'Ask about this job, or any painting question':'Ask any painting or business question'}</label>
  <select id="as_lang" style="width:auto;padding:6px 8px" aria-label="Language"><option value="en" ${es?'':'selected'}>English</option><option value="es" ${es?'selected':''}>Español</option></select></div>
  <textarea id="as_in" rows="3" placeholder="Example: What primer should I use over water stains on a ceiling? Type your question, or tap the Mic button and speak it. Ask about bidding, safety, stains, coatings or equipment."></textarea>
- <div class="btns"><button class="btn" id="as_send">Ask</button><button class="btn sec mic" id="as_mic" style="display:none" aria-label="Speak your question"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>Mic</button></div>
+ <div class="btns"><button class="btn" id="as_send">Ask</button>${jobId?'<button class="btn sec" id="as_detail" title="A longer, step-by-step answer">Detailed step-by-step</button>':''}<button class="btn sec mic" id="as_mic" style="display:none" aria-label="Speak your question"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>Mic</button></div>
  <div id="as_log"></div>
  ${jobId?`<div class="chips">${CHIPS_JOB.map(c=>`<button class="chip" data-chip="${esc(c)}">${esc(c)}</button>`).join('')}</div>`:''}
  <details class="chips2"><summary>Browse common questions by topic</summary>${QCATS.map(([t,qs])=>`<div class="cat"><b>${esc(t)}</b><div>${qs.map(q=>`<button class="chip" data-chip="${esc(q)}">${esc(q)}</button>`).join('')}</div></div>`).join('')}</details>
- <small class="muted">Answers are suggestions: check numbers and safety rules before you rely on them. ${jobId?'On a job, the assistant sees the estimate, documents and notes, but never the customer email, phone or street address. ':''}Each question uses one of your monthly assistant questions.</small></div>`;}
-function chatDraw(){const l=$('as_log');if(!l)return;l.innerHTML=chat.map((m,i)=>`<div class="bub ${m.role==='user'?'u':'a'}">${esc(m.content)}${m.role==='assistant'&&chatJob?`<br><button class="mini" data-asave="${i}">Save to job notes</button>`:''}</div>`).join('');l.scrollTop=l.scrollHeight;}
-async function askNow(q){const inp=$('as_in'),btn=$('as_send');q=(q||'').trim();if(!q)return;btn.disabled=true;msg('');
+ <small class="muted">${jobId?'<b>Only you can see this chat.</b> It is saved on this job. ':''}Answers are suggestions: check numbers and safety rules before you rely on them. ${jobId?'Detailed step-by-step answers use your monthly detailed answers. On a job, the assistant sees the estimate, documents and notes, but never the customer email, phone or street address. ':''}Each question uses one of your monthly assistant questions.</small></div>`;}
+function chatDraw(){const l=$('as_log');if(!l)return;l.innerHTML=(chatJob&&chat.length?'<div style="text-align:right"><button class="mini" data-aclear="1">Clear this chat</button></div>':'')+chat.map((m,i)=>`<div class="bub ${m.role==='user'?'u':'a'}">${esc(m.content)}${m.mode==='detailed'&&m.role==='assistant'?'<br><small class="muted">Detailed step-by-step</small>':''}${m.role==='assistant'&&chatJob?`<br><button class="mini" data-asave="${i}">Save to job notes</button>`:''}</div>`).join('');l.scrollTop=l.scrollHeight;}
+async function askNow(q,mode){const inp=$('as_in'),btn=$('as_send');q=(q||'').trim();if(!q)return;btn.disabled=true;msg('');
  const hist=chat.slice();chat.push({role:'user',content:q});chatDraw();inp.value='';
- try{const r=await api('/api/assistant',{jobId:chatJob,message:q,history:hist,language:($('as_lang')||{value:'en'}).value});chat.push({role:'assistant',content:r.reply});}
+ try{if(chatJob){const r=await api('/api/jobchat',{jobId:chatJob,message:q,mode:mode||'quick',language:($('as_lang')||{value:'en'}).value});chat=r.messages;}else{const r=await api('/api/assistant',{jobId:chatJob,message:q,history:hist,language:($('as_lang')||{value:'en'}).value});chat.push({role:'assistant',content:r.reply});}}
  catch(e){if(e){chat.pop();msg(e.message);inp.value=q;}}
  chatDraw();btn.disabled=false;}
 document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};
  if(ds.chip){askNow(ds.chip);}
- else if(t.id==='as_send'){askNow($('as_in').value);}
+ else if(t.id==='as_send'){askNow($('as_in').value,'quick');}
+ else if(t.id==='as_detail'){askNow($('as_in').value,'detailed');}
+ else if(ds.aclear){if(!confirm('Clear this job chat? This cannot be undone.'))return;try{await api('/api/jobchat',{jobId:chatJob,action:'clear'});chat=[];chatDraw();}catch(x){if(x)msg(x.message);}}
+ else if(ds.lost){const r=$('lost_reason').value;if(!r){msg('Choose why it was lost.');return;}try{await api('/api/joblost',{jobId:J.job.id,action:'lost',reason:r,note:$('lost_note').value});await detail(J.job.id);msg('Marked lost. It stays in your records.',true);}catch(x){if(x)msg(x.message);}}
+ else if(ds.reopen){try{await api('/api/joblost',{jobId:J.job.id,action:'reopen'});await detail(J.job.id);msg('Reopened.',true);}catch(x){if(x)msg(x.message);}}
  else if(ds.asave!==undefined&&ds.asave!==''){try{await api('/api/jobnote',{jobId:chatJob,text:'Assistant note: '+chat[+ds.asave].content});t.textContent='Saved';t.disabled=true;}catch(x){if(x)msg(x.message);}}
  else if(t.closest&&t.closest('#as_mic')){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return;const b=$('as_mic');const r=new R();r.lang=($('as_lang')||{value:'en'}).value==='es'?'es-US':'en-US';b.classList.add('on');r.onresult=ev=>{$('as_in').value=(($('as_in').value?$('as_in').value+' ':'')+ev.results[0][0].transcript).trim();};r.onend=r.onerror=()=>b.classList.remove('on');r.start();}
 });
 document.addEventListener('change',e=>{if(e.target.id==='as_lang'){try{localStorage.setItem('as_lang',e.target.value);}catch(x){}}});
+async function loadJobChat(){if(!chatJob)return;try{const r=await api('/api/jobchat?jobId='+chatJob);chat=r.messages||[];chatDraw();}catch(e){}}
+const LOSTR={price:'Price',timing:'Timing',no_reply:'No reply',chose_other:'Chose someone else',other:'Other'};
+function lostCard(d){const j=d.job||{};let l=null;try{l=j.lost?JSON.parse(j.lost):null;}catch(e){}
+ if(j.stage==='lost')return `<div class="card" style="background:#fdf3f2"><b>Lost lead</b>: ${esc(LOSTR[l&&l.reason]||'No reason saved')}${l&&l.note?' &middot; '+esc(l.note):''}<div class="btns"><button class="btn sec" data-reopen="1">Reopen this job</button></div><small class="muted">Lost jobs stay in your records so you can see why you did not win them.</small></div>`;
+ if(j.stage==='closed')return '';
+ return `<details class="card"><summary><b>Did you lose this job?</b></summary><label>Why?</label><select id="lost_reason"><option value="">Choose a reason</option>${Object.keys(LOSTR).map(k=>`<option value="${k}">${LOSTR[k]}</option>`).join('')}</select><label>Note (optional)</label><input id="lost_note" maxlength="300" placeholder="Example: They went with a cheaper bid"><div class="btns"><button class="btn sec" data-lost="1">Mark as lost</button></div><small class="muted">The job stays in your records. You can reopen it later.</small></details>`;}
 function micInit(){const m=$('as_mic');if(m&&(window.SpeechRecognition||window.webkitSpeechRecognition))m.style.display='';}
 const GROUPS=[['New leads',['lead'],'Customers who asked for a quote. Build an estimate to bid on them.'],['Estimate approved',['bid:signed'],'The customer signed the estimate. Build and send the contract next.'],['Waiting on the customer',['bid','contract'],'Estimates and contracts you sent. Waiting for the customer to approve or sign.'],['In progress',['scheduled','in_progress','punch'],'Approved jobs that are scheduled or underway.'],['Completed',['invoiced','closed'],'Finished and invoiced jobs.'],['Lost',['lost'],'']];
 const COVC={likely_covered:['#e6f4ea','#0a7a3d','Insured: appears covered'],check_with_agent:['#fff3d6','#8a5a00','Check your insurance'],likely_excluded:['#fdecea','#b42318','Insurance: may not cover'],expired:['#fdecea','#b42318','Policy expired']};
@@ -207,6 +217,7 @@ async function detail(id){
   ${covBanner(d.coverage)}
   ${protectCard(d)}
   ${portalCard(d)}
+  ${lostCard(d)}
   ${assistantCard(j.id)}
   <h3>1. Measurements and quantities</h3>
   <div class="card">${d.rateCard?`<small>Using your ${esc(TRADES[j.trade]||j.trade)} prices. Enter how many of each; leave blank for none.</small>
@@ -252,7 +263,7 @@ async function detail(id){
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
   $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>msg('Saved.',true));};
   $('send').onclick=async()=>{if(!confirm('Email this estimate to '+j.customerEmail+'?'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
-  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();
+  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};
   const cact=async(action)=>{try{msg('');const r=await api('/api/contract',{action,jobId:j.id,contract:{startDate:$('c_start').value,endDate:$('c_end').value,language:$('c_lang').value,clauses}});return r;}catch(x){if(x)msg(x.message);}};
   const cs=$('c_save');if(cs){cs.onclick=async()=>{const r=await cact('save');if(r)detail(j.id).then(()=>msg('Contract saved.',true));};

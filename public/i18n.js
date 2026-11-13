@@ -651,6 +651,26 @@
   });
 
   pmI18n.add({
+    'Detailed step-by-step': 'Detallado, paso a paso',
+    'Only you can see this chat.': 'Solo usted puede ver este chat.',
+    'Clear this chat': 'Borrar este chat',
+    'Did you lose this job?': '¿Perdió este trabajo?',
+    'Why?': '¿Por qué?',
+    'Choose a reason': 'Elija un motivo',
+    'Price': 'Precio',
+    'Timing': 'Tiempo',
+    'No reply': 'Sin respuesta',
+    'Chose someone else': 'Eligió a otro',
+    'Other': 'Otro',
+    'Mark as lost': 'Marcar como perdido',
+    'Lost lead': 'Cliente perdido',
+    'Reopen this job': 'Reabrir este trabajo',
+    'The job stays in your records. You can reopen it later.': 'El trabajo queda en sus registros. Puede reabrirlo después.',
+    'Lost jobs stay in your records so you can see why you did not win them.': 'Los trabajos perdidos quedan en sus registros para que vea por qué no los ganó.',
+    'Example: They went with a cheaper bid': 'Ejemplo: Eligieron una oferta más barata',
+  });
+
+  pmI18n.add({
     'What your estimate will look like': 'Cómo se verá su presupuesto',
     'A sample job priced with the prices you just saved. The job and sizes are made up for this preview. Nothing is sent to anyone.': 'Un trabajo de ejemplo con los precios que acaba de guardar. El trabajo y las medidas son inventados para esta vista previa. No se envía nada a nadie.',
     'Your estimate preview': 'Vista previa de su presupuesto',

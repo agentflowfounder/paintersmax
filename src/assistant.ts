@@ -92,7 +92,7 @@ export async function buildJobContext(env: Env, companyId: number, jobId: number
 
 export const keyFor = (env: Env, p: "gemini" | "openai" | "anthropic") => (p === "anthropic" ? env.ANTHROPIC_API_KEY : p === "openai" ? env.OPENAI_API_KEY : env.GEMINI_API_KEY);
 
-async function viaGemini(env: Env, system: string, turns: Turn[]): Promise<string> {
+async function viaGemini(env: Env, system: string, turns: Turn[], maxTokens = 900): Promise<string> {
   const model = env.MODEL_GEMINI ?? "gemini-2.5-flash";
   const call = (thinkingOff: boolean) =>
     fetch(`${env.GEMINI_API_BASE ?? "https://generativelanguage.googleapis.com"}/v1beta/models/${model}:generateContent`, {
@@ -101,7 +101,7 @@ async function viaGemini(env: Env, system: string, turns: Turn[]): Promise<strin
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: turns.map((t) => ({ role: t.role === "assistant" ? "model" : "user", parts: [{ text: t.content }] })),
-        generationConfig: { ...(thinkingOff ? { thinkingConfig: { thinkingBudget: 0 } } : {}), maxOutputTokens: 900 },
+        generationConfig: { ...(thinkingOff ? { thinkingConfig: { thinkingBudget: 0 } } : {}), maxOutputTokens: maxTokens },
       }),
     });
   let r = await call(true);
@@ -111,22 +111,22 @@ async function viaGemini(env: Env, system: string, turns: Turn[]): Promise<strin
   return j.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ?? "";
 }
 
-async function viaOpenAI(env: Env, system: string, turns: Turn[]): Promise<string> {
+async function viaOpenAI(env: Env, system: string, turns: Turn[], maxTokens = 900): Promise<string> {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${env.OPENAI_API_KEY}` },
-    body: JSON.stringify({ model: env.MODEL_OPENAI ?? "gpt-4.1-mini", max_tokens: 900, messages: [{ role: "system", content: system }, ...turns] }),
+    body: JSON.stringify({ model: env.MODEL_OPENAI ?? "gpt-4.1-mini", max_tokens: maxTokens, messages: [{ role: "system", content: system }, ...turns] }),
   });
   if (!r.ok) throw new Error(`openai ${r.status}`);
   const j = (await r.json()) as any;
   return j.choices?.[0]?.message?.content ?? "";
 }
 
-async function viaAnthropic(env: Env, system: string, turns: Turn[]): Promise<string> {
+async function viaAnthropic(env: Env, system: string, turns: Turn[], maxTokens = 900): Promise<string> {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5", max_tokens: 900, system, messages: turns }),
+    body: JSON.stringify({ model: env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5", max_tokens: maxTokens, system, messages: turns }),
   });
   if (!r.ok) throw new Error(`anthropic ${r.status}`);
   const j = (await r.json()) as any;
@@ -142,18 +142,25 @@ export async function ask(env: Env, jobContext: string | null, history: Turn[], 
   return complete(env, system, [...history, { role: "user", content: question }]);
 }
 
-/** Runs a prompt through each provider that has a key, cheapest first. Returns null when none works. */
-export async function complete(env: Env, system: string, turns: Turn[]): Promise<string | null> {
-  for (const p of ["gemini", "openai", "anthropic"] as const) {
+export type Provider = "gemini" | "openai" | "anthropic";
+
+/** Runs a prompt through providers that have a key, in the order given (default cheapest first). Returns the text and which provider answered. */
+export async function completeEx(env: Env, system: string, turns: Turn[], opts: { prefer?: Provider[]; maxTokens?: number } = {}): Promise<{ text: string; provider: Provider } | null> {
+  for (const p of opts.prefer ?? (["gemini", "openai", "anthropic"] as Provider[])) {
     if (!keyFor(env, p)) continue;
     try {
-      const out = (await CALLERS[p](env, system, turns)).trim();
-      if (out) return out;
+      const out = (await CALLERS[p](env, system, turns, opts.maxTokens)).trim();
+      if (out) return { text: out, provider: p };
     } catch (err) {
       console.error("assistant provider failed", p, String(err));
     }
   }
   return null;
+}
+
+/** Runs a prompt through each provider that has a key, cheapest first. Returns null when none works. */
+export async function complete(env: Env, system: string, turns: Turn[]): Promise<string | null> {
+  return (await completeEx(env, system, turns))?.text ?? null;
 }
 
 export const COVER_PROMPT = [

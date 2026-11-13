@@ -20,6 +20,8 @@ import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
 import { handleCatalog } from "./ratecatalog.ts";
 import { handleCities, refreshStaleCities } from "./cities.ts";
+import { handleJobLost } from "./joblost.ts";
+import { handleJobChat } from "./jobchat.ts";
 import { handleEstimatePreview } from "./estimate-preview.ts";
 import { handleCityPage, handleCityPagesApi, citySitemap } from "./citypages.ts";
 import { handleMaterials, loadMaterials, renderPublicMaterials } from "./materials.ts";
@@ -671,6 +673,22 @@ export default {
         return await handleJobDoc(request, env);
       } catch (err) {
         console.error("handleJobDoc failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/joblost") {
+      try {
+        return await handleJobLost(request, env);
+      } catch (err) {
+        console.error("joblost failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/jobchat") {
+      try {
+        return await handleJobChat(request, env);
+      } catch (err) {
+        console.error("jobchat failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
