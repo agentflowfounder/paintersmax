@@ -23,6 +23,7 @@ import { handleCities, refreshStaleCities } from "./cities.ts";
 import { handleWorkOrders, handleWoPublic } from "./workorders.ts";
 import { handleRecords } from "./records.ts";
 import { handleCrew } from "./crew.ts";
+import { handleCertPublic, handleWarranty } from "./warranty.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleFiles } from "./files.ts";
 import { handleJobLost } from "./joblost.ts";
@@ -682,6 +683,15 @@ export default {
       }
     }
     if (pathname.startsWith("/wo/")) return handleWoPublic(request, env);
+    if (pathname.startsWith("/cert/")) return handleCertPublic(request, env);
+    if (pathname === "/api/warranty") {
+      try {
+        return await handleWarranty(request, env);
+      } catch (err) {
+        console.error("warranty failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
     if (pathname === "/api/crew") {
       try {
         return await handleCrew(request, env);

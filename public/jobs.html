@@ -163,6 +163,28 @@ document.addEventListener('click',async e=>{const d=e.target.dataset||{};
 // ---- Job costs (expenses and mileage) ----
 function costCard(){return `<h3>Expenses and mileage for this job</h3><div class="card" id="jc_card"><div id="jc_sum" class="muted">Loading...</div><div class="btns"><a class="btn sec" href="/records?job=${J.job.id}">Add an expense or trip</a><a class="btn sec" href="/records">All records</a></div><small class="muted">Records for your accountant, not tax advice.</small></div>`;}
 async function costLoad(){const b=$('jc_sum');if(!b)return;try{const r=await api('/api/records?jobTotals='+J.job.id);b.innerHTML=r.expenseCount||r.miles?`<b>${woMoney(r.expenseCents)}</b> in ${r.expenseCount} expense${r.expenseCount===1?'':'s'} &middot; <b>${r.miles}</b> miles${r.mileageValueCents!=null?' ('+woMoney(r.mileageValueCents)+')':''}`:'Nothing recorded for this job yet.';}catch(e){}}
+
+// ---- Warranty certificate ----
+let WC=null;
+function wcCard(){return `<h3>Warranty certificate</h3><div class="card" id="wc_card"><div id="wc_body" class="muted">Loading...</div></div>`;}
+async function wcLoad(){const b=$('wc_body');if(!b)return;try{WC=await api('/api/warranty?jobId='+J.job.id);wcDraw();}catch(e){}}
+const WCD={classic:'Classic',modern:'Modern',badge:'Badge'};
+function wcDraw(open){const b=$('wc_body');if(!b||!WC)return;const c=WC.cert,sg=WC.suggested;
+ if(!c&&!open){b.innerHTML=`${WC.finished?'<div style="background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px;margin-bottom:8px"><b>This job is finished.</b> Give your customer a warranty certificate?</div>':''}<p class="muted" style="margin-top:0">A certificate is never sent automatically. It starts with your usual labor warranty and job details. You review it first.</p><div class="btns"><button class="btn" data-wcnew="1">Create warranty certificate</button></div>`;return;}
+ const v=c||sg;
+ b.innerHTML=`<div class="row"><div><label>Design</label><select id="wc_design">${Object.keys(WCD).map(k=>`<option value="${k}"${v.design===k?' selected':''}>${WCD[k]}</option>`).join('')}</select></div><div><label>Labor warranty (months)</label><input id="wc_m" inputmode="numeric" value="${v.months}"></div><div><label>Work finished on</label><input id="wc_s" type="date" value="${esc(v.startOn)}"></div><div><label>Language</label><select id="wc_l"><option value="en"${v.language==='es'?'':' selected'}>English</option><option value="es"${v.language==='es'?' selected':''}>Español</option></select></div></div>
+ <label>What the warranty covers (leave blank for the standard sentence)</label><textarea id="wc_t" rows="3" maxlength="1500">${esc(v.terms||'')}</textarea><label>Not covered (optional)</label><input id="wc_x" maxlength="800" value="${esc(v.exclusions||'')}" placeholder="Example: damage from floods, abuse or normal wear">
+ <label style="font-weight:400"><input type="checkbox" id="wc_def" style="width:auto"> Use this design as my default</label>
+ ${c?`<p class="muted">Ends <b>${esc(c.endOn)}</b>${c.status==='sent'?' &middot; sent to the customer':' &middot; draft'}. You will get a reminder on Home before it ends.</p>`:''}
+ <div class="btns"><button class="btn" data-wcsave="1">Save</button>${c?` <a class="btn sec" href="/api/warranty?jobId=${J.job.id}&print=1" target="_blank">Preview and print</a> <button class="btn sec" data-wcsend="email">Email to customer</button> <button class="btn sec" data-wcsend="link">Get link</button>${WC.link?` <button class="btn sec" data-wccopy="${esc(WC.link)}">Copy link</button>`:''} <button class="btn sec" data-wcdel="1">Delete</button>`:''}</div>
+ <small class="muted">Save, then use Preview to see how the design looks. Records only: check the wording with your attorney if you want it to be a formal legal warranty.</small>`;}
+document.addEventListener('click',async e=>{const d=e.target.dataset||{};
+ if(d.wcnew){wcDraw(true);}
+ else if(d.wcsave){try{const r=await api('/api/warranty',{action:'save',jobId:J.job.id,design:$('wc_design').value,months:$('wc_m').value,startOn:$('wc_s').value,language:$('wc_l').value,terms:$('wc_t').value,exclusions:$('wc_x').value,makeDefault:$('wc_def').checked});msg('Saved.',true);await wcLoad();}catch(x){if(x)msg(x.message);}}
+ else if(d.wcsend){try{const r=await api('/api/warranty',{action:'send',jobId:J.job.id,via:d.wcsend});if(d.wcsend==='email')msg(r.emailed?'Emailed to your customer.':'Marked sent, but the email did not go out. Copy the link instead.',r.emailed);else{try{await navigator.clipboard.writeText(r.link);msg('Link copied. Send it to your customer.',true);}catch(x){prompt('Copy this link',r.link);}}await wcLoad();}catch(x){if(x)msg(x.message);}}
+ else if(d.wccopy){try{await navigator.clipboard.writeText(d.wccopy);msg('Link copied.',true);}catch(x){prompt('Copy this link',d.wccopy);}}
+ else if(d.wcdel){if(!confirm('Delete this certificate? A link you already sent will stop working.'))return;try{await api('/api/warranty',{action:'delete',jobId:J.job.id});await wcLoad();}catch(x){if(x)msg(x.message);}}
+});
 async function loadJobChat(){if(!chatJob)return;try{const r=await api('/api/jobchat?jobId='+chatJob);chat=r.messages||[];chatDraw();}catch(e){}}
 const LOSTR={price:'Price',timing:'Timing',no_reply:'No reply',chose_other:'Chose someone else',other:'Other'};
 function lostCard(d){const j=d.job||{};let l=null;try{l=j.lost?JSON.parse(j.lost):null;}catch(e){}
@@ -296,6 +318,7 @@ async function detail(id){
   ${filesCard()}
   ${woCard()}
   ${costCard()}
+  ${wcCard()}
   ${assistantCard(j.id)}
   <h3>1. Measurements and quantities</h3>
   <div class="card">${d.rateCard?`<small>Using your ${esc(TRADES[j.trade]||j.trade)} prices. Enter how many of each; leave blank for none.</small>
@@ -341,7 +364,7 @@ async function detail(id){
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
   $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>msg('Saved.',true));};
   $('send').onclick=async()=>{if(!confirm('Email this estimate to '+j.customerEmail+'?'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
-  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad();findingsLoad();woLoad();costLoad();
+  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad();findingsLoad();woLoad();costLoad();wcLoad();
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};
   const cact=async(action)=>{try{msg('');const r=await api('/api/contract',{action,jobId:j.id,contract:{startDate:$('c_start').value,endDate:$('c_end').value,language:$('c_lang').value,clauses}});return r;}catch(x){if(x)msg(x.message);}};
   const cs=$('c_save');if(cs){cs.onclick=async()=>{const r=await cact('save');if(r)detail(j.id).then(()=>msg('Contract saved.',true));};

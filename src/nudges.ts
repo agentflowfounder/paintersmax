@@ -7,6 +7,7 @@ export interface NudgeFacts {
   staleDraftEstimates: number; // estimates saved but not sent for 2+ days
   cityDraftPages: number; // city pages saved but not published
   commercialBidUnused: boolean; // Basic plan, offers commercial, free commercial bid not used yet
+  warrantiesEnding?: number; // sent warranty certificates that end within 60 days
 }
 export interface Nudge {
   key: string;
@@ -32,6 +33,9 @@ export function buildNudges(f: NudgeFacts, snoozed: Record<string, string>, now 
   }
   if (f.cityDraftPages > 0) {
     all.push({ key: "city_drafts", link: "/citypages", text: `${f.cityDraftPages} city ${plural(f.cityDraftPages, "page is", "pages are")} saved as ${plural(f.cityDraftPages, "a draft", "drafts")}. Add a local detail and publish when you are ready.` });
+  }
+  if ((f.warrantiesEnding ?? 0) > 0) {
+    all.push({ key: "warranty_ending", link: "/jobs", text: `${f.warrantiesEnding} ${plural(f.warrantiesEnding ?? 0, "warranty ends", "warranties end")} within 60 days. A friendly check-in call is a good way to earn a review or a repeat job.` });
   }
   return all
     .filter((n) => {

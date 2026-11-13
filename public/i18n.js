@@ -751,5 +751,14 @@
     'Hours (CSV)': 'Horas (CSV)', 'Payments (CSV)': 'Pagos (CSV)', '1099 list (CSV)': 'Lista 1099 (CSV)', 'Uploading...': 'Subiendo...', 'Delete this file? This cannot be undone.': '¿Borrar este archivo? No se puede deshacer.',
   });
 
+  pmI18n.add({
+    'Warranty certificate': 'Certificado de garantía', 'Create warranty certificate': 'Crear certificado de garantía', 'This job is finished.': 'Este trabajo está terminado.', 'Give your customer a warranty certificate?': '¿Darle un certificado de garantía a su cliente?',
+    'A certificate is never sent automatically. It starts with your usual labor warranty and job details. You review it first.': 'Un certificado nunca se envía automáticamente. Empieza con su garantía de mano de obra habitual y los datos del trabajo. Usted lo revisa primero.',
+    'Design': 'Diseño', 'Labor warranty (months)': 'Garantía de mano de obra (meses)', 'Work finished on': 'Trabajo terminado el', 'Language': 'Idioma',
+    'What the warranty covers (leave blank for the standard sentence)': 'Qué cubre la garantía (deje en blanco para la frase estándar)', 'Not covered (optional)': 'No cubre (opcional)', 'Use this design as my default': 'Usar este diseño como mi predeterminado',
+    'Preview and print': 'Vista previa e imprimir', 'Save, then use Preview to see how the design looks. Records only: check the wording with your attorney if you want it to be a formal legal warranty.': 'Guarde y use la vista previa para ver el diseño. Solo es un registro: revise el texto con su abogado si quiere una garantía legal formal.',
+    'You will get a reminder on Home before it ends.': 'Recibirá un recordatorio en Inicio antes de que termine.',
+  });
+
   pmI18n.start();
 })();

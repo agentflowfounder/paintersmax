@@ -19,3 +19,12 @@ test("a snoozed nudge is skipped until the date passes", () => {
   assert.deepEqual(buildNudges(f, s, now).map((x) => x.key), ["city_drafts"]);
   assert.deepEqual(buildNudges(f, s, Date.parse("2026-11-21T00:00:00Z")).map((x) => x.key), ["draft_estimates", "city_drafts"]);
 });
+
+test("warranty ending nudge", async () => {
+  const { buildNudges } = await import("../src/nudges.ts");
+  const base = { tradesWithoutPrices: [], staleDraftEstimates: 0, cityDraftPages: 0, commercialBidUnused: false };
+  assert.equal(buildNudges({ ...base, warrantiesEnding: 0 }, {}).length, 0);
+  const n = buildNudges({ ...base, warrantiesEnding: 2 }, {});
+  assert.equal(n[0].key, "warranty_ending");
+  assert.ok(n[0].text.startsWith("2 warranties end"));
+});

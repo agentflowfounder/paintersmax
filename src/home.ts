@@ -186,7 +186,9 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
   } catch {
     snoozed = {};
   }
+  const warrEnd = await env.DB.prepare("SELECT COUNT(*) AS n FROM app_settings WHERE key LIKE ? AND json_extract(value,'$.status') = 'sent' AND json_extract(value,'$.endOn') BETWEEN date('now') AND date('now','+60 days')").bind(`cert:${c}:%`).first<{ n: number }>().catch(() => ({ n: 0 }));
   const nudges = buildNudges({
+    warrantiesEnding: warrEnd?.n ?? 0,
     tradesWithoutPrices: chosen.filter((t) => LBL[t] && !cardTrades.has(t)).map((t) => LBL[t]),
     staleDraftEstimates: staleDr.n ?? 0,
     cityDraftPages: cityDr.n ?? 0,
