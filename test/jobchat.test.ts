@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readThread, trimThread, MAX_MESSAGES, DETAILED_PROMPT } from "../src/jobchat.ts";
+import { readThread, trimThread, MAX_MESSAGES, DETAILED_PROMPT, DEEP_PROMPT } from "../src/jobchat.ts";
 import { isLostReason, LOST_REASONS } from "../src/joblost.ts";
 import { PLAN_LIMITS } from "../src/usage.ts";
 
@@ -22,5 +22,6 @@ test("lost reasons match what the painter asked for", () => {
 test("detailed answers have their own smaller allowance", () => {
   assert.equal(PLAN_LIMITS.free.ai_detailed, 0);
   assert.ok(PLAN_LIMITS.pro.ai_detailed < PLAN_LIMITS.pro.ai_assistant);
-  assert.ok(DETAILED_PROMPT.includes("step-by-step"));
+  assert.ok(DEEP_PROMPT.includes("step-by-step") && DETAILED_PROMPT.includes("DETAILED"));
+  assert.ok(PLAN_LIMITS.pro.ai_deep < PLAN_LIMITS.pro.ai_detailed);
 });

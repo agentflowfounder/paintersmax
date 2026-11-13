@@ -10,17 +10,23 @@ import type { Env } from "./types.ts";
  * The thread is kept in app_settings (jobchat:<company>:<job>), newest 60 messages.
  */
 
+export type Mode = "quick" | "detailed" | "deep";
+
 export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
-  mode: "quick" | "detailed";
+  mode: Mode;
   at: string;
 }
 
 export const MAX_MESSAGES = 60;
 
 export const DETAILED_PROMPT = [
-  "The painter asked for a DETAILED answer. Reply as a numbered, step-by-step plan:",
+  "The painter asked for a DETAILED answer. Explain the reasoning, compare the sensible options, and say which you would pick and why. Keep it practical and organized with short headings. Numbers are typical values the painter must verify.",
+].join(" ");
+
+export const DEEP_PROMPT = [
+  "The painter asked for a DEEP step-by-step answer. Reply as a numbered, step-by-step plan:",
   "1) most likely cause or the key question to settle first, 2) what to check or test before starting, 3) tools and materials, 4) the steps in order,",
   "5) safety notes that apply, 6) how to confirm the fix worked and what to tell the customer.",
   "Be specific and practical. If it depends on something you cannot see, say what it depends on. Numbers are typical values the painter must verify.",
@@ -36,7 +42,7 @@ export function readThread(raw: string | null | undefined): ChatMsg[] {
     return Array.isArray(j)
       ? j
           .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-          .map((m) => ({ role: m.role, content: String(m.content).slice(0, 6000), mode: m.mode === "detailed" ? "detailed" : "quick", at: String(m.at ?? "") }) as ChatMsg)
+          .map((m) => ({ role: m.role, content: String(m.content).slice(0, 6000), mode: m.mode === "detailed" ? "detailed" : m.mode === "deep" ? "deep" : "quick", at: String(m.at ?? "") }) as ChatMsg)
       : [];
   } catch {
     return [];
@@ -76,7 +82,7 @@ export async function handleJobChat(request: Request, env: Env): Promise<Respons
   const limits = async () => {
     const s = await usageSummary(env, company);
     const pick = (f: Feature) => s.features.find((x) => x.feature === f);
-    return { quick: pick("ai_assistant"), detailed: pick("ai_detailed") };
+    return { quick: pick("ai_assistant"), detailed: pick("ai_detailed"), deep: pick("ai_deep") };
   };
 
   if (request.method === "GET") return json({ messages: await load(env, user.companyId, jobId), limits: await limits() });
@@ -87,22 +93,22 @@ export async function handleJobChat(request: Request, env: Env): Promise<Respons
   }
   const question = typeof b?.message === "string" ? b.message.trim().slice(0, 2000) : "";
   if (!question) return json({ error: "Type a question first." }, 400);
-  const mode: "quick" | "detailed" = b?.mode === "detailed" ? "detailed" : "quick";
-  const feature: Feature = mode === "detailed" ? "ai_detailed" : "ai_assistant";
+  const mode: Mode = b?.mode === "detailed" ? "detailed" : b?.mode === "deep" ? "deep" : "quick";
+  const feature: Feature = mode === "deep" ? "ai_deep" : mode === "detailed" ? "ai_detailed" : "ai_assistant";
   const used = await consume(env, company, feature);
   if (!used.allowed) {
     const msg = used.reason === "kill_switch" ? "The assistant is paused right now. Try again soon."
-      : used.reason === "not_in_plan" ? (mode === "detailed" ? "Detailed step-by-step answers are on the Starter plan and up." : "The assistant is not included in your plan.")
-      : mode === "detailed" ? "You have used this month's detailed answers. Quick answers still work." : "You have used this month's assistant questions.";
+      : used.reason === "not_in_plan" ? (mode === "quick" ? "The assistant is not included in your plan." : "Detailed and deep answers are on the Starter plan and up.")
+      : mode === "quick" ? "You have used this month's quick answers." : `You have used this month's ${mode} answers. Quick answers still work.`;
     return json({ error: msg, code: used.reason }, 429);
   }
   const context = await buildJobContext(env, user.companyId, jobId);
   const thread = await load(env, user.companyId, jobId);
   const es = b?.language === "es";
   const base = es ? `${SYSTEM_PROMPT}\n\nAlways answer in Spanish, even if the question is in English.` : SYSTEM_PROMPT;
-  const system = `${base}${mode === "detailed" ? `\n\n${DETAILED_PROMPT}` : ""}${context ? `\n\n<job_data>\n${context}\n</job_data>` : ""}`;
-  const prefer: Provider[] = mode === "detailed" ? ["anthropic", "gemini", "openai"] : ["gemini", "openai", "anthropic"];
-  const out = await completeEx(env, system, [...sanitizeHistory(thread.map((m) => ({ role: m.role, content: m.content }))), { role: "user", content: question }], { prefer, maxTokens: mode === "detailed" ? 1800 : 900 });
+  const system = `${base}${mode === "detailed" ? `\n\n${DETAILED_PROMPT}` : mode === "deep" ? `\n\n${DEEP_PROMPT}` : ""}${context ? `\n\n<job_data>\n${context}\n</job_data>` : ""}`;
+  const prefer: Provider[] = mode === "deep" ? ["anthropic", "openai", "gemini"] : mode === "detailed" ? ["openai", "gemini", "anthropic"] : ["gemini", "openai", "anthropic"];
+  const out = await completeEx(env, system, [...sanitizeHistory(thread.map((m) => ({ role: m.role, content: m.content }))), { role: "user", content: question }], { prefer, maxTokens: mode === "deep" ? 2000 : mode === "detailed" ? 1400 : 900 });
   if (!out) {
     await refund(env, company, feature);
     return json({ error: "The assistant could not answer right now. Please try again in a minute." }, 503);
