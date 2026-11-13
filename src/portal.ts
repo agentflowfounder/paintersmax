@@ -4,6 +4,7 @@ import { sendCustomerEmail } from "./email.ts";
 import { coiLink, showsCustomers } from "./insurance.ts";
 import { renderDocPage } from "./wizard-api.ts";
 import { readSettings } from "./settings.ts";
+import { CUSTOMER_MAX_FILES, saveFile } from "./files.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -120,6 +121,11 @@ async function resolve(env: Env, token: string): Promise<{ companyId: number; jo
 
 const CSS = `*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}header{background:#0F1B2D;color:#fff;padding:16px}header b{font-family:Newsreader,Georgia,serif;font-size:20px;font-weight:500}main{max-width:640px;margin:0 auto;padding:16px 16px 50px}h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:26px;margin:6px 0 2px}.st{display:inline-block;background:#E8A33D;color:#0F1B2D;font-weight:700;border-radius:99px;padding:5px 12px;font-size:14px;margin:6px 0 14px}.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:14px 16px;margin:0 0 12px}.card h2{font-size:16px;margin:0 0 6px}.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #eee}.row:first-of-type{border-top:0}a.b{background:#0F1B2D;color:#fff;text-decoration:none;border-radius:8px;padding:9px 13px;font-size:14px;font-weight:600;white-space:nowrap}.tag{font-size:12px;border-radius:99px;padding:2px 9px;font-weight:600;background:#eceae4;color:#4A5568}.tag.g{background:#e6f4ea;color:#0a7a3d}.muted{color:#4A5568;font-size:14px}`;
 
+/** Shrinks each photo in the browser, then uploads it to this job. */
+const PHOTO_JS = `(function(){var i=document.getElementById('ph');if(!i)return;var m=document.getElementById('phm');
+function shrink(f){return new Promise(function(res){var im=new Image();im.onload=function(){var s=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(function(b){res(b||f)},'image/jpeg',0.82)};im.onerror=function(){res(f)};im.src=URL.createObjectURL(f)})}
+i.onchange=async function(){var ok=0,n=0;for(var k=0;k<i.files.length;k++){n++;m.textContent='Uploading '+n+'...';var b=await shrink(i.files[k]),fd=new FormData();fd.append('file',b,'photo.jpg');try{var r=await fetch(location.pathname.replace(/\\/$/,'')+'/upload',{method:'POST',body:fd});var j=await r.json();if(r.ok)ok++;else{m.textContent=j.error||'Could not upload.';return}}catch(e){m.textContent='Could not upload.';return}}m.textContent=ok+' photo'+(ok===1?'':'s')+' sent. Thank you.';i.value=''}})();`;
+
 export function renderPortal(d: {
   es: boolean; company: string; phone: string; email: string; customer: string; title: string; stage: string;
   docs: { id: number; kind: string; status: string; label: string }[]; signed: Record<string, string>; pendingSign: string[]; proofUrl: string | null; token: string; logoUrl?: string; color?: string;
@@ -143,15 +149,29 @@ export function renderPortal(d: {
 <p class="muted" style="margin:6px 0 0">${L("Hi", "Hola")} ${esc(first)},</p><h1>${esc(d.title)}</h1><div class="st">${esc(stageText(d.stage, es))}</div>
 <div class="card"><h2>${L("Your documents", "Sus documentos")}</h2>${rows || `<p class="muted">${L("Nothing has been shared yet. Check back soon.", "Todavía no se ha compartido nada. Vuelva pronto.")}</p>`}</div>
 ${d.proofUrl ? `<div class="card"><h2>${L("Proof of insurance", "Comprobante de seguro")}</h2><p class="muted" style="margin:0 0 8px">${L("See that the work is insured and what to do if something happens.", "Vea que el trabajo está asegurado y qué hacer si algo sucede.")}</p><a class="b" href="${esc(d.proofUrl)}" target="_blank" rel="noopener">${L("View proof of insurance", "Ver comprobante de seguro")}</a></div>` : ""}
+<div class="card"><h2>${L("Add photos", "Agregar fotos")}</h2><p class="muted" style="margin:0 0 8px">${L("Share photos of what you want us to see, like a stain, crack or peeling spot. Your painter will see them.", "Comparta fotos de lo que quiere que veamos, como una mancha, grieta o pintura levantada. Su pintor las verá.")}</p><input type="file" id="ph" accept="image/*" multiple><p id="phm" class="muted" style="margin:6px 0 0"></p></div>
 <div class="card"><h2>${L("Questions?", "¿Preguntas?")}</h2><p class="muted" style="margin:0">${contact || L("Reply to the email you received.", "Responda al correo que recibió.")}</p></div>
 <p class="muted" style="font-size:12px">${L("This page is private to you. Please do not share the link.", "Esta página es privada. Por favor no comparta el enlace.")}</p>
-</main></body></html>`;
+</main><script>${PHOTO_JS}</script></body></html>`;
 }
 
 /** Public: GET /portal/<token> and GET /portal/<token>/doc/<id>. */
 export async function handlePortalPage(request: Request, env: Env): Promise<Response> {
+  const parts = new URL(request.url).pathname.split("/").filter(Boolean); // portal, token, [doc, id | upload]
+  if (request.method === "POST" && parts[2] === "upload" && parts.length === 3) {
+    const f = await resolve(env, parts[1] ?? "");
+    if (!f) return json({ error: "This link is not valid." }, 404);
+    const fd = await request.formData().catch(() => null);
+    const file = fd?.get("file");
+    if (!(file instanceof File) || !file.type.startsWith("image/")) return json({ error: "Please choose a photo." }, 400);
+    const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM job_files WHERE company_id = ? AND job_id = ? AND uploaded_by = 'customer'").bind(f.companyId, f.jobId).first<{ n: number }>();
+    if ((n?.n ?? 0) >= CUSTOMER_MAX_FILES) return json({ error: "You have added the most photos allowed. Please contact your painter." }, 400);
+    const r = await saveFile(env, { companyId: f.companyId, jobId: f.jobId, kind: "photo", file, by: "customer", note: "Added by the customer" });
+    if (!r.ok) return json({ error: r.status === 413 ? "Your painter's photo storage is full. Please send photos by email." : r.error }, r.status);
+    await addJobEvent(env, f.companyId, f.jobId, "note", "The customer added a photo from their portal.");
+    return json({ ok: true });
+  }
   if (request.method !== "GET") return htmlResp("<p>Not found.</p>", 404);
-  const parts = new URL(request.url).pathname.split("/").filter(Boolean); // portal, token, [doc, id]
   const found = await resolve(env, parts[1] ?? "");
   if (!found) return htmlResp("<p>This link is not valid. Ask your painter for a new one.</p>", 404);
   const { companyId, jobId } = found;

@@ -20,6 +20,8 @@
       "migrations_dir": "migrations"
     }
   ],
+  // Where photos, receipts, W-9 files and the insurance policy original are kept.
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "paintersmax-files" }],
   "vars": {
     "FROM_EMAIL": "PaintersMax <leads@mail.paintersmax.app>",
     // Change model names here if a provider retires or renames one.

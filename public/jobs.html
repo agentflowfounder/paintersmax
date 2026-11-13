@@ -35,7 +35,7 @@ small,.muted{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{
 .ev{font-size:13px;padding:4px 0;border-bottom:1px solid #f0eee9}
 .bub{padding:10px 12px;border-radius:10px;margin:8px 0;white-space:pre-wrap;line-height:1.45}.bub.u{background:#eceae4;margin-left:24px}.bub.a{background:#fff8e8;border:1px solid #f0d9a0;margin-right:12px}.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.chip{border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:6px 12px;font-size:13px;cursor:pointer}.mini{border:0;background:none;color:#0F1B2D;text-decoration:underline;font-size:12px;cursor:pointer;padding:2px 0}
 @media(max-width:520px){.line{grid-template-columns:1fr 60px 50px 80px 26px}}
-</style></head><body>
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin:10px 0}.fi img{width:100%;height:100px;object-fit:cover;border-radius:8px;display:block}</style></head><body>
 <header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Estimating Setup</a><a href="/calendar">Calendar</a><a href="/builders">Builder rates</a><a href="/import">Import customers</a><a href="/materials">Materials</a><a href="/insurance">Insurance</a><a href="/dashboard">Settings and leads</a></div></header>
 <main><div id="view">Loading...</div><div id="msg"></div></main>
 <script>
@@ -88,6 +88,23 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};
  else if(t.closest&&t.closest('#as_mic')){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return;const b=$('as_mic');const r=new R();r.lang=($('as_lang')||{value:'en'}).value==='es'?'es-US':'en-US';b.classList.add('on');r.onresult=ev=>{$('as_in').value=(($('as_in').value?$('as_in').value+' ':'')+ev.results[0][0].transcript).trim();};r.onend=r.onerror=()=>b.classList.remove('on');r.start();}
 });
 document.addEventListener('change',e=>{if(e.target.id==='as_lang'){try{localStorage.setItem('as_lang',e.target.value);}catch(x){}}});
+
+// ---- Photos and files ----
+let FL=null;
+function filesCard(){return `<h3>Photos and files</h3><div class="card" id="fl_card"><div id="fl_meter" class="muted">Loading...</div>
+ <div class="btns"><label class="btn" style="cursor:pointer">Take or add photos<input id="fl_in" type="file" accept="image/*" multiple style="display:none"></label>
+ <label class="btn sec" style="cursor:pointer">Add receipt or document<input id="fl_doc" type="file" accept="image/*,application/pdf" style="display:none"></label>
+ <select id="fl_kind" style="width:auto;padding:6px 8px" aria-label="Type"><option value="receipt">Receipt</option><option value="document">Document</option></select></div>
+ <div id="fl_list" class="fgrid"></div><small class="muted">Photos are shrunk on your phone before upload to save space. Your customer can also add photos from their portal link. You can download a photo any time.</small></div>`;}
+function shrinkImg(f){return new Promise(res=>{if(!f.type.startsWith('image/')||f.type==='image/gif'){res(f);return;}const im=new Image();im.onload=()=>{const s=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);c.toBlob(b=>res(b?new File([b],(f.name||'photo').replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):f),'image/jpeg',0.82);};im.onerror=()=>res(f);im.src=URL.createObjectURL(f);});}
+function meterHtml(st){if(!st)return '';const col=st.level==='ok'?'#0a7a3d':st.level==='warn'?'#E8A33D':'#b42318';
+ return `<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Storage</b><span>${st.percent}% used</span></div><div style="height:8px;border-radius:5px;background:#eceae4;margin:4px 0 6px"><div style="height:8px;border-radius:5px;width:${st.percent}%;background:${col}"></div></div>${st.message?`<div style="background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px;margin-top:6px">${esc(st.message)}${st.upgrade?' <a href="/dashboard#billing"><b>See plans</b></a>':''}</div>`:''}`;}
+async function filesLoad(){if(!$('fl_card'))return;try{FL=await api('/api/files?jobId='+J.job.id);$('fl_meter').innerHTML=meterHtml(FL.storage);
+ if(!FL.enabled)$('fl_meter').innerHTML+='<div class="muted">File storage is not available yet.</div>';
+ $('fl_list').innerHTML=FL.files.length?FL.files.map(f=>`<div class="fi">${f.mime.startsWith('image/')?`<a href="/api/files?id=${f.id}" target="_blank"><img src="/api/files?id=${f.id}" alt="${esc(f.name)}" loading="lazy"></a>`:`<a href="/api/files?id=${f.id}" target="_blank">${esc(f.name)}</a>`}<div class="muted" style="font-size:12px">${esc(f.kind)}${f.by==='customer'?' &middot; from customer':''}</div><div><button class="mini" data-fldel="${f.id}">Delete</button></div></div>`).join(''):'<p class="muted">No photos or files yet.</p>';}catch(e){if(e)$('fl_meter').textContent='Could not load files.';}}
+async function filesUpload(list,kind){for(const f of list){try{msg('Uploading '+(f.name||'file')+'...',true);const b=await shrinkImg(f),fd=new FormData();fd.append('file',b);fd.append('jobId',J.job.id);fd.append('kind',kind);const r=await fetch('/api/files',{method:'POST',body:fd});if(r.status===401){location.href='/login';return;}const j=await r.json().catch(()=>({}));if(!r.ok){msg(j.error||'Could not upload.');break;}}catch(e){msg('Could not upload.');break;}}msg('');await filesLoad();}
+document.addEventListener('change',e=>{if(e.target.id==='fl_in'){filesUpload([...e.target.files],'photo');e.target.value='';}else if(e.target.id==='fl_doc'){filesUpload([...e.target.files],$('fl_kind').value);e.target.value='';}});
+document.addEventListener('click',async e=>{const d=e.target.dataset||{};if(d.fldel){if(!confirm('Delete this file? This cannot be undone.'))return;try{await api('/api/files',{action:'delete',id:+d.fldel});await filesLoad();}catch(x){if(x)msg(x.message);}}});
 async function loadJobChat(){if(!chatJob)return;try{const r=await api('/api/jobchat?jobId='+chatJob);chat=r.messages||[];chatDraw();}catch(e){}}
 const LOSTR={price:'Price',timing:'Timing',no_reply:'No reply',chose_other:'Chose someone else',other:'Other'};
 function lostCard(d){const j=d.job||{};let l=null;try{l=j.lost?JSON.parse(j.lost):null;}catch(e){}
@@ -218,6 +235,7 @@ async function detail(id){
   ${protectCard(d)}
   ${portalCard(d)}
   ${lostCard(d)}
+  ${filesCard()}
   ${assistantCard(j.id)}
   <h3>1. Measurements and quantities</h3>
   <div class="card">${d.rateCard?`<small>Using your ${esc(TRADES[j.trade]||j.trade)} prices. Enter how many of each; leave blank for none.</small>
@@ -263,7 +281,7 @@ async function detail(id){
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
   $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>msg('Saved.',true));};
   $('send').onclick=async()=>{if(!confirm('Email this estimate to '+j.customerEmail+'?'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
-  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();
+  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad();
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};
   const cact=async(action)=>{try{msg('');const r=await api('/api/contract',{action,jobId:j.id,contract:{startDate:$('c_start').value,endDate:$('c_end').value,language:$('c_lang').value,clauses}});return r;}catch(x){if(x)msg(x.message);}};
   const cs=$('c_save');if(cs){cs.onclick=async()=>{const r=await cact('save');if(r)detail(j.id).then(()=>msg('Contract saved.',true));};
