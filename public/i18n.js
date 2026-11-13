@@ -760,5 +760,12 @@
     'You will get a reminder on Home before it ends.': 'Recibirá un recordatorio en Inicio antes de que termine.',
   });
 
+  pmI18n.add({
+    'Lessons learned': 'Lecciones aprendidas', 'Lessons': 'Lecciones', 'Draft lessons from this job': 'Redactar lecciones de este trabajo', 'Write one myself': 'Escribir una yo mismo', 'Approve and save': 'Aprobar y guardar', 'What you learned': 'Lo que aprendió', 'Tags (comma separated)': 'Etiquetas (separadas por coma)', 'Nothing saved for this job yet.': 'Todavía no hay nada guardado para este trabajo.',
+    "The draft comes from this job's notes, issues, change orders and chat. You edit it before anything is saved. Your library is private to your company.": 'El borrador sale de las notas, problemas, órdenes de cambio y chat de este trabajo. Usted lo edita antes de guardar nada. Su biblioteca es privada de su empresa.',
+    'Build your own playbook: after each job, save what you learned. The job assistant reads it, so future answers fit how you work. Included in Basic and Pro.': 'Construya su propio manual: después de cada trabajo, guarde lo que aprendió. El asistente lo lee, así sus respuestas encajan con su forma de trabajar. Incluido en Basic y Pro.',
+    'Photo attached.': 'Foto adjunta.', 'Ask': 'Preguntar', 'Photo': 'Foto',
+  });
+
   pmI18n.start();
 })();

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Lessons library - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
+main{max-width:860px;margin:0 auto;padding:16px 12px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:14px;margin:0 0 14px}
+button,.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:9px 13px;background:#E8A33D;color:#0F1B2D;cursor:pointer;text-decoration:none;display:inline-block}button.mini{padding:4px 9px;font-size:13px;background:#eceae4}
+input,textarea{font:inherit;width:100%;padding:9px;border:1px solid #cfd5dc;border-radius:8px}
+.muted{color:#4A5568;font-size:14px}.tag{display:inline-block;background:#eceae4;border-radius:99px;padding:2px 9px;font-size:12px;margin:2px 4px 2px 0}
+.lock{background:repeating-linear-gradient(135deg,#fff,#fff 10px,#faf7f0 10px,#faf7f0 20px)}
+</style></head><body>
+<header><div><b>PaintersMax</b> Lessons library</div><div><a href="/jobs">Jobs</a><a href="/records">Records</a><a href="/crew">Crew</a><a href="/dashboard">Settings and leads</a></div></header>
+<main>
+<h1>Your lessons library</h1>
+<p class="muted">What you have learned on past jobs, in your own words. Private to your company. The job assistant reads the most relevant ones when you ask a question.</p>
+<div id="msg" class="muted"></div>
+<div class="card"><input id="q" placeholder="Search: stain, cedar, change order, pricing..." aria-label="Search lessons"></div>
+<div id="list"></div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function api(p){return fetch(p).then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json();});}
+var t=null;
+function load(){api('/api/lessons?q='+encodeURIComponent($('q').value)).then(function(r){
+ if(r.locked){$('list').innerHTML='<div class="card lock"><h3 style="margin-top:0">A playbook that grows with every job</h3><p>When a job closes, we draft a short lessons-learned note. You edit it and save it here. Over time you build your own searchable playbook, and the job assistant uses it to give answers that fit how you work. It also helps train new crew.</p><a class="btn" href="/dashboard#billing">See Basic and Pro plans</a></div>';return;}
+ $('list').innerHTML=r.lessons.length?r.lessons.map(function(l){return '<div class="card"><b>'+esc(l.title)+'</b>'+(l.jobTitle?' <span class="muted">&middot; <a href="/jobs?id='+l.jobId+'">'+esc(l.jobTitle)+'</a></span>':'')+'<div>'+(l.tags?l.tags.split(', ').map(function(g){return '<span class="tag">'+esc(g)+'</span>'}).join(''):'')+'</div><div style="white-space:pre-wrap;margin-top:6px">'+esc(l.body)+'</div></div>'}).join(''):'<div class="card muted">'+(r.total?'No lessons match that search.':'No lessons yet. Open a finished job and tap "Draft lessons from this job".')+'</div>';});}
+$('q').oninput=function(){clearTimeout(t);t=setTimeout(load,250);};
+load();
+</script></body></html>

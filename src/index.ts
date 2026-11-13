@@ -23,6 +23,7 @@ import { handleCities, refreshStaleCities } from "./cities.ts";
 import { handleWorkOrders, handleWoPublic } from "./workorders.ts";
 import { handleRecords } from "./records.ts";
 import { handleCrew } from "./crew.ts";
+import { handleLessons } from "./lessons.ts";
 import { handleCertPublic, handleWarranty } from "./warranty.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleFiles } from "./files.ts";
@@ -689,6 +690,14 @@ export default {
         return await handleWarranty(request, env);
       } catch (err) {
         console.error("warranty failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/lessons") {
+      try {
+        return await handleLessons(request, env);
+      } catch (err) {
+        console.error("lessons failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

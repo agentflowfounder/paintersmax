@@ -3,6 +3,8 @@ import type { Env } from "./types.ts";
 export interface Turn {
   role: "user" | "assistant";
   content: string;
+  /** A photo the painter attached to this question. Only the Gemini path can look at it. */
+  image?: { mime: string; data: string };
 }
 
 /** Keeps the last few turns, trims them, and makes sure they alternate and start with the user. */
@@ -83,6 +85,20 @@ export async function buildJobContext(env: Env, companyId: number, jobId: number
       lines.push(`${d.kind} (${d.status})`);
     }
   }
+  const [finds, wos] = await Promise.all([
+    env.DB.prepare("SELECT data FROM job_photo_findings WHERE job_id = ? AND company_id = ? AND status = 'approved' ORDER BY id DESC LIMIT 6").bind(jobId, companyId).all<{ data: string }>().catch(() => ({ results: [] as { data: string }[] })),
+    env.DB.prepare("SELECT number, kind, title, status, body FROM work_orders WHERE job_id = ? AND company_id = ? AND status != 'draft' ORDER BY id DESC LIMIT 8").bind(jobId, companyId).all<any>().catch(() => ({ results: [] as any[] })),
+  ]);
+  const fl: string[] = [];
+  for (const f of finds.results) for (const i of (parse(f.data).issues ?? []).slice(0, 4)) fl.push(`  - ${cut(i.title, 70)} (${i.severity}): ${cut(i.fix, 140)}`);
+  if (fl.length) lines.push("Approved photo findings (possible issues the painter confirmed):", ...fl.slice(0, 14));
+  if (wos.results.length) {
+    lines.push("Work and change orders:");
+    for (const w of wos.results) {
+      const total = (parse(w.body).lines ?? []).reduce((a: number, l: any) => a + Math.round((Number(l.qty) || 0) * (Number(l.unitCents) || 0)), 0);
+      lines.push(`  - ${w.kind === "change_order" ? "CO" : "WO"}-${w.number} ${cut(w.title, 70)} (${w.status}) $${(total / 100).toFixed(2)}`);
+    }
+  }
   if (events.results.length) {
     lines.push("Recent history, newest first:");
     for (const e of events.results) lines.push(`  [${e.created_at}] ${e.kind}: ${cut(e.text, 300).replace(/\s+/g, " ")}`);
@@ -100,7 +116,7 @@ async function viaGemini(env: Env, system: string, turns: Turn[], maxTokens = 90
       headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY! },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
-        contents: turns.map((t) => ({ role: t.role === "assistant" ? "model" : "user", parts: [{ text: t.content }] })),
+        contents: turns.map((t) => ({ role: t.role === "assistant" ? "model" : "user", parts: [...(t.image ? [{ inline_data: { mime_type: t.image.mime, data: t.image.data } }] : []), { text: t.content }] })),
         generationConfig: { ...(thinkingOff ? { thinkingConfig: { thinkingBudget: 0 } } : {}), maxOutputTokens: maxTokens },
       }),
     });
