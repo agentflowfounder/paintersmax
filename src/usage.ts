@@ -88,28 +88,23 @@ export async function consume(
 ): Promise<Consume> {
   const limit = PLAN_LIMITS[effectivePlan(company)][feature];
   if (env.AI_KILL_SWITCH === "1") return { allowed: false, reason: "kill_switch", used: 0, limit };
-  if (limit < 1) {
-    await recordMissed(env, company.id, feature);
-    return { allowed: false, reason: "not_in_plan", used: 0, limit };
-  }
   const vLimit = VISITOR_DAILY[feature];
   if (visitorHash && vLimit) {
     const v = await bump(env, company.id, `${feature}:v:${visitorHash}`, dayKey(), vLimit);
     if (v === null) return { allowed: false, reason: "visitor_limit", used: vLimit, limit: vLimit };
   }
-  const used = await bump(env, company.id, feature, monthKey(), limit);
+  const used = limit < 1 ? null : await bump(env, company.id, feature, monthKey(), limit);
   if (used === null) {
-    // The monthly allowance is used up. A paid plan can keep going on AI credits it added (see credits.ts).
-    if (normalizePlan(company.plan) !== "free") {
-      const cost = CREDIT_COST[feature];
-      const spent = await spendCredits(env, company.id, cost, todayLocal());
-      if (spent.ok) {
-        await bumpAlways(env, company.id, `${feature}:credit`, monthKey());
-        return { allowed: true, used: limit, limit, credit: cost };
-      }
+    // The monthly amount is used up, or the plan has none for this feature. Any plan can keep going on AI credits (see credits.ts).
+    const cost = CREDIT_COST[feature];
+    const spent = await spendCredits(env, company.id, cost, todayLocal());
+    if (spent.ok) {
+      await bumpAlways(env, company.id, `${feature}:credit`, monthKey());
+      return { allowed: true, used: limit, limit, credit: cost };
     }
     await recordMissed(env, company.id, feature);
-    await bumpAlways(env, company.id, `${feature}:full`, monthKey()); // the allowance ran out (credits could have helped)
+    if (limit < 1) return { allowed: false, reason: "not_in_plan", used: 0, limit };
+    await bumpAlways(env, company.id, `${feature}:full`, monthKey()); // the amount ran out (credits could have helped)
     return { allowed: false, reason: "monthly_limit", used: limit, limit };
   }
   return { allowed: true, used, limit };

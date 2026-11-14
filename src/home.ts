@@ -264,10 +264,10 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     snoozed = {};
   }
   const plan2 = co ? effectivePlan({ plan: co.plan, createdAt: co.createdAt }) : "free";
-  // AI credits: a paid painter hears when a monthly amount ran out (and a credit pack would help), or when credits are nearly gone.
+  // AI credits: a painter on any plan hears when a monthly amount ran out (and credits would help), or when credits are nearly gone.
   try {
     const hidden = snoozed.credits && Date.parse(snoozed.credits) > Date.now();
-    if (co && normalizePlan(co.plan) !== "free" && !hidden) {
+    if (co && !hidden) {
       const view = await creditView(env, c, todayLocal());
       const full = await env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS n FROM usage_counters WHERE company_id = ? AND period = ? AND feature LIKE '%:full'").bind(c, monthKey()).first<{ n: number }>();
       const n = full?.n ?? 0;

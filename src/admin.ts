@@ -3,7 +3,7 @@ import { listDomains, removeDomain, setDomain } from "./domains.ts";
 import { RESERVED_SLUGS } from "./settings.ts";
 import { adminTickerView, saveConfig } from "./ticker.ts";
 import { getSessionUser, requestLoginLink } from "./auth.ts";
-import { grantCredits } from "./credits.ts";
+import { grantCredits, WELCOME_CREDITS } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
 import { normalizePlan } from "./usage.ts";
 import { adminHelpDelete, adminHelpDismiss, adminHelpDraft, adminHelpSave, adminHelpView } from "./helplib.ts";
@@ -60,6 +60,8 @@ export async function provisionClient(env: Env, origin: string, input: { name: u
   const company = await env.DB.prepare("INSERT INTO companies (slug, name, plan, notify_email) VALUES (?, ?, ?, ?)").bind(slug, name, plan, email).run();
   const companyId = Number(company.meta.last_row_id);
   await env.DB.prepare("INSERT INTO users (company_id, email, role) VALUES (?, ?, 'owner')").bind(companyId, email).run();
+  // Every new company starts with welcome credits, added once (the grant id is the company id).
+  await grantCredits(env, companyId, { id: `welcome:${companyId}`, credits: WELCOME_CREDITS, source: "welcome", note: "Welcome credits" }, todayLocal()).catch((err) => console.error("welcome credits failed", String(err)));
   try {
     await requestLoginLink(env, origin, email);
   } catch (err) {

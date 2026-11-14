@@ -1,6 +1,6 @@
 import { getSessionUser } from "./auth.ts";
 import { provisionClient } from "./admin.ts";
-import { CREDIT_PACKS, grantCredits } from "./credits.ts";
+import { allowanceById, allowanceByPrice, companyOfAllowanceSub, grantCredits, loadAllowance, saveAllowance, topUpById } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
 import { normalizePlan, type Plan } from "./usage.ts";
 import type { Env } from "./types.ts";
@@ -124,7 +124,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
   if (seen) return json({ ok: true, duplicate: true });
 
   const obj = event.data?.object ?? {};
-  if (event.type === "checkout.session.completed" && obj.mode === "subscription") {
+  if (event.type === "checkout.session.completed" && obj.mode === "subscription" && obj.metadata?.kind !== "allowance") {
     const plan = normalizePlan(obj.metadata?.plan);
     const email = obj.customer_details?.email || obj.customer_email;
     const r = await provisionClient(env, new URL(request.url).origin, { name: obj.metadata?.company_name, email, plan });
@@ -138,12 +138,40 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
     await env.DB.prepare("UPDATE companies SET plan = ?, stripe_customer_id = ?, stripe_subscription_id = ? WHERE id = ?")
       .bind(newPlan, typeof obj.customer === "string" ? obj.customer : null, typeof obj.subscription === "string" ? obj.subscription : null, r.companyId)
       .run();
-  } else if (event.type === "checkout.session.completed" && obj.mode === "payment" && obj.metadata?.kind === "credits" && obj.payment_status === "paid") {
-    // A credit pack was paid for. The pack size comes from our own list, never from the message. The same payment is added once.
-    const pack = CREDIT_PACKS.find((p) => p.id === obj.metadata?.pack);
+  } else if (event.type === "checkout.session.completed" && obj.mode === "payment" && obj.metadata?.kind === "topup" && obj.payment_status === "paid") {
+    // A top-up was paid for. The size comes from our own list, never from the message. The same payment is added once.
+    const t = topUpById(obj.metadata?.topup);
     const cid = Number(obj.metadata?.company_id);
-    const co = pack && Number.isInteger(cid) ? await env.DB.prepare("SELECT id FROM companies WHERE id = ?").bind(cid).first() : null;
-    if (pack && co && typeof obj.id === "string") await grantCredits(env, cid, { id: `stripe:${obj.id}`, credits: pack.credits, source: "pack", note: `Pack of ${pack.credits}` }, todayLocal());
+    const co = t && Number.isInteger(cid) ? await env.DB.prepare("SELECT id FROM companies WHERE id = ?").bind(cid).first() : null;
+    if (t && co && typeof obj.id === "string") await grantCredits(env, cid, { id: `stripe:${obj.id}`, credits: t.credits, source: "topup", note: `Top-up of ${t.credits}` }, todayLocal());
+    if (co && typeof obj.customer === "string") await env.DB.prepare("UPDATE companies SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?").bind(obj.customer, cid).run();
+  } else if (event.type === "checkout.session.completed" && obj.mode === "subscription" && obj.metadata?.kind === "allowance") {
+    // A monthly allowance started. The first month's credits are added now; later months arrive with each paid invoice (below).
+    const a = allowanceById(obj.metadata?.allowance);
+    const cid = Number(obj.metadata?.company_id);
+    const co = a && Number.isInteger(cid) ? await env.DB.prepare("SELECT id FROM companies WHERE id = ?").bind(cid).first() : null;
+    if (a && co && typeof obj.subscription === "string" && typeof obj.id === "string") {
+      const today = todayLocal();
+      await saveAllowance(env, cid, { allowanceId: a.id, subscriptionId: obj.subscription, status: "active", since: today, lastGrantOn: today });
+      await grantCredits(env, cid, { id: `stripe:${obj.id}`, credits: a.credits, source: "allowance", note: `Monthly allowance (${a.credits})` }, today);
+      if (typeof obj.customer === "string") await env.DB.prepare("UPDATE companies SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?").bind(obj.customer, cid).run();
+    }
+  } else if ((event.type === "invoice.paid" || event.type === "invoice.payment_succeeded") && typeof obj.subscription === "string" && obj.billing_reason === "subscription_cycle") {
+    // A renewal of a monthly allowance: add that month's credits once per invoice. The size follows what was paid, so a changed allowance pays out correctly.
+    const cid = await companyOfAllowanceSub(env, obj.subscription);
+    const rec = cid ? await loadAllowance(env, cid) : null;
+    const a = allowanceByPrice(obj.amount_paid) ?? (rec ? allowanceById(rec.allowanceId) : null);
+    if (cid && rec && a && typeof obj.id === "string") {
+      const today = todayLocal();
+      await grantCredits(env, cid, { id: `stripe:inv:${obj.id}`, credits: a.credits, source: "allowance", note: `Monthly allowance (${a.credits})` }, today);
+      await saveAllowance(env, cid, { ...rec, allowanceId: a.id, status: "active", lastGrantOn: today });
+    }
+    if (typeof obj.customer === "string") await setPastDue(env, "stripe_customer_id", obj.customer, false);
+  } else if ((event.type === "customer.subscription.deleted" || (event.type === "customer.subscription.updated" && ["unpaid", "canceled", "incomplete_expired"].includes(obj.status))) && typeof obj.id === "string" && obj.metadata?.kind === "allowance") {
+    // An allowance ended. Credits already added stay until they expire; no new ones arrive.
+    const cid = await companyOfAllowanceSub(env, obj.id);
+    const rec = cid ? await loadAllowance(env, cid) : null;
+    if (cid && rec) await saveAllowance(env, cid, { ...rec, status: "ended" });
   } else if (event.type === "customer.subscription.deleted" && typeof obj.id === "string") {
     await env.DB.prepare("UPDATE companies SET plan = 'free' WHERE stripe_subscription_id = ?").bind(obj.id).run();
     await setPastDue(env, "stripe_subscription_id", obj.id, false);

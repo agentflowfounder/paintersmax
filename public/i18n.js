@@ -1964,5 +1964,21 @@
     [/^(\d+) more reminders? on paid plans\.$/, function (a, n) { return n + (n === '1' ? ' recordatorio más' : ' recordatorios más') + ' en los planes de pago.'; }],
   ]);
 
+  /* ---- Part 22: Allowances and top-ups ---- */
+  pmI18n.add({
+    "Your plan includes a monthly amount of AI help, like the help chat, receipt and photo reads, and color previews. When one runs out, or when you want a tool your plan does not include, credits keep you going. Add them with a monthly allowance or a one-time top-up.": "Su plan incluye una cantidad mensual de ayuda de IA, como el chat de ayuda, la lectura de recibos y fotos, y las vistas previas de color. Cuando una se acaba, o cuando quiere una herramienta que su plan no incluye, los créditos lo mantienen funcionando. Agréguelos con una mensualidad o con una recarga.",
+    "Credits are used only after a monthly amount runs out, or for a tool your plan does not include. A heavier job, like a photo preview, uses more credits than a simple question. The oldest credits are used first. If an AI use fails, the credits come back.": "Los créditos se usan solo después de que se acaba una cantidad mensual, o para una herramienta que su plan no incluye. Un trabajo más pesado, como una vista previa de foto, usa más créditos que una pregunta sencilla. Se usan primero los más antiguos. Si un uso de IA falla, los créditos regresan.",
+    "Manage billing": "Administrar pagos", "Monthly allowance": "Mensualidad de créditos", "month": "mes", "credits a month": "créditos al mes", "Your allowance": "Su mensualidad", "Switch to this": "Cambiar a esta", "Choose": "Elegir",
+    "Credits every month, charged to your card. Unused credits roll over for two months. Change or cancel any time.": "Créditos cada mes, cargados a su tarjeta. Los créditos que no use se guardan dos meses. Cambie o cancele cuando quiera.",
+    "Your last allowance payment did not go through. Update your card under Manage billing so next month's credits arrive.": "Su último pago de la mensualidad no pasó. Actualice su tarjeta en Administrar pagos para que lleguen los créditos del próximo mes.",
+    "A switch takes effect at your next monthly charge. To cancel, use Manage billing.": "El cambio aplica en su próximo cargo mensual. Para cancelar, use Administrar pagos.",
+    "One-time top-up": "Recarga única", "Add credits whenever you need them, on any plan, for example before an ad campaign. Top-up credits do not expire during early access.": "Agregue créditos cuando los necesite, en cualquier plan, por ejemplo antes de una campaña de anuncios. Los créditos de recarga no vencen durante el acceso anticipado.",
+    "Allowance and welcome credits have an end date, shown above. Top-up credits stay until you use them.": "Los créditos de mensualidad y de bienvenida tienen fecha de fin, mostrada arriba. Los créditos de recarga se quedan hasta que los use.",
+    "Done. Your new allowance starts at your next monthly charge.": "Listo. Su nueva mensualidad empieza en su próximo cargo mensual.", "until": "hasta",
+    "allowance credits": "créditos de mensualidad", "top-up credits": "créditos de recarga", "welcome credits": "créditos de bienvenida", "earned credits": "créditos ganados", "added credits": "créditos agregados", "pack credits": "créditos de paquete",
+    "Choose a top-up.": "Elija una recarga.", "Choose an allowance.": "Elija una mensualidad.", "That is already your allowance.": "Esa ya es su mensualidad.", "Could not read your allowance. Use Manage billing instead.": "No se pudo leer su mensualidad. Use Administrar pagos.",
+    "Billing is not available yet.": "Los pagos todavía no están disponibles.", "No billing account is linked to this company yet.": "Todavía no hay una cuenta de pagos vinculada a esta empresa.",
+  });
+
   pmI18n.start();
 })();

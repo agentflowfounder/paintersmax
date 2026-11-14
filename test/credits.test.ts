@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { CREDIT_COST, CREDIT_EXPIRY_DAYS, CREDIT_PACKS, creditView, grantCredits, ledger, readGrants, refundCredits, spendCredits } from "../src/credits.ts";
+import { ALLOWANCES, CREDIT_COST, CREDIT_EXPIRY_DAYS, EXPIRY_DAYS, TOPUPS, WELCOME_CREDITS, allowanceByPrice, creditView, grantCredits, ledger, readAllowanceRecord, readGrants, refundCredits, spendCredits } from "../src/credits.ts";
 import { FEATURES, PLAN_LIMITS, consume, monthKey, refund } from "../src/usage.ts";
 
 /** A real SQLite database shaped like D1 (first/run/all), so the compare-and-swap really runs. */
@@ -31,8 +31,25 @@ const todayLocal = () => new Date(Date.now() - 6 * 3600 * 1000).toISOString().sl
 test("every feature has a credit cost, and a heavier job costs more", () => {
   for (const f of FEATURES) assert.ok(CREDIT_COST[f] >= 1, f);
   assert.ok(CREDIT_COST.hd_render > CREDIT_COST.help_chat);
-  assert.equal(CREDIT_PACKS[0].credits, 25);
-  assert.equal(CREDIT_PACKS[0].priceCents, null); // not for sale until the owner sets a price
+});
+
+test("allowances and top-ups are the approved prices, and bigger top-ups get a slightly better rate", () => {
+  assert.deepEqual(ALLOWANCES.map((a) => [a.priceCents, a.credits]), [[1900, 150], [3900, 400], [7900, 1000]]);
+  assert.deepEqual(TOPUPS.map((t) => [t.priceCents, t.credits]), [[500, 50], [1000, 100], [2000, 220], [5000, 600], [10000, 1300]]);
+  const rate = TOPUPS.map((t) => t.credits / (t.priceCents / 100));
+  for (let i = 1; i < rate.length; i++) assert.ok(rate[i] >= rate[i - 1], "rate never gets worse");
+  assert.equal(WELCOME_CREDITS, 1000);
+  assert.equal(allowanceByPrice(3900)?.id, "a39");
+  assert.equal(allowanceByPrice(1234), null);
+  // Allowance credits roll over for two months; top-ups do not expire during early access.
+  assert.equal(EXPIRY_DAYS.allowance, 90);
+  assert.ok(EXPIRY_DAYS.topup >= 3650);
+});
+
+test("readAllowanceRecord keeps only a well-formed record", () => {
+  assert.equal(readAllowanceRecord(null), null);
+  assert.equal(readAllowanceRecord({ allowanceId: "nope", subscriptionId: "sub_1" }), null);
+  assert.deepEqual(readAllowanceRecord({ allowanceId: "a19", subscriptionId: "sub_1", status: "weird", since: "2026-11-14", lastGrantOn: "bad" }), { allowanceId: "a19", subscriptionId: "sub_1", status: "active", since: "2026-11-14", lastGrantOn: null });
 });
 
 test("ledger: oldest credits are used first, and expired credits are never counted", () => {
@@ -50,7 +67,7 @@ test("ledger: oldest credits are used first, and expired credits are never count
 });
 
 test("readGrants drops bad rows and keeps oldest first", () => {
-  const out = readGrants({ grants: [{ id: "b", credits: 5, on: "2026-11-02", expiresOn: "2027-01-31" }, { id: "a", credits: "10", on: "2026-11-01", expiresOn: "2027-01-30", source: "admin" }, { id: "", credits: 5, on: "2026-11-01", expiresOn: "2027-01-30" }, { id: "c", credits: 0, on: "2026-11-01", expiresOn: "2027-01-30" }, { id: "d", credits: 5, on: "bad", expiresOn: "2027-01-30" }] });
+  const out = readGrants({ grants: [{ id: "b", credits: 5, on: "2026-11-02", expiresOn: "2027-01-31", source: "topup" }, { id: "a", credits: "10", on: "2026-11-01", expiresOn: "2027-01-30", source: "admin" }, { id: "", credits: 5, on: "2026-11-01", expiresOn: "2027-01-30" }, { id: "c", credits: 0, on: "2026-11-01", expiresOn: "2027-01-30" }, { id: "d", credits: 5, on: "bad", expiresOn: "2027-01-30" }] });
   assert.deepEqual(out.map((g) => g.id), ["a", "b"]);
   assert.equal(out[0].source, "admin");
   assert.deepEqual(readGrants(null), []);
@@ -92,7 +109,7 @@ test("credits run out of time after the expiry days, and the lost ones are never
   assert.equal((await spendCredits(env, 1, 7, day(CREDIT_EXPIRY_DAYS + 1))).ok, false);
 });
 
-test("consume: a paid plan keeps going on credits after the monthly allowance, but only for what the plan includes", async () => {
+test("consume: a plan keeps going on credits after the monthly amount, and credits also open what the plan does not include", async () => {
   const { env } = realEnv();
   const co = { id: 5, plan: "starter" };
   const limit = PLAN_LIMITS.starter.help_chat;
@@ -103,20 +120,25 @@ test("consume: a paid plan keeps going on credits after the monthly allowance, b
   assert.equal(a.allowed, true);
   assert.equal((a as any).credit, CREDIT_COST.help_chat);
   assert.equal((await creditView(env, 5, todayLocal())).balance, 3 - CREDIT_COST.help_chat);
-  // Starter has no HD renders, and credits do not unlock them.
-  assert.equal((await consume(env, co, "hd_render") as any).reason, "not_in_plan");
+  // Starter has no HD renders: without enough credits the answer is not_in_plan; with credits the render runs (decided 2026-11-14).
+  assert.equal((await consume(env, co, "hd_render") as any).reason, "not_in_plan"); // 2 credits left, a render costs 5
+  await grantCredits(env, 5, { id: "g2", credits: 10, source: "topup" }, todayLocal());
+  const r = await consume(env, co, "hd_render");
+  assert.equal(r.allowed, true);
+  assert.equal((r as any).credit, CREDIT_COST.hd_render);
   // The credit use is counted separately from the monthly count.
   const used = env.DB.prepare("SELECT count FROM usage_counters WHERE company_id = 5 AND feature = 'help_chat:credit' AND period = ?").bind(monthKey());
   assert.equal((await used.first()).count, 1);
 });
 
-test("consume: a free plan never spends credits, even if some were added", async () => {
+test("consume: a free plan spends credits too, and without credits it still stops at the monthly amount", async () => {
   const { env } = realEnv();
-  await grantCredits(env, 6, { id: "g", credits: 50, source: "admin" }, todayLocal());
   const co = { id: 6, plan: "free" };
   for (let i = 0; i < PLAN_LIMITS.free.help_chat; i++) await consume(env, co, "help_chat");
   assert.equal((await consume(env, co, "help_chat") as any).reason, "monthly_limit");
-  assert.equal((await creditView(env, 6, todayLocal())).balance, 50);
+  await grantCredits(env, 6, { id: "g", credits: 50, source: "topup" }, todayLocal());
+  assert.equal((await consume(env, co, "help_chat")).allowed, true);
+  assert.equal((await creditView(env, 6, todayLocal())).balance, 50 - CREDIT_COST.help_chat);
 });
 
 test("refund gives credits back when the failed call was paid for with credits, and the month's count otherwise", async () => {

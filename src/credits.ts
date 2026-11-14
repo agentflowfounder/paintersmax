@@ -5,11 +5,16 @@ import type { Feature } from "./usage.ts";
 /**
  * AI credits: extra AI uses a painter can add when a monthly allowance runs out.
  *
- *  - A credit is used only AFTER a feature's monthly allowance for the plan is used up, and only for features the plan already has.
+ *  - A credit is used only AFTER a feature's monthly amount for the plan is used up, or when the plan has no amount for that feature.
+ *    Credits work on every plan, the free one included (decided 2026-11-14): a painter who adds credits decides how to spend them.
  *  - Heavier uses cost more than one credit (a photo render costs more than a chat question).
- *  - Credits come in grants (a pack bought through Stripe, or added by us) and last CREDIT_EXPIRY_DAYS from the day they were added.
+ *  - Credits come in grants. How long a grant lasts depends on where it came from (see EXPIRY_DAYS):
+ *      allowance  the monthly credits of a $19 / $39 / $79 allowance; unused ones roll over for two months
+ *      topup      credits bought one at a time ($5 to $100); they do not expire during early access
+ *      welcome    the credits every new company starts with
+ *      reward     credits earned (finishing setup, referrals) or added by us
+ *      admin      added by hand in /admin
  *  - Oldest credits are used first. Credits that run out of time are written off, never used.
- *  - Free companies cannot use credits (they are kept, paused, if a plan ends).
  *
  * Storage needs no database change: the grant list is a small blob in app_settings, and one counter in usage_counters
  * ("credit:spent") holds how many credits have been used in total. Spending is a compare-and-swap on that counter, so two
@@ -17,6 +22,36 @@ import type { Feature } from "./usage.ts";
  */
 
 export const CREDIT_EXPIRY_DAYS = 90;
+
+export type GrantSource = "pack" | "admin" | "allowance" | "topup" | "welcome" | "reward";
+const SOURCES: GrantSource[] = ["pack", "admin", "allowance", "topup", "welcome", "reward"];
+/** How many days a grant can be used, by where it came from. Top-ups are kept for ten years, which is "no expiry" for early access. */
+/** Every new company starts with these credits (Rogelio, 2026-11-14: 1,000 for the first month; review after the first month of real use). */
+export const WELCOME_CREDITS = 1000;
+export const WELCOME_EXPIRY_DAYS = 60;
+export const EXPIRY_DAYS: Record<GrantSource, number> = { pack: 90, admin: 90, allowance: 90, topup: 3650, welcome: WELCOME_EXPIRY_DAYS, reward: 180 };
+
+/** A monthly allowance: a Stripe subscription that adds credits every month. Prices approved 2026-11-14. */
+export interface Allowance { id: string; priceCents: number; credits: number }
+export const ALLOWANCES: Allowance[] = [
+  { id: "a19", priceCents: 1900, credits: 150 },
+  { id: "a39", priceCents: 3900, credits: 400 },
+  { id: "a79", priceCents: 7900, credits: 1000 },
+];
+export const allowanceById = (id: unknown) => ALLOWANCES.find((a) => a.id === id) ?? null;
+/** The allowance that a paid amount belongs to (used when Stripe reports a renewal). */
+export const allowanceByPrice = (cents: unknown) => ALLOWANCES.find((a) => a.priceCents === Number(cents)) ?? null;
+
+/** A top-up: one payment, credits added once. Bigger top-ups get a slightly better rate (approved 2026-11-14). */
+export interface TopUp { id: string; priceCents: number; credits: number }
+export const TOPUPS: TopUp[] = [
+  { id: "t5", priceCents: 500, credits: 50 },
+  { id: "t10", priceCents: 1000, credits: 100 },
+  { id: "t20", priceCents: 2000, credits: 220 },
+  { id: "t50", priceCents: 5000, credits: 600 },
+  { id: "t100", priceCents: 10000, credits: 1300 },
+];
+export const topUpById = (id: unknown) => TOPUPS.find((t) => t.id === id) ?? null;
 
 /**
  * Credits per use. ASSUMPTION until the real cost per use is known from the usage log: one for everyday questions and reads,
@@ -28,20 +63,12 @@ export const CREDIT_COST: Record<Feature, number> = {
   color_repaint: 3,
 };
 
-/** Packs a painter can buy. The price stays null (not for sale) until the owner decides it; set a number of cents to open sales. */
-export interface CreditPack {
-  id: string;
-  credits: number;
-  priceCents: number | null;
-}
-export const CREDIT_PACKS: CreditPack[] = [{ id: "25", credits: 25, priceCents: null }];
-
 export interface Grant {
   id: string;
   credits: number;
   on: string; // YYYY-MM-DD added
   expiresOn: string; // YYYY-MM-DD, the last day the credits can be used
-  source: "pack" | "admin";
+  source: GrantSource;
   note: string;
 }
 
@@ -55,7 +82,7 @@ export function readGrants(raw: unknown): Grant[] {
   for (const g of list) {
     const credits = Math.round(Number(g?.credits));
     if (typeof g?.id !== "string" || !g.id || g.id.length > 80 || !Number.isFinite(credits) || credits < 1 || credits > 100000 || !isDate(g.on) || !isDate(g.expiresOn)) continue;
-    out.push({ id: g.id, credits, on: g.on, expiresOn: g.expiresOn, source: g.source === "admin" ? "admin" : "pack", note: typeof g.note === "string" ? g.note.slice(0, 100) : "" });
+    out.push({ id: g.id, credits, on: g.on, expiresOn: g.expiresOn, source: SOURCES.includes(g.source) ? g.source : "pack", note: typeof g.note === "string" ? g.note.slice(0, 100) : "" });
   }
   return out.map((g, i) => ({ g, i })).sort((a, b) => (a.g.on < b.g.on ? -1 : a.g.on > b.g.on ? 1 : a.i - b.i)).map((x) => x.g);
 }
@@ -138,13 +165,50 @@ export async function refundCredits(env: Env, c: number, cost: number) {
 }
 
 /** Adds a grant. The same grant id is never added twice (a payment can be reported more than once). */
-export async function grantCredits(env: Env, c: number, i: { id: string; credits: number; source: "pack" | "admin"; note?: string }, today: string): Promise<{ ok: boolean; added: boolean; error?: string }> {
+export async function grantCredits(env: Env, c: number, i: { id: string; credits: number; source: GrantSource; note?: string }, today: string): Promise<{ ok: boolean; added: boolean; error?: string }> {
   const credits = Math.round(Number(i.credits));
   if (!Number.isFinite(credits) || credits < 1 || credits > 100000) return { ok: false, added: false, error: "Enter a number of credits between 1 and 100,000." };
   const grants = await loadGrants(env, c);
   if (grants.some((g) => g.id === i.id)) return { ok: true, added: false };
   if (grants.length >= MAX_GRANTS) return { ok: false, added: false, error: "Too many credit records on this account." };
-  grants.push({ id: i.id.slice(0, 80), credits, on: today, expiresOn: addDaysIso(today, CREDIT_EXPIRY_DAYS), source: i.source, note: (i.note ?? "").slice(0, 100) });
+  grants.push({ id: i.id.slice(0, 80), credits, on: today, expiresOn: addDaysIso(today, EXPIRY_DAYS[i.source] ?? CREDIT_EXPIRY_DAYS), source: i.source, note: (i.note ?? "").slice(0, 100) });
   await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')").bind(creditsKey(c), JSON.stringify({ grants })).run();
   return { ok: true, added: true };
+}
+
+/** Where a company's monthly allowance stands. Kept in app_settings (no migration): allow:<companyId>. */
+export interface AllowanceRecord {
+  allowanceId: string;
+  subscriptionId: string;
+  status: "active" | "past_due" | "ended";
+  since: string; // YYYY-MM-DD
+  lastGrantOn: string | null;
+}
+export const allowanceKey = (c: number) => `allow:${c}`;
+/** Maps a Stripe subscription to the company, so a renewal can find its owner: allowsub:<subscriptionId>. */
+export const allowanceSubKey = (subscriptionId: string) => `allowsub:${subscriptionId}`;
+
+export function readAllowanceRecord(raw: unknown): AllowanceRecord | null {
+  const r = raw as any;
+  if (!r || typeof r.allowanceId !== "string" || typeof r.subscriptionId !== "string" || !allowanceById(r.allowanceId)) return null;
+  const status = r.status === "past_due" || r.status === "ended" ? r.status : "active";
+  return { allowanceId: r.allowanceId, subscriptionId: r.subscriptionId.slice(0, 80), status, since: isDate(r.since) ? r.since : "", lastGrantOn: isDate(r.lastGrantOn) ? r.lastGrantOn : null };
+}
+export async function loadAllowance(env: Env, c: number): Promise<AllowanceRecord | null> {
+  const r = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(allowanceKey(c)).first<{ value: string }>();
+  try {
+    return readAllowanceRecord(r ? JSON.parse(r.value) : null);
+  } catch {
+    return null;
+  }
+}
+export async function saveAllowance(env: Env, c: number, rec: AllowanceRecord): Promise<void> {
+  const up = "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')";
+  await env.DB.batch([env.DB.prepare(up).bind(allowanceKey(c), JSON.stringify(rec)), env.DB.prepare(up).bind(allowanceSubKey(rec.subscriptionId), String(c))]);
+}
+/** The company that owns a Stripe allowance subscription, or null. */
+export async function companyOfAllowanceSub(env: Env, subscriptionId: string): Promise<number | null> {
+  const r = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(allowanceSubKey(subscriptionId)).first<{ value: string }>();
+  const n = r ? Number(r.value) : NaN;
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
