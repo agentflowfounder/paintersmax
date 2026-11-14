@@ -189,9 +189,10 @@ export const DRAFT_SYSTEM = [
   "Write the way an experienced painter would write a scope for a customer: short, plain sentences, no jargon, nothing that promises a result you cannot back up.",
 ].join("\n");
 
-export function draftPrompt(brief: Brief, options: QtyOption[], city: string, findings: string[]): string {
+export function draftPrompt(brief: Brief, options: QtyOption[], city: string, findings: string[], language: "en" | "es" = "en"): string {
   return [
     briefText(brief),
+    language === "es" ? "Write the scope, inclusions, exclusions, assumptions and questions in plain Spanish." : "",
     city ? `City: ${city}` : "",
     findings.length ? `Problems the contractor confirmed from photos:\n${findings.map((f) => `- ${f}`).join("\n")}` : "",
     options.length

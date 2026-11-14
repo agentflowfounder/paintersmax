@@ -41,6 +41,8 @@ test("the AI reply is cleaned: only the painter's own price-list keys survive an
   assert.equal((ai.extraLines[0] as any).unitPrice, undefined);
   assert.deepEqual(ai.inclusions, ["Two coats"]);
   assert.match(draftPrompt(cleanBrief({ type: "interior", details: "x" }), options, "Dallas", []), /small: Small room/);
+  assert.doesNotMatch(draftPrompt(cleanBrief({ type: "interior", details: "x" }), options, "Dallas", []), /Spanish/);
+  assert.match(draftPrompt(cleanBrief({ type: "interior", details: "x" }), options, "Dallas", [], "es"), /in plain Spanish/);
 });
 
 test("the AI's quantities are priced by code from the painter's own list", () => {

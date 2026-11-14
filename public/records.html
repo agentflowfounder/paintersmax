@@ -177,6 +177,9 @@ function outPane(){var y=year,q=D.settings;
  return '<div class="card"><b>'+T('Download your records')+' ('+y+')</b><p class="muted">'+T('These are spreadsheet files (CSV). They open in Excel or Google Sheets, and your accountant can use them. Records only, not tax advice.')+'</p>'+
  '<div style="display:flex;gap:8px;flex-wrap:wrap">'+csv('expenses','Expenses (CSV)')+csv('mileage','Mileage (CSV)')+csv('income','Invoices (CSV)')+cw('hours','Crew hours (CSV)')+cw('payments','Crew payments (CSV)')+cw('1099','1099 list (CSV)')+'</div>'+
  '<p style="margin-top:14px"><a class="btn" href="/api/jobfile?year='+y+'">'+T('Year-end package (ZIP)')+'</a><br><span class="muted">'+T('The easiest one. A single download for your accountant with all of the above, plus QuickBooks files if they use it.')+'</span></p><p class="muted" style="margin-top:10px">'+T('Your data stays safe here. We still suggest downloading at least once a year, at tax time.')+'</p></div>'+
+ '<div class="card"><b>'+T('Download one job\'s file')+'</b><p class="muted">'+T('A single ZIP with everything about one job: photos, receipts, documents, change orders, crew hours, expenses, mileage, warranty and your private chat.')+'</p>'+
+ (D.jobs.length?'<label>'+T('Which job?')+'</label><select id="dl_job">'+D.jobs.map(function(j){return '<option value="'+j.id+'">'+esc(j.title+' - '+j.customer)+'</option>';}).join('')+'</select><p style="margin-top:10px"><a class="btn" id="dl_job_go" href="/api/jobfile?jobId='+D.jobs[0].id+'&download=1">'+T('Download this job (ZIP)')+'</a></p>':'<p class="muted">'+T('No jobs yet.')+'</p>')+
+ '<p class="muted">'+T('Your files stay safe here, and you can download them any time.')+'</p></div>'+
  '<div class="card"><b>'+T('Do you use QuickBooks?')+'</b>'+
  '<p class="muted">'+T('QuickBooks is accounting software. Think of it as a checkbook on a computer. Some accountants use it to keep a business\'s books.')+'</p>'+
  '<div class="note">'+T('Do not use QuickBooks? You can skip this whole box. The Year-end package above has everything your accountant needs.')+'</div>'+
@@ -187,6 +190,7 @@ function outPane(){var y=year,q=D.settings;
  '<ol class="steps" start="4"><li>'+T('Download the file below.')+'</li><li>'+T('In QuickBooks, open the File menu, then Utilities, then Import, then IIF Files, and choose the file.')+'</li></ol><p style="margin:6px 0">'+csv('iif','QuickBooks Desktop file (IIF)')+'</p>'+
  '<p class="muted">'+T('These files follow the formats Intuit (the maker of QuickBooks) publishes, but we cannot test inside your copy of QuickBooks. Try a small month first, and check the entries.')+'</p></div>';}
 
+document.addEventListener('change',function(e){if(e.target.id==='dl_job'){var g=document.getElementById('dl_job_go');if(g)g.href='/api/jobfile?jobId='+e.target.value+'&download=1';}});
 // ---------------- Settings ----------------
 function setPane(){var s=D.settings,rules=Object.keys(s.rules);
  return '<div class="card"><div id="pmsg" class="muted"></div><b>'+T('Mileage rate')+'</b>'+HELP(T('This is how many cents the government lets a business count for each mile driven. We multiply your miles by it to show what your driving is worth. It helps your accountant, and we never file anything. The number changes most years, so we leave it blank on purpose. If it is blank, nothing breaks: we just do not show the dollar value.'))+

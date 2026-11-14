@@ -58,16 +58,29 @@ function draw(){
  $('grid').innerHTML=h;
  $('nd').innerHTML=needs.length?needs.map(function(n){return'<div class="nd"><div><b>'+esc(n.title)+'</b><br><span class="muted">'+esc(n.customer)+'</span></div><button class="s" data-need="'+n.jobId+'">'+T('Set dates')+'</button></div>'}).join(''):'<p class="muted">'+T('Nothing waiting.')+'</p>';
 }
+
+function nice(k){return k&&window.pmDate?window.pmDate(k):(k||'');}
+function frDraw(){var f=$('e_fr'),g=$('e_gc'),s=$('e_s'),e=$('e_e'),t=window.calJob;if(!f||!s)return;
+ var a=s.value,b=e.value||s.value;
+ f.textContent=a?(b&&b!==a?nice(a)+' '+T('to')+' '+nice(b):nice(a)):T('Pick a start date.');
+ if(g){if(!a||!t){g.style.display='none';return;}
+  var ymd=function(k){return k.replace(/-/g,'')};var d=new Date(b+'T12:00:00');d.setDate(d.getDate()+1);var endEx=ymd(iso(d));
+  g.href='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent((t.title||'Paint job')+(t.customer?' - '+t.customer:''))+'&dates='+ymd(a)+'/'+endEx+'&location='+encodeURIComponent(t.address||'')+'&details='+encodeURIComponent($('e_n')?$('e_n').value:'');
+  g.style.display='';}}
+document.addEventListener('input',function(ev){if(ev.target.id==='e_s'||ev.target.id==='e_e'||ev.target.id==='e_n')frDraw();});
+document.addEventListener('change',function(ev){if(ev.target.id==='e_s'||ev.target.id==='e_e')frDraw();});
 function openEdit(id,fresh){
  var j=jobs.filter(function(x){return x.jobId===id})[0],n=needs.filter(function(x){return x.jobId===id})[0],t=j||n;if(!t)return;
  var s=j||{start:iso(new Date()),end:'',startTime:'',crew:[],notes:''};
  $('edit').style.display='block';
  $('edit').innerHTML='<b>'+esc(t.title)+'</b> <span class="muted">'+esc(t.customer||'')+(j&&j.address?' &middot; '+esc(j.address):'')+'</span>'+
  '<div class="row"><div><label>'+T('Start date')+'</label><input type="date" id="e_s" value="'+esc(s.start)+'"></div><div><label>'+T('End date')+'</label><input type="date" id="e_e" value="'+esc(s.end)+'"></div><div><label>'+T('Start time')+'</label><input type="time" id="e_t" value="'+esc(s.startTime)+'"></div></div>'+
+ '<div id="e_fr" class="muted" style="margin-top:6px"></div>'+
  '<label>'+T('Crew (names, separated by commas)')+'</label><input id="e_c" value="'+esc(s.crew.join(', '))+'" list="crewl" placeholder="Luis, Ana"><datalist id="crewl">'+crew.map(function(c){return'<option value="'+esc(c)+'">'}).join('')+'</datalist>'+
  '<label>'+T('Notes for the crew')+'</label><textarea id="e_n" rows="2">'+esc(s.notes)+'</textarea>'+
  '<label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" id="e_mail" style="width:auto"> '+T('Email the crew this schedule')+'</label>'+
- '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="e_save" data-id="'+id+'">'+T('Save')+'</button>'+(j?'<button class="d" id="e_clr" data-id="'+id+'">'+T('Remove from calendar')+'</button>':'')+'<a href="/jobs?id='+id+'" style="align-self:center">'+T('Open the job')+'</a></div><div id="e_msg" style="margin-top:8px"></div>';
+ '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="e_save" data-id="'+id+'">'+T('Save')+'</button>'+(j?'<button class="d" id="e_clr" data-id="'+id+'">'+T('Remove from calendar')+'</button>':'')+'<a href="/jobs?id='+id+'" style="align-self:center">'+T('Open the job')+'</a><a id="e_gc" target="_blank" rel="noopener" style="align-self:center;display:none">'+T('Add to Google Calendar')+'</a></div><div id="e_msg" style="margin-top:8px"></div>';
+ window.calJob=t;frDraw();
  $('edit').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 document.addEventListener('click',function(e){var t=e.target,d=t.dataset||{};

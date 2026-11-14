@@ -329,7 +329,7 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
     const cardData = card ? parse(card.data) : {};
     const options = card && card.method !== "lump_sum" ? quantityOptions(card.method, cardData) : [];
     const finds = ((await env.DB.prepare("SELECT data FROM job_photo_findings WHERE job_id = ? AND company_id = ? AND status = 'approved' ORDER BY id DESC LIMIT 6").bind(job.id, user.companyId).all<{ data: string }>().catch(() => ({ results: [] as { data: string }[] }))).results ?? []).flatMap((f) => (parse(f.data).issues ?? []).slice(0, 4).map((i: any) => `${String(i?.title ?? "").slice(0, 70)}: ${String(i?.fix ?? "").slice(0, 120)}`));
-    const out = await completeEx(env, DRAFT_SYSTEM, [{ role: "user", content: draftPrompt(brief, options, jobRow?.city ?? "", finds) }], { prefer: ["gemini", "openai", "anthropic"], maxTokens: 2200 });
+    const out = await completeEx(env, DRAFT_SYSTEM, [{ role: "user", content: draftPrompt(brief, options, jobRow?.city ?? "", finds, b.language === "es" ? "es" : "en") }], { prefer: ["gemini", "openai", "anthropic"], maxTokens: 2200 });
     const parsed = out ? parseJsonLoose(out.text) : null;
     if (!parsed) {
       await refund(env, company, "estimate_draft");

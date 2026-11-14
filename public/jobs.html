@@ -454,20 +454,20 @@ function bfSaveSoon(){clearTimeout(bfT);bfT=setTimeout(bfSave,700);}
 async function bfSave(){clearTimeout(bfT);if(!J||!BF)return;try{await api('/api/job',{action:'brief',jobId:J.job.id,brief:BF});}catch(e){}}
 async function bfCreate(){const btn=$('bf_create');if(!btn||!J)return;if(lines.length&&!confirm('This replaces the scope and lines on the page with a fresh draft. Continue?'))return;
  await bfSave();btn.disabled=true;btn.textContent='Writing your estimate...';msg('');
- try{const r=await api('/api/estimate',{action:'aiDraft',jobId:J.job.id});
+ try{const r=await api('/api/estimate',{action:'aiDraft',jobId:J.job.id,language:($('lang')||{}).value==='es'?'es':'en'});
   if(r.scope&&$('scope'))$('scope').value=r.scope;lines=(r.lines||[]).map(l=>({...l}));
   [['e_incl',r.inclusions],['e_excl',r.exclusions],['e_assume',r.assumptions]].forEach(([id,a])=>{if(a&&a.length&&$(id))$(id).value=a.join('\n');});
   drawLines();coachDraw(r);openAcc('est');const a=$('acc_est');if(a)a.scrollIntoView({behavior:'smooth',block:'start'});
  }catch(x){if(x)msg(x.message);}
  btn.disabled=false;btn.textContent='Create estimate';}
-function coachDraw(r){const b=$('bf_coach');if(!b)return;let h='';
- if(r.pricedCount)h+=`<li>I priced <b>${r.pricedCount}</b> ${r.pricedCount===1?'item':'items'} from your own price list, as a starting point only. Check the quantities and change any price that does not fit this job, then tap <b>Recalculate</b>.</li>`;
- if(r.needsPriceCount)h+=`<li><b>${r.needsPriceCount}</b> ${r.needsPriceCount===1?'line needs':'lines need'} your price (marked in orange). I never guess your prices.</li>`;
- if(!r.hasPriceList)h+=`<li>You have not set prices for this type of work yet. <a href="/app">Open Estimating Setup</a> and your next estimates will price themselves.</li>`;
- if(r.assumptions&&r.assumptions.length)h+=`<li>I made these assumptions. Please confirm them: ${r.assumptions.map(esc).join('; ')}.</li>`;
- if(r.questions&&r.questions.length)h+=`<li>Good questions to ask ${esc(String(J.job.customerName||'the customer').split(/\s+/)[0])} before you send:<ul>${r.questions.map(q=>'<li>'+esc(q)+'</li>').join('')}</ul></li>`;
- h+=`<li>Not sure about the total? Tap <b>Get a second opinion on my price</b>. The Quote helper builds its own price without your price list, then compares the two and coaches you if you have been bidding too low or too high.</li>`;
- b.innerHTML=`<div class="coach"><b>Here is what I did</b><ul>${h}</ul></div>`;}
+function coachDraw(r){const b=$('bf_coach');if(!b)return;const T=window.pmT||(q=>q);const L=t=>`<li>${esc(T(t))}</li>`;let h='';const nm=String(J.job.customerName||'the customer').split(/\s+/)[0];
+ if(r.pricedCount)h+=L(`I priced ${r.pricedCount} ${r.pricedCount===1?'item':'items'} from your own price list, as a starting point only. Check the quantities and change any price that does not fit this job, then tap Recalculate.`);
+ if(r.needsPriceCount)h+=L(`${r.needsPriceCount} ${r.needsPriceCount===1?'line needs':'lines need'} your price (marked in orange). I never guess your prices.`);
+ if(!r.hasPriceList)h+=`<li>${esc(T('You have not set prices for this type of work yet.'))} <a href="/app">${esc(T('Open Estimating Setup'))}</a> ${esc(T('and your next estimates will price themselves.'))}</li>`;
+ if(r.assumptions&&r.assumptions.length)h+=L(`I made these assumptions. Please confirm them: ${r.assumptions.join('; ')}.`);
+ if(r.questions&&r.questions.length)h+=`<li>${esc(T('Good questions to ask '+nm+' before you send:'))}<ul>${r.questions.map(q=>'<li>'+esc(q)+'</li>').join('')}</ul></li>`;
+ h+=L('Not sure about the total? Tap "Get a second opinion on my price". The Quote helper builds its own price without your price list, then compares the two and coaches you if you have been bidding too low or too high.');
+ b.innerHTML=`<div class="coach"><b>${esc(T('Here is what I did'))}</b><ul>${h}</ul></div>`;}
 async function bfOpinion(){if(!J)return;openAcc('help');const el=$('acc_help');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
  const q=$('as_in');if(q&&!q.value.trim())q.value='Please build your own quote for this job and compare it with my estimate. Tell me if I am too low or too high.';
  setTimeout(()=>{if(typeof askNow==='function')askNow($('as_in').value,'quote');},200);}
