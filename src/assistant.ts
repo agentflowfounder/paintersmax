@@ -4,7 +4,7 @@ import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
 export interface Turn {
   role: "user" | "assistant";
   content: string;
-  /** A photo the painter attached to this question. Only the Gemini path can look at it. */
+  /** A photo the painter attached to this question. All three providers can look at it. */
   image?: { mime: string; data: string };
 }
 
@@ -132,7 +132,7 @@ async function viaOpenAI(env: Env, system: string, turns: Turn[], maxTokens = 90
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${env.OPENAI_API_KEY}` },
-    body: JSON.stringify({ model: env.MODEL_OPENAI ?? "gpt-4.1-mini", max_tokens: maxTokens, messages: [{ role: "system", content: system }, ...turns] }),
+    body: JSON.stringify({ model: env.MODEL_OPENAI ?? "gpt-4.1-mini", max_tokens: maxTokens, messages: [{ role: "system", content: system }, ...turns.map((t) => (t.image ? { role: t.role, content: [{ type: "text", text: t.content }, { type: "image_url", image_url: { url: `data:${t.image.mime};base64,${t.image.data}` } }] } : { role: t.role, content: t.content }))] }),
   });
   if (!r.ok) throw new Error(`openai ${r.status}`);
   const j = (await r.json()) as any;
@@ -143,7 +143,7 @@ async function viaAnthropic(env: Env, system: string, turns: Turn[], maxTokens =
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5", max_tokens: maxTokens, system, messages: turns }),
+    body: JSON.stringify({ model: env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5", max_tokens: maxTokens, system, messages: turns.map((t) => (t.image ? { role: t.role, content: [{ type: "image", source: { type: "base64", media_type: t.image.mime, data: t.image.data } }, { type: "text", text: t.content }] } : { role: t.role, content: t.content })) }),
   });
   if (!r.ok) throw new Error(`anthropic ${r.status}`);
   const j = (await r.json()) as any;

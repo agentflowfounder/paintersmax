@@ -25,3 +25,39 @@ test("detailed answers have their own smaller allowance", () => {
   assert.ok(DEEP_PROMPT.includes("step-by-step") && DETAILED_PROMPT.includes("DETAILED"));
   assert.ok(PLAN_LIMITS.pro.ai_deep < PLAN_LIMITS.pro.ai_detailed);
 });
+
+import { QUOTE_PROMPT } from "../src/jobchat.ts";
+import { completeEx } from "../src/assistant.ts";
+
+test("quote mode is kept in saved chats, and the prompt makes the price card a check, not the start", () => {
+  const t = readThread(JSON.stringify([{ role: "assistant", content: "x", mode: "quote", at: "t" }]));
+  assert.equal(t[0].mode, "quote");
+  assert.match(QUOTE_PROMPT, /LOW, LIKELY and HIGH/);
+  assert.match(QUOTE_PROMPT, /Do NOT copy numbers from the price card/);
+  assert.match(QUOTE_PROMPT, /Reality check/);
+  assert.match(QUOTE_PROMPT, /Coach's note/);
+});
+
+test("a photo question reaches OpenAI and Anthropic as an image, not as an unknown field", async () => {
+  const seen: Record<string, any> = {};
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (url: any, init: any) => {
+    const u = String(url);
+    seen[u.includes("openai") ? "openai" : "anthropic"] = JSON.parse(init.body);
+    if (u.includes("openai")) return new Response("{}", { status: 500 });
+    return new Response(JSON.stringify({ content: [{ text: "ok" }] }), { status: 200 });
+  }) as any;
+  try {
+    const out = await completeEx({ OPENAI_API_KEY: "o", ANTHROPIC_API_KEY: "a" } as any, "sys", [{ role: "user", content: "what is this?", image: { mime: "image/jpeg", data: "AAAA" } }], { prefer: ["openai", "anthropic"] });
+    assert.equal(out?.provider, "anthropic");
+  } finally {
+    globalThis.fetch = real;
+  }
+  const oaMsg = seen.openai.messages[1];
+  assert.equal(oaMsg.image, undefined);
+  assert.equal(oaMsg.content[1].type, "image_url");
+  const anMsg = seen.anthropic.messages[0];
+  assert.equal(anMsg.image, undefined);
+  assert.equal(anMsg.content[0].type, "image");
+  assert.equal(anMsg.content[1].text, "what is this?");
+});

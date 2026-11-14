@@ -397,6 +397,28 @@ export default {
     ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    return friendly404(request, env, await handle(request, env, ctx));
+  },
+} satisfies ExportedHandler<Env>;
+
+/**
+ * A browser that lands on a plain-text "Not found." (an old customer link, a mistyped address) sees the friendly
+ * public/404.html instead. API calls, calendar feeds and downloads keep their plain or JSON answers.
+ */
+async function friendly404(request: Request, env: Env, res: Response): Promise<Response> {
+  if (res.status !== 404 || request.method !== "GET") return res;
+  if (!(res.headers.get("content-type") ?? "").startsWith("text/plain")) return res;
+  if (!(request.headers.get("accept") ?? "").includes("text/html")) return res;
+  try {
+    const page = await env.ASSETS.fetch(new URL("/404", request.url));
+    if (page.ok) return new Response(page.body, { status: 404, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+  } catch {
+    // fall through to the plain answer
+  }
+  return res;
+}
+
+async function handle(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const { pathname, hostname } = new URL(request.url);
     // A client's own address: rivera-painting.paintersmax.app shows their quote page. Owners sign in on the main site.
     // A client's own domain (managed in Cloudflare and mapped to a company in the admin page) behaves like their subdomain.
@@ -937,5 +959,5 @@ export default {
     }
     if (pathname.startsWith("/api/")) return json({ error: "Not found." }, 404);
     return env.ASSETS.fetch(request);
-  },
-} satisfies ExportedHandler<Env>;
+}
+
