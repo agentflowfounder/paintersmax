@@ -10,7 +10,7 @@
   ];
   var MORE = [
     ['/app', 'Estimating Setup'], ['/builders', 'Builder rates'], ['/citypages', 'City pages'], ['/import', 'Import customers'],
-    ['/materials', 'Materials'], ['/insurance', 'Insurance'], ['/insurance-guide', 'Insurance guide'], ['/help', 'Help'],
+    ['/materials', 'Materials'], ['/insurance', 'Insurance'], ['/insurance-guide', 'Insurance guide'], ['/brand', 'Brand kit'], ['/help', 'Help'],
   ];
   function go() {
     if (document.getElementById('pm_nav')) return;

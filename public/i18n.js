@@ -1524,5 +1524,41 @@
     "Article not found.": "No se encontró el artículo.",
   }, []);
 
+  /* ---- Part 14: Brand kit ---- */
+  pmI18n.add({
+    "Brand kit": "Kit de marca", "Brand kit - PaintersMax": "Kit de marca - PaintersMax",
+    "Open Brand kit": "Abrir Kit de marca",
+    "Your brand kit": "Su kit de marca",
+    "Print-ready business cards, fliers and door hangers, and emails you can send, all filled in with your details. Nothing is claimed that you do not type or tick yourself.": "Tarjetas de presentación, volantes y colgadores de puerta listos para imprimir, y correos que puede enviar, todo llenado con sus datos. No se afirma nada que usted no escriba o marque.",
+    "Your details (tap to change)": "Sus datos (toque para cambiar)",
+    "Company name": "Nombre de la empresa", "Your name (on the card)": "Su nombre (en la tarjeta)", "Your title": "Su cargo",
+    "Phone": "Teléfono", "Website": "Sitio web",
+    "License number (leave empty if none)": "Número de licencia (déjelo vacío si no tiene)",
+    "Tagline (one short line)": "Lema (una línea corta)", "Brand color": "Color de la marca",
+    "Logo web address (optional)": "Dirección web del logotipo (opcional)",
+    "A link to your logo image. Without one, your company name is printed instead.": "Un enlace a la imagen de su logotipo. Sin uno, se imprime el nombre de su empresa.",
+    "Where the QR code goes": "A dónde lleva el código QR",
+    "Starts as your quote page, so people can ask for an estimate by scanning.": "Empieza con su página de presupuestos, para que la gente pida un presupuesto al escanear.",
+    "Language on printed pieces": "Idioma de las piezas impresas",
+    "What you offer (one per line, up to 8)": "Lo que ofrece (uno por línea, hasta 8)",
+    "Where you work": "Dónde trabaja",
+    "We carry business insurance (prints \"Insured\")": "Tenemos seguro de negocio (imprime \"Asegurado\")",
+    "You have an insurance policy on file. Tick the box above to show \"Insured\" on your printed pieces.": "Tiene una póliza de seguro registrada. Marque la casilla de arriba para mostrar \"Asegurado\" en sus piezas impresas.",
+    "Your Google review link (optional, used in the thank-you email)": "Su enlace de reseñas de Google (opcional, se usa en el correo de agradecimiento)",
+    "Save my details": "Guardar mis datos",
+    "Business cards": "Tarjetas de presentación",
+    "Pick a look. The back has a QR code that opens your quote page.": "Elija un estilo. El reverso tiene un código QR que abre su página de presupuestos.",
+    "Classic": "Clásico", "Bold": "Atrevido", "Clean": "Limpio", "Dark": "Oscuro",
+    "Business card preview": "Vista previa de la tarjeta",
+    "Sheet of 10 (print at home or at a copy shop)": "Hoja de 10 (imprima en casa o en una copistería)",
+    "Print-shop file (one card per page, with bleed)": "Archivo para imprenta (una tarjeta por página, con sangrado)",
+    "Show light cut lines": "Mostrar líneas de corte suaves",
+    "Open to print or save as PDF": "Abrir para imprimir o guardar como PDF",
+    "Tip: perforated card stock such as Avery 5371 (10 cards per sheet) fits the sheet exactly. Turn cut lines off for it. Print at 100%, not \"Fit to page\".": "Consejo: el cartón perforado como Avery 5371 (10 tarjetas por hoja) encaja exacto con la hoja. Apague las líneas de corte. Imprima al 100%, no \"Ajustar a la página\".",
+    "Saved.": "Guardado.",
+    "Add your company name first.": "Primero agregue el nombre de su empresa.",
+    "Your browser blocked the new window. Allow pop-ups for this site and try again.": "Su navegador bloqueó la ventana nueva. Permita las ventanas emergentes de este sitio e intente de nuevo.",
+  }, []);
+
   pmI18n.start();
 })();

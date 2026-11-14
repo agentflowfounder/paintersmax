@@ -31,6 +31,7 @@ import { handleLessons } from "./lessons.ts";
 import { handleCertPublic, handleWarranty } from "./warranty.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleHelp } from "./helplib.ts";
+import { handleBrand } from "./brand.ts";
 import { visionAsk } from "./vision.ts";
 import { handleFiles } from "./files.ts";
 import { handleJobLost } from "./joblost.ts";
@@ -785,6 +786,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleWorkOrders(request, env);
       } catch (err) {
         console.error("workorders failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/brand") {
+      try {
+        return await handleBrand(request, env);
+      } catch (err) {
+        console.error("brand failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

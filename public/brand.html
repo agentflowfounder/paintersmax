@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Brand kit - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
+main{max-width:860px;margin:0 auto;padding:16px 16px 70px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0 4px}
+h2{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:22px;margin:0 0 6px}
+.muted,small{color:#4A5568}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:12px;padding:14px 16px;margin:0 0 14px}
+details>summary{cursor:pointer;font-weight:700;font-size:16px;padding:2px 0}
+label{display:block;font-size:13px;font-weight:600;margin:12px 0 4px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
+input[type=color]{padding:2px;height:44px;width:64px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.hint{font-size:12px;color:#4A5568;margin-top:3px}
+.btn{padding:12px 18px;border-radius:10px;border:0;font-weight:700;font-size:15px;cursor:pointer;background:#E8A33D;color:#0F1B2D}
+.btn.sec{background:#eceae4}.btn:disabled{opacity:.5}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.tab{padding:10px 14px;border-radius:99px;border:1px solid #cfd5dc;background:#fff;font:600 14px inherit;cursor:pointer;color:#0F1B2D;font-family:inherit}
+.tab.on{background:#0F1B2D;color:#fff;border-color:#0F1B2D}
+.dz{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+.dz button{padding:9px 14px;border-radius:10px;border:2px solid #cfd5dc;background:#fff;font:600 14px inherit;font-family:inherit;cursor:pointer;color:#0F1B2D}
+.dz button.on{border-color:#E8A33D;background:#fff6e6}
+iframe{width:100%;border:1px solid rgba(15,27,45,.12);border-radius:10px;background:#eceae4}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.row label{margin:0;display:flex;gap:8px;align-items:center;font-weight:500}.row input[type=radio],.row input[type=checkbox]{width:auto}
+#msg{min-height:20px;font-size:14px;margin:6px 0}.ok{color:#0a7a3d}.bad{color:#b42318}
+@media(max-width:560px){.g{grid-template-columns:1fr}}
+</style></head><body>
+<header><div><b>PaintersMax</b> Brand kit</div><div><a href="/jobs">Jobs</a><a href="/dashboard">Home</a></div></header>
+<main>
+<h1>Your brand kit</h1>
+<p class="muted" style="margin:0 0 12px">Print-ready business cards, fliers and door hangers, and emails you can send, all filled in with your details. Nothing is claimed that you do not type or tick yourself.</p>
+<div id="msg" role="status"></div>
+
+<div class="card"><details id="det"><summary>Your details (tap to change)</summary>
+<div class="g">
+<div><label for="f_company">Company name</label><input id="f_company" maxlength="80"></div>
+<div><label for="f_person">Your name (on the card)</label><input id="f_person" maxlength="60" placeholder="Example: Maria Lopez"></div>
+<div><label for="f_title">Your title</label><input id="f_title" maxlength="40" placeholder="Owner"></div>
+<div><label for="f_phone">Phone</label><input id="f_phone" maxlength="30" inputmode="tel"></div>
+<div><label for="f_email">Email</label><input id="f_email" maxlength="80" inputmode="email"></div>
+<div><label for="f_website">Website</label><input id="f_website" maxlength="80" placeholder="yourcompany.com"></div>
+<div><label for="f_license">License number (leave empty if none)</label><input id="f_license" maxlength="40"></div>
+<div><label for="f_tag">Tagline (one short line)</label><input id="f_tag" maxlength="90" placeholder="Clean lines. Honest prices."></div>
+<div><label for="f_color">Brand color</label><input id="f_color" type="color" value="#E8A33D"></div>
+<div><label for="f_logo">Logo web address (optional)</label><input id="f_logo" maxlength="300" placeholder="https://..."><div class="hint">A link to your logo image. Without one, your company name is printed instead.</div></div>
+<div><label for="f_qr">Where the QR code goes</label><input id="f_qr" maxlength="150"><div class="hint">Starts as your quote page, so people can ask for an estimate by scanning.</div></div>
+<div><label for="f_lang">Language on printed pieces</label><select id="f_lang"><option value="en">English</option><option value="es">Español</option></select></div>
+</div>
+<label for="f_services">What you offer (one per line, up to 8)</label><textarea id="f_services" rows="4"></textarea>
+<label for="f_area">Where you work</label><input id="f_area" maxlength="100" placeholder="Dallas, Plano, Frisco">
+<div class="row"><label><input type="checkbox" id="f_ins"> We carry business insurance (prints "Insured")</label></div>
+<div class="hint" id="insHint" hidden>You have an insurance policy on file. Tick the box above to show "Insured" on your printed pieces.</div>
+<label for="f_review">Your Google review link (optional, used in the thank-you email)</label><input id="f_review" maxlength="300" placeholder="https://g.page/r/...">
+<div class="row"><button class="btn" id="save">Save my details</button></div>
+</details></div>
+
+<div class="tabs" id="tabs" role="tablist"></div>
+
+<div id="p_cards" class="card" hidden>
+<h2>Business cards</h2>
+<p class="muted" style="margin:0">Pick a look. The back has a QR code that opens your quote page.</p>
+<div class="dz" id="cd"></div>
+<iframe id="pv" title="Business card preview" style="height:520px"></iframe>
+<div class="row"><label><input type="radio" name="cm" value="sheet" checked> Sheet of 10 (print at home or at a copy shop)</label><label><input type="radio" name="cm" value="bleed"> Print-shop file (one card per page, with bleed)</label></div>
+<div class="row" id="guideRow"><label><input type="checkbox" id="guides" checked> Show light cut lines</label></div>
+<div class="row"><button class="btn" id="printCards">Open to print or save as PDF</button></div>
+<p class="hint">Tip: perforated card stock such as Avery 5371 (10 cards per sheet) fits the sheet exactly. Turn cut lines off for it. Print at 100%, not "Fit to page".</p>
+</div>
+
+<div id="empty" class="card" hidden>Loading...</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const T=window.pmT||(s=>s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
+function msg(t,ok){$('msg').textContent=t||'';$('msg').className=ok?'ok':'bad';}
+const TABS=[['cards','Business cards']];
+let TAB=localStorage.getItem('brand_tab')||'cards',DESIGN=localStorage.getItem('brand_design')||'classic',CARDS=[];
+function read(){return{company:$('f_company').value,person:$('f_person').value,title:$('f_title').value,phone:$('f_phone').value,email:$('f_email').value,website:$('f_website').value,license:$('f_license').value,tagline:$('f_tag').value,color:$('f_color').value,logoUrl:$('f_logo').value,qrUrl:$('f_qr').value,services:$('f_services').value.split('\n'),area:$('f_area').value,insured:$('f_ins').checked,reviewUrl:$('f_review').value,language:$('f_lang').value};}
+function fill(b){$('f_company').value=b.company;$('f_person').value=b.person;$('f_title').value=b.title;$('f_phone').value=b.phone;$('f_email').value=b.email;$('f_website').value=b.website;$('f_license').value=b.license;$('f_tag').value=b.tagline;$('f_color').value=b.color;$('f_logo').value=b.logoUrl;$('f_qr').value=b.qrUrl;$('f_services').value=b.services.join('\n');$('f_area').value=b.area;$('f_ins').checked=!!b.insured;$('f_review').value=b.reviewUrl;$('f_lang').value=b.language;}
+function tabs(){$('tabs').innerHTML=TABS.map(t=>`<button class="tab${t[0]===TAB?' on':''}" role="tab" data-tab="${t[0]}">${esc(T(t[1]))}</button>`).join('');TABS.forEach(t=>{const p=$('p_'+t[0]);if(p)p.hidden=t[0]!==TAB;});}
+let timer=null;
+function refresh(){clearTimeout(timer);timer=setTimeout(async()=>{try{if(TAB==='cards'){const r=await api('/api/brand',{action:'render',kind:'cards',design:DESIGN,mode:'preview',brand:read()});$('pv').srcdoc=r.html;}}catch(e){if(e)msg(e.message);}},250);}
+function designs(){$('cd').innerHTML=CARDS.map(d=>`<button data-d="${d.id}" class="${d.id===DESIGN?'on':''}">${esc(T(d.label))}</button>`).join('');}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-tab],[data-d]');if(!t)return;if(t.dataset.tab){TAB=t.dataset.tab;localStorage.setItem('brand_tab',TAB);tabs();refresh();}else{DESIGN=t.dataset.d;localStorage.setItem('brand_design',DESIGN);designs();refresh();}});
+document.querySelectorAll('#det input,#det select,#det textarea').forEach(el=>el.addEventListener('input',refresh));
+$('save').onclick=async()=>{try{const r=await api('/api/brand',{action:'save',brand:read()});fill(r.brand);msg('Saved.',true);refresh();}catch(e){if(e)msg(e.message);}};
+async function openPrint(body){const w=window.open('','_blank');try{const r=await api('/api/brand',body);if(!w){msg('Your browser blocked the new window. Allow pop-ups for this site and try again.');return;}w.document.open();w.document.write(r.html);w.document.close();}catch(e){if(w)w.close();if(e)msg(e.message);}}
+$('printCards').onclick=async()=>{const mode=document.querySelector('input[name=cm]:checked').value;try{await api('/api/brand',{action:'save',brand:read()});}catch(e){}openPrint({action:'render',kind:'cards',design:DESIGN,mode,guides:$('guides').checked,brand:read()});};
+document.querySelectorAll('input[name=cm]').forEach(r=>r.addEventListener('change',()=>{$('guideRow').hidden=document.querySelector('input[name=cm]:checked').value!=='sheet';}));
+(async()=>{try{const v=await api('/api/brand');CARDS=v.cardDesigns;fill(v.brand||v.suggested);$('insHint').hidden=!v.hasInsurance||!!(v.brand&&v.brand.insured);$('det').open=!v.brand;
+ if(!TABS.some(t=>t[0]===TAB))TAB=TABS[0][0];if(!CARDS.some(d=>d.id===DESIGN))DESIGN='classic';tabs();designs();refresh();}
+catch(e){if(e)msg(e.message);}})();
+</script><script src="/nav.js"></script></body></html>
