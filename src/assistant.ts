@@ -110,7 +110,38 @@ export async function buildJobContext(env: Env, companyId: number, jobId: number
   return cut(lines.join("\n"), 7000);
 }
 
-export const keyFor = (env: Env, p: "gemini" | "openai" | "anthropic") => (p === "anthropic" ? env.ANTHROPIC_API_KEY : p === "openai" ? env.OPENAI_API_KEY : env.GEMINI_API_KEY);
+export const keyFor = (env: Env, p: Provider) => (p === "anthropic" || p === "haiku" ? env.ANTHROPIC_API_KEY : p === "openai" ? env.OPENAI_API_KEY : env.GEMINI_API_KEY);
+
+/** The small, fast Claude model for everyday text tools (the Haiku test approved 2026-11-14). */
+export const DEFAULT_FAST_ANTHROPIC_MODEL = "claude-haiku-5-5";
+export const fastAnthropicModel = (env: Env): string => env.MODEL_ANTHROPIC_FAST || DEFAULT_FAST_ANTHROPIC_MODEL;
+
+/** Which provider answers the everyday text tools first. Set in /admin; kept in app_settings so no deploy is needed to switch. */
+export type TextDefault = "gemini" | "haiku";
+export const TEXT_DEFAULT_KEY = "aimodel";
+export const TEXT_ORDERS: Record<TextDefault, Provider[]> = {
+  gemini: ["gemini", "openai", "anthropic"],
+  haiku: ["haiku", "gemini", "openai", "anthropic"],
+};
+export const readTextDefault = (raw: unknown): TextDefault => ((raw as any)?.default === "haiku" ? "haiku" : "gemini");
+let textDefaultCache: { at: number; value: TextDefault } | null = null;
+/** Reads the setting at most once a minute per running instance. */
+export async function textDefault(env: Env, now = Date.now()): Promise<TextDefault> {
+  if (textDefaultCache && now - textDefaultCache.at < 60_000) return textDefaultCache.value;
+  let value: TextDefault = "gemini";
+  try {
+    const r = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(TEXT_DEFAULT_KEY).first<{ value: string }>();
+    value = readTextDefault(r ? JSON.parse(r.value) : null);
+  } catch {
+    /* the default stands */
+  }
+  textDefaultCache = { at: now, value };
+  return value;
+}
+export async function setTextDefault(env: Env, value: TextDefault): Promise<void> {
+  await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')").bind(TEXT_DEFAULT_KEY, JSON.stringify({ default: value })).run();
+  textDefaultCache = null;
+}
 
 async function viaGemini(env: Env, system: string, turns: Turn[], maxTokens = 900): Promise<string> {
   const model = geminiModel(env);
@@ -142,18 +173,21 @@ async function viaOpenAI(env: Env, system: string, turns: Turn[], maxTokens = 90
   return j.choices?.[0]?.message?.content ?? "";
 }
 
-async function viaAnthropic(env: Env, system: string, turns: Turn[], maxTokens = 900): Promise<string> {
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
+const viaAnthropic = (env: Env, system: string, turns: Turn[], maxTokens = 900) => viaAnthropicModel(env, env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5", system, turns, maxTokens);
+const viaHaiku = (env: Env, system: string, turns: Turn[], maxTokens = 900) => viaAnthropicModel(env, fastAnthropicModel(env), system, turns, maxTokens);
+
+async function viaAnthropicModel(env: Env, model: string, system: string, turns: Turn[], maxTokens = 900): Promise<string> {
+  const r = await fetch(`${env.ANTHROPIC_API_BASE ?? "https://api.anthropic.com"}/v1/messages`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5", max_tokens: maxTokens, system, messages: turns.map((t) => (t.image ? { role: t.role, content: [{ type: "image", source: { type: "base64", media_type: t.image.mime, data: t.image.data } }, { type: "text", text: t.content }] } : { role: t.role, content: t.content })) }),
+    body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: turns.map((t) => (t.image ? { role: t.role, content: [{ type: "image", source: { type: "base64", media_type: t.image.mime, data: t.image.data } }, { type: "text", text: t.content }] } : { role: t.role, content: t.content })) }),
   });
   if (!r.ok) throw new Error(`anthropic ${r.status}`);
   const j = (await r.json()) as any;
   return j.content?.[0]?.text ?? "";
 }
 
-const CALLERS = { gemini: viaGemini, openai: viaOpenAI, anthropic: viaAnthropic } as const;
+const CALLERS = { gemini: viaGemini, openai: viaOpenAI, anthropic: viaAnthropic, haiku: viaHaiku } as const;
 
 /** Tries each provider with a key, cheapest first. Returns null when none works. */
 export async function ask(env: Env, jobContext: string | null, history: Turn[], question: string, language: "en" | "es" = "en"): Promise<string | null> {
@@ -162,11 +196,11 @@ export async function ask(env: Env, jobContext: string | null, history: Turn[], 
   return complete(env, system, [...history, { role: "user", content: question }]);
 }
 
-export type Provider = "gemini" | "openai" | "anthropic";
+export type Provider = "gemini" | "openai" | "anthropic" | "haiku";
 
-/** Runs a prompt through providers that have a key, in the order given (default cheapest first). Returns the text and which provider answered. */
+/** Runs a prompt through providers that have a key, in the order given (default: the text default chosen in /admin, then the rest). Returns the text and which provider answered. */
 export async function completeEx(env: Env, system: string, turns: Turn[], opts: { prefer?: Provider[]; maxTokens?: number } = {}): Promise<{ text: string; provider: Provider } | null> {
-  for (const p of opts.prefer ?? (["gemini", "openai", "anthropic"] as Provider[])) {
+  for (const p of opts.prefer ?? TEXT_ORDERS[await textDefault(env)]) {
     if (!keyFor(env, p)) continue;
     try {
       const out = (await CALLERS[p](env, system, turns, opts.maxTokens)).trim();
@@ -205,4 +239,20 @@ export async function draftCoverNote(env: Env, input: { company: string; custome
   if (!out) return null;
   const clean = scrubNote(out);
   return clean || null;
+}
+
+/** Runs one question through Gemini and through Haiku, for the side-by-side test in /admin. Each answer carries its time and a rough token count. */
+export async function sideBySide(env: Env, question: string): Promise<{ provider: Provider; text: string; ms: number; tokens: number; ok: boolean }[]> {
+  const system = `${SYSTEM_PROMPT}\n\n<job_data>\nCompany: Tyler Painters (sample). Job: interior repaint, 3 bedrooms, walls and ceilings, two coats.\n</job_data>`;
+  const run = async (p: Provider) => {
+    const t0 = Date.now();
+    if (!keyFor(env, p)) return { provider: p, text: "No key for this provider.", ms: 0, tokens: 0, ok: false };
+    try {
+      const text = (await CALLERS[p](env, system, [{ role: "user", content: question }], 600)).trim();
+      return { provider: p, text, ms: Date.now() - t0, tokens: Math.round((system.length + question.length + text.length) / 4), ok: !!text };
+    } catch (err) {
+      return { provider: p, text: String(err), ms: Date.now() - t0, tokens: 0, ok: false };
+    }
+  };
+  return Promise.all([run("gemini"), run("haiku")]);
 }

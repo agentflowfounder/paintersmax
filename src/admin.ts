@@ -6,6 +6,8 @@ import { getSessionUser, requestLoginLink } from "./auth.ts";
 import { grantCredits, WELCOME_CREDITS } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
 import { normalizePlan } from "./usage.ts";
+import { fastAnthropicModel, setTextDefault, sideBySide, textDefault } from "./assistant.ts";
+import { geminiModel } from "./gemini.ts";
 import { adminHelpDelete, adminHelpDismiss, adminHelpDraft, adminHelpSave, adminHelpView } from "./helplib.ts";
 import { ADMIN_KEY, GROUP_LABELS, inEmailEngine, loadAdmin, readAdmin, RULES } from "./notices.ts";
 import type { Env } from "./types.ts";
@@ -126,6 +128,16 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
       const r = await grantCredits(env, id, { id: `admin:${Date.now()}:${crypto.randomUUID().slice(0, 8)}`, credits: Number(b?.credits), source: "admin", note: typeof b?.note === "string" ? b.note.trim().slice(0, 100) : "" }, todayLocal());
       return r.ok ? json({ ok: true }) : json({ error: r.error ?? "Could not add credits." }, 400);
     }
+    if (b?.action === "aimodel_set") {
+      if (b.default !== "gemini" && b.default !== "haiku") return json({ error: "Choose Gemini or Haiku." }, 400);
+      await setTextDefault(env, b.default);
+      return json({ ok: true, default: b.default });
+    }
+    if (b?.action === "aimodel_test") {
+      const q = typeof b.question === "string" ? b.question.trim().slice(0, 500) : "";
+      if (!q) return json({ error: "Type a question to test." }, 400);
+      return json({ answers: await sideBySide(env, q) });
+    }
     if (b?.action === "notices_set") {
       // One switch per reminder and place: "default" follows the plan, "all" turns it on for every plan, "off" hides it from everyone.
       const rule = RULES.find((r) => r.id === b?.rule);
@@ -151,6 +163,7 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
     return json({ rules: RULES.map((r) => ({ id: r.id, group: GROUP_LABELS[r.group], label: r.label, canDigest: inEmailEngine(r), emailDefault: r.digest, always: !!r.always, home: sw[r.id]?.home ?? "default", digest: sw[r.id]?.digest ?? "default" })) });
   }
   if (new URL(request.url).searchParams.get("help") === "1") return json(await adminHelpView(env));
+  if (new URL(request.url).searchParams.get("aimodel") === "1") return json({ default: await textDefault(env, 0), gemini: geminiModel(env), haiku: fastAnthropicModel(env), haikuKey: !!env.ANTHROPIC_API_KEY });
   if (new URL(request.url).searchParams.get("ticker") === "1") return json(await adminTickerView(env));
 
   const rows = await env.DB.prepare(

@@ -58,10 +58,16 @@ small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#
 <h2 style="font-size:20px">Reminders for every plan</h2>
 <div class="card"><small>Each reminder follows the plan by default: the free plan sees 3 Home lines and gets no email, Starter gets a Monday email, Basic and Pro get the daily email. Choose <b>On for all plans</b> to give a reminder to everyone, or <b>Off for everyone</b> to hide it. Changes apply the next time a painter opens Home, and to the next morning email.</small>
 <div id="nt_list" style="margin-top:10px;overflow-x:auto">Loading...</div></div>
+<h2 style="font-size:20px">AI model for text tools</h2>
+<div class="card"><small>The everyday text tools (help chat, job assistant, estimate drafts, invoice notes, Quote helper) ask this model first and fall back to the others if it fails. Photos always use Gemini. The Gemini price doubles on January 1, 2027, so test Claude Haiku here and switch when the answers hold up.</small>
+<div id="am_box" style="margin-top:10px">Loading...</div>
+<div class="row" style="margin-top:10px"><div style="flex:1"><label>Try the same question on both</label><input id="am_q" maxlength="500" placeholder="How do I prep a stained ceiling before painting?"></div></div>
+<button class="btn" id="am_go">Run the side-by-side test</button>
+<div id="am_out" style="margin-top:10px"></div></div>
 <h2 style="font-size:20px">Add AI credits</h2>
 <div class="card"><div class="row"><div><label>Client</label><select id="cr_c"></select></div><div><label>Credits</label><input id="cr_n" inputmode="numeric" placeholder="25"></div><div><label>Note (optional)</label><input id="cr_note" maxlength="100" placeholder="Paid by Zelle"></div></div>
 <button class="btn" id="cr_go">Add credits</button>
-<p><small>Credits are extra AI uses, used only after a monthly allowance runs out, and they last 90 days. They only work on a paid plan. A 25-credit pack is the usual size.</small></p></div>
+<p><small>Credits are extra AI uses, used after a monthly amount runs out or for a tool the plan does not include. Admin credits last 90 days and work on every plan, the free one included.</small></p></div>
 <h2 style="font-size:20px">Add a client</h2>
 <div class="card"><div class="row"><div><label>Company name</label><input id="n"></div><div><label>Owner email</label><input id="e" type="email"></div><div><label>Plan</label><select id="p"><option value="free">Free</option><option value="starter">Starter</option><option value="basic">Basic</option><option value="pro">Pro</option></select></div></div>
 <button class="btn" id="go">Create client and email sign-in link</button>
@@ -129,6 +135,10 @@ async function ntLoad(){try{const {rules}=await api('/api/admin?notices=1');let 
   return head+`<tr style="border-top:1px solid #eee"><td style="padding:6px 4px">${esc(r.label)}${r.always?'<br><small>Already on every plan</small>':''}</td><td style="padding:6px 4px">${sel('home',r.home)}</td><td style="padding:6px 4px">${r.canDigest?sel('digest',r.digest)+(r.emailDefault?'':'<br><small>Home only unless you turn it on</small>'):'<small>Home only for now</small>'}</td></tr>`;}).join('')+'</tbody></table>';
 }catch(x){if(x)$('nt_list').textContent='Could not load the reminders.';}}
 document.addEventListener('change',async e=>{const id=e.target.dataset&&e.target.dataset.nt;if(!id)return;try{await api('/api/admin',{action:'notices_set',rule:id,[e.target.dataset.place]:e.target.value});msg('Reminder setting saved.',true);}catch(x){if(x)msg(x.message);}});
+async function amLoad(){try{const v=await api('/api/admin?aimodel=1');$('am_box').innerHTML=`<label><input type="radio" name="am" value="gemini" ${v.default==='gemini'?'checked':''}> Gemini (${esc(v.gemini)})</label> &nbsp; <label><input type="radio" name="am" value="haiku" ${v.default==='haiku'?'checked':''}> Claude Haiku (${esc(v.haiku)})${v.haikuKey?'':' <small>no Anthropic key in Cloudflare yet</small>'}</label>`;}catch(x){if(x)$('am_box').textContent='Could not load the model setting.';}}
+document.addEventListener('change',async e=>{if(e.target.name!=='am')return;try{await api('/api/admin',{action:'aimodel_set',default:e.target.value});msg('Text tools now ask '+(e.target.value==='haiku'?'Claude Haiku':'Gemini')+' first. It applies within a minute.',true);}catch(x){if(x)msg(x.message);}});
+$('am_go').onclick=async()=>{const q=$('am_q').value.trim();if(!q){msg('Type a question to test.');return;}$('am_go').disabled=true;$('am_out').innerHTML='Asking both...';try{const {answers}=await api('/api/admin',{action:'aimodel_test',question:q});$('am_out').innerHTML='<div class="row">'+answers.map(a=>`<div style="flex:1;min-width:240px"><b>${a.provider==='haiku'?'Claude Haiku':'Gemini'}</b> <small>${a.ok?a.ms+' ms, about '+a.tokens+' tokens':'did not answer'}</small><div style="white-space:pre-wrap;font-size:14px;margin-top:4px">${esc(a.text)}</div></div>`).join('')+'</div>';}catch(x){if(x)$('am_out').textContent=x.message;}$('am_go').disabled=false;};
+amLoad();
 ntLoad();
 mLoad();
 mkLoad();

@@ -13,6 +13,8 @@ export interface Env {
   NOTIFY_EMAIL?: string;
   FROM_EMAIL?: string;
   MODEL_ANTHROPIC?: string;
+  MODEL_ANTHROPIC_FAST?: string; // the small Claude model for everyday text tools (default claude-haiku-5-5)
+  ANTHROPIC_API_BASE?: string; // tests and local runs can point this at a mock
   MODEL_OPENAI?: string;
   MODEL_GEMINI?: string;
   MODEL_GEMINI_IMAGE?: string; // optional: the Gemini image model for color previews (tried first)
