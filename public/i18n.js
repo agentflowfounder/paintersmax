@@ -1609,7 +1609,14 @@
     "Change orders on this invoice": "Órdenes de cambio en esta factura", "Approved change orders on the job": "Órdenes de cambio aprobadas en el trabajo", "Change orders waiting for the customer": "Órdenes de cambio esperando al cliente",
   }, [
     [/^The start date \((.+?)\) is here\. Tap Start the job when the crew begins\.$/, function (a, d) { return 'Llegó la fecha de inicio (' + d + '). Toque Iniciar el trabajo cuando el equipo comience.'; }],
-    [/^Scheduled for (.+?)\. Record the deposit if you have not, and make crew instructions and a materials list\. When the crew begins, tap Start the job\.$/, function (a, d) { return 'Programado para el ' + d + '. Registre el depósito si aún no lo hizo y prepare las instrucciones para el equipo y la lista de materiales. Cuando el equipo comience, toque Iniciar el trabajo.'; }],
+    [/^Scheduled for (.+?)\. Record the deposit if you have not, and make crew instructions and a materials list\. When the crew begins, tap Start the job\.( .+)?$/, function (a, d, sfx) {
+      var tail = '';
+      var m = sfx && (/^ (.+?) was emailed the "We start tomorrow" notice\.$/.exec(sfx) || null);
+      var w = sfx && (/^ (.+?) will be emailed a "We start tomorrow" notice the day before\.$/.exec(sfx) || null);
+      if (m) tail = ' Se envió a ' + m[1] + ' el aviso "Mañana empezamos".';
+      else if (w) tail = ' Se enviará a ' + w[1] + ' un aviso "Mañana empezamos" el día anterior.';
+      return 'Programado para el ' + d + '. Registre el depósito si aún no lo hizo y prepare las instrucciones para el equipo y la lista de materiales. Cuando el equipo comience, toque Iniciar el trabajo.' + tail;
+    }],
     [/^Change orders total (\$[\d,]+\.\d\d)\.$/, function (a, m) { return 'Total de órdenes de cambio ' + m + '.'; }],
     [/^(\$[\d,]+\.\d\d) \(not all are on this invoice\)$/, function (a, m) { return m + ' (no todas están en esta factura)'; }],
     [/^(\d+) change orders? (?:is|are) still waiting for the customer's answer\. (?:It is|They are) not on this invoice unless the customer approves\.$/, function (a, n) { return n === '1' ? '1 orden de cambio sigue esperando la respuesta del cliente. No está en esta factura a menos que el cliente la apruebe.' : n + ' órdenes de cambio siguen esperando la respuesta del cliente. No están en esta factura a menos que el cliente las apruebe.'; }],
@@ -1701,6 +1708,19 @@
     [/^Waiting for (.+?) to accept the finished work: (.+?)\. A friendly call or text often helps\.$/, function (a, n, j) { return 'Esperando que ' + n + ' acepte el trabajo terminado: ' + j + '. Una llamada o mensaje amable suele ayudar.'; }],
     [/^The customer accepted the finished work on (.+?), so the start date is filled in from that day\.$/, function (a, d) { return 'El cliente aceptó el trabajo terminado el ' + d + ', así que la fecha de inicio se llenó desde ese día.'; }],
     [/^Final walkthrough\. Finish the punch list, then build the invoice\. You can also ask (.+?) to accept the finished work under Customer sign-off\.$/, function (a, n) { return 'Recorrido final. Termine la lista de pendientes y luego arme la factura. También puede pedirle a ' + n + ' que acepte el trabajo terminado en Aceptación del cliente.'; }],
+  ]);
+
+  /* ---- Part 15e: "We start tomorrow" notice ---- */
+  pmI18n.add({
+    "Notice language": "Idioma del aviso",
+    "The notice was already emailed.": "El aviso ya se envió por correo.",
+    "Add an email address in Edit details to send the customer a \"We start tomorrow\" notice.": "Agregue un correo electrónico en Editar detalles para enviar al cliente un aviso \"Mañana empezamos\".",
+    "The customer will be emailed the \"We start tomorrow\" notice the day before.": "Se enviará al cliente el aviso \"Mañana empezamos\" el día anterior.",
+    "It is too late for the day-before notice, so none will be sent. A quick call or text works.": "Es muy tarde para el aviso del día anterior, así que no se enviará. Una llamada o mensaje rápido sirve.",
+    "This customer has no email address. Add one in Edit details, or untick the \"We start tomorrow\" box.": "Este cliente no tiene correo electrónico. Agregue uno en Editar detalles, o desmarque la casilla \"Mañana empezamos\".",
+    "The customer was emailed the \"We start tomorrow\" notice.": "Se envió al cliente el aviso \"Mañana empezamos\".",
+  }, [
+    [/^Email (.+?) a "We start tomorrow" notice about 24 hours before the start day \((.+)\)$/, function (a, n, e) { return 'Enviar a ' + n + ' un aviso "Mañana empezamos" unas 24 horas antes del día de inicio (' + e + ')'; }],
   ]);
 
   /* ---- Part 15d: Coming up on Home (suggested due dates) ---- */

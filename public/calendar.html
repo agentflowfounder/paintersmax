@@ -71,6 +71,11 @@ function frDraw(){var f=$('e_fr'),g=$('e_gc'),s=$('e_s'),e=$('e_e'),t=window.cal
   g.style.display='';}}
 document.addEventListener('input',function(ev){if(ev.target.id==='e_s'||ev.target.id==='e_e'||ev.target.id==='e_n')frDraw();});
 document.addEventListener('change',function(ev){if(ev.target.id==='e_s'||ev.target.id==='e_e')frDraw();});
+function snBox(t,j){
+ if(!t.email)return '<div class="muted" style="margin-top:10px">'+T('Add an email address in Edit details to send the customer a "We start tomorrow" notice.')+'</div>';
+ var on=j?!!j.startNotice:true,es=j?j.noticeLang==='es':window.PM_LANG==='es',sent=j&&j.startNotice&&j.noticed&&j.noticed===j.start;
+ return '<label style="display:flex;gap:8px;align-items:flex-start;font-weight:500"><input type="checkbox" id="e_sn" style="width:auto;margin-top:3px"'+(on?' checked':'')+'> <span>'+esc(T('Email '+(t.customer||'the customer')+' a "We start tomorrow" notice about 24 hours before the start day ('+t.email+')'))+'</span></label>'+
+ '<div style="margin:2px 0 0 26px"><label style="display:inline;font-weight:500;margin:0">'+T('Notice language')+'</label> <select id="e_snl" style="font:inherit;padding:5px"><option value="en"'+(es?'':' selected')+'>English</option><option value="es"'+(es?' selected':'')+'>Espa&ntilde;ol</option></select>'+(sent?' <span class="ok">'+T('The notice was already emailed.')+'</span>':'')+'</div>';}
 function openEdit(id,fresh){
  var j=jobs.filter(function(x){return x.jobId===id})[0],n=needs.filter(function(x){return x.jobId===id})[0],t=j||n;if(!t)return;
  var s=j||{start:iso(new Date()),end:'',startTime:'',crew:[],notes:''};
@@ -81,6 +86,7 @@ function openEdit(id,fresh){
  '<label>'+T('Crew (names, separated by commas)')+'</label><input id="e_c" value="'+esc(s.crew.join(', '))+'" list="crewl" placeholder="Luis, Ana"><datalist id="crewl">'+crew.map(function(c){return'<option value="'+esc(c)+'">'}).join('')+'</datalist>'+
  '<label>'+T('Notes for the crew')+'</label><textarea id="e_n" rows="2">'+esc(s.notes)+'</textarea>'+
  '<label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" id="e_mail" style="width:auto"> '+T('Email the crew this schedule')+'</label>'+
+ snBox(t,j)+
  '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="e_save" data-id="'+id+'">'+T('Save')+'</button>'+(j?'<button class="d" id="e_clr" data-id="'+id+'">'+T('Remove from calendar')+'</button>':'')+'<a href="/jobs?id='+id+'" style="align-self:center">'+T('Open the job')+'</a><a id="e_gc" target="_blank" rel="noopener" style="align-self:center;display:none">'+T('Add to Google Calendar')+'</a></div><div id="e_msg" style="margin-top:8px"></div>';
  window.calJob=t;frDraw();
  $('edit').scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -89,8 +95,8 @@ document.addEventListener('click',function(e){var t=e.target,d=t.dataset||{};
  if(d.job)openEdit(+d.job);else if(d.need)openEdit(+d.need,true);else if(d.visit)location.href='/jobs?id='+d.visit;
  else if(t.id==='prev'){view.setMonth(view.getMonth()-1);draw();}else if(t.id==='next'){view.setMonth(view.getMonth()+1);draw();}
  else if(t.id==='today'){view=new Date();view.setDate(1);draw();}
- else if(t.id==='e_save'){var body={jobId:+d.id,start:$('e_s').value,end:$('e_e').value,startTime:$('e_t').value,crew:$('e_c').value.split(','),notes:$('e_n').value,notify:$('e_mail').checked};
-  api('/api/schedule',body).then(function(r){var c=(r.conflicts||[]).map(function(x){return x.crew+' '+T('is also booked on')+' '+x.title});var n=r.notified,extra='';if(n){if(n.emailed.length)extra+=' '+T('Emailed:')+' '+n.emailed.join(', ')+'.';if(n.noEmail.length)extra+=' '+T('No email on file for:')+' '+n.noEmail.join(', ')+'.';if(n.failed.length)extra+=' '+T('Could not email:')+' '+n.failed.join(', ')+'.';}load().then(function(){$('e_msg').className=c.length||(n&&(n.noEmail.length||n.failed.length))?'bad':'ok';$('e_msg').textContent=(c.length?T('Saved, but check this:')+' '+c.join('; '):T('Saved.'))+extra;});}).catch(function(x){if(x){$('e_msg').className='bad';$('e_msg').textContent=T(x.message);}});}
+ else if(t.id==='e_save'){var body={jobId:+d.id,start:$('e_s').value,end:$('e_e').value,startTime:$('e_t').value,crew:$('e_c').value.split(','),notes:$('e_n').value,notify:$('e_mail').checked,startNotice:!!($('e_sn')&&$('e_sn').checked),noticeLang:$('e_snl')?$('e_snl').value:'en'};
+  api('/api/schedule',body).then(function(r){var c=(r.conflicts||[]).map(function(x){return x.crew+' '+T('is also booked on')+' '+x.title});var n=r.notified,extra='';if(n){if(n.emailed.length)extra+=' '+T('Emailed:')+' '+n.emailed.join(', ')+'.';if(n.noEmail.length)extra+=' '+T('No email on file for:')+' '+n.noEmail.join(', ')+'.';if(n.failed.length)extra+=' '+T('Could not email:')+' '+n.failed.join(', ')+'.';}load().then(function(){$('e_msg').className=c.length||(n&&(n.noEmail.length||n.failed.length))?'bad':'ok';var nm=r.notice==='queued'?' '+T('The customer will be emailed the "We start tomorrow" notice the day before.'):r.notice==='soon'?' '+T('It is too late for the day-before notice, so none will be sent. A quick call or text works.'):r.notice==='sent'?' '+T('The notice was already emailed.'):'';$('e_msg').textContent=(c.length?T('Saved, but check this:')+' '+c.join('; '):T('Saved.'))+extra+nm;});}).catch(function(x){if(x){$('e_msg').className='bad';$('e_msg').textContent=T(x.message);}});}
  else if(t.id==='e_clr'){if(!confirm(T('Remove this job from the calendar?')))return;api('/api/schedule',{jobId:+d.id,clear:true}).then(function(){$('edit').style.display='none';load();});}
 });
 function loadSet(){return api('/api/calsettings').then(function(d){$('feed').value=d.feedUrl;$('crew_t').value=d.crew;});}

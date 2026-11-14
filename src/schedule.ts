@@ -2,6 +2,7 @@ import { getSessionUser } from "./auth.ts";
 import { addJobEvent } from "./crm.ts";
 import { loadCrew, notifyCrew } from "./calfeed.ts";
 import { bookedVisits } from "./visit.ts";
+import { noticePlan, type StartNoticeState } from "./startnotice.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -11,7 +12,7 @@ import type { Env } from "./types.ts";
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
-export interface Schedule {
+export interface Schedule extends StartNoticeState {
   start: string; // YYYY-MM-DD
   end: string; // YYYY-MM-DD, same as start for a one-day job
   startTime: string; // HH:MM or ""
@@ -42,7 +43,8 @@ export function cleanSchedule(input: any): { schedule?: Schedule; error?: string
     if (crew.length >= 10) break;
   }
   const notes = typeof input?.notes === "string" ? input.notes.trim().slice(0, 500) : "";
-  return { schedule: { start: input.start, end, startTime: time, crew, notes } };
+  const startNotice = input?.startNotice === true;
+  return { schedule: { start: input.start, end, startTime: time, crew, notes, ...(startNotice ? { startNotice: true, noticeLang: input?.noticeLang === "es" ? ("es" as const) : ("en" as const) } : {}) } };
 }
 
 export const overlaps = (a: { start: string; end: string }, b: { start: string; end: string }) => a.start <= b.end && b.start <= a.end;
@@ -67,14 +69,14 @@ const parse = (s: string | null | undefined) => {
 
 export async function scheduledJobs(env: Env, companyId: number) {
   const { results } = await env.DB.prepare(
-    `SELECT j.id, j.title, j.stage, j.data, cu.name AS customer, p.address, p.city
+    `SELECT j.id, j.title, j.stage, j.data, cu.name AS customer, cu.email, p.address, p.city
        FROM jobs j JOIN customers cu ON cu.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id
       WHERE j.company_id = ? AND json_extract(j.data, '$.schedule.start') IS NOT NULL AND j.stage NOT IN ('lost')
       ORDER BY json_extract(j.data, '$.schedule.start') LIMIT 500`,
   ).bind(companyId).all<any>();
   return (results ?? []).map((r) => {
     const s = parse(r.data).schedule ?? {};
-    return { jobId: r.id as number, title: r.title as string, stage: r.stage as string, customer: r.customer as string, address: [r.address, r.city].filter(Boolean).join(", "), start: s.start as string, end: (s.end ?? s.start) as string, startTime: (s.startTime ?? "") as string, crew: (Array.isArray(s.crew) ? s.crew : []) as string[], notes: (s.notes ?? "") as string };
+    return { jobId: r.id as number, title: r.title as string, stage: r.stage as string, customer: r.customer as string, address: [r.address, r.city].filter(Boolean).join(", "), start: s.start as string, end: (s.end ?? s.start) as string, startTime: (s.startTime ?? "") as string, crew: (Array.isArray(s.crew) ? s.crew : []) as string[], notes: (s.notes ?? "") as string, email: (r.email ?? "") as string, startNotice: s.startNotice === true, noticeLang: (s.noticeLang === "es" ? "es" : "en") as "en" | "es", noticed: (s.noticed ?? "") as string, noticedAt: (s.noticedAt ?? "") as string };
   });
 }
 
@@ -94,7 +96,7 @@ export async function handleSchedule(request: Request, env: Env): Promise<Respon
       return json({ error: "Invalid JSON." }, 400);
     }
     const jobId = Number(b?.jobId);
-    const job = Number.isInteger(jobId) ? await env.DB.prepare("SELECT id, title, stage, data FROM jobs WHERE id = ? AND company_id = ?").bind(jobId, user.companyId).first<any>() : null;
+    const job = Number.isInteger(jobId) ? await env.DB.prepare("SELECT j.id, j.title, j.stage, j.data, cu.email FROM jobs j JOIN customers cu ON cu.id = j.customer_id WHERE j.id = ? AND j.company_id = ?").bind(jobId, user.companyId).first<any>() : null;
     if (!job) return json({ error: "Job not found." }, 404);
     const data = parse(job.data);
     if (b?.clear === true) {
@@ -105,6 +107,13 @@ export async function handleSchedule(request: Request, env: Env): Promise<Respon
     }
     const c = cleanSchedule(b);
     if (!c.schedule) return json({ error: c.error }, 400);
+    if (c.schedule.startNotice && !job.email) return json({ error: "This customer has no email address. Add one in Edit details, or untick the \"We start tomorrow\" box." }, 400);
+    // Keep the record of a notice that already went out, as long as the start date did not change.
+    const old = data.schedule;
+    if (c.schedule.startNotice && old?.start === c.schedule.start && old?.noticed === c.schedule.start) {
+      c.schedule.noticed = old.noticed;
+      if (old.noticedAt) c.schedule.noticedAt = old.noticedAt;
+    }
     data.schedule = c.schedule;
     // A contract that gets a date becomes "scheduled". Anything further along keeps its stage.
     const stage = job.stage === "contract" || job.stage === "bid" ? "scheduled" : job.stage;
@@ -119,15 +128,15 @@ export async function handleSchedule(request: Request, env: Env): Promise<Respon
       if (me && job2) notified = await notifyCrew(env, { name: me.name, replyTo: me.notify_email || user.email }, job2, await loadCrew(env, user.companyId));
       if (notified?.emailed.length) await addJobEvent(env, user.companyId, jobId, "note", `Schedule emailed to crew: ${notified.emailed.join(", ")}.`);
     }
-    return json({ ok: true, conflicts, notified });
+    return json({ ok: true, conflicts, notified, notice: noticePlan(c.schedule, Date.now()) });
   }
 
   const scheduled = await scheduledJobs(env, user.companyId);
   const { results } = await env.DB.prepare(
-    `SELECT j.id, j.title, j.stage, cu.name AS customer FROM jobs j JOIN customers cu ON cu.id = j.customer_id
+    `SELECT j.id, j.title, j.stage, cu.name AS customer, cu.email FROM jobs j JOIN customers cu ON cu.id = j.customer_id
       WHERE j.company_id = ? AND j.stage IN ('contract','scheduled','in_progress') AND json_extract(j.data, '$.schedule.start') IS NULL
       ORDER BY j.updated_at DESC LIMIT 50`,
   ).bind(user.companyId).all<any>();
   const crew = [...new Set(scheduled.flatMap((s) => s.crew))].sort((a, b) => a.localeCompare(b));
-  return json({ jobs: scheduled, visits: await bookedVisits(env, user.companyId).catch(() => []), needsDate: (results ?? []).map((r) => ({ jobId: r.id, title: r.title, stage: r.stage, customer: r.customer })), crew });
+  return json({ jobs: scheduled, visits: await bookedVisits(env, user.companyId).catch(() => []), needsDate: (results ?? []).map((r) => ({ jobId: r.id, title: r.title, stage: r.stage, customer: r.customer, email: r.email ?? "" })), crew });
 }

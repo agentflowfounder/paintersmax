@@ -44,6 +44,7 @@ import { handleRateSheetPage, handleRateSheets } from "./ratesheets.ts";
 import { handlePortalManage, handlePortalPage, portalNote, renderLookupPage, handleProjectLookup } from "./portal.ts";
 import { sendInvoiceReminders } from "./reminders.ts";
 import { bookedVisits, handleVisit, sendVisitReminders } from "./visit.ts";
+import { sendStartNotices } from "./startnotice.ts";
 import { handleSignoff } from "./signoff.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
@@ -399,6 +400,7 @@ export default {
     ctx.waitUntil(sendChatDigests(env).catch((err) => console.error("chat digest failed", String(err))));
     ctx.waitUntil(sendInvoiceReminders(env).catch((err) => console.error("invoice reminders failed", String(err))));
     ctx.waitUntil(sendVisitReminders(env).catch((err) => console.error("visit reminders failed", String(err))));
+    ctx.waitUntil(sendStartNotices(env).catch((err) => console.error("start notices failed", String(err))));
     ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
     ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
   },
