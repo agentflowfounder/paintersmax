@@ -1894,5 +1894,32 @@
     [/^Your AI credits are almost gone: (\d+) left\.$/, function (a, n) { return 'Sus créditos de IA casi se acaban: quedan ' + n + '.'; }],
   ]);
 
+  /* ---- Part 20: Color preview ---- */
+  pmI18n.add({
+    "Color preview": "Vista previa de color", "Color preview - PaintersMax": "Vista previa de color - PaintersMax",
+    "Show a customer how a color could look. Take a photo of the room or the house, pick a color and what to paint, and get a preview to show them. The photo and the preview are not saved here.": "Muestre a un cliente cómo se podría ver un color. Tome una foto del cuarto o de la casa, elija un color y qué pintar, y obtenga una vista previa para mostrarle. La foto y la vista previa no se guardan aquí.",
+    "1. The photo": "1. La foto", "2. The color": "2. El color", "3. What to paint": "3. Qué pintar",
+    "Take or choose a photo": "Tomar o elegir una foto", "Or pick any color": "O elija cualquier color",
+    "Paint store name or number (optional)": "Nombre o número de la tienda de pintura (opcional)",
+    "For your own notes. It shows under the preview. The color on screen comes from the square you picked, not from this name.": "Para sus propias notas. Aparece debajo de la vista previa. El color en pantalla viene del cuadro que eligió, no de este nombre.",
+    "Make the preview": "Hacer la vista previa", "It takes about 20 seconds. A preview that fails does not count.": "Tarda unos 20 segundos. Una vista previa que falla no cuenta.",
+    "The preview": "La vista previa", "Before": "Antes", "After": "Después", "Save the preview": "Guardar la vista previa",
+    "This is a preview, not a color match. Screens and room light change how a color looks. Test a sample on the wall first, and check the color name and number with the paint store before you buy.": "Esto es una vista previa, no una igualación de color. Las pantallas y la luz del cuarto cambian cómo se ve un color. Pruebe primero una muestra en la pared, y confirme el nombre y el número del color con la tienda de pintura antes de comprar.",
+    "Your color": "Su color", "Previews on a photo are not in your plan.": "Las vistas previas en una foto no están en su plan.",
+    "previews used this month": "vistas previas usadas este mes", "with credits": "con créditos",
+    "Making the preview. This takes about 20 seconds...": "Haciendo la vista previa. Tarda unos 20 segundos...", "The preview is ready.": "La vista previa está lista.",
+    "That file is not a photo we can read. Try a JPG or PNG.": "Ese archivo no es una foto que podamos leer. Pruebe con un JPG o PNG.",
+    "Choose a color.": "Elija un color.", "Choose what to paint.": "Elija qué pintar.", "Choose a photo first.": "Primero elija una foto.", "That photo is too large. Try a smaller one.": "Esa foto es muy grande. Pruebe con una más pequeña.",
+    "Color previews on a photo are not in your plan. You can still show the color next to the photo, or upgrade for previews.": "Las vistas previas de color en una foto no están en su plan. Aún puede mostrar el color junto a la foto, o mejorar su plan para tenerlas.",
+    "Color previews are paused right now. You can still show the color next to the photo.": "Las vistas previas de color están en pausa ahora. Aún puede mostrar el color junto a la foto.",
+    "You have used this month's color previews. You can still show the color next to the photo, or add AI credits for more.": "Ya usó las vistas previas de color de este mes. Aún puede mostrar el color junto a la foto, o agregar créditos de IA para tener más.",
+    "The preview could not be made right now, and it did not count. Try again, or show the color next to the photo.": "No se pudo hacer la vista previa ahora, y no contó. Intente de nuevo, o muestre el color junto a la foto.",
+    "Walls": "Paredes", "Ceiling": "Techo", "Trim and baseboards": "Molduras y zócalos", "Siding or outside walls": "Revestimiento o paredes exteriores", "Outside trim": "Molduras exteriores",
+    "Soft white": "Blanco suave", "Warm white": "Blanco cálido", "Cream": "Crema", "Light greige": "Greige claro", "Greige": "Greige", "Warm beige": "Beige cálido",
+    "Light gray": "Gris claro", "Medium gray": "Gris medio", "Charcoal": "Gris carbón", "Soft black": "Negro suave", "Pale blue": "Azul pálido", "Slate blue": "Azul pizarra",
+    "Navy": "Azul marino", "Sage green": "Verde salvia", "Olive green": "Verde olivo", "Forest green": "Verde bosque", "Butter yellow": "Amarillo mantequilla",
+    "Terracotta": "Terracota", "Barn red": "Rojo granero", "Chocolate brown": "Café chocolate",
+  });
+
   pmI18n.start();
 })();

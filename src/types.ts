@@ -15,6 +15,7 @@ export interface Env {
   MODEL_ANTHROPIC?: string;
   MODEL_OPENAI?: string;
   MODEL_GEMINI?: string;
+  MODEL_GEMINI_IMAGE?: string; // optional: the Gemini image model for color previews (tried first)
   SITE_TOKEN?: string; // shared secret that client websites send to /api/usage/consume
   AI_KILL_SWITCH?: string; // set to "1" to stop all metered AI features at once
   STRIPE_SECRET_KEY?: string; // sk_test_... while testing; secret, never in the repo

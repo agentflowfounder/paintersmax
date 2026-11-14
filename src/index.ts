@@ -47,6 +47,7 @@ import { bookedVisits, handleVisit, sendVisitReminders } from "./visit.ts";
 import { sendStartNotices } from "./startnotice.ts";
 import { handlePulse } from "./pulse.ts";
 import { handleCredits } from "./creditsapi.ts";
+import { handleColors } from "./colors.ts";
 import { handleVehicles } from "./vehicles.ts";
 import { handleSignoff } from "./signoff.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
@@ -611,6 +612,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleVehicles(request, env);
       } catch (err) {
         console.error("vehicles failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/colors") {
+      try {
+        return await handleColors(request, env);
+      } catch (err) {
+        console.error("colors failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

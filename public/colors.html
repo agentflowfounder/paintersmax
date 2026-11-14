@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Color preview - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+main{max-width:860px;margin:0 auto;padding:16px 12px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:14px;margin:0 0 14px}
+.muted{color:#4A5568;font-size:14px}.bad{color:#b42318;font-weight:600}.ok{color:#0a7a3d;font-weight:600}
+button,.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 14px;background:#E8A33D;color:#0F1B2D;cursor:pointer;text-decoration:none;display:inline-block}
+button.s,.btn.s{background:#eceae4}button:disabled{opacity:.55;cursor:default}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}
+input[type=text],select{font:inherit;width:100%;padding:9px;border:1px solid #cfd5dc;border-radius:8px;background:#fff}
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}
+.sw button{all:unset;cursor:pointer;display:block;text-align:center;font-size:11px;line-height:1.2;color:#4A5568}
+.sw button i{display:block;height:44px;border-radius:8px;border:1px solid rgba(15,27,45,.18);margin-bottom:3px}
+.sw button.on i{outline:3px solid #0F1B2D;outline-offset:2px}
+.sw button:focus-visible i{outline:3px solid #E8A33D;outline-offset:2px}
+.pick{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.pick input[type=color]{width:54px;height:40px;padding:0;border:1px solid #cfd5dc;border-radius:8px;background:#fff}
+.chip{display:flex;gap:12px;align-items:center;margin-top:10px}.chip i{display:block;width:96px;height:64px;border-radius:10px;border:1px solid rgba(15,27,45,.18);flex:none}
+img.ph{width:100%;border-radius:10px;display:block}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:620px){.two{grid-template-columns:1fr}}
+.note{background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px;font-size:14px}
+.cap{font-size:12px;font-weight:600;color:#4A5568;margin:0 0 4px}
+</style></head><body>
+<header><div><b>PaintersMax</b> Color preview</div><div></div></header>
+<main>
+<h1>Color preview</h1>
+<p class="muted" style="margin-top:0">Show a customer how a color could look. Take a photo of the room or the house, pick a color and what to paint, and get a preview to show them. The photo and the preview are not saved here.</p>
+<div id="msg" class="muted"></div>
+<div class="card"><b>1. The photo</b>
+ <div style="margin-top:8px"><label class="btn s" style="margin:0;cursor:pointer">Take or choose a photo<input id="file" type="file" accept="image/*" style="display:none"></label></div>
+ <div id="photo" style="margin-top:10px"></div>
+</div>
+<div class="card"><b>2. The color</b>
+ <div class="sw" id="sw" style="margin-top:10px"></div>
+ <div class="pick"><input type="color" id="custom" value="#BDB3A3" aria-label="Pick any color"><span class="muted">Or pick any color</span></div>
+ <label for="lbl">Paint store name or number (optional)</label><input type="text" id="lbl" maxlength="60" placeholder="">
+ <div class="muted" style="margin-top:4px">For your own notes. It shows under the preview. The color on screen comes from the square you picked, not from this name.</div>
+ <div class="chip"><i id="chip"></i><div><b id="cname"></b><div class="muted" id="chex"></div></div></div>
+</div>
+<div class="card"><b>3. What to paint</b>
+ <select id="surf" style="margin-top:8px"></select>
+ <div style="margin-top:12px"><button id="go" disabled>Make the preview</button> <span class="muted" id="use"></span></div>
+ <div class="muted" style="margin-top:6px">It takes about 20 seconds. A preview that fails does not count.</div>
+</div>
+<div class="card" id="out" style="display:none"><b>The preview</b>
+ <div class="two" style="margin-top:10px"><div><p class="cap">Before</p><img class="ph" id="before" alt="Before"></div><div><p class="cap">After</p><img class="ph" id="after" alt="After"></div></div>
+ <div class="chip"><i id="chip2"></i><div><b id="cname2"></b><div class="muted" id="chex2"></div></div></div>
+ <div style="margin-top:10px"><a class="btn s" id="dl" download="color-preview.png">Save the preview</a></div>
+</div>
+<div class="note">This is a preview, not a color match. Screens and room light change how a color looks. Test a sample on the wall first, and check the color name and number with the paint store before you buy.</div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+var T=window.pmT||function(s){return s};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function msg(t,c){$('msg').textContent=t||'';$('msg').className=c||'muted';}
+var SURF={walls:'Walls',ceiling:'Ceiling',trim:'Trim and baseboards',cabinets:'Cabinets',doors:'Doors',front_door:'Front door',siding:'Siding or outside walls',ext_trim:'Outside trim',garage:'Garage door',fence:'Fence'};
+var IMG=null,HEX='#BDB3A3',NAME='Greige',U=null,BUSY=false;
+function setColor(hex,name){HEX=hex.toUpperCase();NAME=name||'';['chip','chip2'].forEach(function(i){$(i).style.background=HEX});
+ var nm=$('lbl').value.trim()||(NAME?T(NAME):T('Your color'));$('cname').textContent=nm;$('chex').textContent=HEX;
+ [].forEach.call(document.querySelectorAll('#sw button'),function(b){b.className=b.dataset.hex===HEX?'on':''});}
+function ready(){$('go').disabled=BUSY||!IMG||!U||U.limit<1;}
+function useLine(){if(!U)return;$('use').textContent=U.limit<1?T('Previews on a photo are not in your plan.'):U.used+' '+T('of')+' '+U.limit+' '+T('previews used this month')+(U.creditUses?' (+'+U.creditUses+' '+T('with credits')+')':'');}
+function shrink(f){return new Promise(function(res,rej){var im=new Image();im.onload=function(){var s=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.85));};im.onerror=function(){rej(new Error('That file is not a photo we can read. Try a JPG or PNG.'));};im.src=URL.createObjectURL(f);});}
+$('file').addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;msg('');shrink(f).then(function(d){IMG=d;$('photo').innerHTML='<img class="ph" alt="" src="'+d+'">';$('out').style.display='none';ready();}).catch(function(x){msg(T(x.message),'bad');});});
+$('custom').addEventListener('input',function(e){setColor(e.target.value,'');});
+$('lbl').addEventListener('input',function(){setColor(HEX,NAME);});
+$('sw').addEventListener('click',function(e){var b=e.target.closest('button');if(b){$('custom').value=b.dataset.hex;setColor(b.dataset.hex,b.dataset.name);}});
+$('go').addEventListener('click',function(){if(!IMG||BUSY)return;BUSY=true;ready();msg(T('Making the preview. This takes about 20 seconds...'),'muted');
+ fetch('/api/colors',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({image:IMG,hex:HEX,surface:$('surf').value})}).then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});}).then(function(j){
+  $('before').src=IMG;$('after').src=j.image;$('dl').href=j.image;$('cname2').textContent=$('cname').textContent+' · '+T(SURF[$('surf').value]);$('chex2').textContent=HEX;$('out').style.display='';
+  if(j.credit){U.creditUses=(U.creditUses||0)+1;}else U.used=j.used;useLine();msg(T('The preview is ready.'),'ok');$('out').scrollIntoView({behavior:'smooth',block:'start'});
+ }).catch(function(x){if(x)msg(T(x.message),'bad');}).then(function(){BUSY=false;ready();});});
+fetch('/api/colors').then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json();}).then(function(j){U=j;
+ $('sw').innerHTML=j.swatches.map(function(s){return '<button type="button" data-hex="'+esc(s.hex.toUpperCase())+'" data-name="'+esc(s.name)+'"><i style="background:'+esc(s.hex)+'"></i>'+esc(T(s.name))+'</button>'}).join('');
+ $('surf').innerHTML=j.surfaces.map(function(k){return '<option value="'+esc(k)+'">'+esc(T(SURF[k]||k))+'</option>'}).join('');
+ setColor('#BDB3A3','Greige');useLine();ready();}).catch(function(x){if(x)msg(T('Could not load.'),'bad');});
+</script><script src="/nav.js"></script></body></html>
