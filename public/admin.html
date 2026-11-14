@@ -55,6 +55,9 @@ small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#
 <div><button class="btn" id="dm_add">Connect domain</button></div><div id="dm_list" style="margin-top:10px"></div></div>
 <h2>Clients</h2><div id="msg"></div>
 <div class="card" id="list">Loading...</div>
+<h2 style="font-size:20px">Reminders for every plan</h2>
+<div class="card"><small>Each reminder follows the plan by default: the free plan sees 3 Home lines and gets no email, Starter gets a Monday email, Basic and Pro get the daily email. Choose <b>On for all plans</b> to give a reminder to everyone, or <b>Off for everyone</b> to hide it. Changes apply the next time a painter opens Home, and to the next morning email.</small>
+<div id="nt_list" style="margin-top:10px;overflow-x:auto">Loading...</div></div>
 <h2 style="font-size:20px">Add AI credits</h2>
 <div class="card"><div class="row"><div><label>Client</label><select id="cr_c"></select></div><div><label>Credits</label><input id="cr_n" inputmode="numeric" placeholder="25"></div><div><label>Note (optional)</label><input id="cr_note" maxlength="100" placeholder="Paid by Zelle"></div></div>
 <button class="btn" id="cr_go">Add credits</button>
@@ -119,6 +122,14 @@ $('h_draft').onclick=async()=>{try{msg('Writing a draft...',true);const r=await 
 $('h_save').onclick=async()=>{try{msg('');const lh=$('h_lh').value.trim(),ll=$('h_ll').value.trim();await api('/api/admin',{action:'help_save',article:{id:HID||undefined,topic:$('h_topic').value,title:$('h_title').value,keywords:$('h_keys').value,body:$('h_body').value,link:lh&&ll?{label:ll,href:lh}:undefined,fromQuestion:HFQ||undefined}});hClear();msg('Saved to the guide.',true);hLoad();}catch(x){if(x)msg(x.message);}};
 tkLoad();
 hLoad();
+const NSW=[['default','Follows the plan'],['all','On for all plans'],['off','Off for everyone']];
+async function ntLoad(){try{const {rules}=await api('/api/admin?notices=1');let g='';
+ $('nt_list').innerHTML='<table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr><th style="text-align:left;padding:6px 4px">Reminder</th><th style="text-align:left;padding:6px 4px">On Home</th><th style="text-align:left;padding:6px 4px">In the morning email</th></tr></thead><tbody>'+rules.map(r=>{const head=r.group!==g?`<tr><td colspan="3" style="padding:12px 4px 4px;font-weight:700">${esc(g=r.group)}</td></tr>`:'';
+  const sel=(place,val)=>`<select data-nt="${esc(r.id)}" data-place="${place}" style="min-width:150px">${NSW.map(([v,l])=>`<option value="${v}" ${v===val?'selected':''}>${l}</option>`).join('')}</select>`;
+  return head+`<tr style="border-top:1px solid #eee"><td style="padding:6px 4px">${esc(r.label)}${r.always?'<br><small>Already on every plan</small>':''}</td><td style="padding:6px 4px">${sel('home',r.home)}</td><td style="padding:6px 4px">${r.canDigest?sel('digest',r.digest)+(r.emailDefault?'':'<br><small>Home only unless you turn it on</small>'):'<small>Home only for now</small>'}</td></tr>`;}).join('')+'</tbody></table>';
+}catch(x){if(x)$('nt_list').textContent='Could not load the reminders.';}}
+document.addEventListener('change',async e=>{const id=e.target.dataset&&e.target.dataset.nt;if(!id)return;try{await api('/api/admin',{action:'notices_set',rule:id,[e.target.dataset.place]:e.target.value});msg('Reminder setting saved.',true);}catch(x){if(x)msg(x.message);}});
+ntLoad();
 mLoad();
 mkLoad();
 dmLoad();

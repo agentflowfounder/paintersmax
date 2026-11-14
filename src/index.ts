@@ -47,6 +47,7 @@ import { bookedVisits, handleVisit, sendVisitReminders } from "./visit.ts";
 import { sendStartNotices } from "./startnotice.ts";
 import { handlePulse } from "./pulse.ts";
 import { handleCredits } from "./creditsapi.ts";
+import { handleNotices, sendOwnerDigests } from "./notices.ts";
 import { handleColors } from "./colors.ts";
 import { handleVehicles } from "./vehicles.ts";
 import { handleSignoff } from "./signoff.ts";
@@ -405,6 +406,7 @@ export default {
     ctx.waitUntil(sendInvoiceReminders(env).catch((err) => console.error("invoice reminders failed", String(err))));
     ctx.waitUntil(sendVisitReminders(env).catch((err) => console.error("visit reminders failed", String(err))));
     ctx.waitUntil(sendStartNotices(env).catch((err) => console.error("start notices failed", String(err))));
+    ctx.waitUntil(sendOwnerDigests(env).catch((err) => console.error("owner digest failed", String(err))));
     ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
     ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
   },
@@ -620,6 +622,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleColors(request, env);
       } catch (err) {
         console.error("colors failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/notices") {
+      try {
+        return await handleNotices(request, env);
+      } catch (err) {
+        console.error("notices failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

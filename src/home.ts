@@ -4,8 +4,8 @@ import { pastDueKey } from "./stripe.ts";
 import { trialDaysLeft } from "./usage.ts";
 import { buildProgress } from "./progress.ts";
 import { buildNudges, SNOOZE_DAYS } from "./nudges.ts";
-import { addDaysIso, friendlyDate, friendlyTime, todayLocal } from "./dates.ts";
-import { bookedVisits } from "./visit.ts";
+import { addDaysIso, friendlyDate, todayLocal } from "./dates.ts";
+import { evaluate, gateHome, loadAdmin, loadFacts, loadSettings, TYPE_RULE } from "./notices.ts";
 import { dueWords, nextDue } from "./duedates.ts";
 import { loadVehicles, tripsSince, vehicleAlerts } from "./vehicles.ts";
 import { readApprovals, timeApprKey, timesheetNudges } from "./timesheet.ts";
@@ -70,7 +70,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
   if (request.method !== "GET") return json({ error: "Not found." }, 404);
   const one = async (sql: string, ...b: unknown[]) => (await env.DB.prepare(sql).bind(...b).first<any>()) ?? {};
 
-  const [paid, open, leads, progress, signedWeek, booked, attLeads, attEst, attOpened, attExpiring, attInvoice, events, policy] = await Promise.all([
+  const [paid, open, leads, progress, signedWeek, booked, attOpened, attExpiring, events, policy, facts, noticeAdmin, noticeSet] = await Promise.all([
     one(`SELECT COALESCE(SUM(${EST_TOTAL}),0) AS cents, COUNT(*) AS n FROM documents d JOIN jobs j ON j.id = d.job_id
           WHERE d.company_id = ? AND d.kind = 'estimate' AND j.stage = 'closed' AND strftime('%Y-%m', j.updated_at) = strftime('%Y-%m','now')`, c),
     one(`SELECT COALESCE(SUM(${EST_TOTAL}),0) AS cents, COUNT(*) AS n FROM documents d JOIN jobs j ON j.id = d.job_id
@@ -80,35 +80,22 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     one(`SELECT COUNT(*) AS n FROM signature_requests WHERE company_id = ? AND status = 'signed' AND signed_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days')`, c).catch(() => ({ n: 0 })),
     one(`SELECT COALESCE(SUM(${EST_TOTAL}),0) AS cents, COUNT(*) AS n FROM documents d JOIN jobs j ON j.id = d.job_id
           WHERE d.company_id = ? AND d.kind = 'estimate' AND d.status = 'signed' AND j.stage != 'closed'`, c),
-    env.DB.prepare(`SELECT j.id, j.title, cu.name AS customer, CAST((julianday('now') - julianday(j.created_at)) AS INTEGER) AS days FROM jobs j JOIN customers cu ON cu.id = j.customer_id
-                    WHERE j.company_id = ? AND j.stage = 'lead' AND j.created_at < datetime('now','-1 day') ORDER BY j.created_at LIMIT 5`).bind(c).all(),
-    env.DB.prepare(`SELECT j.id, j.title, cu.name AS customer, CAST((julianday('now') - julianday(d.updated_at)) AS INTEGER) AS days FROM documents d JOIN jobs j ON j.id = d.job_id JOIN customers cu ON cu.id = j.customer_id
-                    WHERE d.company_id = ? AND d.kind = 'estimate' AND d.status = 'sent' AND d.updated_at < datetime('now','-3 days') AND j.stage IN ('lead','bid') ORDER BY d.updated_at LIMIT 5`).bind(c).all(),
     env.DB.prepare(`SELECT j.id, j.title, s.signer_name, s.kind FROM signature_requests s JOIN jobs j ON j.id = s.job_id
                     WHERE s.company_id = ? AND s.status = 'pending' AND s.viewed_at IS NOT NULL AND s.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now') ORDER BY s.id DESC LIMIT 5`).bind(c).all().catch(() => ({ results: [] })),
     env.DB.prepare(`SELECT j.id, j.title, s.signer_name, s.kind, s.expires_at FROM signature_requests s JOIN jobs j ON j.id = s.job_id
                     WHERE s.company_id = ? AND s.status = 'pending' AND s.expires_at BETWEEN strftime('%Y-%m-%dT%H:%M:%fZ','now') AND strftime('%Y-%m-%dT%H:%M:%fZ','now','+5 days') LIMIT 5`).bind(c).all().catch(() => ({ results: [] })),
-    env.DB.prepare(`SELECT j.id, j.title, cu.name AS customer, CAST((julianday('now') - julianday(d.updated_at)) AS INTEGER) AS days FROM documents d JOIN jobs j ON j.id = d.job_id JOIN customers cu ON cu.id = j.customer_id
-                    WHERE d.company_id = ? AND d.kind = 'invoice' AND d.status = 'sent' AND d.updated_at < datetime('now','-7 days') ORDER BY d.updated_at LIMIT 5`).bind(c).all(),
     env.DB.prepare(`SELECT e.kind, e.text, e.created_at AS at, j.id AS jobId, j.title FROM job_events e JOIN jobs j ON j.id = e.job_id WHERE e.company_id = ? ORDER BY e.id DESC LIMIT 12`).bind(c).all(),
     env.DB.prepare("SELECT summary FROM insurance_policies WHERE company_id = ?").bind(c).first<{ summary: string }>().catch(() => null),
+    loadFacts(env, c),
+    loadAdmin(env),
+    loadSettings(env, c),
   ]);
 
-  const attention: { type: string; text: string; jobId?: number; link?: string; dismiss?: string; snooze?: string }[] = [];
-  for (const r of attLeads.results as any[]) attention.push({ type: "lead", jobId: r.id, text: `New lead waiting ${r.days} day${r.days === 1 ? "" : "s"}: ${r.customer}, ${r.title}` });
-  for (const r of attEst.results as any[]) attention.push({ type: "estimate", jobId: r.id, text: `Estimate sent ${r.days} days ago, no answer yet: ${r.customer}, ${r.title}` });
+  // Money and lead reminders come from the rule list in notices.ts (the same lines the daily email uses). The other lines are added below.
+  const attention: { type: string; text: string; es?: string; rule?: string; jobId?: number; link?: string; dismiss?: string; snooze?: string }[] = [];
+  for (const l of evaluate(facts)) attention.push({ type: l.type, rule: l.rule, jobId: l.jobId, link: l.link, text: l.text, es: l.es });
   for (const r of attOpened.results as any[]) attention.push({ type: "signature", jobId: r.id, text: `${r.signer_name} opened the ${r.kind} but has not signed: ${r.title}` });
   for (const r of attExpiring.results as any[]) attention.push({ type: "signature", jobId: r.id, text: `The signing link for ${r.signer_name} expires soon: ${r.title}` });
-  for (const r of attInvoice.results as any[]) attention.push({ type: "invoice", jobId: r.id, text: `Invoice sent ${r.days} days ago and not marked paid: ${r.customer}, ${r.title}` });
-  // Site visits: today, tomorrow, and any that passed without being marked done.
-  const todayD = todayLocal();
-  for (const v of (await bookedVisits(env, c).catch(() => [])).slice(0, 20)) {
-    const at = friendlyTime(v.time) ? ` at ${friendlyTime(v.time)}` : "";
-    const who = `${v.customer}${v.address ? ", " + v.address : ""}`;
-    if (v.date === todayD) attention.push({ type: "visit", jobId: v.jobId, text: `Site visit today${at}: ${who}` });
-    else if (v.date === addDaysIso(todayD, 1)) attention.push({ type: "visit", jobId: v.jobId, text: `Site visit tomorrow${at}: ${who}` });
-    else if (v.date < todayD) attention.push({ type: "visit", jobId: v.jobId, text: `The site visit on ${friendlyDate(v.date)} is still marked as booked. Open the job and mark it done, or book a new time: ${v.customer}` });
-  }
   // Finished-work sign-off: a customer note that needs an answer, or a request that has waited a few days.
   const soRows = ((await env.DB.prepare(`SELECT j.id, cu.name AS customer, j.title, json_extract(j.data,'$.signoff.concern.text') AS concern, json_extract(j.data,'$.signoff.requestedAt') AS asked
                     FROM jobs j JOIN customers cu ON cu.id = j.customer_id
@@ -176,7 +163,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
   try {
     const co0 = await env.DB.prepare("SELECT plan, created_at AS createdAt FROM companies WHERE id = ?").bind(c).first<{ plan: string; createdAt: string }>();
     const pl = co0 ? effectivePlan({ plan: co0.plan, createdAt: co0.createdAt }) : "free";
-    if (pl === "basic" || pl === "pro") {
+    if (pl === "basic" || pl === "pro" || noticeAdmin.timesheet?.home === "all") {
       const today0 = todayLocal();
       const since = addDaysIso(today0, -56);
       const ws = ((await env.DB.prepare("SELECT id, name, kind, active FROM workers WHERE company_id = ?").bind(c).all<any>()).results ?? []) as any[];
@@ -309,6 +296,8 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     commercialBidUnused: !!co && effectivePlan({ plan: co.plan, createdAt: co.createdAt }) === "basic" && chosen.includes("commercial") && (commUsed.n ?? 0) === 0,
   }, snoozed);
   for (const n of nudges) attention.push({ type: "nudge", link: n.link, text: n.text, snooze: n.key });
+  // Who sees what: the owner's group switches, the admin's switches, and the short list on the free plan.
+  const gated = gateHome(attention, (a) => a.rule ?? TYPE_RULE[a.type], plan2, noticeAdmin, noticeSet);
 
   return json({
     progress: progress2,
@@ -324,7 +313,8 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
       bookedCents: booked.cents ?? 0,
       bookedCount: booked.n ?? 0,
     },
-    attention,
+    attention: gated.lines,
+    attentionHidden: gated.hidden,
     upcoming: upcoming.slice(0, 8),
     upcomingMore: Math.max(0, upcoming.length - 8),
     activity: events.results,

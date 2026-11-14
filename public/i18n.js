@@ -1921,5 +1921,48 @@
     "Terracotta": "Terracota", "Barn red": "Rojo granero", "Chocolate brown": "Café chocolate",
   });
 
+  /* ---- Part 21: Reminders and the morning email ---- */
+  pmI18n.add({
+    "Reminders": "Recordatorios", "Reminders - PaintersMax": "Recordatorios - PaintersMax",
+    "PaintersMax watches your leads, estimates, invoices and visits, and tells you what needs you. Everything shows on Home. The most important ones can also come in one short email each morning.": "PaintersMax vigila sus clientes potenciales, presupuestos, facturas y visitas, y le dice qué necesita su atención. Todo se muestra en Inicio. Lo más importante también puede llegarle en un correo corto cada mañana.",
+    "Your morning email": "Su correo de la mañana", "Send me the email": "Enviarme el correo", "What time": "A qué hora", "Your time zone": "Su zona horaria",
+    "The email only goes out on days when something is new. It never repeats the same reminder, and it is never sent to your customers.": "El correo solo sale los días en que hay algo nuevo. Nunca repite el mismo recordatorio, y nunca se envía a sus clientes.",
+    "What to remind me about": "Qué recordarme",
+    "Untick a group to hide it from Home and from the email. Insurance and account reminders always stay on.": "Desmarque un grupo para ocultarlo de Inicio y del correo. Los recordatorios de seguro y de cuenta siempre quedan activos.",
+    "What the email would say today": "Lo que diría el correo hoy",
+    "It goes to": "Se envía a", "Change that address in Settings.": "Cambie esa dirección en Ajustes.",
+    "The morning email comes with a paid plan. On the free plan, Home shows your first 3 reminders.": "El correo de la mañana viene con un plan de pago. En el plan gratis, Inicio muestra sus primeros 3 recordatorios.",
+    "Your plan sends this email once a week, on Monday. Basic and Pro get it every day there is something new.": "Su plan envía este correo una vez por semana, el lunes. Basic y Pro lo reciben cada día que hay algo nuevo.",
+    "Home and email": "Inicio y correo",
+    "This is everything open right now. After today, the email only lists what is new.": "Esto es todo lo que está abierto ahora. Después de hoy, el correo solo incluye lo nuevo.",
+    "Nothing needs you right now, so no email would go out.": "Nada necesita su atención ahora, así que no saldría ningún correo.",
+    "Eastern": "Este", "Central": "Centro", "Mountain": "Montaña", "Pacific": "Pacífico",
+    "Money coming in": "Dinero por cobrar", "Leads and selling": "Clientes potenciales y ventas", "Jobs in progress": "Trabajos en curso", "Crew and time sheets": "Cuadrilla y hojas de horas", "Your PaintersMax account": "Su cuenta de PaintersMax",
+    "Invoice sent and not paid (day 7, 14, 30, 60)": "Factura enviada y sin pagar (día 7, 14, 30, 60)",
+    "Estimate sent with no answer (day 3, 7, 14)": "Presupuesto enviado sin respuesta (día 3, 7, 14)",
+    "Customer signed but the deposit is not recorded": "El cliente firmó pero el depósito no está registrado",
+    "Change order waiting on the customer": "Orden de cambio esperando al cliente",
+    "New lead not answered": "Cliente potencial sin responder",
+    "Site visit today or tomorrow": "Visita al sitio hoy o mañana",
+    "Site visit passed and still marked as booked": "La visita ya pasó y sigue marcada como reservada",
+    "Visit done but no estimate sent yet": "Visita hecha pero sin presupuesto enviado",
+    "Past customer check-in, about a year after the job": "Saludo a un cliente anterior, cerca de un año después del trabajo",
+    "Few jobs booked in the next 3 weeks": "Pocos trabajos reservados en las próximas 3 semanas",
+    "Customer opened a document but has not signed, or the link expires soon": "El cliente abrió un documento pero no ha firmado, o el enlace vence pronto",
+    "Customer sign-off waiting, or a note from the customer": "Aceptación del cliente pendiente, o una nota del cliente",
+    "Start date reached and the job is not started": "Llegó la fecha de inicio y el trabajo no ha empezado",
+    "Time sheets: overtime, an empty week, waiting for approval": "Hojas de horas: horas extra, una semana vacía, en espera de aprobación",
+    "Your insurance policy: missing, expiring, or a job that may not be covered": "Su póliza de seguro: falta, está por vencer, o un trabajo que tal vez no esté cubierto",
+    "Vehicle service, insurance, registration and loan dates": "Servicio del vehículo, seguro, registro y fechas del préstamo",
+    "Free trial ending or a failed PaintersMax payment": "Fin de la prueba gratis o un pago de PaintersMax que falló",
+    "Finish setting up your prices": "Termine de configurar sus precios",
+    "AI credits running out": "Créditos de IA por acabarse",
+    "Tips for using PaintersMax": "Consejos para usar PaintersMax",
+    "Change order": "Orden de cambio",
+    "Choose your reminders and morning email": "Elija sus recordatorios y el correo de la mañana",
+  }, [
+    [/^(\d+) more reminders? on paid plans\.$/, function (a, n) { return n + (n === '1' ? ' recordatorio más' : ' recordatorios más') + ' en los planes de pago.'; }],
+  ]);
+
   pmI18n.start();
 })();
