@@ -1,6 +1,6 @@
 import { getSessionUser } from "./auth.ts";
 import { htmlToPdf } from "./pdf.ts";
-import { catalogItems, catalogKeyFor, POSITIONS } from "./ratecatalog.ts";
+import { catalogItems, catalogKeyFor, levelsFor } from "./ratecatalog.ts";
 import { escapeHtml, readSettings } from "./settings.ts";
 import type { Env } from "./types.ts";
 
@@ -101,7 +101,7 @@ export function buildSections(cards: CardRow[], audience: "retail" | "builder"):
       g.rows.push({ label: it.label, unit: it.unit, price, note: it.note });
     }
     if (!groups.length) continue;
-    const pos = typeof c.data?.position === "number" ? POSITIONS[c.data.position] : undefined;
+    const pos = typeof c.data?.position === "number" ? levelsFor(key).names[c.data.position]?.toLowerCase() : undefined;
     out.push({ title: TRADE_TITLES[key] ?? key, level: pos, groups });
   }
   return out;

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { catalogItem, catalogItems, catalogKeyFor, catalogKeys, EXAMPLES, labelsFor, parseMarkets, priceFor, rangeFor, roundPrice, sanityNote, seedData, shortUnit } from "../src/ratecatalog.ts";
+import { LEVELS, LEVEL_FILLS, MASTER_UPLIFT, levelsFor, catalogItem, catalogItems, catalogKeyFor, catalogKeys, EXAMPLES, labelsFor, parseMarkets, priceFor, rangeFor, roundPrice, sanityNote, seedData, shortUnit } from "../src/ratecatalog.ts";
 import { draftLines } from "../src/estimate.ts";
 import { sanitizeRateData } from "../src/profile.ts";
 
@@ -138,4 +138,34 @@ test("older fill-in cards print ranges and percentages, and empty cards print no
   const html = renderRateCardHtml({ company: { name: "Co" }, title: "Rate card", date: "2026-11-13", preparedWith: false }, sections);
   assert.ok(html.includes("$2 to $3.50"));
   assert.ok(html.includes("15%"));
+});
+
+test("master level is above premium, which is above standard, which is above value", () => {
+  for (const key of catalogKeys()) {
+    for (const it of catalogItems(key)) {
+      const p = [0, 1, 2, 3].map((n) => priceFor(it, n as 0 | 1 | 2 | 3, 1));
+      assert.ok(p[0] <= p[1] && p[1] <= p[2] && p[2] <= p[3], `${key} ${it.id} ${p.join(",")}`);
+      assert.equal(p[3], roundPrice(it.high * MASTER_UPLIFT));
+    }
+  }
+});
+
+test("every service names its pricing levels, and power washing has three", () => {
+  for (const key of catalogKeys()) {
+    const l = levelsFor(key);
+    assert.equal(l.names.length, l.help.length);
+    assert.ok(l.names.length === 3 || l.names.length === 4);
+  }
+  assert.deepEqual(LEVELS.power_washing.names, ["Value", "Residential", "Commercial"]);
+  assert.equal(levelsFor("interior").names[3], "Master");
+});
+
+test("starting numbers for the form-based services rise with each level", () => {
+  for (const [trade, f] of Object.entries(LEVEL_FILLS)) {
+    for (const [field, nums] of Object.entries(f.fields)) {
+      assert.equal(nums.length, 4, `${trade} ${field}`);
+      for (let i = 1; i < 4; i++) assert.ok(nums[i] > nums[i - 1], `${trade} ${field} rises`);
+    }
+    for (let i = 0; i < 4; i++) assert.ok(!f.fields.low || f.fields.low[i] <= f.fields.high[i]);
+  }
 });

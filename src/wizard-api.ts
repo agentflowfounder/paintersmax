@@ -95,6 +95,15 @@ export async function handleRateCard(request: Request, env: Env): Promise<Respon
     return json({ error: "Builder rate cards are available on the Basic and Pro plans." }, 403);
   }
   const data = sanitizeRateData(body?.data) ?? {};
+  if (body.method === "catalog") {
+    // The painter had typed prices in the older form: keep a copy so nothing is lost when the price list replaces them.
+    const old = await env.DB.prepare("SELECT method, data FROM rate_cards WHERE company_id = ? AND trade = ? AND audience = ?").bind(user.companyId, body.trade, audience).first<{ method: string; data: string }>();
+    if (old && old.method !== "catalog" && old.data && old.data !== "{}") {
+      await env.DB.prepare("INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(`ratecard_backup:${user.companyId}:${body.trade}:${audience}`, JSON.stringify({ method: old.method, data: old.data, savedAt: new Date().toISOString() }))
+        .run();
+    }
+  }
   await env.DB.prepare(
     `INSERT INTO rate_cards (company_id, trade, audience, method, data, updated_at) VALUES (?, ?, ?, ?, ?, datetime('now'))
      ON CONFLICT(company_id, trade, audience) DO UPDATE SET method = excluded.method, data = excluded.data, updated_at = datetime('now')`,

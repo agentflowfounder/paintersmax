@@ -49,7 +49,19 @@ input,select,textarea{width:100%;padding:12px;border:1px solid #cfd5dc;border-ra
 small{color:#4A5568}#msg{font-size:13px;margin-top:8px;min-height:18px}
 .ok{color:#0a7a3d}.bad{color:#b42318}
 ul.sum{padding-left:18px;margin:6px 0}
-</style></head><body>
+.seg button{font-size:14px;padding:10px 4px;min-width:0}
+.sh{display:flex;justify-content:space-between;align-items:baseline;margin:20px 0 8px}.sh h3{margin:0;font-family:Newsreader,Georgia,serif;font-weight:500;font-size:20px}
+.hero{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.hero .cn{font-size:18px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:12px;padding:14px 8px 12px;text-align:center;font:inherit;color:#0F1B2D;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}
+.tile b{font-size:14px;line-height:1.25}
+.chip{font-size:12px;font-weight:700;background:#FDF1D8;color:#7a5200;border-radius:999px;padding:3px 10px}.chip.todo{background:#fff;border:1px dashed #cfa04a;color:#8a5a00}
+.pills{display:flex;flex-wrap:wrap;gap:6px}.pill{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid #cfd5dc;border-radius:999px;padding:5px 12px 5px 8px;font-size:13px;font-weight:600}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:12px;padding:12px;text-decoration:none;color:#0F1B2D;min-width:0}.stat small{display:block;font-size:12px}.stat b{font-size:15px}.stat.todo{border-style:dashed;border-color:#cfa04a}.stat.todo b{color:#8a5a00;font-size:13px}
+.act{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #eee}.act:first-child{border-top:0}
+.abtn{margin-left:auto;background:#0F1B2D;color:#fff;border:0;border-radius:8px;padding:10px 14px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none;white-space:nowrap}
+</style><script src="/icons.js"></script></head><body>
 <header><div><b>PaintersMax</b> Estimating Setup <span id="co" style="opacity:.7;font-size:14px"></span></div><div><a href="/jobs">Jobs</a> &nbsp; <a href="/materials">Materials</a> &nbsp; <a href="/records">Records</a> &nbsp; <a href="/insurance">Insurance</a> &nbsp; <a href="/dashboard">Settings and leads</a></div></header>
 <main>
 <div class="steps" id="steps" role="tablist"></div><div class="prog" id="prog"></div>
@@ -80,14 +92,20 @@ const SERVICE_HELP={
  epoxy_floors:'Garage, basement and commercial floor coatings: epoxy, flake, metallic and polyaspartic systems with their prep.',
  builder:'Builder rates are the lower per-house or per-sq-ft prices you give a home builder or contractor who keeps you busy all year. Customers never see them.'
 };
-const POS_HELP=['Win jobs on price. A fit if you are building reviews, or your area is price-sensitive.','A fair rate for a solid local painter. Most painters start here.','For a higher-end finish, careful prep, a tidy crew and strong reviews.'];
-const POS_NAMES=['Value','Standard','Premium'];
+// Pricing levels come from the server (names and plain-words help are different for each service).
+const LV_FALLBACK={names:['Value','Standard','Premium','Master'],help:['Win jobs on price.','A fair rate for a solid local painter. Most painters start here.','For a higher-end finish and careful prep.','Master painter pricing: the best finish in town.']};
+const LV=k=>(CAT&&CAT.levels&&(CAT.levels[k]||CAT.levels.default))||LV_FALLBACK;
+const UP=()=>(CAT&&CAT.masterUplift)||1.25;
 const TIERS=['high','average','low'];
 const TIER_NAMES={high:'High-cost market',average:'Average market',low:'Lower-cost or rural market'};
 const TIER_HELP={high:'Large metro areas and places where homes, labor and living costs are high.',average:'Mid-size cities and suburbs where costs are typical.',low:'Small towns and rural areas where customers expect lower prices.'};
 let CAT=null;
 const roundPrice=v=>v>=100?Math.round(v/5)*5:v>=10?Math.round(v):Math.round(v*20)/20;
-const priceFor=(it,pos,mult)=>roundPrice((pos===0?it.low:pos===2?it.high:(it.low+it.high)/2)*mult);
+const priceFor=(it,pos,mult)=>roundPrice((pos===0?it.low:pos===2?it.high:pos===3?it.high*UP():(it.low+it.high)/2)*mult);
+// services that still use a simple fill-in form get level fills too (low/high/minimum etc.)
+const lvFill=trade=>(CAT&&CAT.levelFills&&CAT.levelFills[trade])||null;
+function legacyVals(trade,pos,m){const lf=lvFill(trade),o={};if(lf)for(const k in lf.fields)o[k]=roundPrice(lf.fields[k][pos]*m);return o;}
+const segHtml=(names,pos,attr)=>`<div class="seg">${names.map((n,i)=>`<button type="button" ${attr}="${i}" class="${i===pos?'on':''}">${esc(n)}</button>`).join('')}</div>`;
 const tierMult=()=>{const t=(S.profile.market||{}).tier||'average';return(CAT&&CAT.markets&&CAT.markets[t])||1;};
 const curTier=()=>(S.profile.market||{}).tier||'average';
 const fmt$=n=>'$'+(Number(n)%1?Number(n).toFixed(2):Number(n).toLocaleString('en-US'));
@@ -96,7 +114,7 @@ const help2=t=>`<button type="button" class="help" data-tog="1" aria-label="Help
 function openModal(html){$('modal_body').innerHTML=html;$('modal').style.display='flex';window.scrollTo(0,0);}
 const MORE_INFO=`<h3>How to choose your prices</h3>
 <h4>What a rate card is</h4><p>A painter rate card is a standardized pricing reference used by painting contractors to calculate consistent, repeatable estimates or present transparent service tiers. It breaks down labor, production speeds, materials, and standard unit pricing.</p>
-<h4>Pick your level</h4><p><b>Value:</b> you are newer to the trade, still building reviews, or your area is very price-sensitive.</p><p><b>Standard:</b> you are an established painter with steady work and good reviews. Most painters start here.</p><p><b>Premium:</b> you are known for a high-quality finish, careful prep, a tidy crew and reliable scheduling, usually in a higher-cost area.</p>
+<h4>Pick your level</h4><p><b>Value:</b> you are newer to the trade, still building reviews, or your area is very price-sensitive.</p><p><b>Standard:</b> you are an established painter with steady work and good reviews. Most painters start here.</p><p><b>Premium:</b> you are known for a high-quality finish, careful prep, a tidy crew and reliable scheduling, usually in a higher-cost area.</p><p><b>Master:</b> the top of the market. You are the painter people ask for by name: flawless prep and finish, fine craftsmanship, full protection of the home and a strong reputation. Master starts about a quarter above Premium, and you can change every number.</p><p>Each service explains its own levels in plain words under the buttons. Power washing has three levels instead of four: Value, Residential and Commercial.</p>
 <h4>Your market</h4><p>Prices follow what customers in your area pay. A large coastal city usually costs more than a small town. We start you from the market you choose, and you can change any number.</p>
 <h4>What goes into a price</h4><p><b>Loaded labor rate:</b> what an hour of labor really costs you, including taxes, insurance and benefits.</p><p><b>Production rates:</b> how much a crew finishes per hour, such as square feet or doors.</p><p><b>Materials and waste:</b> paint, primer and supplies, plus a little extra for waste.</p><p><b>Overhead and markup:</b> your truck, tools, insurance and office time, plus profit.</p>
 <h4>Not sure? Keep Standard.</h4><p>Then watch your first few estimates. If nearly everyone says yes, you may be too low. If very few do, check whether you are too high. You can change any number at any time.</p>
@@ -154,14 +172,25 @@ function helpKeyFor(trade,method){
  const k='h_'+trade+'_'+method;HELP[k]=final;return k;
 }
 
+const UPGRADED={}; // cards that moved from the older fill-in form to the price list, so we can tell the painter once
 function ensureSeed(trade,aud){
   const k=catKey(trade,aud);if(!k)return;
   const c=S.rateCards[rcKey(trade,aud)];
   if(c&&c.method==='catalog')return;
-  if(c&&c.method)return; // an older card: leave it alone until the painter switches
+  // An older fill-in card moves to the price list automatically. The server keeps a copy of the old numbers when this saves.
+  if(c&&c.method&&Object.keys(c.data||{}).some(x=>x!=='position'&&x!=='tier'&&Number(c.data[x])>0))UPGRADED[rcKey(trade,aud)]=true;
   const m=tierMult(),d={position:1,tier:TIERS.indexOf(curTier())};
   CAT.catalog[k].forEach(it=>{d[it.id]=priceFor(it,1,m);});
   S.rateCards[rcKey(trade,aud)]={method:'catalog',data:d};
+}
+// Services without an item list start from level prices in the simple form (Standard is filled in).
+function ensureLegacySeed(trade,aud){
+  const lf=lvFill(trade);if(!lf||aud==='builder')return;
+  const c=S.rateCards[rcKey(trade,aud)];
+  if(c&&c.method&&c.method!==lf.method)return;
+  const typed=c&&Object.keys(c.data||{}).some(x=>x!=='position'&&x!=='tier'&&Number(c.data[x])>0);
+  if(typed)return;
+  S.rateCards[rcKey(trade,aud)]={method:lf.method,data:{...legacyVals(trade,1,tierMult()),position:1,tier:TIERS.indexOf(curTier())}};
 }
 function exampleHtml(key,data){
   const ex=CAT.examples[key];if(!ex)return'';
@@ -171,20 +200,21 @@ function exampleHtml(key,data){
 }
 function renderCatalogCard(trade,aud){
   ensureSeed(trade,aud);
-  const key=catKey(trade,aud),c=card(trade,aud),d=c.data||{},pos=typeof d.position==='number'?d.position:1,m=tierMult();
+  const key=catKey(trade,aud),c=card(trade,aud),d=c.data||{},lv=LV(key),pos=typeof d.position==='number'&&d.position<lv.names.length?d.position:1,m=tierMult();
   const title=aud==='builder'?'Builder rates':(TRADE_LABELS[trade]||trade);
   const groups=[];CAT.catalog[key].forEach(it=>{let g=groups.find(x=>x.n===it.group);if(!g)groups.push(g={n:it.group,rows:[]});g.rows.push(it);});
   const rows=g=>g.rows.map(it=>{const lo=roundPrice(it.low*m),hi=roundPrice(it.high*m),v=d[it.id];return `<div class="it" data-item="${esc(it.id)}"><div class="il"><b style="font-weight:600">${esc(it.label)}</b>${it.note?help2(it.note):''}<small>${esc(it.unit)}</small></div><input inputmode="decimal" data-k="${esc(it.id)}" data-lo="${it.low}" data-hi="${it.high}" value="${v!=null?esc(v):''}" placeholder="not offered"><div class="ir">Typical range for your market: <span class="rg">${fmt$(lo)} to ${fmt$(hi)}</span> <span class="sn"></span></div></div>`;}).join('');
   return `<div class="card" data-trade="${trade}" data-aud="${aud||'retail'}" data-cat="${key}" data-pos="${pos}">
    <b style="font-size:17px">${esc(title)}</b>${help2(SERVICE_HELP[key]||'')}
-   <div class="poshelp" style="margin-top:6px">Where do you want to price? Standard is already filled in for you.</div>
-   <div class="seg">${POS_NAMES.map((n,i)=>`<button type="button" data-pos="${i}" class="${i===pos?'on':''}">${n}</button>`).join('')}</div>
-   <div class="poshelp" data-poshelp>${esc(POS_HELP[pos])}</div>
+   ${UPGRADED[rcKey(trade,aud)]?'<div class="coach" style="margin:8px 0">We moved this card to the new itemized price list. The prices you typed before are saved safely, so nothing was lost.</div>':''}
+   <div class="poshelp" style="margin-top:6px">Where do you want to price? ${esc(lv.names[1])} is already filled in for you.</div>
+   ${segHtml(lv.names,pos,'data-pos')}
+   <div class="poshelp" data-poshelp>${esc(lv.help[pos])}</div>
    ${groups.map((g,i)=>`<details class="grp" ${i===0?'open':''}><summary>${esc(g.n)} (${g.rows.length})</summary>${rows(g)}</details>`).join('')}
    <div class="ex" data-ex>${exampleHtml(key,d)}</div>
    <details class="grp"><summary>How this rate is built</summary><div style="padding:4px 12px 12px;font-size:14px"><p><b>Loaded labor rate:</b> what an hour of labor really costs you with taxes, insurance and benefits.</p><p><b>Production rates:</b> how much a crew finishes per hour.</p><p><b>Materials and waste:</b> paint, primer and supplies, plus waste.</p><p><b>Overhead and markup:</b> truck, tools, insurance, office time and profit.</p></div></details>
    <button type="button" class="link" data-more="1">More information: how to set your prices</button>
-   ${aud==='builder'?'':`<div style="margin-top:6px"><button type="button" class="link" data-pdf="retail" data-trade="${trade}">Download this service's rate card (PDF)</button></div>`}
+   ${aud==='builder'?'':`<div style="margin-top:6px"><button type="button" class="link" data-pdf="retail" data-ptrade="${trade}">Download this service's rate card (PDF)</button></div>`}
   </div>`;
 }
 function refreshCatalogCard(el){
@@ -197,29 +227,39 @@ function refreshCatalogCard(el){
 function applyPosition(el,pos,askFirst){
   const key=el.dataset.cat,m=tierMult();
   if(askFirst){let changed=false;const old=Number(el.dataset.pos);el.querySelectorAll('input[data-k]').forEach(i=>{const it=CAT.catalog[key].find(x=>x.id===i.dataset.k);if(it&&Number(i.value)!==priceFor(it,old,m))changed=true;});
-    if(changed&&!confirm('You changed some prices. Reset every price to '+POS_NAMES[pos]+'?'))return false;}
+    const lv=LV(key);if(changed&&!confirm('You changed some prices. Reset every price to '+lv.names[pos]+'?'))return false;}
   el.querySelectorAll('input[data-k]').forEach(i=>{const it=CAT.catalog[key].find(x=>x.id===i.dataset.k);if(it)i.value=priceFor(it,pos,m);});
   el.dataset.pos=pos;el.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',Number(b.dataset.pos)===pos));
-  el.querySelector('[data-poshelp]').textContent=POS_HELP[pos];refreshCatalogCard(el);return true;
+  el.querySelector('[data-poshelp]').textContent=LV(key).help[pos];refreshCatalogCard(el);return true;
+}
+// Level buttons for the simple fill-in services (drywall, fencing, remodeling, industrial)
+function applyLegacyPosition(el,pos,askFirst){
+  const t=el.dataset.trade,m=tierMult(),lf=lvFill(t);if(!lf)return false;
+  const lv=LV(t);
+  if(askFirst){const old=Number(el.dataset.lcur),was=legacyVals(t,old,m);let changed=false;el.querySelectorAll('input[data-k]').forEach(i=>{if(was[i.dataset.k]!=null&&Number(i.value)!==was[i.dataset.k])changed=true;});
+    if(changed&&!confirm('You changed some prices. Reset every price to '+lv.names[pos]+'?'))return false;}
+  const nv=legacyVals(t,pos,m);el.querySelectorAll('input[data-k]').forEach(i=>{if(nv[i.dataset.k]!=null)i.value=nv[i.dataset.k];});
+  el.dataset.lcur=pos;el.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',Number(b.dataset.lpos)===pos));
+  const h=el.querySelector('[data-poshelp]');if(h)h.textContent=lv.help[pos];return true;
 }
 
 function renderCard(trade,aud){
-  if(catKey(trade,aud)){ensureSeed(trade,aud);const cc=card(trade,aud);if(cc.method==='catalog')return renderCatalogCard(trade,aud);}
-  const legacy=renderLegacyCard(trade,aud);
-  if(!catKey(trade,aud))return legacy;
-  const typed=Object.keys(card(trade,aud).data||{}).some(k=>k!=='position'&&k!=='tier'&&Number(card(trade,aud).data[k])>0);
-  const sw=typed?'<details style="margin-top:8px"><summary class="muted" style="cursor:pointer">Want to start over with the new starting price list?</summary><p class="muted" style="margin:6px 0">This throws away the prices you typed on this card and fills in starting rates instead. You can then change any number. It cannot be undone.</p><button type="button" class="link" data-switch="1">Replace my prices with the starting price list</button></details>':'<div style="margin-top:8px"><button type="button" class="link" data-switch="1">Use the new starting price list (rates already filled in)</button></div>';
-  return legacy.replace(/<\/div>\s*$/,sw+'</div>');
+  if(catKey(trade,aud)){ensureSeed(trade,aud);return renderCatalogCard(trade,aud);}
+  ensureLegacySeed(trade,aud);
+  return renderLegacyCard(trade,aud);
 }
 function renderLegacyCard(trade,aud){
   const c=card(trade,aud);const methods=methodsFor(trade);const method=c.method||methods[0][0];
   const fs=fieldsFor(trade,method);const hk=helpKeyFor(trade,method);
-  return `<div class="card" data-trade="${trade}" data-aud="${aud||'retail'}">
+  const lf=aud==='builder'?null:lvFill(trade),showLv=!!(lf&&method===lf.method),lv=LV(trade);
+  const lpos=showLv?(typeof (c.data||{}).position==='number'&&c.data.position<lv.names.length?c.data.position:1):null;
+  return `<div class="card" data-trade="${trade}" data-aud="${aud||'retail'}"${showLv?` data-lcur="${lpos}"`:''}>
    <b>${esc(TRADE_LABELS[trade]||trade)}${aud==='builder'?' (builder rates)':''}</b> ${aud==='builder'?help('builder'):''}
+   ${showLv?`<div class="poshelp" style="margin-top:6px">Where do you want to price? ${esc(lv.names[1])} is already filled in for you.</div>${segHtml(lv.names,lpos,'data-lpos')}<div class="poshelp" data-poshelp>${esc(lv.help[lpos])}</div>`:''}
    <label>How do you price this? ${hk?help(hk):''}</label>
    <select class="method">${methods.map(([v,l])=>`<option value="${v}" ${v===method?'selected':''}>${esc(l)}</option>`).join('')}</select>
    <div class="row">${fs.map(x=>`<div><label>${esc(x.l)}</label><input inputmode="decimal" data-k="${x.k}" value="${val(c.data,x.k)}"></div>`).join('')}</div>
-   ${trade==='power_washing'||trade==='exterior'?'<small>Power washing is always its own line on the estimate.</small>':''}${aud==='builder'?'':`<div style="margin-top:8px"><button type="button" class="link" data-pdf="retail" data-trade="${trade}">Download this service's rate card (PDF)</button></div>`}</div>`;
+   ${trade==='power_washing'||trade==='exterior'?'<small>Power washing is always its own line on the estimate.</small>':''}${aud==='builder'?'':`<div style="margin-top:8px"><button type="button" class="link" data-pdf="retail" data-ptrade="${trade}">Download this service's rate card (PDF)</button></div>`}</div>`;
 }
 
 // ---- progress ----
@@ -241,11 +281,41 @@ function renderSteps(){
   const cur=document.querySelector('#steps .cur');if(cur&&cur.scrollIntoView)cur.scrollIntoView({block:'nearest',inline:'center'});
 }
 
+// ---- review: one clean page with an icon for each service ----
+function levelOf(trade){
+  const bld=trade==='new_construction',c=bld?card('interior','builder'):card(trade,'retail'),d=c.data||{};
+  if(!c.method||!Object.keys(d).some(x=>x!=='position'&&x!=='tier'&&Number(d[x])>0))return null;
+  const names=LV(bld?'builder':trade).names;
+  return typeof d.position==='number'&&names[d.position]?names[d.position]:'Your own prices';
+}
+function reviewHtml(){
+  const p=S.profile,c=p.company||{},l=p.labor||{},w=p.warranty||{};
+  const sh=(t,i)=>`<div class="sh"><h3>${t}</h3><a href="#" class="edit" data-go="${i}">Edit</a></div>`;
+  const stat=(icon,label,v,step)=>v?`<div class="stat"><span>${pmIcon(icon,28)}</span><div><small>${label}</small><b>${esc(v)}</b></div></div>`
+    :`<a href="#" class="stat todo" data-go="${step}"><span>${pmIcon(icon,28)}</span><div><small>${label}</small><b>Not set. Tap to add.</b></div></a>`;
+  const tiles=p.trades.length?p.trades.map(t=>{const lv=levelOf(t);return `<button type="button" class="tile" data-go="3"><span>${pmIcon(t,52)}</span><b>${esc(TRADE_LABELS[t]||t)}</b><span class="chip${lv?'':' todo'}">${lv?esc(lv)+(lv==='Your own prices'?'':' pricing'):'Prices not set'}</span></button>`;}).join('')
+    :`<button type="button" class="tile" data-go="1"><span>${pmIcon('brush',52)}</span><b>Choose your services</b><span class="chip todo">Nothing yet</span></button>`;
+  const cities=(p.cities||[]).length?`<div class="pills">${p.cities.map(x=>`<span class="pill">${pmIcon('pin',16)} ${esc(x)}</span>`).join('')}</div>`:`<a href="#" class="stat todo" data-go="2"><span>${pmIcon('pin',28)}</span><div><small>Cities</small><b>Not set. Tap to add.</b></div></a>`;
+  const bOk=['basic','pro'].includes(S.plan);
+  const money=v=>v?'$'+v:'';
+  return `<h2>Review</h2><p class="lead">Everything you set up, on one page. Tap any box to change it. You can come back any time.</p>
+   <div class="card hero"><div><b class="cn">${esc(c.legalName||'Add your company name')}</b><small style="display:block;margin-top:2px">${esc([c.phone,c.email].filter(Boolean).join('  |  ')||'No phone or email yet')}</small></div><a href="#" class="edit" data-go="0">Edit</a></div>
+   ${sh('Your services',1)}<div class="tiles">${tiles}</div>
+   ${sh('Cities you serve',2)}${cities}
+   ${sh('Labor, money and warranty',4)}<div class="stats">${stat('crew','Crew',l.crewSize?l.crewSize+(Number(l.crewSize)===1?' person':' people'):'',4)}${stat('dollar','Hourly rate',money(l.hourlyRate)?money(l.hourlyRate)+' an hour':'',4)}${stat('doc','Deposit',l.depositPct?l.depositPct+'% up front':'',4)}${stat('shield','Labor warranty',w.laborMonths?w.laborMonths+' months':'',5)}</div>
+   <div class="sh"><h3>Rate cards and sheets</h3></div><div class="card" style="padding:4px 16px">
+    <div class="act"><span>${pmIcon('doc',34)}</span><div><b>Your rate card</b><small style="display:block">A branded PDF of your prices to share.</small></div><button type="button" class="abtn" data-pdf="retail">Download</button></div>
+    <div class="act"><span>${pmIcon('builder',34)}</span><div><b>Builder rate sheets</b><small style="display:block">${bOk?'A private price sheet for each home builder.':'On the Basic and Pro plans.'}</small></div>${bOk?'<a class="abtn" href="/builders">Open</a>':''}</div>
+   </div>
+   <div id="prev"></div>
+   <div class="card"><b>What happens next</b><p style="margin:6px 0">${S.completed?'Your setup is saved. Tap the button below to go to your dashboard, or go straight to <a href="/jobs">Jobs</a> to build your first estimate.':'When you finish, you go to your dashboard. Your prices fill in your estimates, and you can build your first job from Jobs.'}</p></div>`;
+}
+
 // ---- views ----
 function view(){
   const k=STEPS[S.step];renderSteps();
   $('back').style.visibility=S.step===0?'hidden':'visible';
-  $('next').textContent=k==='review'?'Finish setup':'Save and continue';
+  $('next').textContent=k==='review'?(S.completed?'Save and go to dashboard':'Finish setup'):'Save and continue';
   const p=S.profile,c=p.company||{};
   let h='';
   if(k==='company')h=`<h2>Your company info</h2><p class="lead">We save this once and use it on every estimate and contract.</p><div class="card">
@@ -287,14 +357,7 @@ function view(){
    <div class="card"><b>Paint brands you use</b>${BRANDS.map(b=>`<label class="chk"><input type="checkbox" class="brand" value="${esc(b)}" ${(m.brands||[]).includes(b)?'checked':''}> ${esc(b)}</label>`).join('')}
    <label>Other products or notes</label><textarea id="mnotes" rows="2">${val(m,'notes')}</textarea></div>
    <div class="card"><b>Language</b><label>App language (the pages you use every day)</label><select id="uiLang" onchange="pmSetLang(this.value)"><option value="en">English</option><option value="es" ${window.PM_LANG==='es'?'selected':''}>Español</option></select><label>Crew documents (materials, schedule, instructions, punch list)</label><select id="crewDocs"><option value="en" ${lg.crewDocs!=='es'?'selected':''}>English</option><option value="es" ${lg.crewDocs==='es'?'selected':''}>Spanish</option></select></div>`;}
-  if(k==='review'){const l=p.labor||{};const ed=i=>` <a href="#" class="edit" data-go="${i}">Edit</a>`;h=`<h2>Review</h2><p class="lead">Here is what we saved. Tap Edit to change any part. You can come back to any step later.</p><div class="card">
-   <b>${esc(c.legalName||'(company name missing)')}</b>${ed(0)}<br><small>${esc([c.phone,c.email].filter(Boolean).join(' | '))}</small>
-   <ul class="sum"><li>Services: ${esc(p.trades.map(t=>TRADE_LABELS[t]).join(', ')||'none yet')}${ed(1)}</li><li>Cities: ${esc((p.cities||[]).join(', ')||'none yet')}${ed(2)}</li>
-   <li>Pricing set for: ${esc(Object.keys(S.rateCards).map(k=>k.split('|')[0]+(k.endsWith('builder')?' (builder)':'')).join(', ')||'none yet')}${ed(3)}</li>
-   <li>Labor: crew of ${esc(l.crewSize||'?')}, $${esc(l.hourlyRate||'?')}/hr, deposit ${esc(l.depositPct||'?')}%${ed(4)}</li>
-   <li>Warranty: ${esc((p.warranty||{}).laborMonths||'?')} months labor${ed(5)}</li></ul></div>
-   <div id="prev"></div>
-   <div class="card"><b>What happens next</b><p>When you finish, you go to your dashboard. Your prices fill in your estimates, and you can build your first job from Jobs.</p></div>`;}
+  if(k==='review')h=reviewHtml();
   $('view').innerHTML=h;msg('');
   CM.on=false;if(k==='cities')loadCities();if(k==='review')loadPreview();
   const ld=$('view').querySelector('p.lead')||$('view').querySelector('h2');if(ld)ld.insertAdjacentHTML('afterend','<div class="coach" id="coach" hidden></div>');updateCoach();
@@ -326,7 +389,7 @@ function coachText(k){
   if(k==='pricing'){
     const all=[...document.querySelectorAll('input[data-k]')],pr=all.filter(i=>Number(i.value)>0).length;
     if(!all.length)return '';
-    if(!pr)return 'Pick Value, Standard or Premium above to fill in starting prices. You can change every number.';
+    if(!pr)return 'Pick a level above (Value, Standard, Premium or Master) to fill in starting prices. You can change every number.';
     if(pr<all.length)return 'You have priced '+pr+' of '+all.length+' items. Items without a price are left off estimates until you add one.';
     return 'Every item has a price. Check the example under each list to see what a real job comes to.';
   }
@@ -436,11 +499,14 @@ function collect(){
     p.materials={brands:[...document.querySelectorAll('.brand:checked')].map(e=>e.value),notes:g('mnotes')};p.language={ui:window.PM_LANG||'en',crewDocs:g('crewDocs')};}
 }
 async function saveCards(){
-  for(const el of document.querySelectorAll('[data-trade]')){
+  // Only the price cards: the PDF buttons also carry a trade name, so match on the card itself.
+  for(const el of document.querySelectorAll('.card[data-trade]')){
     const data={};el.querySelectorAll('input[data-k]').forEach(i=>{if(i.value.trim()!=='')data[i.dataset.k]=i.value.trim();});
-    const isCat=!!el.dataset.cat;
+    const isCat=!!el.dataset.cat,sel=el.querySelector('.method');
+    if(!isCat&&!sel)continue;
     if(isCat){data.position=Number(el.dataset.pos);data.tier=TIERS.indexOf(curTier());}
-    const body={trade:el.dataset.trade,audience:el.dataset.aud,method:isCat?'catalog':el.querySelector('.method').value,data};
+    else if(el.dataset.lcur!=null){data.position=Number(el.dataset.lcur);data.tier=TIERS.indexOf(curTier());}
+    const body={trade:el.dataset.trade,audience:el.dataset.aud,method:isCat?'catalog':sel.value,data};
     await api('/api/ratecard',body);S.rateCards[rcKey(body.trade,body.audience)]={method:body.method,data};
   }
 }
@@ -474,19 +540,29 @@ document.addEventListener('click',async e=>{
 });
 $('next').onclick=()=>go(1);$('back').onclick=()=>go(-1);
 document.addEventListener('click',async e=>{
-  const pb=e.target.closest('.seg [data-pos]');if(pb){const el=pb.closest('[data-cat]');applyPosition(el,Number(pb.dataset.pos),true);return;}
+  const pb=e.target.closest('.seg [data-pos]');if(pb){const el=pb.closest('[data-cat]');if(el)applyPosition(el,Number(pb.dataset.pos),true);return;}
+  const lb=e.target.closest('.seg [data-lpos]');if(lb){const el=lb.closest('[data-lcur]');if(el)applyLegacyPosition(el,Number(lb.dataset.lpos),true);return;}
   if(e.target.closest('[data-more]')){openModal(MORE_INFO);return;}
   if(e.target.id==='modal_close'||e.target.id==='modal'){$('modal').style.display='none';return;}
-  const sw=e.target.closest('[data-switch]');if(sw){if(!confirm('This replaces the prices on this card with the new price list and starting rates. Continue?'))return;const el=sw.closest('[data-trade]');const t=el.dataset.trade,a=el.dataset.aud;delete S.rateCards[rcKey(t,a)];ensureSeed(t,a);el.outerHTML=renderCard(t,a);return;}
-  const pd=e.target.closest('[data-pdf]');if(pd){e.preventDefault();try{await save(S.step,false);window.open('/api/ratecard/doc?audience='+pd.dataset.pdf+(pd.dataset.trade?'&trade='+encodeURIComponent(pd.dataset.trade):''),'_blank');}catch(x){if(x)msg(x.message||'Could not save.');}}
+  const pd=e.target.closest('[data-pdf]');if(pd){e.preventDefault();
+    // Open the tab right now (browsers only allow that during the tap), then send it to the PDF once the prices are saved.
+    const w=window.open('','_blank');
+    try{
+      await save(S.step,false);
+      const url='/api/ratecard/doc?audience='+pd.dataset.pdf+(pd.dataset.ptrade?'&trade='+encodeURIComponent(pd.dataset.ptrade):'');
+      if(w&&!w.closed)w.location.href=url;else location.href=url;
+    }catch(x){try{if(w)w.close();}catch(y){}if(x)msg(x.message||'Could not save.');}
+  }
 });
 document.addEventListener('input',e=>{const el=e.target.closest&&e.target.closest('[data-cat]');if(el&&e.target.matches('input[data-k]'))refreshCatalogCard(el);});
 document.addEventListener('change',e=>{
   if(e.target.id==='mk'){const old=curTier(),nt=e.target.value;let changed=false;
     document.querySelectorAll('[data-cat]').forEach(el=>{const key=el.dataset.cat,om=(CAT.markets[old]||1),pos=Number(el.dataset.pos);el.querySelectorAll('input[data-k]').forEach(i=>{const it=CAT.catalog[key].find(x=>x.id===i.dataset.k);if(it&&Number(i.value)!==priceFor(it,pos,om))changed=true;});});
+    document.querySelectorAll('[data-lcur]').forEach(el=>{const was=legacyVals(el.dataset.trade,Number(el.dataset.lcur),CAT.markets[old]||1);el.querySelectorAll('input[data-k]').forEach(i=>{if(was[i.dataset.k]!=null&&Number(i.value)!==was[i.dataset.k])changed=true;});});
     if(changed&&!confirm('You changed some prices. Reset every price for the '+TIER_NAMES[nt]+'?')){e.target.value=old;return;}
     S.profile.market={tier:nt};$('mkhelp').textContent=TIER_HELP[nt];
-    document.querySelectorAll('[data-cat]').forEach(el=>applyPosition(el,Number(el.dataset.pos),false));return;}
+    document.querySelectorAll('[data-cat]').forEach(el=>applyPosition(el,Number(el.dataset.pos),false));
+    document.querySelectorAll('[data-lcur]').forEach(el=>applyLegacyPosition(el,Number(el.dataset.lcur),false));return;}
   if(e.target.classList.contains('method')){try{const el=e.target.closest('[data-trade]');const t=el.dataset.trade,a=el.dataset.aud;
   const cur=card(t,a);S.rateCards[rcKey(t,a)]={method:e.target.value,data:{}};el.outerHTML=renderCard(t,a);}catch{}}});
 
