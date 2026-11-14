@@ -3,6 +3,7 @@ import { companyPlan, markDownload } from "./files.ts";
 import { iifAccounts, iifFile, qboCsv, type QbExpense } from "./qbexport.ts";
 import { consume, refund, usageSummary } from "./usage.ts";
 import { friendlyVisionError, parseJsonLoose, visionAsk } from "./vision.ts";
+import { looksLikeOfx, parseOfx, parseStatementLines, STATEMENT_PROMPT, STATEMENT_SYSTEM, type RawTx } from "./bankfile.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -177,6 +178,20 @@ export function parseBankCsv(text: string, rules: Rules): { rows: ImportRow[]; s
   return { rows: rows.slice(0, 1500), skipped };
 }
 
+/** Turns OFX or AI-read transactions (negative = money out) into expense rows. Deposits and credits are skipped. */
+export function rowsFromTx(raw: RawTx[], rules: Rules): { rows: ImportRow[]; skipped: number } {
+  const rows: ImportRow[] = [];
+  let skipped = 0;
+  for (const x of raw) {
+    if (x.c >= 0) {
+      skipped++;
+      continue;
+    }
+    rows.push({ spentOn: x.d, vendor: x.v, amountCents: -x.c, category: categorize(x.v, rules) });
+  }
+  return { rows: rows.slice(0, 1500), skipped };
+}
+
 // ---------- settings ----------
 export interface RecordSettings {
   mileageRateCents: number | null; // cents per mile; null until the painter sets it (the IRS rate changes every year)
@@ -269,6 +284,11 @@ export async function handleRecords(request: Request, env: Env): Promise<Respons
   const c = user.companyId;
   const u = new URL(request.url);
   const settings = await loadSettings(env, c);
+  const markDuplicates = async (rows: ImportRow[]) => {
+    const existing = ((await env.DB.prepare("SELECT spent_on AS d, lower(COALESCE(vendor,'')) AS v, amount_cents AS a FROM expenses WHERE company_id = ?").bind(c).all<any>()).results ?? []) as any[];
+    const seen = new Set(existing.map((e) => `${e.d}|${vendorKey(e.v)}|${e.a}`));
+    return rows.map((r) => ({ ...r, duplicate: seen.has(`${r.spentOn}|${vendorKey(r.vendor)}|${r.amountCents}`) }));
+  };
   const jobOwned = async (id: number | null) => id === null || !!(await env.DB.prepare("SELECT id FROM jobs WHERE id = ? AND company_id = ?").bind(id, c).first());
 
   if (request.method === "GET") {
@@ -310,9 +330,11 @@ export async function handleRecords(request: Request, env: Env): Promise<Respons
     }
     const custom = ((await env.DB.prepare("SELECT id, name FROM expense_categories WHERE company_id = ? ORDER BY name").bind(c).all<any>()).results ?? []) as any[];
     const co = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(c).first<{ id: number; plan: string; createdAt?: string }>();
-    const rr = co ? (await usageSummary(env, co)).features.find((x) => x.feature === "receipt_read") : null;
+    const feats = co ? (await usageSummary(env, co)).features : [];
+    const rr = feats.find((x) => x.feature === "receipt_read") ?? null;
+    const br = feats.find((x) => x.feature === "bank_read") ?? null;
     const jobs = ((await env.DB.prepare("SELECT j.id, j.title, cu.name AS customer FROM jobs j JOIN customers cu ON cu.id = j.customer_id WHERE j.company_id = ? ORDER BY j.id DESC LIMIT 300").bind(c).all<any>()).results ?? []) as any[];
-    return json({ year, expenses, trips, jobs, qbAccounts: iifAccounts(expenses.map((e) => ({ spentOn: e.spentOn, vendor: e.vendor ?? "", category: e.category, amountCents: e.amountCents, jobTitle: null, note: "" }))), categories: [...DEFAULT_CATEGORIES.filter((x) => x !== "Other"), ...custom.map((x) => x.name).filter((n) => !DEFAULT_CATEGORIES.includes(n)), "Other"], customCategories: custom, settings, summary: summarize({ expenses, trips, rateCents: settings.mileageRateCents }), receiptAllowance: rr ? { used: rr.used, limit: rr.limit } : null, plan: await companyPlan(env, c) });
+    return json({ year, expenses, trips, jobs, qbAccounts: iifAccounts(expenses.map((e) => ({ spentOn: e.spentOn, vendor: e.vendor ?? "", category: e.category, amountCents: e.amountCents, jobTitle: null, note: "" }))), categories: [...DEFAULT_CATEGORIES.filter((x) => x !== "Other"), ...custom.map((x) => x.name).filter((n) => !DEFAULT_CATEGORIES.includes(n)), "Other"], customCategories: custom, settings, summary: summarize({ expenses, trips, rateCents: settings.mileageRateCents }), receiptAllowance: rr ? { used: rr.used, limit: rr.limit } : null, bankAllowance: br ? { used: br.used, limit: br.limit } : null, plan: await companyPlan(env, c) });
   }
   if (request.method !== "POST") return json({ error: "Not found." }, 404);
   let b: any;
@@ -384,11 +406,37 @@ export async function handleRecords(request: Request, env: Env): Promise<Respons
   }
   if (b?.action === "csvPreview") {
     const text = typeof b.text === "string" ? b.text.slice(0, 1_500_000) : "";
-    const p = parseBankCsv(text, settings.rules);
+    let p: { rows: ImportRow[]; skipped: number; error?: string };
+    if (looksLikeOfx(text)) {
+      const tx = parseOfx(text);
+      p = tx.length ? rowsFromTx(tx, settings.rules) : { rows: [], skipped: 0, error: "That looks like a QFX/OFX file but we found no transactions in it. Try the CSV or Excel download from the same page on your bank's website." };
+    } else p = parseBankCsv(text, settings.rules);
     if (p.error) return json({ error: p.error }, 400);
-    const existing = ((await env.DB.prepare("SELECT spent_on AS d, lower(COALESCE(vendor,'')) AS v, amount_cents AS a FROM expenses WHERE company_id = ?").bind(c).all<any>()).results ?? []) as any[];
-    const seen = new Set(existing.map((e) => `${e.d}|${vendorKey(e.v)}|${e.a}`));
-    return json({ rows: p.rows.map((r) => ({ ...r, duplicate: seen.has(`${r.spentOn}|${vendorKey(r.vendor)}|${r.amountCents}`) })), skipped: p.skipped });
+    return json({ rows: await markDuplicates(p.rows), skipped: p.skipped });
+  }
+  if (b?.action === "pdfPreview") {
+    const data = typeof b.data === "string" ? b.data.replace(/^data:[^,]*,/, "").replace(/\s+/g, "") : "";
+    const mime = b.mime === "application/pdf" ? "application/pdf" : /^image\/(jpeg|png|webp|heic|heif)$/.test(String(b.mime)) ? String(b.mime) : "";
+    if (!mime || !/^[A-Za-z0-9+/]+={0,2}$/.test(data.slice(0, 2000))) return json({ error: "Choose a PDF or a screenshot of your statement." }, 400);
+    if (data.length > 7_000_000) return json({ error: "That file is too large (the limit is about 5 MB). Download one month at a time, or send a CSV." }, 400);
+    const co = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(c).first<{ id: number; plan: string; createdAt?: string }>();
+    const used = await consume(env, co!, "bank_read");
+    if (!used.allowed) return json({ error: used.reason === "kill_switch" ? "Reading statements is paused right now. Please use a CSV file instead." : "You have used this month's statement reads. A CSV file from your bank does not count against it, or upgrade for more.", code: used.reason }, 429);
+    const out = await visionAsk(env, { system: STATEMENT_SYSTEM, user: STATEMENT_PROMPT, mime, data, maxTokens: 12000 }, { json: false });
+    if (!out.ok) {
+      await refund(env, co!, "bank_read");
+      return json({ error: `${friendlyVisionError(out.why, "Reading statements")} A CSV file from your bank works too.`, detail: out.why }, 502);
+    }
+    const tx = parseStatementLines(out.text);
+    if (!tx.length) {
+      await refund(env, co!, "bank_read");
+      return json({ error: "We could not find any transactions in that file. Make sure it is a bank or card statement (or a screenshot of your transaction list), or use a CSV file from your bank." }, 400);
+    }
+    const p = rowsFromTx(tx, settings.rules);
+    if (!p.rows.length) {
+      return json({ error: "We read the statement, but it only had deposits or credits, no spending to add." }, 400);
+    }
+    return json({ rows: await markDuplicates(p.rows), skipped: p.skipped, readBy: out.provider });
   }
   if (b?.action === "csvCommit") {
     const rows = Array.isArray(b.rows) ? b.rows.slice(0, 1500) : [];

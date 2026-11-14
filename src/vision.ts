@@ -2,7 +2,7 @@ import type { Env } from "./types.ts";
 import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
 
 /**
- * One photo plus a question, answered by whichever AI provider works. Gemini goes first (cheapest), then OpenAI, then Anthropic.
+ * One photo (or PDF) plus a question, answered by whichever AI provider works. Gemini goes first (cheapest), then OpenAI, then Anthropic.
  * Receipt reading and photo analysis both use this, so one provider having a bad day (quota, overload, a model that
  * refuses a setting) no longer breaks the feature. When every provider fails, `why` lists the status codes so the
  * problem can be found without guessing. Status codes and short provider messages only: never keys, never the photo.
@@ -64,7 +64,7 @@ async function viaOpenAI(env: Env, i: VisionIn, json: boolean): Promise<{ text: 
       ...(json ? { response_format: { type: "json_object" } } : {}),
       messages: [
         { role: "system", content: i.system },
-        { role: "user", content: [{ type: "text", text: i.user }, { type: "image_url", image_url: { url: `data:${i.mime};base64,${i.data}` } }] },
+        { role: "user", content: [{ type: "text", text: i.user }, i.mime === "application/pdf" ? { type: "file", file: { filename: "document.pdf", file_data: `data:application/pdf;base64,${i.data}` } } : { type: "image_url", image_url: { url: `data:${i.mime};base64,${i.data}` } }] },
       ],
     }),
   });
@@ -82,7 +82,7 @@ async function viaAnthropic(env: Env, i: VisionIn): Promise<{ text: string } | {
       model: env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5",
       max_tokens: i.maxTokens ?? 1200,
       system: i.system,
-      messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: i.mime, data: i.data } }, { type: "text", text: i.user }] }],
+      messages: [{ role: "user", content: [{ type: i.mime === "application/pdf" ? "document" : "image", source: { type: "base64", media_type: i.mime, data: i.data } }, { type: "text", text: i.user }] }],
     }),
   });
   if (!r.ok) return { fail: await failure("anthropic", r) };
@@ -91,7 +91,7 @@ async function viaAnthropic(env: Env, i: VisionIn): Promise<{ text: string } | {
   return text.trim() ? { text } : { fail: "anthropic empty" };
 }
 
-/** Asks about one photo. `json: true` asks for a JSON reply. */
+/** Asks about one photo or PDF (mime application/pdf). `json: true` asks for a JSON reply. */
 export async function visionAsk(env: Env, i: VisionIn, opts: { json?: boolean; prefer?: VisionProvider[] } = {}): Promise<VisionOut> {
   const tried: string[] = [];
   const json = opts.json !== false;

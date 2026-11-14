@@ -1,16 +1,16 @@
 import type { Env } from "./types.ts";
 
-export type Feature = "ai_quote" | "ai_estimate" | "ai_invoice" | "photo_tag" | "smart_select" | "hd_render" | "ai_assistant" | "insurance_scan" | "ai_detailed" | "photo_analysis" | "ai_deep" | "receipt_read";
+export type Feature = "ai_quote" | "ai_estimate" | "ai_invoice" | "photo_tag" | "smart_select" | "hd_render" | "ai_assistant" | "insurance_scan" | "ai_detailed" | "photo_analysis" | "ai_deep" | "receipt_read" | "bank_read";
 export type Plan = "free" | "starter" | "basic" | "pro";
 
-export const FEATURES: Feature[] = ["ai_quote", "ai_estimate", "ai_invoice", "photo_tag", "smart_select", "hd_render", "ai_assistant", "insurance_scan", "ai_detailed", "photo_analysis", "ai_deep", "receipt_read"];
+export const FEATURES: Feature[] = ["ai_quote", "ai_estimate", "ai_invoice", "photo_tag", "smart_select", "hd_render", "ai_assistant", "insurance_scan", "ai_detailed", "photo_analysis", "ai_deep", "receipt_read", "bank_read"];
 
 /** Monthly allowance per plan. 0 means the plan does not include the feature. Adjust here as pricing is decided. */
 export const PLAN_LIMITS: Record<Plan, Record<Feature, number>> = {
-  free:    { ai_quote: 10,  ai_estimate: 3,  ai_invoice: 2,  photo_tag: 10,  smart_select: 0,   hd_render: 0,  ai_assistant: 15, insurance_scan: 1, ai_detailed: 0, photo_analysis: 3, ai_deep: 0, receipt_read: 5 },
-  starter: { ai_quote: 200, ai_estimate: 30, ai_invoice: 30, photo_tag: 100, smart_select: 100, hd_render: 0,  ai_assistant: 150, insurance_scan: 3, ai_detailed: 10, photo_analysis: 10, ai_deep: 2, receipt_read: 15 },
-  basic:   { ai_quote: 600, ai_estimate: 100, ai_invoice: 100, photo_tag: 400, smart_select: 400, hd_render: 20, ai_assistant: 600, insurance_scan: 8, ai_detailed: 40, photo_analysis: 40, ai_deep: 10, receipt_read: 60 },
-  pro:     { ai_quote: 2000, ai_estimate: 400, ai_invoice: 400, photo_tag: 1500, smart_select: 1500, hd_render: 100, ai_assistant: 3000, insurance_scan: 20, ai_detailed: 150, photo_analysis: 150, ai_deep: 40, receipt_read: 200 },
+  free:    { ai_quote: 10,  ai_estimate: 3,  ai_invoice: 2,  photo_tag: 10,  smart_select: 0,   hd_render: 0,  ai_assistant: 15, insurance_scan: 1, ai_detailed: 0, photo_analysis: 3, ai_deep: 0, receipt_read: 5, bank_read: 1 },
+  starter: { ai_quote: 200, ai_estimate: 30, ai_invoice: 30, photo_tag: 100, smart_select: 100, hd_render: 0,  ai_assistant: 150, insurance_scan: 3, ai_detailed: 10, photo_analysis: 10, ai_deep: 2, receipt_read: 15, bank_read: 3 },
+  basic:   { ai_quote: 600, ai_estimate: 100, ai_invoice: 100, photo_tag: 400, smart_select: 400, hd_render: 20, ai_assistant: 600, insurance_scan: 8, ai_detailed: 40, photo_analysis: 40, ai_deep: 10, receipt_read: 60, bank_read: 10 },
+  pro:     { ai_quote: 2000, ai_estimate: 400, ai_invoice: 400, photo_tag: 1500, smart_select: 1500, hd_render: 100, ai_assistant: 3000, insurance_scan: 20, ai_detailed: 150, photo_analysis: 150, ai_deep: 40, receipt_read: 200, bank_read: 30 },
 };
 
 /** Per-visitor daily cap, so one person cannot burn a client's allowance. */
