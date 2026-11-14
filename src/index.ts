@@ -22,6 +22,7 @@ import { slugForHost } from "./domains.ts";
 import { handleCatalog } from "./ratecatalog.ts";
 import { handleCities, refreshStaleCities } from "./cities.ts";
 import { handleWorkOrders, handleWoPublic } from "./workorders.ts";
+import { handleJobPay } from "./payments.ts";
 import { handleRecords } from "./records.ts";
 import { handleCrew } from "./crew.ts";
 import { handleAnalysis } from "./analysis.ts";
@@ -767,6 +768,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleRecords(request, env);
       } catch (err) {
         console.error("records failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/jobpay") {
+      try {
+        return await handleJobPay(request, env);
+      } catch (err) {
+        console.error("jobpay failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

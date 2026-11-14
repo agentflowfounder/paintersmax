@@ -8,6 +8,7 @@ import { labelsFor } from "./ratecatalog.ts";
 import { commercialBlockedMessage, loadCommercialStatus } from "./commercial.ts";
 import { computeTotals, draftLines, milestoneAmounts, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
+import { loadHowToPay, loadPayments, sumPaid } from "./payments.ts";
 import { CUSTOMER_KINDS, docTitle, invoiceChecks, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
@@ -535,14 +536,16 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
       const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM documents WHERE company_id = ? AND kind = 'invoice'").bind(user.companyId).first<{ n: number }>();
       const sched = storedEstimate(stored).schedule;
       const amounts = milestoneAmounts(stored.totals?.totalCents ?? 0, sched);
-      const paid = sched.length ? 0 : (stored.totals?.depositCents ?? 0) / 100;
+      const ledger = await loadPayments(env, user.companyId, jobId);
+      // What the customer actually paid (the payments you recorded) wins. With none recorded, a plain deposit-then-balance estimate assumes the deposit.
+      const paid = ledger.length ? sumPaid(ledger) / 100 : sched.length ? 0 : (stored.totals?.depositCents ?? 0) / 100;
       const signed = await env.DB.prepare("SELECT 1 AS ok FROM signature_requests WHERE job_id = ? AND company_id = ? AND kind IN ('estimate','contract') AND status = 'signed' LIMIT 1").bind(jobId, user.companyId).first();
       const co = await env.DB.prepare("SELECT COUNT(*) AS n FROM job_events WHERE job_id = ? AND company_id = ? AND kind = 'change_order'").bind(jobId, user.companyId).first<{ n: number }>();
       const punch = await env.DB.prepare("SELECT 1 AS ok FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'punch' LIMIT 1").bind(jobId, user.companyId).first();
       const total = stored.totals?.totalCents ?? 0;
       const checks = invoiceChecks({ estimateSigned: !!signed, customerEmail: j.row.customerEmail, changeOrders: co?.n ?? 0, hasPunchList: !!punch, totalCents: total, paidCents: Math.round(paid * 100), billCents: sched.length ? (amounts[0] ?? total) : total });
       return json({
-        invoice: { number: String(1001 + (n?.n ?? 0)), dueDate: j.profile.labor?.paymentTerms ?? "", paid, notes: "", language: lang, milestone: sched.length ? 0 : null },
+        invoice: { number: String(1001 + (n?.n ?? 0)), dueDate: j.profile.labor?.paymentTerms ?? "", paid, notes: "", howToPay: await loadHowToPay(env, user.companyId), language: lang, milestone: sched.length ? 0 : null },
         milestones: sched.map((m, i) => ({ label: m.label, pct: m.pct, amountCents: amounts[i] })),
         checks,
       });
@@ -568,7 +571,7 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
     return json({ note });
   }
 
-  const existing = await env.DB.prepare("SELECT id FROM documents WHERE job_id = ? AND company_id = ? AND kind = ? ORDER BY id DESC LIMIT 1").bind(jobId, user.companyId, kind).first<{ id: number }>();
+  const existing = await env.DB.prepare("SELECT id, status, body FROM documents WHERE job_id = ? AND company_id = ? AND kind = ? ORDER BY id DESC LIMIT 1").bind(jobId, user.companyId, kind).first<{ id: number; status: string; body: string }>();
 
   if (b.action === "paid") {
     if (kind !== "invoice" || !existing) return json({ error: "Save the invoice first." }, 400);
@@ -593,7 +596,24 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
     }
     const title = `${docTitle(kind, language === "es" ? "es" : "en")}: ${j.row.title}`.slice(0, 160);
     let docId: number;
-    if (existing) {
+    // A sent or paid invoice is a record the customer already has, so it is locked. A change creates a corrected invoice and keeps the original.
+    const locked = kind === "invoice" && !!existing && (existing.status === "sent" || existing.status === "paid");
+    if (locked && b.corrected !== true && b.action !== "send") return json({ error: "This invoice was already sent, so it is locked. To change something, choose Create corrected invoice. The original stays on record.", code: "invoice_locked" }, 409);
+    const resend = locked && b.corrected !== true && b.action === "send";
+    if (resend && existing) {
+      // Sending it again changes nothing: the stored invoice goes out as it is.
+      docId = existing.id;
+      body = existing.body;
+    } else if (locked && existing) {
+      const oldNo = String(parse(existing.body)?.invoice?.number ?? "");
+      const inv2 = sanitizeInvoice(b?.invoice);
+      if (oldNo && inv2.number === oldNo) inv2.number = `${oldNo}-A`;
+      body = JSON.stringify({ invoice: inv2 });
+      await env.DB.prepare("UPDATE documents SET status = 'superseded', updated_at = datetime('now') WHERE id = ?").bind(existing.id).run();
+      const ins = await env.DB.prepare("INSERT INTO documents (company_id, job_id, kind, language, status, title, body) VALUES (?, ?, 'invoice', ?, 'draft', ?, ?)").bind(user.companyId, jobId, inv2.language, title, body).run();
+      docId = Number(ins.meta.last_row_id);
+      await addJobEvent(env, user.companyId, jobId, "note", `Corrected invoice ${inv2.number} created. The original${oldNo ? ` (${oldNo})` : ""} is kept on record.`);
+    } else if (existing) {
       docId = existing.id;
       await env.DB.prepare("UPDATE documents SET body = ?, language = ?, title = ?, status = CASE WHEN status = 'paid' THEN 'paid' ELSE 'draft' END, updated_at = datetime('now') WHERE id = ?").bind(body, language, title, docId).run();
     } else {
@@ -602,7 +622,7 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
     }
     if (kind === "punch") await env.DB.prepare("UPDATE jobs SET stage = 'punch', updated_at = datetime('now') WHERE id = ? AND stage IN ('scheduled','in_progress')").bind(jobId).run();
     if (kind === "invoice") await env.DB.prepare("UPDATE jobs SET stage = 'invoiced', updated_at = datetime('now') WHERE id = ? AND stage NOT IN ('closed','lost')").bind(jobId).run();
-    await addJobEvent(env, user.companyId, jobId, "note", `${docTitle(kind, "en")} saved.`);
+    if (!resend) await addJobEvent(env, user.companyId, jobId, "note", `${docTitle(kind, "en")} saved.`);
 
     if (b.action === "send") {
       if (!CUSTOMER_KINDS.includes(kind)) return json({ error: "This document is for your crew. Print it instead.", docId }, 400);

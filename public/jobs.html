@@ -175,6 +175,43 @@ document.addEventListener('click',async e=>{const d=e.target.dataset||{};
 });
 
 // ---- Job costs (expenses and mileage) ----
+// ---- Payments from the customer (deposit, progress, final). Records only: we never store bank or card numbers. ----
+const PMETH={cash:'Cash',check:'Check',zelle:'Zelle',cash_app:'CashApp',venmo:'Venmo',paypal:'PayPal',bank_deposit:'Bank deposit (ACH or wire)',card_outside:'Card (taken outside PaintersMax)',other:'Other'};
+const PKIND={deposit:'Deposit',progress:'Progress payment',final:'Final payment',other:'Payment'};
+const dtf=s=>(window.pmDate?window.pmDate(s):s);
+let PAY=null,PAYE=null;
+function payCard(){return `<h3>Payments from the customer</h3><div class="card" id="pay_card"><div id="pay_body" class="muted">Loading...</div></div>`;}
+async function payLoad(){const b=$('pay_body');if(!b)return;try{PAY=await api('/api/jobpay?jobId='+J.job.id);payDraw();}catch(e){}}
+function payForm(p){const m=PAY.methods.map(k=>`<option value="${k}" ${p.method===k?'selected':''}>${PMETH[k]||k}</option>`).join('');const kd=Object.keys(PKIND).map(k=>`<option value="${k}" ${p.kind===k?'selected':''}>${PKIND[k]}</option>`).join('');
+ return `<div style="border:1px solid #cfd5dc;border-radius:8px;padding:10px;margin:10px 0;background:#faf9f6"><b>${p.id?'Change this payment':'Record a payment'}</b>
+ <div class="row"><div><label>Amount ($)</label><input id="py_amt" inputmode="decimal" value="${esc(p.amount||'')}"></div><div><label>Date it was paid</label><input id="py_on" type="date" value="${esc(p.on||PAY.today)}"></div></div>
+ <div class="row"><div><label>How did they pay?</label><select id="py_method">${m}</select></div><div><label>What was it for?</label><select id="py_kind">${kd}</select></div></div>
+ <label>Check number, or last 4 digits <small class="muted">(optional)</small></label><input id="py_ref" value="${esc(p.ref||'')}" placeholder="Example: 1042">
+ <label>Note <small class="muted">(optional)</small></label><input id="py_note" value="${esc(p.note||'')}" placeholder="Example: paid at the door">
+ <small class="muted">Please never type a full bank or card number here. PaintersMax does not store them.</small>
+ <div class="btns"><button class="btn" data-pysave="${esc(p.id||'')}">${p.id?'Save changes':'Save payment'}</button><button class="btn sec" data-pycancel="1">Cancel</button></div></div>`;}
+function payDraw(){const b=$('pay_body');if(!b||!PAY)return;const P=PAY,f=c=>$$(c);
+ const status=P.totalCents>0?(P.paidInFull?`<b style="color:#0a7a3d">Paid in full</b>${P.overpaidCents?` <span class="muted">(${f(P.overpaidCents)} more than the total. Check the amounts.)</span>`:''}`:`Balance due <b>${f(P.balanceCents)}</b>`):'<span class="muted">Save an estimate to see what is owed.</span>';
+ let guide='';
+ if(!P.payments.length&&P.totalCents>0)guide=P.depositCents>0?`<p style="margin:0 0 8px">${P.signed?'The customer signed.':'When the customer says yes,'} your deposit is <b>${f(P.depositCents)}</b>. When it arrives, record it here and I will keep track. Then add the job to the <a href="/calendar">calendar</a>.</p><div class="btns" style="margin:0 0 8px"><button class="btn" data-pydep="1">Record the ${f(P.depositCents)} deposit</button></div>`:`<p style="margin:0 0 8px">Nothing paid yet. When the customer pays you, record it here so your balance stays right.</p>`;
+ else if(P.payments.length&&!P.paidInFull&&P.balanceCents>0&&!PAYE)guide='';
+ const rows=P.payments.map(p=>`<div style="display:flex;justify-content:space-between;gap:10px;border-top:1px solid #eee;padding:8px 0;flex-wrap:wrap"><div><b>${f(p.cents)}</b> <span class="tag">${esc(PKIND[p.kind]||'Payment')}</span><br><small class="muted">${esc(dtf(p.on))} &middot; ${esc(PMETH[p.method]||p.method)}${p.ref?' &middot; '+esc(p.ref):''}${p.note?' &middot; '+esc(p.note):''}</small></div><div class="btns" style="margin:0"><button class="mini" data-pyedit="${esc(p.id)}">Edit</button> <button class="mini" data-pydel="${esc(p.id)}">Delete</button></div></div>`).join('');
+ b.innerHTML=`<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:baseline"><span>Job total <b>${f(P.totalCents)}</b>${P.changeOrderCents?`<small class="muted"> (estimate ${f(P.estimateCents)} plus approved changes ${f(P.changeOrderCents)})</small>`:''}</span><span>Paid <b>${f(P.paidCents)}</b></span><span>${status}</span></div>
+ ${guide}${rows}${PAYE?payForm(PAYE):`<div class="btns"><button class="btn sec" data-pynew="1">+ Record a payment</button></div>`}
+ <details style="margin-top:10px"><summary><b>How to pay me</b> <small class="muted">(prints on your invoices)</small></summary>
+  <p class="muted" style="margin:6px 0">Tell customers how to pay you. Example: "Zelle to 555-123-4567. CashApp $TylerPainters. Checks payable to Tyler Painters, 123 Main St." You decide what goes here. PaintersMax never asks for or stores bank account numbers.</p>
+  <textarea id="py_how" rows="3">${esc(P.howToPay||'')}</textarea><div class="btns"><button class="btn sec" data-pyhow="1">Save</button></div></details>`;}
+document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if(!J||!PAY)return;
+ const call=async body=>{try{msg('');PAY=await api('/api/jobpay',{jobId:J.job.id,...body});PAYE=null;payDraw();return true;}catch(x){if(x)msg(x.message);return false;}};
+ if(ds.pynew){PAYE={method:'check',kind:PAY.payments.length?'progress':'deposit'};payDraw();}
+ else if(ds.pydep){PAYE={method:'check',kind:'deposit',amount:(PAY.depositCents/100).toFixed(2)};payDraw();}
+ else if(ds.pycancel){PAYE=null;payDraw();}
+ else if(ds.pyedit){const p=PAY.payments.find(x=>x.id===ds.pyedit);if(p){PAYE={...p,amount:(p.cents/100).toFixed(2)};payDraw();}}
+ else if(t.hasAttribute&&t.hasAttribute('data-pysave')){const id=ds.pysave;const body={action:id?'update':'add',id:id||undefined,amount:$('py_amt').value,on:$('py_on').value,method:$('py_method').value,kind:$('py_kind').value,ref:$('py_ref').value,note:$('py_note').value};if(await call(body))msg(id?'Payment changed.':'Payment saved. Your balance is updated.',true);}
+ else if(ds.pydel){if(!confirm('Delete this payment? Your balance will change.'))return;if(await call({action:'delete',id:ds.pydel}))msg('Deleted.',true);}
+ else if(ds.pyhow){try{msg('');const r=await api('/api/jobpay',{action:'saveHowToPay',text:$('py_how').value});PAY.howToPay=r.howToPay;msg('Saved. It will print on your invoices.',true);}catch(x){if(x)msg(x.message);}}
+});
+
 function costCard(){return `<h3>Expenses and mileage for this job</h3><div class="card" id="jc_card"><div id="jc_sum" class="muted">Loading...</div><div class="btns"><a class="btn sec" href="/records?job=${J.job.id}">Add an expense or trip</a><a class="btn sec" href="/records">All records</a></div><small class="muted">Records for your accountant, not tax advice.</small></div>`;}
 async function costLoad(){const b=$('jc_sum');if(!b)return;try{const r=await api('/api/records?jobTotals='+J.job.id);b.innerHTML=r.expenseCount||r.miles?`<b>${woMoney(r.expenseCents)}</b> in ${r.expenseCount} expense${r.expenseCount===1?'':'s'} &middot; <b>${r.miles}</b> miles${r.mileageValueCents!=null?' ('+woMoney(r.mileageValueCents)+')':''}`:'Nothing recorded for this job yet.';}catch(e){}}
 
@@ -367,6 +404,7 @@ async function detail(id){
   ${lostCard(d)}
   ${filesCard()}
   ${woCard()}
+  ${payCard()}
   ${costCard()}
   ${wcCard()}
   ${lsCard()}
@@ -416,7 +454,7 @@ async function detail(id){
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
   $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>msg('Saved.',true));};
   $('send').onclick=async()=>{if(!confirm('Email this estimate to '+j.customerEmail+'?'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
-  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad();findingsLoad();woLoad();costLoad();wcLoad();lsLoad();jfLoad();
+  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad();findingsLoad();woLoad();payLoad();costLoad();wcLoad();lsLoad();jfLoad();
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};
   const cact=async(action)=>{try{msg('');const r=await api('/api/contract',{action,jobId:j.id,contract:{startDate:$('c_start').value,endDate:$('c_end').value,language:$('c_lang').value,clauses}});return r;}catch(x){if(x)msg(x.message);}};
   const cs=$('c_save');if(cs){cs.onclick=async()=>{const r=await cact('save');if(r)detail(j.id).then(()=>msg('Contract saved.',true));};
@@ -446,17 +484,17 @@ function docCard(m,d){const x=d.docs[m.k];const lang=docs[m.k]?docs[m.k].languag
  <div id="wl_${m.k}"></div>
  <div class="btns" id="wb_${m.k}" style="display:none"><button class="btn" data-dksave="${m.k}">Save</button><button class="btn sec" data-dkview="${m.k}" ${x?'':'disabled'}>View / print</button>${m.cust?`<button class="btn sec" data-dksend="${m.k}" ${x&&d.job.customerEmail?'':'disabled'}>Email to customer</button>`:''}</div>
  <small>${x?'Status: '+esc(x.status):'Not saved yet'}</small></div>`;}
-function invCard(d){const x=d.docs.invoice;
- return `<h3>8. Invoice</h3><div class="card">${d.estimate?`<p class="muted" style="margin-top:0">Uses the price from your saved estimate. Enter what the customer already paid, such as the deposit.</p>
+function invCard(d){const x=d.docs.invoice;const lock=!!x&&(x.status==='sent'||x.status==='paid');
+ return `<h3>8. Invoice</h3><div class="card">${d.estimate?`${lock?'<div style="background:#eef5ff;border:1px solid #9cc2f0;border-radius:8px;padding:10px 12px;margin-bottom:10px"><b>This invoice is locked.</b> The customer already has it, so it stays exactly as sent. You can view it or email it again. To change something, tap <b>Create corrected invoice</b>. The original stays on record.</div>':''}<p class="muted" style="margin-top:0">Uses the price from your saved estimate. The amount already paid comes from the payments you recorded above.</p>
  <div class="btns" style="margin-top:0"><button class="btn sec" data-ivbuild="1">${x?'Rebuild (replaces edits)':'Job complete: build invoice'}</button></div>
  <div id="iv_chk"></div><div id="ivf" style="display:none"><div class="row"><div><label>Invoice number</label><input id="iv_num"></div><div><label>Due</label><input id="iv_due" placeholder="Example: on completion, or Dec 1"></div></div>
  <div id="iv_ms"></div><div class="row"><div><label>Already paid ($)</label><input id="iv_paid" inputmode="decimal"></div><div><label>Language</label><select id="iv_lang"><option value="en">English</option><option value="es">Español</option></select></div></div>
- <label>Notes (how to pay, thank you)</label><textarea id="iv_notes" rows="3"></textarea><div class="btns" style="margin-top:6px"><button class="btn sec" data-ivnote="1">Write a thank-you note</button></div><small class="muted">The note never includes amounts. You can edit it before you save.</small>
- <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="iv_rem" style="width:auto;margin-top:3px"><span>Email the customer a friendly reminder if this is still unpaid after 7 and 14 days<br><small class="muted">The reminder names the invoice but never states an amount. It stops when you mark the invoice paid.</small></span></label><div class="btns"><button class="btn" data-ivsave="1">Save</button><button class="btn sec" data-ivview="1" ${x?'':'disabled'}>View / print</button><button class="btn sec" data-ivsend="1" ${x&&d.job.customerEmail?'':'disabled'}>Email to customer</button><button class="btn sec" data-ivpaid="1" ${x?'':'disabled'}>Mark as paid</button></div></div>
+ <label>Notes (thank you, anything else)</label><textarea id="iv_notes" rows="3"></textarea><div class="btns" style="margin-top:6px"><button class="btn sec" data-ivnote="1">Write a thank-you note</button></div><small class="muted">The note never includes amounts. You can edit it before you save.</small><label>How to pay me <small class="muted">(prints on the invoice, saved for next time)</small></label><textarea id="iv_how" rows="3" placeholder="Example: Zelle to 555-123-4567. Checks payable to Tyler Painters."></textarea><small class="muted">Type how you like to be paid. Never put a bank account number here unless you choose to.</small>
+ <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="iv_rem" style="width:auto;margin-top:3px"><span>Email the customer a friendly reminder if this is still unpaid after 7 and 14 days<br><small class="muted">The reminder names the invoice but never states an amount. It stops when you mark the invoice paid.</small></span></label><div class="btns"><button class="btn" data-ivsave="1">${lock?'Create corrected invoice':'Save'}</button><button class="btn sec" data-ivview="1" ${x?'':'disabled'}>View / print</button><button class="btn sec" data-ivsend="1" ${x&&d.job.customerEmail?'':'disabled'}>Email to customer</button><button class="btn sec" data-ivpaid="1" ${x?'':'disabled'}>Mark as paid</button></div></div>
  <small>${x?'Status: '+esc(x.status):'Not saved yet'}</small>`:'<p class="muted">Save the estimate first. The invoice uses its price.</p>'}</div>`;}
 function ivMs(){const w=$('iv_ms');if(!w)return;w.innerHTML=msOpts.length?`<label>Which payment is this invoice for?</label><select id="iv_msel"><option value="">The whole job</option>${msOpts.map((m,i)=>`<option value="${i}" ${inv.milestone===i?'selected':''}>${i+1}. ${esc(m.label)} (${m.pct}%, ${$$(m.amountCents)})</option>`).join('')}</select>`:'';}
-function ivFill(){const f=$('ivf');if(!f)return;f.style.display='block';ivMs();$('iv_num').value=inv.number||'';$('iv_due').value=inv.dueDate||'';$('iv_paid').value=inv.paid||'';$('iv_notes').value=inv.notes||'';$('iv_lang').value=inv.language||'en';const rc=$('iv_rem');if(rc)rc.checked=!!inv.reminders;}
-function ivRead(){const ms=$('iv_msel');return{milestone:ms&&ms.value!==''?Number(ms.value):null,number:$('iv_num').value,dueDate:$('iv_due').value,paid:$('iv_paid').value,notes:$('iv_notes').value,language:$('iv_lang').value,reminders:!!($('iv_rem')||{}).checked};}
+function ivFill(){const f=$('ivf');if(!f)return;f.style.display='block';ivMs();$('iv_num').value=inv.number||'';$('iv_due').value=inv.dueDate||'';$('iv_paid').value=inv.paid||'';$('iv_notes').value=inv.notes||'';$('iv_how').value=inv.howToPay||(PAY&&PAY.howToPay)||'';$('iv_lang').value=inv.language||'en';const rc=$('iv_rem');if(rc)rc.checked=!!inv.reminders;}
+function ivRead(){const ms=$('iv_msel');return{milestone:ms&&ms.value!==''?Number(ms.value):null,number:$('iv_num').value,dueDate:$('iv_due').value,paid:$('iv_paid').value,notes:$('iv_notes').value,howToPay:($('iv_how')||{value:''}).value,language:$('iv_lang').value,reminders:!!($('iv_rem')||{}).checked};}
 function drawMore(d){
  docs={};for(const m of DOCS){if(d.docs[m.k]&&d.docs[m.k].doc)docs[m.k]=JSON.parse(JSON.stringify(d.docs[m.k].doc));}
  inv=d.docs.invoice&&d.docs.invoice.invoice?{...d.docs.invoice.invoice,paid:(d.docs.invoice.invoice.paidCents||0)/100}:{};
@@ -474,10 +512,10 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  else if(ds.dkdel){const[k,i]=ds.dkdel.split(':');docs[k].items.splice(+i,1);wDraw(k);}
  else if(ds.ivbuild){if(inv.number&&!confirm('This replaces the invoice on screen. Continue?'))return;const r=await jd({action:'draft',kind:'invoice',language:'en'});if(r){inv=r.invoice;msOpts=r.milestones||[];ivFill();const c=$('iv_chk'),T=window.pmT||function(q){return q};if(c)c.innerHTML=(r.checks&&r.checks.length)?'<div style="background:#fff7e6;border:1px solid #E8A33D;border-radius:8px;padding:10px 12px;margin:10px 0"><b>'+T('Check before you send')+'</b><ul style="margin:6px 0 0;padding-left:18px">'+r.checks.map(x=>'<li>'+esc(T(x))+'</li>').join('')+'</ul></div>':'<p class="muted">'+T('No problems found. Review the amounts, then save and send.')+'</p>';}}
  else if(ds.ivnote){const r=await jd({action:'note',kind:'invoice',language:($('iv_lang')||{}).value||'en'});if(r&&r.note){const n=$('iv_notes');n.value=(n.value?n.value+'\n\n':'')+r.note;msg('Note added. Review it, then save.',true);}}
- else if(ds.ivsave){const r=await jd({action:'save',kind:'invoice',invoice:ivRead()});if(r)rel().then(()=>msg('Invoice saved.',true));}
+ else if(ds.ivsave){const lk=J.docs.invoice&&(J.docs.invoice.status==='sent'||J.docs.invoice.status==='paid');if(lk&&!confirm('Create a corrected invoice? The invoice you already sent stays on record, and the corrected one starts as a draft.'))return;const iv=ivRead();const r=await jd({action:'save',kind:'invoice',invoice:iv,corrected:lk||undefined});if(r){if(iv.howToPay)api('/api/jobpay',{action:'saveHowToPay',text:iv.howToPay}).catch(()=>{});rel().then(()=>msg(lk?'Corrected invoice created. Review it, then email it.':'Invoice saved.',true));}}
  else if(ds.ivsend){if(!confirm('Email this invoice to '+J.job.customerEmail+'?'))return;const r=await jd({action:'send',kind:'invoice',invoice:ivRead()});if(r)rel().then(()=>msg('Invoice emailed.',true));}
  else if(ds.ivview){const x=J.docs.invoice;if(x)window.open('/api/doc?id='+x.id,'_blank');}
- else if(ds.ivpaid){if(!confirm('Mark this invoice as paid? The job will close.'))return;const r=await jd({action:'paid',kind:'invoice'});if(r)rel().then(()=>msg('Paid. Job closed.',true));}
+ else if(ds.ivpaid){if(!confirm(PAY&&PAY.totalCents>0&&!PAY.paidInFull?'Your recorded payments still show a balance of '+$$(PAY.balanceCents)+'. Mark this invoice as paid anyway? The job will close.':'Mark this invoice as paid? The job will close.'))return;const r=await jd({action:'paid',kind:'invoice'});if(r)rel().then(()=>msg('Paid. Job closed.',true));}
 });
 document.addEventListener('change',e=>{if(e.target.id==='iv_msel'){const v=e.target.value;let paid=0;if(v!=='')for(let i=0;i<+v;i++)paid+=msOpts[i].amountCents;$('iv_paid').value=v!==''?(paid/100||''):'';}});
 document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if(!J)return;

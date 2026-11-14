@@ -268,6 +268,8 @@ export interface InvoiceInput {
   dueDate: string;
   paidCents: number;
   notes: string;
+  /** The painter's own "How to pay me" note (Zelle number, CashApp name, who to make checks out to). Free text; we never ask for or store bank numbers. */
+  howToPay: string;
   language: "en" | "es";
   /** Which payment on the estimate's milestone schedule this invoice bills (0 = first). Null bills the whole job. */
   milestone: number | null;
@@ -282,11 +284,15 @@ export function sanitizeInvoice(input: any): InvoiceInput {
     dueDate: str(input?.dueDate, 40),
     paidCents: Number.isFinite(paid) && paid >= 0 && paid <= 10_000_000 ? Math.round(paid * 100) : 0,
     notes: str(input?.notes, 2000),
+    howToPay: str(input?.howToPay, 600),
     language: input?.language === "es" ? "es" : "en",
     reminders: input?.reminders === true,
     milestone: Number.isInteger(Number(input?.milestone)) && input?.milestone !== null && input?.milestone !== "" && Number(input.milestone) >= 0 && Number(input.milestone) < 12 ? Number(input.milestone) : null,
   };
 }
+
+const howPay = (inv: InvoiceInput, es: boolean) =>
+  inv.howToPay ? `<div style="margin:14px 0;padding:10px 12px;border:1px solid #cfd5dc;border-radius:6px"><b>${es ? "Cómo pagar" : "How to pay"}</b><br><span style="white-space:pre-wrap">${escapeHtml(inv.howToPay)}</span></div>` : "";
 
 /** Printable invoice: the agreed price, what was already paid, and the balance due. */
 export function renderInvoiceHtml(ctx: DocContext, inv: InvoiceInput, est: EstimateInput, t: Totals): string {
@@ -309,11 +315,11 @@ export function renderInvoiceHtml(ctx: DocContext, inv: InvoiceInput, est: Estim
 <tr><td class="r">${es ? "Precio total del contrato" : "Contract total"}</td><td class="r">${money(t.totalCents)}</td></tr>
 <tr><td class="r">${es ? "Pagado hasta ahora" : "Paid to date"}</td><td class="r">${money(inv.paidCents)}</td></tr>
 <tr><td class="r">${es ? "Restante después de este pago" : "Remaining after this payment"}</td><td class="r">${money(remaining)}</td></tr>
-<tr class="tot"><td class="r">${es ? "Importe a pagar ahora" : "Amount due now"}</td><td class="r">${money(amounts[ms])}</td></tr></tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
+<tr class="tot"><td class="r">${es ? "Importe a pagar ahora" : "Amount due now"}</td><td class="r">${money(amounts[ms])}</td></tr></tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}${howPay(inv, es)}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
     return shell(ctx, inv.language, docTitle("invoice", inv.language), msBody);
   }
   const body = `${meta}<table><thead><tr><th>${es ? "Descripción" : "Description"}</th><th class="r">${es ? "Cant." : "Qty"}</th><th class="r">${es ? "Precio unitario" : "Unit price"}</th><th class="r">${es ? "Importe" : "Amount"}</th></tr></thead><tbody>${rows}
-${t.discountCents ? sum(es ? "Descuento" : "Discount", -t.discountCents) : ""}${t.taxCents ? sum(es ? "Impuesto" : "Tax", t.taxCents) : ""}${sum(es ? "Total" : "Total", t.totalCents)}${inv.paidCents ? sum(es ? "Pagado" : "Already paid", -inv.paidCents) : ""}${sum(es ? "Saldo a pagar" : "Balance due", balance, "tot")}</tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
+${t.discountCents ? sum(es ? "Descuento" : "Discount", -t.discountCents) : ""}${t.taxCents ? sum(es ? "Impuesto" : "Tax", t.taxCents) : ""}${sum(es ? "Total" : "Total", t.totalCents)}${inv.paidCents ? sum(es ? "Pagado" : "Already paid", -inv.paidCents) : ""}${sum(es ? "Saldo a pagar" : "Balance due", balance, "tot")}</tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}${howPay(inv, es)}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
   return shell(ctx, inv.language, docTitle("invoice", inv.language), body);
 }
 
