@@ -6,6 +6,7 @@ import { buildProgress } from "./progress.ts";
 import { buildNudges, SNOOZE_DAYS } from "./nudges.ts";
 import { addDaysIso, friendlyDate, friendlyTime, todayLocal } from "./dates.ts";
 import { bookedVisits } from "./visit.ts";
+import { dueWords, nextDue } from "./duedates.ts";
 import { effectivePlan } from "./usage.ts";
 import { storageLimitFor, storageUsed } from "./files.ts";
 import type { Env } from "./types.ts";
@@ -129,6 +130,32 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
       /* ignore unreadable summary */
     }
   }
+  // Suggested due dates: one next step per open job, soonest first. Only what is late or due in the next week.
+  const dueRows = ((await env.DB.prepare(
+    `SELECT j.id, j.title, j.stage, j.created_at AS createdAt, j.updated_at AS updatedAt, j.data, cu.name AS customer,
+            (SELECT d.status FROM documents d WHERE d.job_id = j.id AND d.kind = 'estimate' ORDER BY d.id DESC LIMIT 1) AS estStatus,
+            (SELECT d.updated_at FROM documents d WHERE d.job_id = j.id AND d.kind = 'estimate' ORDER BY d.id DESC LIMIT 1) AS estUpdatedAt,
+            (SELECT s.signed_at FROM signature_requests s WHERE s.job_id = j.id AND s.status = 'signed' ORDER BY s.id DESC LIMIT 1) AS signedAt,
+            (SELECT d.status FROM documents d WHERE d.job_id = j.id AND d.kind = 'invoice' AND d.status != 'superseded' ORDER BY d.id DESC LIMIT 1) AS invStatus,
+            (SELECT d.updated_at FROM documents d WHERE d.job_id = j.id AND d.kind = 'invoice' AND d.status != 'superseded' ORDER BY d.id DESC LIMIT 1) AS invUpdatedAt
+       FROM jobs j JOIN customers cu ON cu.id = j.customer_id WHERE j.company_id = ? AND j.stage NOT IN ('lost','closed') ORDER BY j.updated_at DESC LIMIT 150`,
+  ).bind(c).all().catch(() => ({ results: [] }))).results ?? []) as any[];
+  const upcoming: { jobId: number; step: string; who: string; when: string; late: boolean; due: string }[] = [];
+  for (const r of dueRows) {
+    let data: any = {};
+    try {
+      data = r.data ? JSON.parse(r.data) : {};
+    } catch {
+      data = {};
+    }
+    const d = nextDue({ stage: r.stage, createdAt: r.createdAt, updatedAt: r.updatedAt, estStatus: r.estStatus, estUpdatedAt: r.estUpdatedAt, signedAt: r.signedAt, invStatus: r.invStatus, invUpdatedAt: r.invUpdatedAt, scheduleStart: data.schedule?.start ?? null, scheduleEnd: data.schedule?.end ?? null, visitDate: data.visit?.status === "booked" ? data.visit.date : null });
+    if (!d) continue;
+    const w = dueWords(d.due, todayLocal());
+    if (!w.late && d.due > addDaysIso(todayLocal(), 7)) continue;
+    upcoming.push({ jobId: r.id, step: d.step, who: `${r.customer}, ${r.title}`, when: w.when, late: w.late, due: d.due });
+  }
+  upcoming.sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : 0));
+
   const prof = await env.DB.prepare("SELECT data, setup_step, completed FROM company_profiles WHERE company_id = ?").bind(c).first<{ data: string; setup_step: string; completed: number }>().catch(() => null);
   let noResume = false;
   try {
@@ -246,6 +273,8 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
       bookedCount: booked.n ?? 0,
     },
     attention,
+    upcoming: upcoming.slice(0, 8),
+    upcomingMore: Math.max(0, upcoming.length - 8),
     activity: events.results,
   });
 }

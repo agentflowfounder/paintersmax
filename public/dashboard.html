@@ -26,7 +26,7 @@ details.acc .in{padding:0 12px 12px}
 .sc .v{font-family:Newsreader,Georgia,serif;font-size:28px;line-height:1.1}.sc .l{font-size:12px;opacity:.75;margin-top:4px}.sc.g .v{color:#E8A33D}
 .at{background:#fff;border-radius:10px;padding:4px 16px;margin:0 0 16px}
 .at div,.ac div{padding:9px 0;border-bottom:1px solid #eee;font-size:14px}.at div:last-child,.ac div:last-child{border-bottom:0}
-.at a,.ac a{color:#0F1B2D}
+.at a,.ac a,.up a{color:#0F1B2D}
 .pilltag{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px;margin-right:6px;background:#fff3d6;color:#8a5a00}
 .pilltag.i{background:#fdecea;color:#b42318}
 .steps a{color:#0F1B2D;font-weight:600}
@@ -123,6 +123,7 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
     el.innerHTML=gs+`<div class="sg">${card(money(S.paidMonthCents),'Jobs paid this month ('+S.paidMonthJobs+')',true)}${card(money(S.bookedCents),'Booked work, signed and not finished ('+S.bookedCount+')')}${card(money(S.waitingCents),'Estimates waiting on customers ('+S.waitingCount+')')}${card(S.newLeads,'New leads to follow up ('+S.newLeadsWeek+' this week)')}${card(S.inProgress,'Jobs in progress')}${card(S.signedWeek,'Signed in the last 7 days')}</div>
     <h3 style="margin:0 0 8px">Needs your attention</h3>
     <div class="at">${h.attention.length?h.attention.map(a=>`<div><span class="pilltag ${a.type==='insurance'?'i':''}">${TT[a.type]||''}</span><a href="${lk(a)}">${esc(a.text)}</a>${a.dismiss?` <a href="#" class="dis" data-d="${a.dismiss}" style="font-size:12px;color:#4A5568">Do not remind me</a>`:''}${a.snooze?` <a href="#" class="dis" data-s="${a.snooze}" style="font-size:12px;color:#4A5568">Not now</a>`:''}</div>`).join(''):'<div style="color:#4A5568">Nothing urgent. You are caught up.</div>'}</div>
+    ${h.upcoming&&h.upcoming.length?`<h3 style="margin:0 0 8px">Coming up</h3><div class="at up">${h.upcoming.map(u=>`<div><a href="/jobs?id=${u.jobId}"><b>${esc(u.step)}</b> <span style="${u.late?'color:#b42318;font-weight:700':'font-weight:600'}">${esc(u.when)}</span></a> &middot; ${esc(u.who)}</div>`).join('')}${h.upcomingMore?`<div><a href="/jobs">+${h.upcomingMore} more on your jobs list</a></div>`:''}<div style="font-size:12px;color:#4A5568">Suggested dates, worked out from where each job is. Nothing is sent to anyone.</div></div>`:''}
     <h3 style="margin:0 0 8px">Recent activity</h3>
     <div class="at ac">${h.activity.length?h.activity.map(a=>`<div><a href="/jobs?id=${a.jobId}"><b>${esc(a.title)}</b></a> &middot; ${esc(String(a.text).slice(0,140))} <small style="color:#4A5568">${esc(a.at)}</small></div>`).join(''):'<div style="color:#4A5568">No activity yet. Create a job to get started.</div>'}</div>`;
     el.className='';

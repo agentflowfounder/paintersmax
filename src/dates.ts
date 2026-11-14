@@ -33,3 +33,16 @@ export function friendlyTime(hhmm: string): string {
   const h = Number(m[1]);
   return `${h % 12 === 0 ? 12 : h % 12}:${m[2]} ${h < 12 ? "AM" : "PM"}`;
 }
+
+/** The US local date of a database timestamp ("2026-11-14 03:14:57" or ISO), or "" if it cannot be read. */
+export function localDateOf(ts: unknown): string {
+  const s = String(ts ?? "").trim();
+  if (!s) return "";
+  const ms = Date.parse(/[zZ]|[+-]\d\d:\d\d$/.test(s) ? s : s.replace(" ", "T") + "Z");
+  return Number.isFinite(ms) ? todayLocal(ms) : "";
+}
+
+/** Whole days from one stored date to another (positive when `to` is later). */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+}

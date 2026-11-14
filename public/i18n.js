@@ -1703,5 +1703,28 @@
     [/^Final walkthrough\. Finish the punch list, then build the invoice\. You can also ask (.+?) to accept the finished work under Customer sign-off\.$/, function (a, n) { return 'Recorrido final. Termine la lista de pendientes y luego arme la factura. También puede pedirle a ' + n + ' que acepte el trabajo terminado en Aceptación del cliente.'; }],
   ]);
 
+  /* ---- Part 15d: Coming up on Home (suggested due dates) ---- */
+  (function () {
+    var DOW = { Sun: 'dom', Mon: 'lun', Tue: 'mar', Wed: 'mié', Thu: 'jue', Fri: 'vie', Sat: 'sáb' };
+    var MON = { Jan: 'ene', Feb: 'feb', Mar: 'mar', Apr: 'abr', May: 'may', Jun: 'jun', Jul: 'jul', Aug: 'ago', Sep: 'sep', Oct: 'oct', Nov: 'nov', Dec: 'dic' };
+    var DATE = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat), (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{1,2})$/;
+    function dEs(s) { var m = DATE.exec(s); return m ? DOW[m[1]] + ', ' + m[3] + ' ' + MON[m[2]] + '.' : s; }
+    pmI18n.add({
+      "Coming up": "Próximamente",
+      "Reply to the new lead": "Responder al cliente potencial nuevo", "Follow up on the estimate": "Dar seguimiento al presupuesto",
+      "Send the estimate": "Enviar el presupuesto", "Finish and send the estimate": "Terminar y enviar el presupuesto",
+      "Build and send the contract": "Armar y enviar el contrato", "Put the job on the calendar": "Poner el trabajo en el calendario",
+      "Finish the work": "Terminar el trabajo", "Build and send the invoice": "Armar y enviar la factura",
+      "Follow up on payment": "Dar seguimiento al pago", "Send the invoice": "Enviar la factura",
+      "today": "hoy", "tomorrow": "mañana", "was due yesterday": "venció ayer",
+      "Monday": "el lunes", "Tuesday": "el martes", "Wednesday": "el miércoles", "Thursday": "el jueves", "Friday": "el viernes", "Saturday": "el sábado", "Sunday": "el domingo",
+      "Suggested dates, worked out from where each job is. Nothing is sent to anyone.": "Fechas sugeridas, calculadas según el punto en que está cada trabajo. No se envía nada a nadie.",
+    }, [
+      [DATE, function (a) { return dEs(a); }],
+      [/^was due (.+)$/, function (a, d) { return 'venció el ' + dEs(d); }],
+      [/^\+(\d+) more on your jobs list$/, function (a, n) { return '+' + n + ' más en su lista de trabajos'; }],
+    ]);
+  })();
+
   pmI18n.start();
 })();
