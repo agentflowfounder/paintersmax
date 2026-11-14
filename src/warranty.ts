@@ -3,6 +3,7 @@ import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
 import { readSettings } from "./settings.ts";
 import { isDate } from "./records.ts";
+import { todayLocal } from "./dates.ts";
 import { onColor, readableOnWhite } from "./brandprint.ts";
 import type { Env } from "./types.ts";
 
@@ -184,7 +185,7 @@ export async function handleWarranty(request: Request, env: Env): Promise<Respon
       return json({ expiring: out.sort((a, b) => a.endOn.localeCompare(b.endOn)) });
     }
     const jobId = Number(u.searchParams.get("jobId"));
-    const job = Number.isInteger(jobId) ? await env.DB.prepare("SELECT j.id, j.stage, cp.data AS pdata FROM jobs j LEFT JOIN company_profiles cp ON cp.company_id = j.company_id WHERE j.id = ? AND j.company_id = ?").bind(jobId, c).first<any>() : null;
+    const job = Number.isInteger(jobId) ? await env.DB.prepare("SELECT j.id, j.stage, json_extract(j.data, '$.signoff.acceptedOn') AS acceptedOn, cp.data AS pdata FROM jobs j LEFT JOIN company_profiles cp ON cp.company_id = j.company_id WHERE j.id = ? AND j.company_id = ?").bind(jobId, c).first<any>() : null;
     if (!job) return json({ error: "Job not found." }, 404);
     const cert = parse(await getSetting(env, key(c, jobId))) as Cert | null;
     if (u.searchParams.get("print") && cert) {
@@ -197,7 +198,8 @@ export async function handleWarranty(request: Request, env: Env): Promise<Respon
       cert,
       link: tok ? `${BASE}/cert/${tok}` : null,
       finished: job.stage === "invoiced" || job.stage === "closed",
-      suggested: { design, months: Number(pdata.warranty?.laborMonths) || 12, startOn: new Date().toISOString().slice(0, 10), terms: typeof pdata.warranty?.text === "string" ? pdata.warranty.text : "", exclusions: typeof pdata.warranty?.exclusions === "string" ? pdata.warranty.exclusions : "", language: pdata.language?.ui === "es" ? "es" : "en" },
+      suggested: { design, months: Number(pdata.warranty?.laborMonths) || 12, startOn: isDate(job.acceptedOn) ? job.acceptedOn : todayLocal(), terms: typeof pdata.warranty?.text === "string" ? pdata.warranty.text : "", exclusions: typeof pdata.warranty?.exclusions === "string" ? pdata.warranty.exclusions : "", language: pdata.language?.ui === "es" ? "es" : "en" },
+      acceptedOn: isDate(job.acceptedOn) ? job.acceptedOn : null,
       designs: DESIGNS,
       defaultDesign: design,
     });

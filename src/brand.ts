@@ -71,6 +71,13 @@ export async function suggestBrand(env: Env, companyId: number): Promise<{ brand
   };
 }
 
+/** The saved brand kit, or what it would start with when nothing is saved yet. The language is the customer's, not the painter's screen. */
+export async function brandFor(env: Env, companyId: number, language?: "en" | "es"): Promise<Brand> {
+  const saved = parse(await getSetting(env, key(companyId)));
+  const brand = saved ? cleanBrand(saved) : (await suggestBrand(env, companyId)).brand;
+  return language ? { ...brand, language } : brand;
+}
+
 /**
  * /api/brand
  *  GET                               the saved brand (or null), what it would start with, and the design lists

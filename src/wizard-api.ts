@@ -12,6 +12,7 @@ import { loadHowToPay, loadPayments, sumPaid } from "./payments.ts";
 import { cleanBrief, cleanDraftAI, draftPrompt, DRAFT_SYSTEM, JOB_TYPES, type Brief } from "./jobbrief.ts";
 import { parseJsonLoose } from "./vision.ts";
 import { todayLocal } from "./dates.ts";
+import { readSignoff } from "./signoffcore.ts";
 import { jobChangeOrders } from "./workorders.ts";
 import { CUSTOMER_KINDS, docTitle, invoiceChecks, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
 import { addJobEvent } from "./crm.ts";
@@ -263,7 +264,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
   const job = await env.DB.prepare(
     `SELECT j.id, j.title, j.trade, j.stage, j.property_id AS propertyId, j.customer_id AS customerId,
             c.name AS customerName, c.email AS customerEmail, c.phone AS customerPhone,
-            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn, json_extract(j.data,'$.visit') AS visit
+            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn, json_extract(j.data,'$.visit') AS visit, json_extract(j.data,'$.signoff') AS signoff, json_extract(j.data,'$.reviewAskedAt') AS reviewAskedAt
        FROM jobs j JOIN customers c ON c.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id
       WHERE j.id = ? AND j.company_id = ?`,
   )
@@ -282,7 +283,9 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     ).bind(id, user.companyId).all(),
   ]);
   return json({
-    job: { ...job, brief: undefined, schedule: undefined, startedOn: undefined, visit: undefined },
+    job: { ...job, brief: undefined, schedule: undefined, startedOn: undefined, visit: undefined, signoff: undefined, reviewAskedAt: undefined },
+    signoff: readSignoff(job.signoff),
+    reviewAskedAt: job.reviewAskedAt ?? null,
     visit: parse(job.visit) && typeof parse(job.visit) === "object" && parse(job.visit).date ? parse(job.visit) : null,
     schedule: parse(job.schedule) && typeof parse(job.schedule) === "object" && parse(job.schedule).start ? parse(job.schedule) : null,
     startedOn: job.startedOn ?? null,

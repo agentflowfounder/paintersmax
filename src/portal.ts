@@ -3,8 +3,10 @@ import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
 import { coiLink, showsCustomers } from "./insurance.ts";
 import { renderDocPage } from "./wizard-api.ts";
-import { addDaysIso, isIsoDate, todayLocal } from "./dates.ts";
+import { addDaysIso, friendlyDate, isIsoDate, todayLocal } from "./dates.ts";
 import { visitWhen } from "./visit.ts";
+import { cleanText, painterNotice, readSignoff, type Signoff } from "./signoffcore.ts";
+import { sendLeadEmail } from "./email.ts";
 import { readSettings } from "./settings.ts";
 import { CUSTOMER_MAX_FILES, saveFile } from "./files.ts";
 import type { Env } from "./types.ts";
@@ -133,6 +135,8 @@ export function renderPortal(d: {
   docs: { id: number; kind: string; status: string; label: string }[]; signed: Record<string, string>; pendingSign: string[]; proofUrl: string | null; token: string; logoUrl?: string; color?: string;
   /** An upcoming site visit the painter booked, already worded for the customer. */
   visit?: { when: string; address: string } | null;
+  /** Sign-off on the finished work, only when the painter asked for it. */
+  signoff?: { state: "asked" | "accepted"; on?: string; name?: string; concern?: boolean } | null;
 }): string {
   const es = d.es;
   const L = (en: string, sp: string) => (es ? sp : en);
@@ -152,6 +156,7 @@ export function renderPortal(d: {
 <header>${d.logoUrl && /^https:\/\/[^\s"'<>]{3,300}$/.test(d.logoUrl) ? `<img src="${esc(d.logoUrl)}" alt="${esc(d.company)}" style="max-height:40px;max-width:180px">` : `<b>${esc(d.company)}</b>`}</header><main>
 <p class="muted" style="margin:6px 0 0">${L("Hi", "Hola")} ${esc(first)},</p><h1>${esc(d.title)}</h1><div class="st">${esc(stageText(d.stage, es))}</div>
 ${d.visit ? `<div class="card"><h2>${L("Your visit", "Su visita")}</h2><p style="margin:0"><b>${esc(d.visit.when)}</b>${d.visit.address ? `<br><span class="muted">${esc(d.visit.address)}</span>` : ""}</p></div>` : ""}
+${d.signoff ? signoffCard(d.signoff, d.company, es) : ""}
 <div class="card"><h2>${L("Your documents", "Sus documentos")}</h2>${rows || `<p class="muted">${L("Nothing has been shared yet. Check back soon.", "Todavía no se ha compartido nada. Vuelva pronto.")}</p>`}</div>
 ${d.proofUrl ? `<div class="card"><h2>${L("Proof of insurance", "Comprobante de seguro")}</h2><p class="muted" style="margin:0 0 8px">${L("See that the work is insured and what to do if something happens.", "Vea que el trabajo está asegurado y qué hacer si algo sucede.")}</p><a class="b" href="${esc(d.proofUrl)}" target="_blank" rel="noopener">${L("View proof of insurance", "Ver comprobante de seguro")}</a></div>` : ""}
 <div class="card"><h2>${L("Add photos", "Agregar fotos")}</h2><p class="muted" style="margin:0 0 8px">${L("Share photos of what you want us to see, like a stain, crack or peeling spot. Your painter will see them.", "Comparta fotos de lo que quiere que veamos, como una mancha, grieta o pintura levantada. Su pintor las verá.")}</p><input type="file" id="ph" accept="image/*" multiple><p id="phm" class="muted" style="margin:6px 0 0"></p></div>
@@ -160,6 +165,26 @@ ${d.proofUrl ? `<div class="card"><h2>${L("Proof of insurance", "Comprobante de 
 </main><script>${PHOTO_JS}</script></body></html>`;
 }
 
+
+/** The "accept the finished work" card on the customer page. Only shown when the painter asked for it. */
+function signoffCard(so: { state: "asked" | "accepted"; on?: string; name?: string; concern?: boolean }, company: string, es: boolean): string {
+  const L = (en: string, sp: string) => (es ? sp : en);
+  if (so.state === "accepted") {
+    return `<div class="card"><h2>${L("Finished work", "Trabajo terminado")}</h2><p style="margin:0"><b>${L("You accepted the finished work", "Usted aceptó el trabajo terminado")}${so.on ? ` ${L("on", "el")} ${esc(friendlyDate(so.on, es ? "es" : "en"))}` : ""}.</b> ${L("Thank you!", "¡Gracias!")}</p></div>`;
+  }
+  const script = `<script>(function(){var h=location.pathname.replace(/\\/$/,''),m=document.getElementById('so_m');function send(p,b,done){m.textContent='...';fetch(h+'/'+p,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json()}).then(function(j){if(j.error){m.textContent=j.error;return}done()}).catch(function(){m.textContent=${JSON.stringify(L("Something went wrong. Please try again.", "Algo salió mal. Inténtelo de nuevo."))}})}
+document.getElementById('so_ok').onclick=function(){var n=document.getElementById('so_n').value.trim();if(!n){m.textContent=${JSON.stringify(L("Please type your name.", "Escriba su nombre."))};return}send('accept',{name:n},function(){location.reload()})};
+document.getElementById('so_t').onclick=function(){document.getElementById('so_c').style.display='block';this.style.display='none'};
+document.getElementById('so_s').onclick=function(){var t=document.getElementById('so_x').value.trim();if(!t){m.textContent=${JSON.stringify(L("Please tell us what needs attention.", "Díganos qué necesita atención."))};return}send('concern',{text:t},function(){location.reload()})};})();</script>`;
+  return `<div class="card"><h2>${L("Finished work", "Trabajo terminado")}</h2>
+<p style="margin:0 0 8px">${esc(company)} ${L("says the work is finished. Take a walk through. If everything looks right, type your name and confirm.", "dice que el trabajo está terminado. Recorra el lugar. Si todo se ve bien, escriba su nombre y confirme.")}</p>
+${so.concern ? `<p class="muted" style="margin:0 0 8px">${L("Your note was sent. Your painter will follow up. You can still confirm below once everything looks right.", "Su nota fue enviada. Su pintor le contactará. Aún puede confirmar abajo cuando todo se vea bien.")}</p>` : ""}
+<label for="so_n" style="display:block;font-weight:600;margin:6px 0 3px">${L("Type your full name to confirm", "Escriba su nombre completo para confirmar")}</label><input id="so_n" autocomplete="name" style="width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit">
+<div style="margin-top:10px"><button id="so_ok" class="b" style="border:0;cursor:pointer">${L("I accept the finished work", "Acepto el trabajo terminado")}</button></div>
+<p style="margin:12px 0 0"><a href="#" id="so_t" onclick="return false">${L("Something needs attention?", "¿Algo necesita atención?")}</a></p>
+<div id="so_c" style="display:none;margin-top:8px"><textarea id="so_x" rows="3" maxlength="1000" style="width:100%;padding:10px;border:1px solid #cfd5dc;border-radius:8px;font:inherit" placeholder="${esc(L("Tell us what still needs attention", "Díganos qué necesita atención"))}"></textarea><div style="margin-top:8px"><button id="so_s" class="b" style="border:0;cursor:pointer">${L("Send to", "Enviar a")} ${esc(company)}</button></div></div>
+<p id="so_m" class="muted" style="margin:8px 0 0"></p>${script}</div>`;
+}
 
 /** The customer-facing line for a booked visit that has not passed yet, or null. */
 export function portalVisit(jobData: unknown, es: boolean, fallbackAddress = ""): { when: string; address: string } | null {
@@ -170,6 +195,12 @@ export function portalVisit(jobData: unknown, es: boolean, fallbackAddress = "")
   } catch {
     return null;
   }
+}
+
+export function portalSignoff(jobData: unknown): { state: "asked" | "accepted"; on?: string; name?: string; concern?: boolean } | null {
+  const s = readSignoff(jobData);
+  if (!s) return null;
+  return s.acceptedAt ? { state: "accepted", on: s.acceptedOn, name: s.acceptedBy } : { state: "asked", concern: !!s.concern };
 }
 
 /** Public: GET /portal/<token> and GET /portal/<token>/doc/<id>. */
@@ -186,6 +217,40 @@ export async function handlePortalPage(request: Request, env: Env): Promise<Resp
     const r = await saveFile(env, { companyId: f.companyId, jobId: f.jobId, kind: "photo", file, by: "customer", note: "Added by the customer" });
     if (!r.ok) return json({ error: r.status === 413 ? "Your painter's photo storage is full. Please send photos by email." : r.error }, r.status);
     await addJobEvent(env, f.companyId, f.jobId, "note", "The customer added a photo from their portal.");
+    return json({ ok: true });
+  }
+  if (request.method === "POST" && (parts[2] === "accept" || parts[2] === "concern") && parts.length === 3) {
+    const f = await resolve(env, parts[1] ?? "");
+    if (!f) return json({ error: "This link is not valid." }, 404);
+    let b: any;
+    try {
+      b = await request.json();
+    } catch {
+      return json({ error: "Invalid request." }, 400);
+    }
+    const row = await env.DB.prepare("SELECT j.title, j.data, cu.name AS customer, co.notify_email FROM jobs j JOIN customers cu ON cu.id = j.customer_id JOIN companies co ON co.id = j.company_id WHERE j.id = ? AND j.company_id = ?").bind(f.jobId, f.companyId).first<any>();
+    const so = row ? readSignoff(row.data) : null;
+    if (!row || !so) return json({ error: "Your painter has not asked for this yet." }, 400);
+    if (so.acceptedAt) return json({ error: "The finished work was already accepted. Thank you!" }, 400);
+    let next: Signoff;
+    let note: { subject: string; body: string };
+    if (parts[2] === "accept") {
+      const name = cleanText(b?.name, 80);
+      if (!name) return json({ error: "Please type your name." }, 400);
+      const now = new Date();
+      next = { ...so, acceptedAt: now.toISOString(), acceptedOn: todayLocal(now.getTime()), acceptedBy: name };
+      note = painterNotice("accepted", { customer: row.customer, title: row.title, name });
+    } else {
+      const text = cleanText(b?.text, 1000);
+      if (!text) return json({ error: "Please tell us what needs attention." }, 400);
+      next = { ...so, concern: { text, at: new Date().toISOString() } };
+      note = painterNotice("concern", { customer: row.customer, title: row.title, text });
+    }
+    // The accept only goes through while nobody has accepted yet, so a double tap cannot overwrite the first answer.
+    const upd = await env.DB.prepare("UPDATE jobs SET data = json_set(COALESCE(data, '{}'), '$.signoff', json(?)), updated_at = datetime('now') WHERE id = ? AND company_id = ? AND json_extract(data, '$.signoff.acceptedAt') IS NULL").bind(JSON.stringify(next), f.jobId, f.companyId).run();
+    if (!upd.meta?.changes) return json({ error: "The finished work was already accepted. Thank you!" }, 400);
+    await addJobEvent(env, f.companyId, f.jobId, "note", parts[2] === "accept" ? `The customer accepted the finished work (${next.acceptedBy}) on ${next.acceptedOn}.` : `The customer sent a note about the finished work: ${next.concern!.text}`);
+    if (row.notify_email) await sendLeadEmail(env, row.notify_email, note.subject, note.body).catch(() => undefined);
     return json({ ok: true });
   }
   if (request.method !== "GET") return htmlResp("<p>Not found.</p>", 404);
@@ -235,7 +300,7 @@ export async function handlePortalPage(request: Request, env: Env): Promise<Resp
   const c = profile.company ?? {};
   const brand = readSettings(job.cosettings);
   return htmlResp(
-    renderPortal({ logoUrl: brand.logoUrl, color: brand.brandColor, es, company: job.company, phone: String(c.phone ?? ""), email: String(c.email ?? ""), customer: job.customer, title: job.title, stage: job.stage, docs: [...latest.values()].map((d) => ({ id: d.id, kind: d.kind, status: d.status, label: d.kind })), signed, pendingSign, proofUrl, token: parts[1], visit: portalVisit(job.jdata, es, [job.paddr, job.pcity, job.pzip].filter(Boolean).join(", ")) }),
+    renderPortal({ logoUrl: brand.logoUrl, color: brand.brandColor, es, company: job.company, phone: String(c.phone ?? ""), email: String(c.email ?? ""), customer: job.customer, title: job.title, stage: job.stage, docs: [...latest.values()].map((d) => ({ id: d.id, kind: d.kind, status: d.status, label: d.kind })), signed, pendingSign, proofUrl, token: parts[1], signoff: portalSignoff(job.jdata), visit: portalVisit(job.jdata, es, [job.paddr, job.pcity, job.pzip].filter(Boolean).join(", ")) }),
   );
 }
 

@@ -1655,5 +1655,53 @@
     [/^The site visit on (.+?) is still marked as booked\. Open the job and mark it done, or book a new time: (.+)$/, function (a, d, c) { return 'La visita del ' + d + ' sigue marcada como agendada. Abra el trabajo y márquela como hecha, o agende otra hora: ' + c; }],
   ]);
 
+  /* ---- Part 15c: Finished-work sign-off and review request ---- */
+  pmI18n.add({
+    "Customer sign-off and review request": "Aceptación del cliente y solicitud de reseña", "Accepted": "Aceptado", "Waiting": "En espera",
+    "Email the link again": "Enviar el enlace otra vez", "Take back the request": "Retirar la solicitud",
+    "Review request": "Solicitud de reseña",
+    "A short thank-you email that asks for a review. You read it first, and nothing is sent until you tap Send.": "Un correo breve de agradecimiento que pide una reseña. Usted lo lee primero y no se envía nada hasta que toque Enviar.",
+    "Write the review request": "Escribir la solicitud de reseña", "Write another review request": "Escribir otra solicitud de reseña",
+    "Nothing is sent unless this is ticked.": "No se envía nada a menos que esté marcada.",
+    "Add an email address in Edit details to send it by email. You can still share the Customer portal link.": "Agregue un correo electrónico en Editar detalles para enviarlo. Aun así puede compartir el enlace del portal del cliente.",
+    "The warranty certificate will start from that day.": "El certificado de garantía empezará desde ese día.",
+    "Asked. The customer was emailed the link.": "Solicitado. Se envió el enlace al cliente por correo.",
+    "Asked, but the email could not be sent. Share the Customer portal link instead.": "Solicitado, pero no se pudo enviar el correo. Comparta el enlace del portal del cliente.",
+    "Asked. The customer will see the button on their private page.": "Solicitado. El cliente verá el botón en su página privada.",
+    "Request taken back.": "Solicitud retirada.", "Review request emailed.": "Solicitud de reseña enviada.",
+    "Your Google review link is not saved yet, so this email asks for a review without a link.": "Su enlace de reseñas de Google todavía no está guardado, así que este correo pide una reseña sin enlace.",
+    "Add it in Brand kit": "Agréguelo en el Kit de marca", " first if you want the link in the email.": " primero si quiere el enlace en el correo.",
+    "Subject": "Asunto", "Email (edit anything you like)": "Correo (edite lo que quiera)",
+    "Email the finished-work link": "Enviar el enlace del trabajo terminado", "What they receive": "Lo que reciben",
+    "A link to their private page, with a button to accept the finished work": "Un enlace a su página privada, con un botón para aceptar el trabajo terminado",
+    "Send the review request": "Enviar la solicitud de reseña",
+    "The customer already accepted the finished work.": "El cliente ya aceptó el trabajo terminado.",
+    "The customer already accepted, so this cannot be withdrawn.": "El cliente ya aceptó, así que no se puede retirar.",
+    "This job was marked lost.": "Este trabajo se marcó como perdido.",
+    "The email needs a subject and some text.": "El correo necesita un asunto y algo de texto.",
+    "The email could not be sent. Check the customer email address and try again.": "No se pudo enviar el correo. Revise el correo del cliente e inténtelo de nuevo.",
+    "This customer has no email address. Add one in Edit details first.": "Este cliente no tiene correo electrónico. Primero agregue uno en Editar detalles.",
+    "Asked the customer to accept the finished work.": "Se pidió al cliente aceptar el trabajo terminado.",
+    "Took back the request to accept the finished work.": "Se retiró la solicitud de aceptar el trabajo terminado.",
+    "Review request emailed to the customer.": "Solicitud de reseña enviada al cliente.",
+    "Final walkthrough. Finish the punch list, then build the invoice.": "Recorrido final. Termine la lista de pendientes y luego arme la factura.",
+  }, [
+    [/^Accepted by (.+?) on (.+)\.$/, function (a, n, d) { return 'Aceptado por ' + n + ' el ' + d + '.'; }],
+    [/^Waiting for (.+?) to accept the finished work\.$/, function (a, n) { return 'Esperando que ' + n + ' acepte el trabajo terminado.'; }],
+    [/^Asked (.+?)\. The link was emailed to them\.$/, function (a, d) { return 'Solicitado el ' + d + '. Se les envió el enlace por correo.'; }],
+    [/^Asked (.+?)\. Not emailed yet\.$/, function (a, d) { return 'Solicitado el ' + d + '. Todavía no se envió por correo.'; }],
+    [/^(.+?) sent a note:$/, function (a, n) { return n + ' envió una nota:'; }],
+    [/^Optional\. At the final walkthrough you can ask (.+?) to confirm the finished work on their private page\. It saves their name and the date, and the warranty starts from that day\.$/, function (a, n) { return 'Opcional. En el recorrido final puede pedirle a ' + n + ' que confirme el trabajo terminado en su página privada. Se guarda su nombre y la fecha, y la garantía empieza desde ese día.'; }],
+    [/^Email (.+?) the link$/, function (a, n) { return 'Enviar el enlace a ' + n; }],
+    [/^Ask (.+?) to accept the finished work$/, function (a, n) { return 'Pedir a ' + n + ' que acepte el trabajo terminado'; }],
+    [/^Review request sent (.+)\.$/, function (a, d) { return 'Solicitud de reseña enviada el ' + d + '.'; }],
+    [/^Send to (.+)$/, function (a, n) { return 'Enviar a ' + n; }],
+    [/^It goes to (.+?) and replies come to you\.$/, function (a, e) { return 'Va a ' + e + ' y las respuestas llegan a usted.'; }],
+    [/^(.+?) sent a note about the finished work: (.+?)\. Open the job to read it\.$/, function (a, n, j) { return n + ' envió una nota sobre el trabajo terminado: ' + j + '. Abra el trabajo para leerla.'; }],
+    [/^Waiting for (.+?) to accept the finished work: (.+?)\. A friendly call or text often helps\.$/, function (a, n, j) { return 'Esperando que ' + n + ' acepte el trabajo terminado: ' + j + '. Una llamada o mensaje amable suele ayudar.'; }],
+    [/^The customer accepted the finished work on (.+?), so the start date is filled in from that day\.$/, function (a, d) { return 'El cliente aceptó el trabajo terminado el ' + d + ', así que la fecha de inicio se llenó desde ese día.'; }],
+    [/^Final walkthrough\. Finish the punch list, then build the invoice\. You can also ask (.+?) to accept the finished work under Customer sign-off\.$/, function (a, n) { return 'Recorrido final. Termine la lista de pendientes y luego arme la factura. También puede pedirle a ' + n + ' que acepte el trabajo terminado en Aceptación del cliente.'; }],
+  ]);
+
   pmI18n.start();
 })();

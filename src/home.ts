@@ -105,6 +105,14 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     else if (v.date === addDaysIso(todayD, 1)) attention.push({ type: "visit", jobId: v.jobId, text: `Site visit tomorrow${at}: ${who}` });
     else if (v.date < todayD) attention.push({ type: "visit", jobId: v.jobId, text: `The site visit on ${friendlyDate(v.date)} is still marked as booked. Open the job and mark it done, or book a new time: ${v.customer}` });
   }
+  // Finished-work sign-off: a customer note that needs an answer, or a request that has waited a few days.
+  const soRows = ((await env.DB.prepare(`SELECT j.id, cu.name AS customer, j.title, json_extract(j.data,'$.signoff.concern.text') AS concern, json_extract(j.data,'$.signoff.requestedAt') AS asked
+                    FROM jobs j JOIN customers cu ON cu.id = j.customer_id
+                    WHERE j.company_id = ? AND json_extract(j.data,'$.signoff.requested') = 1 AND json_extract(j.data,'$.signoff.acceptedAt') IS NULL LIMIT 10`).bind(c).all().catch(() => ({ results: [] }))).results ?? []) as any[];
+  for (const r of soRows) {
+    if (r.concern) attention.push({ type: "signoff", jobId: r.id, text: `${r.customer} sent a note about the finished work: ${r.title}. Open the job to read it.` });
+    else if (r.asked && Date.now() - Date.parse(r.asked) > 3 * 86400000) attention.push({ type: "signoff", jobId: r.id, text: `Waiting for ${r.customer} to accept the finished work: ${r.title}. A friendly call or text often helps.` });
+  }
   // A scheduled job whose start date has come: offer the Start the job button.
   const dueStart = ((await env.DB.prepare(`SELECT j.id, j.title, cu.name AS customer, json_extract(j.data,'$.schedule.start') AS start FROM jobs j JOIN customers cu ON cu.id = j.customer_id
                     WHERE j.company_id = ? AND j.stage IN ('contract','scheduled') AND json_extract(j.data,'$.schedule.start') <= ? ORDER BY start LIMIT 5`).bind(c, todayLocal()).all().catch(() => ({ results: [] }))).results ?? []) as any[];
