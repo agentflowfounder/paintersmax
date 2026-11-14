@@ -1579,6 +1579,7 @@
   }, []);
 
   pmI18n.add({
+    "Heritage": "Tradicional", "Minimal": "Minimalista",
     "Fliers": "Volantes", "Door hangers": "Colgadores de puerta",
     "Your words": "Sus palabras",
     "Leave any box empty and a plain starting line is used. An offer only prints if you type one.": "Deje vacía cualquier casilla y se usa una línea sencilla de inicio. Una oferta solo se imprime si usted la escribe.",

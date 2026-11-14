@@ -16,8 +16,8 @@ test("cleanCert validates and works out the end date in code", () => {
   assert.equal(c.design, "badge");
   assert.equal(cleanCert({ months: 6, startOn: "2026-11-13", design: "weird" }, "modern").design as any, "modern");
 });
-test("all three designs render, escape text, and show the dates", () => {
-  for (const design of ["classic", "modern", "badge"] as const) {
+test("all six designs render, escape text, and show the dates", () => {
+  for (const design of ["classic", "modern", "badge", "heritage", "minimal", "bold"] as const) {
     const cert: any = cleanCert({ months: 12, startOn: "2026-11-13", design, terms: "We <b>fix</b> peeling." }, "classic");
     const h = renderCertificate({ company: "Tyler & Sons", customer: "Ana <x>", jobTitle: "Fence", address: "1 Main St", cert });
     assert.ok(h.includes("Warranty Certificate"));

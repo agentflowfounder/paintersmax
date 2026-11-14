@@ -260,7 +260,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
 let WC=null;
 function wcCard(){return `<h3 style="font-size:15px;margin:18px 0 6px">Warranty certificate</h3><div class="card" id="wc_card"><div id="wc_body" class="muted">Loading...</div></div>`;}
 async function wcLoad(){const b=$('wc_body');if(!b)return;try{WC=await api('/api/warranty?jobId='+J.job.id);wcDraw();}catch(e){}}
-const WCD={classic:'Classic',modern:'Modern',badge:'Badge'};
+const WCD={classic:'Classic',modern:'Modern',badge:'Badge',heritage:'Heritage',minimal:'Minimal',bold:'Bold'};
 function wcDraw(open){const b=$('wc_body');if(!b||!WC)return;const c=WC.cert,sg=WC.suggested;
  if(!c&&!open){b.innerHTML=`${WC.finished?'<div style="background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px;margin-bottom:8px"><b>This job is finished.</b> Give your customer a warranty certificate?</div>':''}<p class="muted" style="margin-top:0">A certificate is never sent automatically. It starts with your usual labor warranty and job details. You review it first.</p><div class="btns"><button class="btn" data-wcnew="1">Create warranty certificate</button></div>`;return;}
  const v=c||sg;
