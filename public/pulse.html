@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Business pulse - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+main{max-width:980px;margin:0 auto;padding:16px 12px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+h3{margin:20px 0 8px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:14px;margin:0 0 14px}
+.muted{color:#4A5568;font-size:14px}.bad{color:#b42318;font-weight:600}
+.head{font-size:17px;line-height:1.45}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.k{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:12px}
+.k .l{font-size:12px;font-weight:600;color:#4A5568}.k .v{font-family:Newsreader,Georgia,serif;font-size:28px;line-height:1.15;margin:2px 0}
+.k .t{font-size:12px;font-weight:600;color:#4A5568}.k .t.good{color:#0a7a3d}.k .t.watch{color:#9a6200}
+.k.big{border-color:#E8A33D}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 4px;border-bottom:1px solid #eee;text-align:left;font-size:14px}td.r,th.r{text-align:right}tr:last-child td{border-bottom:0}
+a{color:#0F1B2D}
+.scroll{overflow-x:auto}
+.owe div{padding:8px 0;border-bottom:1px solid #eee;font-size:14px}.owe div:last-child{border-bottom:0}
+</style></head><body>
+<header><div><b>PaintersMax</b> Business pulse</div><div></div></header>
+<main>
+<h1>Business pulse</h1>
+<p class="muted" style="margin-top:0">Money in and out this month, compared with the same days last month. It uses the payments, expenses and crew pay you record, so there is no bank connection. These are records for your accountant, not tax advice.</p>
+<div id="msg" class="muted">Loading...</div>
+<div id="body" style="display:none">
+<div class="card head" id="headline"></div>
+<div class="g" id="cards"></div>
+<h3>Customers who still owe you</h3>
+<div class="card owe" id="owed"></div>
+<h3>Last 6 months</h3>
+<div class="card scroll"><table><thead><tr><th>Month</th><th class="r">Money in</th><th class="r">Money out</th><th class="r">Profit</th></tr></thead><tbody id="months"></tbody></table></div>
+<p class="muted">Money in is the payments you record on each job, on the day they arrived. Money out is your expenses plus payments to your crew, on the day you spent them. Profit here is money in minus money out, before your own pay and taxes. Mileage value is a deduction amount for your accountant, so it is not counted as money out.</p>
+<p class="muted"><a href="/jobs">Record a payment on a job</a> &middot; <a href="/records">Add an expense or a trip</a> &middot; <a href="/crew">Record crew pay</a></p>
+</div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+var T=window.pmT||function(s){return s};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+var usd=function(c){var n=Math.round(Math.abs(c)/100);return(c<0?'-':'')+'$'+n.toLocaleString('en-US')};
+function tr(t,label){
+ if(!t||t.dir==='none')return'<div class="t">&nbsp;</div>';
+ var cls=t.good===true?'good':t.good===false?'watch':'',arrow=t.dir==='up'?'&#9650;':t.dir==='down'?'&#9660;':'&#9644;';
+ var words=t.dir==='new'?'New this month':t.dir==='same'?'Same as last month so far':t.pct==null?(t.dir==='up'?'Up':'Down')+' from last month so far':(t.dir==='up'?'Up ':'Down ')+t.pct+'% from last month so far';
+ return'<div class="t '+cls+'" aria-label="'+esc(T(words))+'">'+arrow+' '+esc(T(words))+'</div>';}
+function card(label,value,t,big){return'<div class="k'+(big?' big':'')+'"><div class="l">'+esc(T(label))+'</div><div class="v">'+value+'</div>'+tr(t)+'</div>';}
+function draw(d){
+ $('headline').textContent=d.headline;
+ var c=d.cur,T2=d.trends;
+ var cards=card('Money in this month',usd(c.moneyInCents),T2.moneyIn,true)+card('Money out this month',usd(c.moneyOutCents),T2.moneyOut)+card('Profit so far (in minus out)',usd(c.profitCents),T2.profit,true)
+  +card('Owed to you (invoices sent)',usd(d.owed.cents),null)
+  +card('Jobs in progress',String(d.inProgress),null)
+  +card('Crew pay',usd(c.crewPayCents),T2.crewPay)
+  +card('Materials',usd(c.materialsCents),T2.materials)
+  +card('Fuel and vehicle costs',usd(c.vehicleCents),T2.vehicle)
+  +'<div class="k"><div class="l">'+esc(T('Miles driven'))+'</div><div class="v">'+c.miles+'</div>'+tr(T2.mileage)+'<div class="t">'+esc(d.mileageRateSet?T('Deduction value')+' '+usd(c.mileageValueCents||0):T('Set your mileage rate in Records to see the value.'))+'</div></div>';
+ $('cards').innerHTML=cards;
+ $('owed').innerHTML=d.owed.jobs.length?d.owed.jobs.map(function(o){return'<div><a href="/jobs?id='+o.jobId+'"><b>'+esc(o.customer)+'</b>, '+esc(o.title)+'</a> &middot; '+usd(o.cents)+' &middot; <span class="muted">'+esc(o.days===0?T('invoice sent today'):T('invoice sent '+o.days+' days ago'))+'</span></div>'}).join('')+(d.owed.count>d.owed.jobs.length?'<div class="muted">+'+(d.owed.count-d.owed.jobs.length)+' more</div>':''):'<div class="muted">'+T('Nobody owes you on a sent invoice right now.')+'</div>';
+ $('months').innerHTML=d.months.map(function(m){var lbl=window.pmDate?window.pmDate(m.m+'-01','month'):m.m;return'<tr><td>'+esc(lbl)+'</td><td class="r">'+usd(m.moneyInCents)+'</td><td class="r">'+usd(m.moneyOutCents)+'</td><td class="r"'+(m.profitCents<0?' style="color:#b42318"':'')+'>'+usd(m.profitCents)+'</td></tr>'}).join('');
+ $('msg').style.display='none';$('body').style.display='';
+}
+fetch('/api/pulse?lang='+(window.PM_LANG==='es'?'es':'en')).then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});}).then(draw).catch(function(x){if(x){$('msg').className='bad';$('msg').textContent=T(x.message);}});
+</script><script src="/nav.js"></script></body></html>

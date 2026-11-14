@@ -1710,6 +1710,28 @@
     [/^Final walkthrough\. Finish the punch list, then build the invoice\. You can also ask (.+?) to accept the finished work under Customer sign-off\.$/, function (a, n) { return 'Recorrido final. Termine la lista de pendientes y luego arme la factura. También puede pedirle a ' + n + ' que acepte el trabajo terminado en Aceptación del cliente.'; }],
   ]);
 
+  /* ---- Part 16: Business pulse ---- */
+  pmI18n.add({
+    "Business pulse": "Pulso del negocio", "See your business pulse: money in, money out and profit": "Vea el pulso de su negocio: dinero que entra, dinero que sale y ganancia",
+    "Money in and out this month, compared with the same days last month. It uses the payments, expenses and crew pay you record, so there is no bank connection. These are records for your accountant, not tax advice.": "El dinero que entra y sale este mes, comparado con los mismos días del mes pasado. Usa los pagos, gastos y pagos al equipo que usted registra, así que no hay conexión con el banco. Son registros para su contador, no asesoría fiscal.",
+    "Customers who still owe you": "Clientes que todavía le deben", "Last 6 months": "Últimos 6 meses", "Month": "Mes",
+    "Money in": "Dinero que entró", "Money out": "Dinero que salió",
+    "Money in this month": "Dinero que entró este mes", "Money out this month": "Dinero que salió este mes",
+    "Profit so far (in minus out)": "Ganancia hasta ahora (entrada menos salida)", "Owed to you (invoices sent)": "Le deben (facturas enviadas)",
+    "Crew pay": "Pago al equipo", "Fuel and vehicle costs": "Combustible y costos del vehículo",
+    "Miles driven": "Millas recorridas", "Deduction value": "Valor de deducción",
+    "Set your mileage rate in Records to see the value.": "Fije su tarifa por milla en Registros para ver el valor.",
+    "New this month": "Nuevo este mes", "Up from last month so far": "Subió frente al mes pasado hasta ahora", "Down from last month so far": "Bajó frente al mes pasado hasta ahora", "Same as last month so far": "Igual que el mes pasado hasta ahora",
+    "invoice sent today": "factura enviada hoy",
+    "Nobody owes you on a sent invoice right now.": "Nadie le debe por una factura enviada en este momento.",
+    "Money in is the payments you record on each job, on the day they arrived. Money out is your expenses plus payments to your crew, on the day you spent them. Profit here is money in minus money out, before your own pay and taxes. Mileage value is a deduction amount for your accountant, so it is not counted as money out.": "El dinero que entra son los pagos que usted registra en cada trabajo, el día en que llegaron. El dinero que sale son sus gastos más los pagos a su equipo, el día en que los gastó. La ganancia aquí es lo que entró menos lo que salió, antes de su propio pago y de impuestos. El valor de las millas es un monto de deducción para su contador, así que no se cuenta como dinero que salió.",
+    "Record a payment on a job": "Registrar un pago en un trabajo", "Add an expense or a trip": "Agregar un gasto o un viaje", "Record crew pay": "Registrar pago al equipo",
+  }, [
+    [/^(Up|Down) (\d+)% from last month so far$/, function (a, d, n) { return (d === 'Up' ? 'Subió ' : 'Bajó ') + n + '% frente al mes pasado hasta ahora'; }],
+    [/^invoice sent (\d+) days ago$/, function (a, n) { return 'factura enviada hace ' + n + ' días'; }],
+    [/^\+(\d+) more$/, function (a, n) { return '+' + n + ' más'; }],
+  ]);
+
   /* ---- Part 15e: "We start tomorrow" notice ---- */
   pmI18n.add({
     "Notice language": "Idioma del aviso",

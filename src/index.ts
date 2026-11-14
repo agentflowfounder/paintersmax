@@ -45,6 +45,7 @@ import { handlePortalManage, handlePortalPage, portalNote, renderLookupPage, han
 import { sendInvoiceReminders } from "./reminders.ts";
 import { bookedVisits, handleVisit, sendVisitReminders } from "./visit.ts";
 import { sendStartNotices } from "./startnotice.ts";
+import { handlePulse } from "./pulse.ts";
 import { handleSignoff } from "./signoff.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
@@ -601,6 +602,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
       } catch (err) {
         console.error("calendar feed failed", String(err));
         return new Response("Something went wrong.", { status: 500 });
+      }
+    }
+    if (pathname === "/api/pulse") {
+      try {
+        return await handlePulse(request, env);
+      } catch (err) {
+        console.error("pulse failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
       }
     }
     if (pathname === "/api/signoff") {
