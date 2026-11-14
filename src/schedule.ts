@@ -1,6 +1,7 @@
 import { getSessionUser } from "./auth.ts";
 import { addJobEvent } from "./crm.ts";
 import { loadCrew, notifyCrew } from "./calfeed.ts";
+import { bookedVisits } from "./visit.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -128,5 +129,5 @@ export async function handleSchedule(request: Request, env: Env): Promise<Respon
       ORDER BY j.updated_at DESC LIMIT 50`,
   ).bind(user.companyId).all<any>();
   const crew = [...new Set(scheduled.flatMap((s) => s.crew))].sort((a, b) => a.localeCompare(b));
-  return json({ jobs: scheduled, needsDate: (results ?? []).map((r) => ({ jobId: r.id, title: r.title, stage: r.stage, customer: r.customer })), crew });
+  return json({ jobs: scheduled, visits: await bookedVisits(env, user.companyId).catch(() => []), needsDate: (results ?? []).map((r) => ({ jobId: r.id, title: r.title, stage: r.stage, customer: r.customer })), crew });
 }

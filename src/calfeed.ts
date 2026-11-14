@@ -10,7 +10,7 @@ import type { Env } from "./types.ts";
 const PUBLIC_BASE = "https://paintersmax.app";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
-export interface SchedJob { jobId: number; title: string; customer: string; address: string; start: string; end: string; startTime: string; crew: string[]; notes: string; stage?: string }
+export interface SchedJob { jobId: number; title: string; customer: string; address: string; start: string; end: string; startTime: string; crew: string[]; notes: string; stage?: string; /** A site visit rather than the job itself: its own UID and a one-hour length. */ visit?: boolean }
 
 const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 /** Folds a content line to 75 characters, as the calendar format requires. */
@@ -31,13 +31,13 @@ const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}
 export function eventLines(j: SchedJob, now = new Date(), link = `${PUBLIC_BASE}/jobs?id=${j.jobId}`): string[] {
   const timed = j.startTime && j.start === j.end;
   const desc = [j.crew.length ? `Crew: ${j.crew.join(", ")}` : "", j.notes, `Job: ${link}`].filter(Boolean).join("\n");
-  const L = ["BEGIN:VEVENT", `UID:job-${j.jobId}@paintersmax.app`, `DTSTAMP:${stamp(now)}`];
+  const L = ["BEGIN:VEVENT", `UID:${j.visit ? "visit" : "job"}-${j.jobId}@paintersmax.app`, `DTSTAMP:${stamp(now)}`];
   if (timed) {
-    L.push(`DTSTART:${ymd(j.start)}T${j.startTime.replace(":", "")}00`, "DURATION:PT8H");
+    L.push(`DTSTART:${ymd(j.start)}T${j.startTime.replace(":", "")}00`, j.visit ? "DURATION:PT1H" : "DURATION:PT8H");
   } else {
     L.push(`DTSTART;VALUE=DATE:${ymd(j.start)}`, `DTEND;VALUE=DATE:${ymd(plusDays(j.end, 1))}`);
   }
-  L.push(`SUMMARY:${esc(`${j.startTime && !timed ? j.startTime + " " : ""}${j.title}${j.customer ? " - " + j.customer : ""}`)}`);
+  L.push(`SUMMARY:${esc(j.visit ? `Site visit${j.customer ? " - " + j.customer : ""}` : `${j.startTime && !timed ? j.startTime + " " : ""}${j.title}${j.customer ? " - " + j.customer : ""}`)}`);
   if (j.address) L.push(`LOCATION:${esc(j.address)}`);
   L.push(`DESCRIPTION:${esc(desc)}`, "STATUS:CONFIRMED", "END:VEVENT");
   return L;

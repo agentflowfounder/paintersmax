@@ -263,7 +263,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
   const job = await env.DB.prepare(
     `SELECT j.id, j.title, j.trade, j.stage, j.property_id AS propertyId, j.customer_id AS customerId,
             c.name AS customerName, c.email AS customerEmail, c.phone AS customerPhone,
-            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn
+            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn, json_extract(j.data,'$.visit') AS visit
        FROM jobs j JOIN customers c ON c.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id
       WHERE j.id = ? AND j.company_id = ?`,
   )
@@ -282,7 +282,8 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     ).bind(id, user.companyId).all(),
   ]);
   return json({
-    job: { ...job, brief: undefined, schedule: undefined, startedOn: undefined },
+    job: { ...job, brief: undefined, schedule: undefined, startedOn: undefined, visit: undefined },
+    visit: parse(job.visit) && typeof parse(job.visit) === "object" && parse(job.visit).date ? parse(job.visit) : null,
     schedule: parse(job.schedule) && typeof parse(job.schedule) === "object" && parse(job.schedule).start ? parse(job.schedule) : null,
     startedOn: job.startedOn ?? null,
     brief: parse(job.brief) && typeof parse(job.brief) === "object" && parse(job.brief).type ? cleanBrief(parse(job.brief), parse(job.brief).updatedAt ?? "") : null,

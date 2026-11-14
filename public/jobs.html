@@ -455,8 +455,25 @@ function dtOpen(){const f=$('dt_form');if(!f||!J)return;const j=J.job;
  <label>Street address</label><input id="dt_addr" value="${esc(j.address||'')}"><div class="row"><div><label>City</label><input id="dt_city" value="${esc(j.city||'')}"></div><div><label>ZIP</label><input id="dt_zip" inputmode="numeric" value="${esc(j.zip||'')}"></div></div>
  <div class="btns"><button class="btn" data-dtsave="1">Save</button><button class="btn sec" data-dtcancel="1">Cancel</button></div></div>`;
  const n=$('dt_name');if(n)n.focus();}
+const vTime=t=>{const m=/^(\d\d):(\d\d)$/.exec(t||'');if(!m)return '';const h=+m[1];return (h%12||12)+':'+m[2]+' '+(h<12?'AM':'PM');};
+const vWhen=v=>dtf(v.date)+(vTime(v.time)?' at '+vTime(v.time):'');
+const todayL=()=>new Date(Date.now()-6*36e5).toISOString().slice(0,10);
+function gcalVisit(d){const v=d.visit,j=d.job;if(!v)return '';const dd=v.date.replace(/-/g,'');let dates;if(v.time){const t=v.time.replace(':','')+'00';const e=String((+v.time.slice(0,2)+1)%24).padStart(2,'0')+v.time.slice(3)+'00';dates=dd+'T'+t+'/'+dd+'T'+e;}else{const n=new Date(v.date+'T00:00:00Z');n.setUTCDate(n.getUTCDate()+1);dates=dd+'/'+n.toISOString().slice(0,10).replace(/-/g,'');}
+ const addr=[j.address,j.city,j.zip].filter(Boolean).join(', ');return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Site visit - '+j.customerName)+'&dates='+dates+'&details='+encodeURIComponent((v.notes||'')+'\nJob: https://paintersmax.app/jobs?id='+j.id)+'&location='+encodeURIComponent(addr);}
+function visitSub(d){const v=d.visit;if(!v)return 'Optional';if(v.status==='booked')return vWhen(v);if(v.status==='done')return 'Done';return 'Cancelled';}
+function visitCard(d){const v=d.visit,j=d.job;const booked=v&&v.status==='booked';const est=d.estimate&&d.estimate.estimate;
+ const top=booked?`<p style="margin-top:0"><b>Booked: ${esc(vWhen(v))}</b><br><small class="muted">${v.notify?(v.confirmedAt?'The customer was emailed a confirmation and gets a reminder the day before.':'The customer email has not gone out yet. Tap Save visit to send it.'):'The customer is not emailed about this visit.'}</small></p>`:v&&v.status==='done'?`<p style="margin-top:0"><b>Visit done</b> <small class="muted">(${esc(dtf(v.date))})</small></p>`:v&&v.status==='cancelled'?`<p class="muted" style="margin-top:0">The visit on ${esc(dtf(v.date))} was cancelled. You can book a new one.</p>`:`<p class="muted" style="margin-top:0">Booking a walk-through puts it on your calendar. You can also email the customer a confirmation and a friendly reminder the day before. Nothing is emailed unless you tick the box.</p>`;
+ const dv=booked?v.date:'',tv=booked?v.time:'',nv=booked?v.notes:'',lg=booked?v.lang:(est&&est.language==='es'?'es':'en');
+ const nt=booked?!!v.notify:!!j.customerEmail;
+ return `<div class="card">${top}<div class="row"><div><label>Date</label><input type="date" id="vs_date" min="${todayL()}" value="${esc(dv)}"></div><div><label>Time (optional)</label><input type="time" id="vs_time" value="${esc(tv)}"></div></div>
+ <label>Notes for me (private, never emailed)</label><textarea id="vs_notes" rows="2" placeholder="Example: Bring a ladder and the color deck. Dog in the back yard.">${esc(nv)}</textarea>
+ <div class="row"><div><label>Customer email language</label><select id="vs_lang"><option value="en">English</option><option value="es" ${lg==='es'?'selected':''}>Español</option></select></div></div>
+ <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="vs_notify" style="width:auto;margin-top:3px" ${nt&&j.customerEmail?'checked':''} ${j.customerEmail?'':'disabled'}><span>Email ${esc(String(j.customerName||'the customer').split(/\s+/)[0])} a confirmation with a calendar file, and a reminder the day before<br><small class="muted">${j.customerEmail?'The email names only the date, time and address. Your notes are never included.':'Add an email address in Edit details first.'}</small></span></label>
+ <div class="btns"><button class="btn" data-vsbook="1">${booked?'Save visit':'Book the visit'}</button>${booked?`<button class="btn sec" data-vsdone="1">Mark visit done</button><button class="btn sec" data-vscancel="1">Cancel visit</button><a class="btn sec" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="${esc(gcalVisit(d))}">Add to Google Calendar</a>`:''}</div></div>`;}
 function nextStep(d){const j=d.job,e=d.estimate,st=j.stage;const nm=String(j.customerName||'the customer').split(/\s+/)[0];let t='';
- if(st==='lead')t=e?`You started an estimate. Review it, then send it to ${nm}.`:`This is a new lead. Tell me about the job below, then tap Create estimate.`;
+ const vs=d.visit&&d.visit.status==='booked'?d.visit:null;
+ if(st==='lead'&&vs&&!e)t=vs.date<todayL()?`The visit on ${dtf(vs.date)} is still marked as booked. Open Site visit and tap Mark visit done once you have been there.`:`Visit ${vWhen(vs)}. Take photos and notes, then tap Create estimate.`;
+ else if(st==='lead')t=e?`You started an estimate. Review it, then send it to ${nm}.`:`This is a new lead. If you want to see the place first, book a site visit. Otherwise tell me about the job below, then tap Create estimate.`;
  else if(st==='bid')t=e&&e.status==='sent'?`Estimate sent. Waiting for ${nm} to approve it. A friendly call or text often helps.`:`Your estimate is saved. Send it to ${nm} when it looks right.`;
  else if(st==='contract')t=`Contract stage. Record the deposit when it arrives, then add the job to the calendar. If the crew is already working, tap Start the job.`;
  else if(st==='scheduled'){const sc=d.schedule,td=new Date(Date.now()-6*36e5).toISOString().slice(0,10);t=sc&&sc.start?(sc.start<=td?`The start date (${dtf(sc.start)}) is here. Tap Start the job when the crew begins.`:`Scheduled for ${dtf(sc.start)}. Record the deposit if you have not, and make crew instructions and a materials list. When the crew begins, tap Start the job.`):`Scheduled. Record the deposit if you have not, and make crew instructions and a materials list. When the crew begins, tap Start the job.`;}
@@ -527,6 +544,11 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  else if(t.id==='bf_create'){bfCreate();}
  else if(t.id==='bf_opinion'){bfOpinion();}
  else if(ds.startjob){if(!confirm('Start this job? It moves to In progress, and you can make change orders if the customer asks for extra work.'))return;try{msg('');await api('/api/job',{action:'start',jobId:J.job.id});await detail(J.job.id);openAcc('wo');msg('Job started. It is now in progress.',true);}catch(x){if(x)msg(x.message);}}
+ else if(ds.vsbook){const date=$('vs_date').value;if(!date){msg('Pick a date for the visit.');return;}const notify=!!($('vs_notify')||{}).checked;const body={action:'book',jobId:J.job.id,date,time:$('vs_time').value,notes:$('vs_notes').value,notify,lang:$('vs_lang').value};
+  if(notify&&!await checkInfo('Email the visit confirmation',[['Visit',dtf(date)+(vTime(body.time)?' at '+vTime(body.time):'')],['Reminder',(()=>{const t=new Date(Date.now()-6*36e5);t.setUTCDate(t.getUTCDate()+1);return date<=t.toISOString().slice(0,10)?'None needed (the visit is soon)':'Emailed the day before';})()]],'Looks right, send it'))return;
+  try{msg('');const r=await api('/api/visit',body);await detail(J.job.id);msg(r.emailed==='sent'?'Visit saved. The customer was emailed a confirmation.':r.emailed==='skipped'?'Visit saved, but the email could not be sent. Check the customer email address.':'Visit saved.',true);openAcc('visit');}catch(x){if(x)msg(x.message);}}
+ else if(ds.vsdone){try{msg('');await api('/api/visit',{action:'done',jobId:J.job.id});await detail(J.job.id);msg('Visit marked done. Next, tap Create estimate.',true);}catch(x){if(x)msg(x.message);}}
+ else if(ds.vscancel){const v=J.visit;if(!confirm(v&&v.notify&&v.confirmedAt?'Cancel this visit? The customer was emailed a confirmation, so they will be emailed that it is cancelled.':'Cancel this visit?'))return;try{msg('');await api('/api/visit',{action:'cancel',jobId:J.job.id});await detail(J.job.id);msg('Visit cancelled.',true);}catch(x){if(x)msg(x.message);}}
  else if(ds.dtedit){dtOpen();}
  else if(ds.dtcancel){const f=$('dt_form');if(f)f.innerHTML='';}
  else if(ds.dtsave){try{msg('');await api('/api/job',{action:'update',jobId:J.job.id,name:$('dt_name').value,title:$('dt_title').value,phone:$('dt_phone').value,email:$('dt_email').value,address:$('dt_addr').value,city:$('dt_city').value,zip:$('dt_zip').value});await detail(J.job.id);msg('Saved. The change is in the job history.',true);}catch(x){if(x)msg(x.message);}}
@@ -546,6 +568,7 @@ async function detail(id){
   ${commBanner(d.commercial)}
   ${st==='lost'?lostCard(d):''}
   <h3 class="grp">Estimate</h3>
+  ${early||d.visit?acc('visit','Site visit',visitSub(d),!!(d.visit&&d.visit.status==='booked')&&early,visitCard(d)):''}
   ${acc('type','1. Tell me about the job','',early,briefCard())}
   ${acc('est','2. Estimate',estSub,early&&(!!e||lines.length>0),`<div class="card">
    <label style="margin-top:0">Scope of work (what the customer gets)</label><textarea id="scope" rows="4" placeholder="Tap Create estimate above and I will write this for you, or type your own.">${esc(est.scope||'')}</textarea>

@@ -43,6 +43,7 @@ import { handleRateCardDoc } from "./ratecardpdf.ts";
 import { handleRateSheetPage, handleRateSheets } from "./ratesheets.ts";
 import { handlePortalManage, handlePortalPage, portalNote, renderLookupPage, handleProjectLookup } from "./portal.ts";
 import { sendInvoiceReminders } from "./reminders.ts";
+import { bookedVisits, handleVisit, sendVisitReminders } from "./visit.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
 import { parsePhotos, parseQuoteRequest } from "./validate.ts";
@@ -396,6 +397,7 @@ export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(sendChatDigests(env).catch((err) => console.error("chat digest failed", String(err))));
     ctx.waitUntil(sendInvoiceReminders(env).catch((err) => console.error("invoice reminders failed", String(err))));
+    ctx.waitUntil(sendVisitReminders(env).catch((err) => console.error("visit reminders failed", String(err))));
     ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
     ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
   },
@@ -592,10 +594,18 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     }
     if (pathname.startsWith("/cal/")) {
       try {
-        return await handleFeed(request, env, (id) => scheduledJobs(env, id));
+        return await handleFeed(request, env, async (id) => [...(await scheduledJobs(env, id)), ...(await bookedVisits(env, id).catch(() => [])).map((v) => ({ jobId: v.jobId, title: v.title, customer: v.customer, address: v.address, start: v.date, end: v.date, startTime: v.time, crew: [] as string[], notes: v.notes, visit: true }))]);
       } catch (err) {
         console.error("calendar feed failed", String(err));
         return new Response("Something went wrong.", { status: 500 });
+      }
+    }
+    if (pathname === "/api/visit") {
+      try {
+        return await handleVisit(request, env);
+      } catch (err) {
+        console.error("visit failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
       }
     }
     if (pathname === "/api/schedule") {

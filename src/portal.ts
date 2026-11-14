@@ -3,6 +3,8 @@ import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
 import { coiLink, showsCustomers } from "./insurance.ts";
 import { renderDocPage } from "./wizard-api.ts";
+import { addDaysIso, isIsoDate, todayLocal } from "./dates.ts";
+import { visitWhen } from "./visit.ts";
 import { readSettings } from "./settings.ts";
 import { CUSTOMER_MAX_FILES, saveFile } from "./files.ts";
 import type { Env } from "./types.ts";
@@ -129,6 +131,8 @@ i.onchange=async function(){var ok=0,n=0;for(var k=0;k<i.files.length;k++){n++;m
 export function renderPortal(d: {
   es: boolean; company: string; phone: string; email: string; customer: string; title: string; stage: string;
   docs: { id: number; kind: string; status: string; label: string }[]; signed: Record<string, string>; pendingSign: string[]; proofUrl: string | null; token: string; logoUrl?: string; color?: string;
+  /** An upcoming site visit the painter booked, already worded for the customer. */
+  visit?: { when: string; address: string } | null;
 }): string {
   const es = d.es;
   const L = (en: string, sp: string) => (es ? sp : en);
@@ -147,12 +151,25 @@ export function renderPortal(d: {
   return `<!doctype html><html lang="${es ? "es" : "en"}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${esc(d.company)} - ${esc(d.title)}</title><style>${CSS}${d.color && /^#[0-9a-fA-F]{6}$/.test(d.color) ? `header{border-bottom:4px solid ${d.color}}` : ""}</style></head><body>
 <header>${d.logoUrl && /^https:\/\/[^\s"'<>]{3,300}$/.test(d.logoUrl) ? `<img src="${esc(d.logoUrl)}" alt="${esc(d.company)}" style="max-height:40px;max-width:180px">` : `<b>${esc(d.company)}</b>`}</header><main>
 <p class="muted" style="margin:6px 0 0">${L("Hi", "Hola")} ${esc(first)},</p><h1>${esc(d.title)}</h1><div class="st">${esc(stageText(d.stage, es))}</div>
+${d.visit ? `<div class="card"><h2>${L("Your visit", "Su visita")}</h2><p style="margin:0"><b>${esc(d.visit.when)}</b>${d.visit.address ? `<br><span class="muted">${esc(d.visit.address)}</span>` : ""}</p></div>` : ""}
 <div class="card"><h2>${L("Your documents", "Sus documentos")}</h2>${rows || `<p class="muted">${L("Nothing has been shared yet. Check back soon.", "Todavía no se ha compartido nada. Vuelva pronto.")}</p>`}</div>
 ${d.proofUrl ? `<div class="card"><h2>${L("Proof of insurance", "Comprobante de seguro")}</h2><p class="muted" style="margin:0 0 8px">${L("See that the work is insured and what to do if something happens.", "Vea que el trabajo está asegurado y qué hacer si algo sucede.")}</p><a class="b" href="${esc(d.proofUrl)}" target="_blank" rel="noopener">${L("View proof of insurance", "Ver comprobante de seguro")}</a></div>` : ""}
 <div class="card"><h2>${L("Add photos", "Agregar fotos")}</h2><p class="muted" style="margin:0 0 8px">${L("Share photos of what you want us to see, like a stain, crack or peeling spot. Your painter will see them.", "Comparta fotos de lo que quiere que veamos, como una mancha, grieta o pintura levantada. Su pintor las verá.")}</p><input type="file" id="ph" accept="image/*" multiple><p id="phm" class="muted" style="margin:6px 0 0"></p></div>
 <div class="card"><h2>${L("Questions?", "¿Preguntas?")}</h2><p class="muted" style="margin:0">${contact || L("Reply to the email you received.", "Responda al correo que recibió.")}</p></div>
 <p class="muted" style="font-size:12px">${L("This page is private to you. Please do not share the link.", "Esta página es privada. Por favor no comparta el enlace.")}</p>
 </main><script>${PHOTO_JS}</script></body></html>`;
+}
+
+
+/** The customer-facing line for a booked visit that has not passed yet, or null. */
+export function portalVisit(jobData: unknown, es: boolean, fallbackAddress = ""): { when: string; address: string } | null {
+  try {
+    const v = typeof jobData === "string" && jobData ? JSON.parse(jobData)?.visit : null;
+    if (!v || v.status !== "booked" || !isIsoDate(v.date) || v.date < addDaysIso(todayLocal(), -1)) return null;
+    return { when: visitWhen({ date: v.date, time: typeof v.time === "string" ? v.time : "", lang: es ? "es" : "en" }), address: fallbackAddress };
+  } catch {
+    return null;
+  }
 }
 
 /** Public: GET /portal/<token> and GET /portal/<token>/doc/<id>. */
@@ -187,7 +204,7 @@ export async function handlePortalPage(request: Request, env: Env): Promise<Resp
   if (parts.length !== 2) return htmlResp("<p>Not found.</p>", 404);
 
   const job = await env.DB.prepare(
-    "SELECT j.title, j.stage, cu.name AS customer, co.name AS company, co.settings AS cosettings, cp.data AS profile FROM jobs j JOIN customers cu ON cu.id = j.customer_id JOIN companies co ON co.id = j.company_id LEFT JOIN company_profiles cp ON cp.company_id = j.company_id WHERE j.id = ? AND j.company_id = ?",
+    "SELECT j.title, j.stage, j.data AS jdata, cu.name AS customer, co.name AS company, co.settings AS cosettings, cp.data AS profile, p.address AS paddr, p.city AS pcity, p.zip AS pzip FROM jobs j JOIN customers cu ON cu.id = j.customer_id JOIN companies co ON co.id = j.company_id LEFT JOIN company_profiles cp ON cp.company_id = j.company_id LEFT JOIN properties p ON p.id = j.property_id WHERE j.id = ? AND j.company_id = ?",
   ).bind(jobId, companyId).first<any>();
   if (!job) return htmlResp("<p>Not found.</p>", 404);
   let profile: any = {};
@@ -218,7 +235,7 @@ export async function handlePortalPage(request: Request, env: Env): Promise<Resp
   const c = profile.company ?? {};
   const brand = readSettings(job.cosettings);
   return htmlResp(
-    renderPortal({ logoUrl: brand.logoUrl, color: brand.brandColor, es, company: job.company, phone: String(c.phone ?? ""), email: String(c.email ?? ""), customer: job.customer, title: job.title, stage: job.stage, docs: [...latest.values()].map((d) => ({ id: d.id, kind: d.kind, status: d.status, label: d.kind })), signed, pendingSign, proofUrl, token: parts[1] }),
+    renderPortal({ logoUrl: brand.logoUrl, color: brand.brandColor, es, company: job.company, phone: String(c.phone ?? ""), email: String(c.email ?? ""), customer: job.customer, title: job.title, stage: job.stage, docs: [...latest.values()].map((d) => ({ id: d.id, kind: d.kind, status: d.status, label: d.kind })), signed, pendingSign, proofUrl, token: parts[1], visit: portalVisit(job.jdata, es, [job.paddr, job.pcity, job.pzip].filter(Boolean).join(", ")) }),
   );
 }
 

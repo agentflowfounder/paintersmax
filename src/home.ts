@@ -4,7 +4,8 @@ import { pastDueKey } from "./stripe.ts";
 import { trialDaysLeft } from "./usage.ts";
 import { buildProgress } from "./progress.ts";
 import { buildNudges, SNOOZE_DAYS } from "./nudges.ts";
-import { friendlyDate, todayLocal } from "./dates.ts";
+import { addDaysIso, friendlyDate, friendlyTime, todayLocal } from "./dates.ts";
+import { bookedVisits } from "./visit.ts";
 import { effectivePlan } from "./usage.ts";
 import { storageLimitFor, storageUsed } from "./files.ts";
 import type { Env } from "./types.ts";
@@ -95,6 +96,15 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
   for (const r of attOpened.results as any[]) attention.push({ type: "signature", jobId: r.id, text: `${r.signer_name} opened the ${r.kind} but has not signed: ${r.title}` });
   for (const r of attExpiring.results as any[]) attention.push({ type: "signature", jobId: r.id, text: `The signing link for ${r.signer_name} expires soon: ${r.title}` });
   for (const r of attInvoice.results as any[]) attention.push({ type: "invoice", jobId: r.id, text: `Invoice sent ${r.days} days ago and not marked paid: ${r.customer}, ${r.title}` });
+  // Site visits: today, tomorrow, and any that passed without being marked done.
+  const todayD = todayLocal();
+  for (const v of (await bookedVisits(env, c).catch(() => [])).slice(0, 20)) {
+    const at = friendlyTime(v.time) ? ` at ${friendlyTime(v.time)}` : "";
+    const who = `${v.customer}${v.address ? ", " + v.address : ""}`;
+    if (v.date === todayD) attention.push({ type: "visit", jobId: v.jobId, text: `Site visit today${at}: ${who}` });
+    else if (v.date === addDaysIso(todayD, 1)) attention.push({ type: "visit", jobId: v.jobId, text: `Site visit tomorrow${at}: ${who}` });
+    else if (v.date < todayD) attention.push({ type: "visit", jobId: v.jobId, text: `The site visit on ${friendlyDate(v.date)} is still marked as booked. Open the job and mark it done, or book a new time: ${v.customer}` });
+  }
   // A scheduled job whose start date has come: offer the Start the job button.
   const dueStart = ((await env.DB.prepare(`SELECT j.id, j.title, cu.name AS customer, json_extract(j.data,'$.schedule.start') AS start FROM jobs j JOIN customers cu ON cu.id = j.customer_id
                     WHERE j.company_id = ? AND j.stage IN ('contract','scheduled') AND json_extract(j.data,'$.schedule.start') <= ? ORDER BY start LIMIT 5`).bind(c, todayLocal()).all().catch(() => ({ results: [] }))).results ?? []) as any[];

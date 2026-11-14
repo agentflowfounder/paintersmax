@@ -1618,5 +1618,42 @@
     [/^The start date \((.+?)\) is here: (.+)\. Open the job and tap Start the job when the crew begins\.$/, function (a, d, rest) { return 'Llegó la fecha de inicio (' + d + '): ' + rest + '. Abra el trabajo y toque Iniciar el trabajo cuando el equipo comience.'; }],
   ]);
 
+  /* ---- Part 15b: Site visits ---- */
+  pmI18n.add({
+    "Site visit": "Visita al sitio", "Optional": "Opcional", "Time (optional)": "Hora (opcional)", "Date": "Fecha",
+    "Notes for me (private, never emailed)": "Notas para mí (privadas, nunca se envían por correo)",
+    "Example: Bring a ladder and the color deck. Dog in the back yard.": "Ejemplo: Llevar una escalera y el muestrario de colores. Hay un perro en el patio.",
+    "Customer email language": "Idioma del correo al cliente",
+    "Book the visit": "Agendar la visita", "Save visit": "Guardar visita", "Mark visit done": "Marcar visita como hecha", "Cancel visit": "Cancelar visita",
+    "Done": "Hecha", "Cancelled": "Cancelada",
+    "The email names only the date, time and address. Your notes are never included.": "El correo solo menciona la fecha, la hora y la dirección. Sus notas nunca se incluyen.",
+    "Add an email address in Edit details first.": "Primero agregue un correo electrónico en Editar detalles.",
+    "The customer was emailed a confirmation and gets a reminder the day before.": "Se le envió al cliente una confirmación por correo y recibirá un recordatorio el día antes.",
+    "The customer email has not gone out yet. Tap Save visit to send it.": "El correo al cliente todavía no se ha enviado. Toque Guardar visita para enviarlo.",
+    "The customer is not emailed about this visit.": "No se le envía correo al cliente sobre esta visita.",
+    "Booking a walk-through puts it on your calendar. You can also email the customer a confirmation and a friendly reminder the day before. Nothing is emailed unless you tick the box.": "Agendar un recorrido lo pone en su calendario. También puede enviar al cliente una confirmación y un recordatorio amable el día antes. No se envía nada por correo a menos que marque la casilla.",
+    "Pick a date for the visit.": "Elija una fecha para la visita.", "Pick today or a day ahead.": "Elija hoy o un día futuro.",
+    "This customer has no email address. Add one in Edit details, or untick the email box.": "Este cliente no tiene correo electrónico. Agregue uno en Editar detalles, o desmarque la casilla del correo.",
+    "This job is closed, so a visit cannot be booked.": "Este trabajo está cerrado, así que no se puede agendar una visita.",
+    "There is no visit on this job.": "Este trabajo no tiene una visita.",
+    "Visit saved. The customer was emailed a confirmation.": "Visita guardada. Se envió una confirmación al cliente.",
+    "Visit saved, but the email could not be sent. Check the customer email address.": "Visita guardada, pero no se pudo enviar el correo. Revise el correo electrónico del cliente.",
+    "Visit saved.": "Visita guardada.", "Visit marked done. Next, tap Create estimate.": "Visita marcada como hecha. Luego, toque Crear presupuesto.", "Visit cancelled.": "Visita cancelada.",
+    "Email the visit confirmation": "Enviar la confirmación de la visita", "Visit": "Visita", "Reminder": "Recordatorio",
+    "Emailed the day before": "Se envía por correo el día antes", "None needed (the visit is soon)": "No hace falta (la visita es pronto)",
+    "This is a new lead. If you want to see the place first, book a site visit. Otherwise tell me about the job below, then tap Create estimate.": "Este es un cliente potencial nuevo. Si quiere ver el lugar primero, agende una visita. Si no, cuénteme del trabajo abajo y toque Crear presupuesto.",
+    "Site visit done.": "Visita al sitio hecha.", "Visit reminder emailed to the customer.": "Recordatorio de visita enviado al cliente.",
+  }, [
+    [/^Booked: (.+)$/, function (a, w) { return 'Agendada: ' + w; }],
+    [/^Email (.+?) a confirmation with a calendar file, and a reminder the day before$/, function (a, n) { return 'Enviar a ' + n + ' una confirmación con un archivo de calendario y un recordatorio el día antes'; }],
+    [/^Visit done$/, function () { return 'Visita hecha'; }],
+    [/^The visit on (.+?) was cancelled\. You can book a new one\.$/, function (a, d) { return 'La visita del ' + d + ' fue cancelada. Puede agendar una nueva.'; }],
+    [/^Visit (.+?)\. Take photos and notes, then tap Create estimate\.$/, function (a, w) { return 'Visita ' + w + '. Tome fotos y notas, y luego toque Crear presupuesto.'; }],
+    [/^The visit on (.+?) is still marked as booked\. Open Site visit and tap Mark visit done once you have been there\.$/, function (a, d) { return 'La visita del ' + d + ' sigue marcada como agendada. Abra Visita al sitio y toque Marcar visita como hecha cuando haya ido.'; }],
+    [/^Site visit today( at [^:]+:[^:]+)?: (.+)$/, function (a, t, w) { return 'Visita al sitio hoy' + (t ? t.replace(' at ', ' a las ') : '') + ': ' + w; }],
+    [/^Site visit tomorrow( at [^:]+:[^:]+)?: (.+)$/, function (a, t, w) { return 'Visita al sitio mañana' + (t ? t.replace(' at ', ' a las ') : '') + ': ' + w; }],
+    [/^The site visit on (.+?) is still marked as booked\. Open the job and mark it done, or book a new time: (.+)$/, function (a, d, c) { return 'La visita del ' + d + ' sigue marcada como agendada. Abra el trabajo y márquela como hecha, o agende otra hora: ' + c; }],
+  ]);
+
   pmI18n.start();
 })();

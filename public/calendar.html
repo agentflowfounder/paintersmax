@@ -17,7 +17,7 @@ button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:9px 13px;
 .day{min-height:78px;background:#fbfaf8;border:1px solid #eee;border-radius:6px;padding:3px;overflow:hidden}.day.o{opacity:.45}.day.t{border-color:#E8A33D;background:#fff7e6}
 .day i{font-style:normal;font-size:12px;color:#4A5568}
 .chip{display:block;width:100%;text-align:left;font-size:11px;font-weight:600;border-radius:4px;padding:2px 4px;margin-top:2px;background:#0F1B2D;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border:0}
-.chip.p{background:#0a7a3d}.chip.c{background:#4A5568}
+.chip.p{background:#0a7a3d}.chip.c{background:#4A5568}.chip.v{background:#1f5fbf}
 label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}input,textarea{font:inherit;width:100%;padding:9px;border:1px solid #cfd5dc;border-radius:8px}
 .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}@media(max-width:560px){.row{grid-template-columns:1fr}.day{min-height:56px}.chip{font-size:10px}}
 .muted{color:#4A5568;font-size:14px}.ok{color:#0a7a3d;font-weight:600}.bad{color:#b42318;font-weight:600}
@@ -42,18 +42,20 @@ var T=window.pmT||function(s){return s};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function msg(t,c){$('msg').textContent=t||'';$('msg').className=c||'muted';}
 function api(p,b){return fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined).then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});});}
-var jobs=[],needs=[],crew=[],view=new Date();view.setDate(1);
+var jobs=[],visits=[],needs=[],crew=[],view=new Date();view.setDate(1);
 var iso=function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 $('dow').innerHTML=DOW.map(function(d){return'<div class="dow">'+T(d)+'</div>'}).join('');
-function load(){return api('/api/schedule').then(function(d){jobs=d.jobs;needs=d.needsDate;crew=d.crew;draw();});}
+function load(){return api('/api/schedule').then(function(d){jobs=d.jobs;visits=d.visits||[];needs=d.needsDate;crew=d.crew;draw();});}
 function draw(){
  var y=view.getFullYear(),m=view.getMonth();
  $('mon').textContent=view.toLocaleDateString(window.PM_LANG==='es'?'es-US':'en-US',{month:'long',year:'numeric'});
  var first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),today=iso(new Date()),h='';
  for(var i=0;i<42;i++){var d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i),k=iso(d);
-  var chips=jobs.filter(function(j){return j.start<=k&&k<=j.end}).slice(0,3).map(function(j){return'<button class="chip '+(j.stage==='closed'||j.stage==='invoiced'?'c':j.stage==='in_progress'?'p':'')+'" data-job="'+j.jobId+'" title="'+esc(j.title+' - '+j.customer)+'">'+esc((j.startTime&&k===j.start?j.startTime+' ':'')+j.title)+'</button>'}).join('');
-  var more=jobs.filter(function(j){return j.start<=k&&k<=j.end}).length-3;
+  var vs=visits.filter(function(v){return v.date===k}),js=jobs.filter(function(j){return j.start<=k&&k<=j.end});
+  var vt=function(t){var m=/^(\d\d):(\d\d)$/.exec(t||'');if(!m)return'';var hh=+m[1];return (hh%12||12)+':'+m[2]+(hh<12?'a':'p')};
+  var chips=vs.map(function(v){return'<button class="chip v" data-visit="'+v.jobId+'" title="'+esc(T('Site visit')+' - '+v.customer+(v.address?' - '+v.address:''))+'">'+esc((vt(v.time)?vt(v.time)+' ':'')+T('Visit')+': '+v.customer)+'</button>'}).concat(js.map(function(j){return'<button class="chip '+(j.stage==='closed'||j.stage==='invoiced'?'c':j.stage==='in_progress'?'p':'')+'" data-job="'+j.jobId+'" title="'+esc(j.title+' - '+j.customer)+'">'+esc((j.startTime&&k===j.start?j.startTime+' ':'')+j.title)+'</button>'})).slice(0,3).join('');
+  var more=vs.length+js.length-3;
   h+='<div class="day'+(d.getMonth()!==m?' o':'')+(k===today?' t':'')+'"><i>'+d.getDate()+'</i>'+chips+(more>0?'<i>+'+more+'</i>':'')+'</div>';}
  $('grid').innerHTML=h;
  $('nd').innerHTML=needs.length?needs.map(function(n){return'<div class="nd"><div><b>'+esc(n.title)+'</b><br><span class="muted">'+esc(n.customer)+'</span></div><button class="s" data-need="'+n.jobId+'">'+T('Set dates')+'</button></div>'}).join(''):'<p class="muted">'+T('Nothing waiting.')+'</p>';
@@ -84,7 +86,7 @@ function openEdit(id,fresh){
  $('edit').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 document.addEventListener('click',function(e){var t=e.target,d=t.dataset||{};
- if(d.job)openEdit(+d.job);else if(d.need)openEdit(+d.need,true);
+ if(d.job)openEdit(+d.job);else if(d.need)openEdit(+d.need,true);else if(d.visit)location.href='/jobs?id='+d.visit;
  else if(t.id==='prev'){view.setMonth(view.getMonth()-1);draw();}else if(t.id==='next'){view.setMonth(view.getMonth()+1);draw();}
  else if(t.id==='today'){view=new Date();view.setDate(1);draw();}
  else if(t.id==='e_save'){var body={jobId:+d.id,start:$('e_s').value,end:$('e_e').value,startTime:$('e_t').value,crew:$('e_c').value.split(','),notes:$('e_n').value,notify:$('e_mail').checked};
