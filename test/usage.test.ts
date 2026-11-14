@@ -66,7 +66,7 @@ test("helpers", () => {
   assert.equal(isFeature("hd_render"), true);
   assert.equal(isFeature("nope"), false);
   assert.match(dayKey(), /^\d{4}-\d{2}-\d{2}$/);
-  assert.equal(FEATURES.length, 16);
+  assert.equal(FEATURES.length, 17);
 });
 
 import { effectivePlan, trialDaysLeft } from "../src/usage.ts";
