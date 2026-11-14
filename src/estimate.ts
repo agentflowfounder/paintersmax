@@ -162,6 +162,22 @@ const UNITS: Record<string, string> = {
   stain_per_ft: "ft",
 };
 
+/** The quantities a painter can enter for a price list: the base measure, then every priced item. Used to tell the AI which keys exist. */
+export function quantityOptions(method: string, data: Record<string, any>): { key: string; label: string; unit: string }[] {
+  const out: { key: string; label: string; unit: string }[] = [];
+  if (method === "sqft_floor") out.push({ key: "sqft", label: "Square feet of floor area", unit: "sq ft" });
+  else if (method === "sqft_wall") out.push({ key: "sqft", label: "Square feet of wall", unit: "sq ft" });
+  else if (method === "per_linear_ft") out.push({ key: "linear_ft", label: "Linear feet", unit: "ft" });
+  for (const k of Object.keys(data ?? {})) {
+    if (k.endsWith("_pct") || typeof data[k] !== "number" || !(data[k] > 0)) continue;
+    const item = LABELS[k] ? undefined : catalogItem(k);
+    const label = LABELS[k] ?? item?.label;
+    if (!label) continue;
+    out.push({ key: k, label, unit: UNITS[k] ?? item?.short ?? "ea" });
+  }
+  return out.slice(0, 80);
+}
+
 /** Percent surcharges are applied by hand on the estimate, so they never become lines. */
 const isPct = (k: string) => k.endsWith("_pct");
 

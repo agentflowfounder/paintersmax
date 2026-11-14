@@ -195,8 +195,9 @@ export async function handleWorkOrders(request: Request, env: Env): Promise<Resp
       if (!wo.email) return json({ error: "This customer has no email address. Copy the link instead.", link }, 400);
       const es = body.language === "es";
       const label = woLabel(wo.kind, wo.number);
-      const res = await sendCustomerEmail(env, wo.email, wo.company, wo.notify_email, es ? `${label}: ${wo.title}` : `${label}: ${wo.title} for your approval`,
-        es ? `Hola ${String(wo.customer).split(/\s+/)[0]},\n\nLe enviamos ${label} para su revisión y aprobación:\n${link}\n\n${wo.company}` : `Hi ${String(wo.customer).split(/\s+/)[0]},\n\nPlease review and approve ${label} here:\n${link}\n\n${wo.company}`);
+      const first = String(wo.customer ?? "").trim().split(/\s+/)[0] || (es ? "cliente" : "there");
+      const res = await sendCustomerEmail(env, wo.email, wo.company, wo.notify_email, es ? `${label} para ${wo.customer}: ${wo.title}` : `${label} for ${wo.customer}: ${wo.title}, for your approval`,
+        es ? `Hola ${first},\n\nLe enviamos ${label} (${wo.title}) para su revisión y aprobación:\n${link}\n\n${wo.company}` : `Hi ${first},\n\nPlease review and approve ${label} (${wo.title}) here:\n${link}\n\n${wo.company}`);
       emailed = res === "sent";
     }
     await addJobEvent(env, c, wo.jobId, "change_order", `${woLabel(wo.kind, wo.number)} sent to the customer${emailed ? " by email" : ""}: ${wo.title}.`);

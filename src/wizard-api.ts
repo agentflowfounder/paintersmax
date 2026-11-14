@@ -2,13 +2,15 @@ import { coiLink, coverageFor, loadSummary } from "./insurance.ts";
 import { getSessionUser } from "./auth.ts";
 import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } from "./profile.ts";
 import { consume, normalizePlan, refund } from "./usage.ts";
-import { ask, buildJobContext, draftCoverNote, sanitizeHistory } from "./assistant.ts";
+import { ask, buildJobContext, completeEx, draftCoverNote, sanitizeHistory } from "./assistant.ts";
 import type { Env } from "./types.ts";
 import { labelsFor } from "./ratecatalog.ts";
 import { commercialBlockedMessage, loadCommercialStatus } from "./commercial.ts";
-import { computeTotals, draftLines, milestoneAmounts, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
+import { computeTotals, draftLines, milestoneAmounts, quantityOptions, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
 import { loadHowToPay, loadPayments, sumPaid } from "./payments.ts";
+import { cleanBrief, cleanDraftAI, draftPrompt, DRAFT_SYSTEM, JOB_TYPES, type Brief } from "./jobbrief.ts";
+import { parseJsonLoose } from "./vision.ts";
 import { CUSTOMER_KINDS, docTitle, invoiceChecks, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
@@ -175,12 +177,73 @@ export async function handleJobs(request: Request, env: Env): Promise<Response> 
 export async function handleJob(request: Request, env: Env): Promise<Response> {
   const user = await getSessionUser(env, request);
   if (!user) return json({ error: "Not signed in." }, 401);
+  if (request.method === "POST") {
+    let b: any;
+    try {
+      b = await request.json();
+    } catch {
+      return json({ error: "Invalid JSON." }, 400);
+    }
+    const jid = Number(b?.jobId);
+    const cur = Number.isInteger(jid)
+      ? await env.DB.prepare(
+          `SELECT j.id, j.title, j.trade, j.customer_id AS customerId, j.property_id AS propertyId, c.name, c.email, c.phone, p.address, p.city, p.zip
+             FROM jobs j JOIN customers c ON c.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id WHERE j.id = ? AND j.company_id = ?`,
+        ).bind(jid, user.companyId).first<any>()
+      : null;
+    if (!cur) return json({ error: "Job not found." }, 404);
+
+    if (b.action === "brief") {
+      const brief = cleanBrief(b.brief);
+      const def = JOB_TYPES.find((t) => t.id === brief.type)!;
+      await env.DB.prepare("UPDATE jobs SET data = json_set(COALESCE(data, '{}'), '$.brief', json(?)), updated_at = datetime('now') WHERE id = ? AND company_id = ?").bind(JSON.stringify(brief), jid, user.companyId).run();
+      if (def.trade && def.trade !== cur.trade && isTrade(def.trade)) {
+        await env.DB.prepare("UPDATE jobs SET trade = ? WHERE id = ? AND company_id = ?").bind(def.trade, jid, user.companyId).run();
+        await addJobEvent(env, user.companyId, jid, "note", `Job type set to ${def.label}.`);
+      }
+      return json({ ok: true, brief });
+    }
+
+    if (b.action === "update") {
+      const name = b.name === undefined ? cur.name : text(b.name, 120);
+      const title = b.title === undefined ? cur.title : text(b.title, 120);
+      if (!name) return json({ error: "The customer needs a name." }, 400);
+      if (!title) return json({ error: "The job needs a short title." }, 400);
+      let email: string | null = cur.email ?? null;
+      if (b.email !== undefined) {
+        const e = text(b.email, 200).toLowerCase();
+        if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return json({ error: "That email address does not look right. Check it and try again." }, 400);
+        email = e || null;
+      }
+      const phone = b.phone === undefined ? cur.phone ?? null : text(b.phone, 40) || null;
+      const address = b.address === undefined ? cur.address ?? "" : text(b.address, 160);
+      const city = b.city === undefined ? cur.city ?? "" : text(b.city, 60);
+      const zip = b.zip === undefined ? cur.zip ?? "" : text(b.zip, 10);
+      const changed: string[] = [];
+      if (name !== cur.name) changed.push("customer name");
+      if (title !== cur.title) changed.push("job title");
+      if (email !== (cur.email ?? null)) changed.push("email");
+      if (phone !== (cur.phone ?? null)) changed.push("phone");
+      if (address !== (cur.address ?? "") || city !== (cur.city ?? "") || zip !== (cur.zip ?? "")) changed.push("address");
+      await env.DB.prepare("UPDATE customers SET name = ?, email = ?, phone = ? WHERE id = ? AND company_id = ?").bind(name, email, phone, cur.customerId, user.companyId).run();
+      await env.DB.prepare("UPDATE jobs SET title = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?").bind(title, jid, user.companyId).run();
+      if (cur.propertyId) {
+        await env.DB.prepare("UPDATE properties SET address = ?, city = ?, zip = ? WHERE id = ? AND company_id = ?").bind(address, city || null, zip || null, cur.propertyId, user.companyId).run();
+      } else if (address) {
+        const p = await env.DB.prepare("INSERT INTO properties (company_id, customer_id, address, city, zip) VALUES (?, ?, ?, ?, ?)").bind(user.companyId, cur.customerId, address, city || null, zip || null).run();
+        await env.DB.prepare("UPDATE jobs SET property_id = ? WHERE id = ? AND company_id = ?").bind(Number(p.meta.last_row_id), jid, user.companyId).run();
+      }
+      if (changed.length) await addJobEvent(env, user.companyId, jid, "note", `Details changed: ${changed.join(", ")}.`);
+      return json({ ok: true, changed });
+    }
+    return json({ error: "Unknown action." }, 400);
+  }
   const id = Number(new URL(request.url).searchParams.get("id"));
   if (!Number.isInteger(id) || id <= 0) return json({ error: "Not found." }, 404);
   const job = await env.DB.prepare(
     `SELECT j.id, j.title, j.trade, j.stage, j.property_id AS propertyId, j.customer_id AS customerId,
             c.name AS customerName, c.email AS customerEmail, c.phone AS customerPhone,
-            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost
+            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief
        FROM jobs j JOIN customers c ON c.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id
       WHERE j.id = ? AND j.company_id = ?`,
   )
@@ -199,7 +262,9 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     ).bind(id, user.companyId).all(),
   ]);
   return json({
-    job,
+    job: { ...job, brief: undefined },
+    brief: parse(job.brief) && typeof parse(job.brief) === "object" && parse(job.brief).type ? cleanBrief(parse(job.brief), parse(job.brief).updatedAt ?? "") : null,
+    jobTypes: JOB_TYPES,
     rateCard: card ? { method: card.method, data: parse(card.data), labels: labelsFor(parse(card.data)) } : null,
     estimate: doc ? { id: doc.id, status: doc.status, ...parse(doc.body) } : null,
     contract: contractDoc ? { id: contractDoc.id, status: contractDoc.status, ...parse(contractDoc.body) } : null,
@@ -245,6 +310,36 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
     for (const [k, v] of Object.entries(b.quantities ?? {})) if (/^[A-Za-z0-9_]{1,40}$/.test(k) && Number.isFinite(Number(v))) qty[k] = Math.max(0, Math.min(1_000_000, Number(v)));
     const lines = draftLines(card.method, parse(card.data), qty, job.trade).map((l) => ({ description: l.description, qty: l.qty, unit: l.unit, unitPrice: l.unitCents / 100 }));
     return json({ lines });
+  }
+
+  if (b.action === "aiDraft") {
+    const jobRow = await env.DB.prepare("SELECT json_extract(j.data,'$.brief') AS brief, p.city AS city FROM jobs j LEFT JOIN properties p ON p.id = j.property_id WHERE j.id = ? AND j.company_id = ?").bind(job.id, user.companyId).first<{ brief: string | null; city: string | null }>();
+    const stored = parse(jobRow?.brief);
+    const brief: Brief = cleanBrief(stored?.type ? stored : b.brief, new Date().toISOString());
+    const hasContent = !!brief.details || Object.keys(brief.answers).length > 0;
+    if (!hasContent) return json({ error: "Tell me a little about the job first: tap the answers that fit, or type or speak a few notes." }, 400);
+    const company = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string; createdAt?: string }>();
+    if (!company) return json({ error: "Not found." }, 404);
+    const used = await consume(env, company, "estimate_draft");
+    if (!used.allowed) {
+      const msg = used.reason === "kill_switch" ? "The estimate helper is paused right now. You can still build the estimate by hand below." : used.reason === "not_in_plan" ? "The estimate helper is not included in your plan. You can still build the estimate by hand below." : "You have used this month's estimate drafts. You can still build the estimate by hand below, and your allowance starts over next month.";
+      return json({ error: msg, code: used.reason }, 429);
+    }
+    const card = await env.DB.prepare("SELECT method, data FROM rate_cards WHERE company_id = ? AND trade = ? AND audience = 'retail'").bind(user.companyId, job.trade).first<{ method: string; data: string }>();
+    const cardData = card ? parse(card.data) : {};
+    const options = card && card.method !== "lump_sum" ? quantityOptions(card.method, cardData) : [];
+    const finds = ((await env.DB.prepare("SELECT data FROM job_photo_findings WHERE job_id = ? AND company_id = ? AND status = 'approved' ORDER BY id DESC LIMIT 6").bind(job.id, user.companyId).all<{ data: string }>().catch(() => ({ results: [] as { data: string }[] }))).results ?? []).flatMap((f) => (parse(f.data).issues ?? []).slice(0, 4).map((i: any) => `${String(i?.title ?? "").slice(0, 70)}: ${String(i?.fix ?? "").slice(0, 120)}`));
+    const out = await completeEx(env, DRAFT_SYSTEM, [{ role: "user", content: draftPrompt(brief, options, jobRow?.city ?? "", finds) }], { prefer: ["gemini", "openai", "anthropic"], maxTokens: 2200 });
+    const parsed = out ? parseJsonLoose(out.text) : null;
+    if (!parsed) {
+      await refund(env, company, "estimate_draft");
+      return json({ error: "The estimate helper could not answer this time. Please try again in a minute, or build the estimate by hand below." }, 503);
+    }
+    const ai = cleanDraftAI(parsed, options);
+    // The code prices the quantities from the painter's own list. The AI never sets a price.
+    const priced = card ? draftLines(card.method, cardData, ai.quantities, job.trade).map((l) => ({ description: l.description, qty: l.qty, unit: l.unit, unitPrice: l.unitCents / 100 })) : [];
+    const extra = ai.extraLines.map((l) => ({ description: l.description, qty: l.qty, unit: l.unit, unitPrice: 0, needsPrice: true }));
+    return json({ scope: ai.scope, lines: [...priced, ...extra], pricedCount: priced.length, needsPriceCount: extra.length, inclusions: ai.inclusions, exclusions: ai.exclusions, assumptions: ai.assumptions, questions: ai.questions, hasPriceList: !!card });
   }
 
   const est = sanitizeEstimate(b?.estimate);
