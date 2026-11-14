@@ -4,6 +4,7 @@ import { pastDueKey } from "./stripe.ts";
 import { trialDaysLeft } from "./usage.ts";
 import { buildProgress } from "./progress.ts";
 import { buildNudges, SNOOZE_DAYS } from "./nudges.ts";
+import { friendlyDate, todayLocal } from "./dates.ts";
 import { effectivePlan } from "./usage.ts";
 import { storageLimitFor, storageUsed } from "./files.ts";
 import type { Env } from "./types.ts";
@@ -94,6 +95,10 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
   for (const r of attOpened.results as any[]) attention.push({ type: "signature", jobId: r.id, text: `${r.signer_name} opened the ${r.kind} but has not signed: ${r.title}` });
   for (const r of attExpiring.results as any[]) attention.push({ type: "signature", jobId: r.id, text: `The signing link for ${r.signer_name} expires soon: ${r.title}` });
   for (const r of attInvoice.results as any[]) attention.push({ type: "invoice", jobId: r.id, text: `Invoice sent ${r.days} days ago and not marked paid: ${r.customer}, ${r.title}` });
+  // A scheduled job whose start date has come: offer the Start the job button.
+  const dueStart = ((await env.DB.prepare(`SELECT j.id, j.title, cu.name AS customer, json_extract(j.data,'$.schedule.start') AS start FROM jobs j JOIN customers cu ON cu.id = j.customer_id
+                    WHERE j.company_id = ? AND j.stage IN ('contract','scheduled') AND json_extract(j.data,'$.schedule.start') <= ? ORDER BY start LIMIT 5`).bind(c, todayLocal()).all().catch(() => ({ results: [] }))).results ?? []) as any[];
+  for (const r of dueStart) attention.push({ type: "start", jobId: r.id, text: `The start date (${friendlyDate(String(r.start))}) is here: ${r.customer}, ${r.title}. Open the job and tap Start the job when the crew begins.` });
   if (policy) {
     try {
       const exp = parsePolicyDate(JSON.parse(policy.summary).expires);

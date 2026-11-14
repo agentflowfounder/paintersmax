@@ -1595,5 +1595,28 @@
     "We are painting nearby": "Estamos pintando cerca", "Sorry we missed you": "Lamentamos no encontrarle", "Free estimate": "Presupuesto gratis",
   }, []);
 
+  /* ---- Part 15: Job workflow (change orders on the invoice, Start the job, site visits, sign-off, due dates) ---- */
+  pmI18n.add({
+    "Start the job": "Iniciar el trabajo", "Start": "Inicio", "Visit": "Visita", "Sign-off": "Aceptación",
+    "Job started. It is now in progress.": "Trabajo iniciado. Ahora está en progreso.",
+    "A job can be started once the estimate is approved and it is on the schedule. Check where this job is in its steps.": "Un trabajo se puede iniciar cuando el presupuesto está aprobado y está en el calendario. Revise en qué paso va este trabajo.",
+    "Contract stage. Record the deposit when it arrives, then add the job to the calendar. If the crew is already working, tap Start the job.": "Etapa de contrato. Registre el depósito cuando llegue y luego agregue el trabajo al calendario. Si el equipo ya está trabajando, toque Iniciar el trabajo.",
+    "Scheduled. Record the deposit if you have not, and make crew instructions and a materials list. When the crew begins, tap Start the job.": "Programado. Registre el depósito si aún no lo hizo y prepare las instrucciones para el equipo y la lista de materiales. Cuando el equipo comience, toque Iniciar el trabajo.",
+    "Approved change orders on this invoice": "Órdenes de cambio aprobadas en esta factura",
+    "None yet. Approved change orders land here as separate lines when you build the invoice, and you can edit them.": "Todavía ninguna. Las órdenes de cambio aprobadas aparecen aquí como líneas separadas cuando arma la factura, y puede editarlas.",
+    "With a payment schedule, change orders are billed with the final payment.": "Con un calendario de pagos, las órdenes de cambio se cobran con el pago final.",
+    "What": "Qué", "Price ($)": "Precio ($)",
+    "Change orders on this invoice": "Órdenes de cambio en esta factura", "Approved change orders on the job": "Órdenes de cambio aprobadas en el trabajo", "Change orders waiting for the customer": "Órdenes de cambio esperando al cliente",
+  }, [
+    [/^The start date \((.+?)\) is here\. Tap Start the job when the crew begins\.$/, function (a, d) { return 'Llegó la fecha de inicio (' + d + '). Toque Iniciar el trabajo cuando el equipo comience.'; }],
+    [/^Scheduled for (.+?)\. Record the deposit if you have not, and make crew instructions and a materials list\. When the crew begins, tap Start the job\.$/, function (a, d) { return 'Programado para el ' + d + '. Registre el depósito si aún no lo hizo y prepare las instrucciones para el equipo y la lista de materiales. Cuando el equipo comience, toque Iniciar el trabajo.'; }],
+    [/^Change orders total (\$[\d,]+\.\d\d)\.$/, function (a, m) { return 'Total de órdenes de cambio ' + m + '.'; }],
+    [/^(\$[\d,]+\.\d\d) \(not all are on this invoice\)$/, function (a, m) { return m + ' (no todas están en esta factura)'; }],
+    [/^(\d+) change orders? (?:is|are) still waiting for the customer's answer\. (?:It is|They are) not on this invoice unless the customer approves\.$/, function (a, n) { return n === '1' ? '1 orden de cambio sigue esperando la respuesta del cliente. No está en esta factura a menos que el cliente la apruebe.' : n + ' órdenes de cambio siguen esperando la respuesta del cliente. No están en esta factura a menos que el cliente las apruebe.'; }],
+    [/^Approved change orders \((\$[\d,]+\.\d\d)\) are not on this invoice\. Tap the build button again to add them, or add the lines yourself\.$/, function (a, m) { return 'Las órdenes de cambio aprobadas (' + m + ') no están en esta factura. Toque el botón de armar otra vez para agregarlas, o agregue las líneas usted mismo.'; }],
+    [/^The change orders on this invoice \((\$[\d,]+\.\d\d)\) do not match the approved change orders on the job \((\$[\d,]+\.\d\d)\)\. Check the lines before you send\.$/, function (a, m, n) { return 'Las órdenes de cambio de esta factura (' + m + ') no coinciden con las aprobadas en el trabajo (' + n + '). Revise las líneas antes de enviar.'; }],
+    [/^The start date \((.+?)\) is here: (.+)\. Open the job and tap Start the job when the crew begins\.$/, function (a, d, rest) { return 'Llegó la fecha de inicio (' + d + '): ' + rest + '. Abra el trabajo y toque Iniciar el trabajo cuando el equipo comience.'; }],
+  ]);
+
   pmI18n.start();
 })();

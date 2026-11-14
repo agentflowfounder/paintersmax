@@ -2,6 +2,7 @@ import { getSessionUser, randomToken, sha256Hex } from "./auth.ts";
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { readSettings } from "./settings.ts";
+import type { InvoiceExtra } from "./jobdocs.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -33,6 +34,35 @@ export function cleanWo(input: any): WoBody {
 }
 export const woTotalCents = (lines: WoLine[]) => lines.reduce((s, l) => s + Math.round(l.qty * l.unitCents), 0);
 export const woLabel = (kind: string, number: number) => `${kind === "change_order" ? "CO" : "WO"}-${number}`;
+
+/**
+ * Approved change orders as invoice lines, one per priced line, each labelled with its number ("CO-3 Repaint the hallway ceiling").
+ * Also counts the ones sent but not yet answered. Money comes from the saved lines, never from AI.
+ */
+export function changeOrderInvoiceLines(rows: { number: number; kind: string; title: string; body: string; status: string }[]): { lines: InvoiceExtra[]; totalCents: number; pending: number } {
+  const lines: InvoiceExtra[] = [];
+  let pending = 0;
+  for (const r of rows) {
+    if (r.kind !== "change_order") continue;
+    if (r.status === "sent") pending++;
+    if (r.status !== "approved") continue;
+    let body: WoBody;
+    try {
+      body = cleanWo(JSON.parse(r.body));
+    } catch {
+      continue;
+    }
+    const label = woLabel(r.kind, r.number);
+    if (!body.lines.length) continue;
+    for (const l of body.lines) lines.push({ description: `${label} ${l.description}`.slice(0, 160), qty: l.qty, unitCents: l.unitCents });
+  }
+  return { lines, totalCents: lines.reduce((s, l) => s + Math.round(l.qty * l.unitCents), 0), pending };
+}
+
+export async function jobChangeOrders(env: Env, c: number, jobId: number) {
+  const rows = ((await env.DB.prepare("SELECT number, kind, title, body, status FROM work_orders WHERE company_id = ? AND job_id = ? AND kind = 'change_order' AND status IN ('approved','sent') ORDER BY number").bind(c, jobId).all<any>().catch(() => ({ results: [] }))).results ?? []) as any[];
+  return changeOrderInvoiceLines(rows);
+}
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const money = (c: number) => `$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

@@ -91,12 +91,60 @@ test("milestone invoice shows the payment, paid to date and what remains", () =>
   assert.equal(sanitizeInvoice({}).milestone, null);
 });
 
-import { invoiceChecks } from "../src/jobdocs.ts";
+import { extrasCents, invoiceChecks, sanitizeExtras } from "../src/jobdocs.ts";
 test("invoiceChecks flags things to review", () => {
-  const ok = { estimateSigned: true, customerEmail: "a@b.com", changeOrders: 0, hasPunchList: true, totalCents: 100000, paidCents: 30000, billCents: 100000 };
+  const ok = { estimateSigned: true, customerEmail: "a@b.com", approvedChangeCents: 0, billedChangeCents: 0, pendingChangeOrders: 0, hasPunchList: true, totalCents: 100000, paidCents: 30000, billCents: 100000 };
   assert.deepEqual(invoiceChecks(ok), []);
-  const bad = invoiceChecks({ ...ok, estimateSigned: false, customerEmail: null, changeOrders: 2, hasPunchList: false, paidCents: 100000 });
+  const bad = invoiceChecks({ ...ok, estimateSigned: false, customerEmail: null, pendingChangeOrders: 2, hasPunchList: false, paidCents: 100000 });
   assert.equal(bad.length, 5);
-  assert.match(bad[2], /2 change orders were/);
+  assert.match(bad[2], /2 change orders are still waiting/);
   assert.ok(invoiceChecks({ ...ok, paidCents: 200000 }).some((x) => /more than the total/.test(x)));
+  // approved change orders that are not on the invoice, or that do not match
+  assert.ok(invoiceChecks({ ...ok, approvedChangeCents: 25000 }).some((x) => /not on this invoice/.test(x)));
+  assert.ok(invoiceChecks({ ...ok, approvedChangeCents: 25000, billedChangeCents: 10000 }).some((x) => /do not match/.test(x)));
+  assert.deepEqual(invoiceChecks({ ...ok, approvedChangeCents: 25000, billedChangeCents: 25000 }), []);
+});
+
+test("sanitizeExtras keeps priced lines and drops junk", () => {
+  const ex = sanitizeExtras([{ description: "CO-1 Hallway ceiling", qty: 2, unitCents: 12500.4 }, { description: "", qty: 1, unitCents: 100 }, { description: "zero qty", qty: 0, unitCents: 100 }, { description: "<b>x</b>", qty: "3", unitCents: -5 }]);
+  assert.equal(ex.length, 2);
+  assert.equal(ex[0].unitCents, 12500);
+  assert.equal(ex[1].unitCents, 0);
+  assert.equal(extrasCents(ex), 25000);
+  assert.deepEqual(sanitizeExtras("nope"), []);
+  assert.equal(sanitizeExtras(Array.from({ length: 50 }, () => ({ description: "a", qty: 1, unitCents: 1 }))).length, 30);
+  assert.deepEqual(sanitizeInvoice({}).extras, []);
+});
+
+test("whole-job invoice lists approved change orders on their own lines and adds them to the total", () => {
+  const e = sanitizeEstimate({ lines: [{ description: "Interior walls", qty: 1, unit: "job", unitPrice: 1000 }] });
+  const t = computeTotals(e);
+  const inv = sanitizeInvoice({ number: "9", paid: 300, extras: [{ description: "CO-1 Hallway ceiling", qty: 1, unitCents: 25000 }] });
+  const html = renderInvoiceHtml(ctx, inv, e, t);
+  assert.ok(html.includes("Approved change orders"));
+  assert.ok(html.includes("CO-1 Hallway ceiling"));
+  assert.ok(html.includes("Estimate total"));
+  assert.ok(html.includes("$1,250.00")); // total with the change order
+  assert.ok(html.includes("$950.00")); // balance after $300 paid
+  // without extras the invoice looks as before
+  const plain = renderInvoiceHtml(ctx, sanitizeInvoice({ number: "9", paid: 300 }), e, t);
+  assert.ok(!plain.includes("Approved change orders"));
+  assert.ok(!plain.includes("Estimate total"));
+  assert.ok(plain.includes("$700.00"));
+});
+
+test("change orders are billed with the final payment on a payment schedule", () => {
+  const e = sanitizeEstimate({ lines: [{ description: "Fence", qty: 1, unitPrice: 1000 }], schedule: [{ label: "Deposit", pct: 30 }, { label: "Middle", pct: 30 }, { label: "Final", pct: 40 }] });
+  const t = computeTotals(e);
+  const extras = [{ description: "CO-2 Extra gate", qty: 1, unitCents: 20000 }];
+  const early = renderInvoiceHtml(ctx, sanitizeInvoice({ number: "7", milestone: 1, paid: 300, extras }), e, t);
+  assert.ok(early.includes("billed with the final payment"));
+  assert.ok(!early.includes("CO-2 Extra gate"));
+  assert.ok(early.includes("$1,200.00")); // contract total with change orders
+  assert.ok(early.includes("$600.00")); // remaining after this payment: 1200 - 300 paid - 300 due now
+  assert.match(early, /Amount due now<\/td><td class="r">\$300\.00/);
+  const last = renderInvoiceHtml(ctx, sanitizeInvoice({ number: "8", milestone: 2, paid: 600, extras }), e, t);
+  assert.ok(last.includes("CO-2 Extra gate"));
+  assert.match(last, /Amount due now<\/td><td class="r">\$600\.00/); // 40% of 1000 = 400, plus 200 of change orders
+  assert.ok(!last.includes("billed with the final payment"));
 });

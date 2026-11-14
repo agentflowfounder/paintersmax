@@ -263,11 +263,32 @@ export function renderListDocHtml(kind: ListKind, ctx: DocContext, d: ListDoc): 
   return shell(ctx, d.language, docTitle(kind, d.language), intro + body + (d.footer ? `<p class="muted">${x(d.footer)}</p>` : ""));
 }
 
+/** One priced line from an approved change order (or one the painter typed) that is billed on top of the estimate. */
+export interface InvoiceExtra {
+  description: string;
+  qty: number;
+  unitCents: number;
+}
+export const extrasCents = (extras: InvoiceExtra[]) => extras.reduce((s, l) => s + Math.round(l.qty * l.unitCents), 0);
+
+export function sanitizeExtras(input: any): InvoiceExtra[] {
+  const out: InvoiceExtra[] = [];
+  for (const l of Array.isArray(input) ? input.slice(0, 30) : []) {
+    const description = str(l?.description, 160);
+    const qty = Math.min(100000, Math.max(0, Number(l?.qty) || 0));
+    const unitCents = Math.min(100000000, Math.max(0, Math.round(Number(l?.unitCents) || 0)));
+    if (description && qty > 0) out.push({ description, qty, unitCents });
+  }
+  return out;
+}
+
 export interface InvoiceInput {
   number: string;
   dueDate: string;
   paidCents: number;
   notes: string;
+  /** Approved change orders billed on this invoice, one line each. The painter can edit them before sending. */
+  extras: InvoiceExtra[];
   /** The painter's own "How to pay me" note (Zelle number, CashApp name, who to make checks out to). Free text; we never ask for or store bank numbers. */
   howToPay: string;
   language: "en" | "es";
@@ -284,6 +305,7 @@ export function sanitizeInvoice(input: any): InvoiceInput {
     dueDate: str(input?.dueDate, 40),
     paidCents: Number.isFinite(paid) && paid >= 0 && paid <= 10_000_000 ? Math.round(paid * 100) : 0,
     notes: str(input?.notes, 2000),
+    extras: sanitizeExtras(input?.extras),
     howToPay: str(input?.howToPay, 600),
     language: input?.language === "es" ? "es" : "en",
     reminders: input?.reminders === true,
@@ -294,39 +316,53 @@ export function sanitizeInvoice(input: any): InvoiceInput {
 const howPay = (inv: InvoiceInput, es: boolean) =>
   inv.howToPay ? `<div style="margin:14px 0;padding:10px 12px;border:1px solid #cfd5dc;border-radius:6px"><b>${es ? "Cómo pagar" : "How to pay"}</b><br><span style="white-space:pre-wrap">${escapeHtml(inv.howToPay)}</span></div>` : "";
 
-/** Printable invoice: the agreed price, what was already paid, and the balance due. */
+/** Printable invoice: the agreed price, approved change orders, what was already paid, and the balance due. */
 export function renderInvoiceHtml(ctx: DocContext, inv: InvoiceInput, est: EstimateInput, t: Totals): string {
   const x = escapeHtml;
   const es = inv.language === "es";
   const amounts = milestoneAmounts(t.totalCents, est.schedule);
   const ms = inv.milestone !== null && inv.milestone < est.schedule.length ? inv.milestone : null;
-  const balance = ms !== null ? amounts[ms] : Math.max(0, t.totalCents - inv.paidCents);
-  const rows = est.lines
-    .map((l) => `<tr><td>${x(l.description)}</td><td class="r">${x(String(l.qty))} ${x(l.unit)}</td><td class="r">${money(l.unitCents)}</td><td class="r">${money(Math.round(l.qty * l.unitCents))}</td></tr>`)
-    .join("");
+  const exCents = extrasCents(inv.extras);
+  const grand = t.totalCents + exCents;
+  const rowOf = (l: { description: string; qty: number; unitCents: number }, unit = "") => `<tr><td>${x(l.description)}</td><td class="r">${x(String(l.qty))} ${x(unit)}</td><td class="r">${money(l.unitCents)}</td><td class="r">${money(Math.round(l.qty * l.unitCents))}</td></tr>`;
+  const rows = est.lines.map((l) => rowOf(l, l.unit)).join("");
+  const coHead = `<tr><td colspan="4"><b>${es ? "Órdenes de cambio aprobadas" : "Approved change orders"}</b></td></tr>`;
+  const coRows = exCents || inv.extras.length ? coHead + inv.extras.map((l) => rowOf(l)).join("") : "";
   const signed = (c: number) => (c < 0 ? `-${money(-c)}` : money(c));
   const sum = (label: string, cents: number, cls = "") => `<tr class="${cls}"><td colspan="3" class="r">${x(label)}</td><td class="r">${signed(cents)}</td></tr>`;
   const meta = `<p class="muted">${inv.number ? `${es ? "Factura n.º" : "Invoice no."} ${x(inv.number)} &middot; ` : ""}${inv.dueDate ? `${es ? "Vence" : "Due"}: ${x(inv.dueDate)}` : ""}</p>`;
   if (ms !== null) {
     const m = est.schedule[ms];
-    const remaining = Math.max(0, t.totalCents - inv.paidCents - amounts[ms]);
-    const msBody = `${meta}<table><thead><tr><th>${es ? "Descripción" : "Description"}</th><th class="r">${es ? "Importe" : "Amount"}</th></tr></thead><tbody>
-<tr><td>${es ? "Pago" : "Payment"} ${ms + 1} ${es ? "de" : "of"} ${est.schedule.length}: ${x(m.label)} (${x(String(m.pct))}%)</td><td class="r">${money(amounts[ms])}</td></tr>
-<tr><td class="r">${es ? "Precio total del contrato" : "Contract total"}</td><td class="r">${money(t.totalCents)}</td></tr>
-<tr><td class="r">${es ? "Pagado hasta ahora" : "Paid to date"}</td><td class="r">${money(inv.paidCents)}</td></tr>
-<tr><td class="r">${es ? "Restante después de este pago" : "Remaining after this payment"}</td><td class="r">${money(remaining)}</td></tr>
-<tr class="tot"><td class="r">${es ? "Importe a pagar ahora" : "Amount due now"}</td><td class="r">${money(amounts[ms])}</td></tr></tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}${howPay(inv, es)}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
+    // Approved change orders are billed with the final payment, so an early payment never charges for work that is not finished.
+    const isLast = ms === est.schedule.length - 1;
+    const dueNow = amounts[ms] + (isLast ? exCents : 0);
+    const remaining = Math.max(0, grand - inv.paidCents - dueNow);
+    const coBlock = !inv.extras.length
+      ? ""
+      : isLast
+        ? coRows
+        : `<tr><td colspan="4" class="muted">${es ? `Las órdenes de cambio aprobadas (${money(exCents)}) se cobran con el pago final.` : `Approved change orders (${money(exCents)}) are billed with the final payment.`}</td></tr>`;
+    const msBody = `${meta}<table><thead><tr><th>${es ? "Descripción" : "Description"}</th><th class="r">${es ? "Cant." : "Qty"}</th><th class="r">${es ? "Precio unitario" : "Unit price"}</th><th class="r">${es ? "Importe" : "Amount"}</th></tr></thead><tbody>
+<tr><td colspan="3">${es ? "Pago" : "Payment"} ${ms + 1} ${es ? "de" : "of"} ${est.schedule.length}: ${x(m.label)} (${x(String(m.pct))}%)</td><td class="r">${money(amounts[ms])}</td></tr>${coBlock}
+${sum(exCents ? (es ? "Precio total del contrato con órdenes de cambio" : "Contract total with change orders") : es ? "Precio total del contrato" : "Contract total", grand)}
+${sum(es ? "Pagado hasta ahora" : "Paid to date", inv.paidCents)}
+${sum(es ? "Restante después de este pago" : "Remaining after this payment", remaining)}
+${sum(es ? "Importe a pagar ahora" : "Amount due now", dueNow, "tot")}</tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}${howPay(inv, es)}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
     return shell(ctx, inv.language, docTitle("invoice", inv.language), msBody);
   }
+  const balance = Math.max(0, grand - inv.paidCents);
   const body = `${meta}<table><thead><tr><th>${es ? "Descripción" : "Description"}</th><th class="r">${es ? "Cant." : "Qty"}</th><th class="r">${es ? "Precio unitario" : "Unit price"}</th><th class="r">${es ? "Importe" : "Amount"}</th></tr></thead><tbody>${rows}
-${t.discountCents ? sum(es ? "Descuento" : "Discount", -t.discountCents) : ""}${t.taxCents ? sum(es ? "Impuesto" : "Tax", t.taxCents) : ""}${sum(es ? "Total" : "Total", t.totalCents)}${inv.paidCents ? sum(es ? "Pagado" : "Already paid", -inv.paidCents) : ""}${sum(es ? "Saldo a pagar" : "Balance due", balance, "tot")}</tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}${howPay(inv, es)}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
+${t.discountCents ? sum(es ? "Descuento" : "Discount", -t.discountCents) : ""}${t.taxCents ? sum(es ? "Impuesto" : "Tax", t.taxCents) : ""}${inv.extras.length ? sum(es ? "Total del presupuesto" : "Estimate total", t.totalCents) + coRows : ""}${sum(es ? "Total" : "Total", grand)}${inv.paidCents ? sum(es ? "Pagado" : "Already paid", -inv.paidCents) : ""}${sum(es ? "Saldo a pagar" : "Balance due", balance, "tot")}</tbody></table>${inv.notes ? `<p style="white-space:pre-wrap">${x(inv.notes)}</p>` : ""}${howPay(inv, es)}<p class="muted">${es ? "Gracias por su preferencia." : "Thank you for your business."}</p>`;
   return shell(ctx, inv.language, docTitle("invoice", inv.language), body);
 }
 
 export interface InvoiceCheckInput {
   estimateSigned: boolean;
   customerEmail: string | null | undefined;
-  changeOrders: number;
+  /** Total of approved change orders (cents), what this invoice bills for them, and how many are still waiting for the customer. */
+  approvedChangeCents: number;
+  billedChangeCents: number;
+  pendingChangeOrders: number;
   hasPunchList: boolean;
   totalCents: number;
   paidCents: number;
@@ -339,7 +375,9 @@ export function invoiceChecks(i: InvoiceCheckInput): string[] {
   const out: string[] = [];
   if (!i.estimateSigned) out.push("The estimate has not been signed by the customer.");
   if (!i.customerEmail) out.push("This customer has no email address, so you can only print the invoice.");
-  if (i.changeOrders > 0) out.push(`${i.changeOrders} change order${i.changeOrders === 1 ? " was" : "s were"} logged on this job. Add any extra cost to the invoice notes or estimate, because the price below comes only from the saved estimate.`);
+  if (i.pendingChangeOrders > 0) out.push(`${i.pendingChangeOrders} change order${i.pendingChangeOrders === 1 ? " is" : "s are"} still waiting for the customer's answer. ${i.pendingChangeOrders === 1 ? "It is" : "They are"} not on this invoice unless the customer approves.`);
+  if (i.approvedChangeCents > 0 && i.billedChangeCents === 0) out.push(`Approved change orders (${money(i.approvedChangeCents)}) are not on this invoice. Tap the build button again to add them, or add the lines yourself.`);
+  else if (i.approvedChangeCents !== i.billedChangeCents) out.push(`The change orders on this invoice (${money(i.billedChangeCents)}) do not match the approved change orders on the job (${money(i.approvedChangeCents)}). Check the lines before you send.`);
   if (!i.hasPunchList) out.push("No punch list was saved. A completed punch list helps if the customer questions the work.");
   if (i.totalCents <= 0) out.push("The estimate total is zero.");
   if (i.paidCents > i.totalCents) out.push("The amount already paid is more than the total.");

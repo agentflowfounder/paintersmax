@@ -11,6 +11,8 @@ import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract
 import { loadHowToPay, loadPayments, sumPaid } from "./payments.ts";
 import { cleanBrief, cleanDraftAI, draftPrompt, DRAFT_SYSTEM, JOB_TYPES, type Brief } from "./jobbrief.ts";
 import { parseJsonLoose } from "./vision.ts";
+import { todayLocal } from "./dates.ts";
+import { jobChangeOrders } from "./workorders.ts";
 import { CUSTOMER_KINDS, docTitle, invoiceChecks, isListKind, renderInvoiceHtml, renderListDocHtml, sanitizeInvoice, sanitizeListDoc, starterDoc, type DocContext } from "./jobdocs.ts";
 import { addJobEvent } from "./crm.ts";
 import { sendCustomerEmail } from "./email.ts";
@@ -196,7 +198,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     const jid = Number(b?.jobId);
     const cur = Number.isInteger(jid)
       ? await env.DB.prepare(
-          `SELECT j.id, j.title, j.trade, j.customer_id AS customerId, j.property_id AS propertyId, c.name, c.email, c.phone, p.address, p.city, p.zip
+          `SELECT j.id, j.title, j.trade, j.stage, j.customer_id AS customerId, j.property_id AS propertyId, c.name, c.email, c.phone, p.address, p.city, p.zip
              FROM jobs j JOIN customers c ON c.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id WHERE j.id = ? AND j.company_id = ?`,
         ).bind(jid, user.companyId).first<any>()
       : null;
@@ -211,6 +213,15 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
         await addJobEvent(env, user.companyId, jid, "note", `Job type set to ${def.label}.`);
       }
       return json({ ok: true, brief });
+    }
+
+    if (b.action === "start") {
+      // Starting the job moves it to "In progress", which also opens the change-order box on the job page.
+      if (cur.stage === "in_progress") return json({ ok: true, already: true });
+      if (cur.stage !== "contract" && cur.stage !== "scheduled") return json({ error: "A job can be started once the estimate is approved and it is on the schedule. Check where this job is in its steps." }, 400);
+      await env.DB.prepare("UPDATE jobs SET stage = 'in_progress', data = json_set(COALESCE(data, '{}'), '$.startedOn', ?), updated_at = datetime('now') WHERE id = ? AND company_id = ?").bind(todayLocal(), jid, user.companyId).run();
+      await addJobEvent(env, user.companyId, jid, "stage", "Job started. It is now in progress.");
+      return json({ ok: true });
     }
 
     if (b.action === "update") {
@@ -252,7 +263,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
   const job = await env.DB.prepare(
     `SELECT j.id, j.title, j.trade, j.stage, j.property_id AS propertyId, j.customer_id AS customerId,
             c.name AS customerName, c.email AS customerEmail, c.phone AS customerPhone,
-            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief
+            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn
        FROM jobs j JOIN customers c ON c.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id
       WHERE j.id = ? AND j.company_id = ?`,
   )
@@ -271,7 +282,9 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     ).bind(id, user.companyId).all(),
   ]);
   return json({
-    job: { ...job, brief: undefined },
+    job: { ...job, brief: undefined, schedule: undefined, startedOn: undefined },
+    schedule: parse(job.schedule) && typeof parse(job.schedule) === "object" && parse(job.schedule).start ? parse(job.schedule) : null,
+    startedOn: job.startedOn ?? null,
     brief: parse(job.brief) && typeof parse(job.brief) === "object" && parse(job.brief).type ? cleanBrief(parse(job.brief), parse(job.brief).updatedAt ?? "") : null,
     jobTypes: JOB_TYPES,
     rateCard: card ? { method: card.method, data: parse(card.data), labels: labelsFor(parse(card.data)) } : null,
@@ -282,6 +295,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     ),
     crewLanguage: parse((await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(user.companyId).first<{ data: string }>())?.data)?.language?.crewDocs === "es" ? "es" : "en",
     events: events.results,
+    changeOrders: await jobChangeOrders(env, user.companyId, id).then((r) => ({ approvedCents: r.totalCents, pending: r.pending })),
     coverage: coverageFor(await loadSummary(env, user.companyId), job.trade),
     commercial: job.trade === "commercial" ? await loadCommercialStatus(env, user.companyId, job.id) : null,
   });
@@ -644,12 +658,14 @@ export async function handleJobDoc(request: Request, env: Env): Promise<Response
       // What the customer actually paid (the payments you recorded) wins. With none recorded, a plain deposit-then-balance estimate assumes the deposit.
       const paid = ledger.length ? sumPaid(ledger) / 100 : sched.length ? 0 : (stored.totals?.depositCents ?? 0) / 100;
       const signed = await env.DB.prepare("SELECT 1 AS ok FROM signature_requests WHERE job_id = ? AND company_id = ? AND kind IN ('estimate','contract') AND status = 'signed' LIMIT 1").bind(jobId, user.companyId).first();
-      const co = await env.DB.prepare("SELECT COUNT(*) AS n FROM job_events WHERE job_id = ? AND company_id = ? AND kind = 'change_order'").bind(jobId, user.companyId).first<{ n: number }>();
+      const co = await jobChangeOrders(env, user.companyId, jobId);
       const punch = await env.DB.prepare("SELECT 1 AS ok FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'punch' LIMIT 1").bind(jobId, user.companyId).first();
-      const total = stored.totals?.totalCents ?? 0;
-      const checks = invoiceChecks({ estimateSigned: !!signed, customerEmail: j.row.customerEmail, changeOrders: co?.n ?? 0, hasPunchList: !!punch, totalCents: total, paidCents: Math.round(paid * 100), billCents: sched.length ? (amounts[0] ?? total) : total });
+      const total = (stored.totals?.totalCents ?? 0) + co.totalCents;
+      // With a payment schedule the first invoice bills the first payment. Change orders ride along on the final payment, so they only add to the first bill when it is also the last.
+      const firstBill = sched.length ? (amounts[0] ?? total) + (sched.length === 1 ? co.totalCents : 0) : total;
+      const checks = invoiceChecks({ estimateSigned: !!signed, customerEmail: j.row.customerEmail, approvedChangeCents: co.totalCents, billedChangeCents: co.totalCents, pendingChangeOrders: co.pending, hasPunchList: !!punch, totalCents: total, paidCents: Math.round(paid * 100), billCents: firstBill });
       return json({
-        invoice: { number: String(1001 + (n?.n ?? 0)), dueDate: j.profile.labor?.paymentTerms ?? "", paid, notes: "", howToPay: await loadHowToPay(env, user.companyId), language: lang, milestone: sched.length ? 0 : null },
+        invoice: { number: String(1001 + (n?.n ?? 0)), dueDate: j.profile.labor?.paymentTerms ?? "", paid, notes: "", extras: co.lines, howToPay: await loadHowToPay(env, user.companyId), language: lang, milestone: sched.length ? 0 : null },
         milestones: sched.map((m, i) => ({ label: m.label, pct: m.pct, amountCents: amounts[i] })),
         checks,
       });

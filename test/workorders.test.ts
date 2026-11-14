@@ -28,3 +28,19 @@ test("renders escaped text and an approve form only when pending with a token", 
     assert.ok(!(renderWorkOrder({ ...base })).includes("data-d=\"approve\""));
 });
 
+
+import { changeOrderInvoiceLines } from "../src/workorders.ts";
+test("approved change orders become labelled invoice lines; sent ones are counted as pending", () => {
+  const body = (lines: unknown[]) => JSON.stringify({ scope: "x", reason: "", lines, daysAdded: 0, language: "en" });
+  const r = changeOrderInvoiceLines([
+    { number: 3, kind: "change_order", title: "Hall", status: "approved", body: body([{ description: "Repaint hallway ceiling", qty: 1, unitCents: 25000 }, { description: "Extra primer", qty: 2, unitCents: 1500 }]) },
+    { number: 4, kind: "change_order", title: "Gate", status: "sent", body: body([{ description: "Gate", qty: 1, unitCents: 9000 }]) },
+    { number: 5, kind: "change_order", title: "Declined", status: "declined", body: body([{ description: "Nope", qty: 1, unitCents: 9000 }]) },
+    { number: 6, kind: "work_order", title: "WO", status: "approved", body: body([{ description: "Work order", qty: 1, unitCents: 9000 }]) },
+    { number: 7, kind: "change_order", title: "Broken", status: "approved", body: "{not json" },
+  ]);
+  assert.equal(r.lines.length, 2);
+  assert.equal(r.lines[0].description, "CO-3 Repaint hallway ceiling");
+  assert.equal(r.totalCents, 28000);
+  assert.equal(r.pending, 1);
+});
