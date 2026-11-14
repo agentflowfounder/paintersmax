@@ -8,6 +8,7 @@ import { addDaysIso, friendlyDate, friendlyTime, todayLocal } from "./dates.ts";
 import { bookedVisits } from "./visit.ts";
 import { dueWords, nextDue } from "./duedates.ts";
 import { loadVehicles, tripsSince, vehicleAlerts } from "./vehicles.ts";
+import { readApprovals, timeApprKey, timesheetNudges } from "./timesheet.ts";
 import { effectivePlan } from "./usage.ts";
 import { storageLimitFor, storageUsed } from "./files.ts";
 import type { Env } from "./types.ts";
@@ -169,6 +170,29 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     }
   } catch {
     /* vehicles are optional */
+  }
+  // Time sheet reminders (Basic and Pro, the plans that have the crew pages): overtime, an empty week, and weeks waiting for approval.
+  try {
+    const co0 = await env.DB.prepare("SELECT plan, created_at AS createdAt FROM companies WHERE id = ?").bind(c).first<{ plan: string; createdAt: string }>();
+    const pl = co0 ? effectivePlan({ plan: co0.plan, createdAt: co0.createdAt }) : "free";
+    if (pl === "basic" || pl === "pro") {
+      const today0 = todayLocal();
+      const since = addDaysIso(today0, -56);
+      const ws = ((await env.DB.prepare("SELECT id, name, kind, active FROM workers WHERE company_id = ?").bind(c).all<any>()).results ?? []) as any[];
+      if (ws.some((w) => w.active)) {
+        const rows = ((await env.DB.prepare("SELECT worker_id AS workerId, work_date AS workDate, minutes FROM time_entries WHERE company_id = ? AND work_date >= ?").bind(c, since).all<any>()).results ?? []) as any[];
+        const apRow = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(timeApprKey(c)).first<{ value: string }>();
+        let ap: unknown = {};
+        try {
+          ap = apRow ? JSON.parse(apRow.value) : {};
+        } catch {
+          ap = {};
+        }
+        for (const text of timesheetNudges({ today: today0, workers: ws.map((w) => ({ id: w.id, name: w.name, kind: w.kind, active: !!w.active })), rows, approvals: readApprovals(ap) })) attention.push({ type: "timesheet", link: "/crew", text });
+      }
+    }
+  } catch {
+    /* the time sheet reminders are optional */
   }
   const prof = await env.DB.prepare("SELECT data, setup_step, completed FROM company_profiles WHERE company_id = ?").bind(c).first<{ data: string; setup_step: string; completed: number }>().catch(() => null);
   let noResume = false;

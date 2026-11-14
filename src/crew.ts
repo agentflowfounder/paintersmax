@@ -1,7 +1,11 @@
 import { getSessionUser } from "./auth.ts";
 import { companyPlan } from "./files.ts";
+import { todayLocal } from "./dates.ts";
 import { DEFAULT_1099_CENTS, isDate, loadSettings, toCsv } from "./records.ts";
+import { MAX_APPROVALS, MAX_REWORK, approvalKey, overtimeMinutes, overtimeWeeks, readApprovals, readRework, reworkKey, timeApprKey, usesApprovals, weekStart } from "./timesheet.ts";
 import type { Env } from "./types.ts";
+
+export { weekStart };
 
 /**
  * Crew and hours: employees and 1099 contractors, weekly time sheets, payments, totals per job, week, month and year,
@@ -74,14 +78,6 @@ export function cleanTime(i: any): TimeIn | { error: string } {
     minutes = Math.round(h * 60);
   }
   return { workerId: Number(i?.workerId), jobId: Number(i?.jobId) > 0 ? Number(i.jobId) : null, workDate: i.workDate, clockIn: a !== null && b !== null ? i.clockIn : null, clockOut: a !== null && b !== null ? i.clockOut : null, minutes, note: txt(i?.note, 200) };
-}
-
-/** Monday of the week that holds this date (YYYY-MM-DD). */
-export function weekStart(d: string): string {
-  const t = new Date(d + "T00:00:00Z");
-  const back = (t.getUTCDay() + 6) % 7;
-  t.setUTCDate(t.getUTCDate() - back);
-  return t.toISOString().slice(0, 10);
 }
 
 export interface Entry {
@@ -211,7 +207,7 @@ type AbsBlob = { next: number; list: Absence[] };
  *  GET ?profile=<workerId>&year=   printable profile
  *  GET ?export=hours|payments|1099&year=       CSV
  *  GET ?export=hours|payments|1099|attendance&year=
- *  POST {action: saveWorker | removeWorker | addTime | deleteTime | addPayment | deletePayment | addAbsence | deleteAbsence}
+ *  POST {action: saveWorker | removeWorker | addTime | deleteTime | setRework | approveWeek | unapproveWeek | addPayment | deletePayment | addAbsence | deleteAbsence}
  */
 export async function handleCrew(request: Request, env: Env): Promise<Response> {
   const user = await getSessionUser(env, request);
@@ -230,12 +226,14 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
     const workers = ((await env.DB.prepare("SELECT id, name, kind, position, pay_cents AS payCents, pay_unit AS payUnit, started_on AS startedOn, phone, email, notes, w9_file_id AS w9FileId, photo_file_id AS photoFileId, active FROM workers WHERE company_id = ? ORDER BY active DESC, name").bind(c).all<any>()).results ?? []) as any[];
     const jobs = ((await env.DB.prepare("SELECT j.id, j.title, cu.name AS customer FROM jobs j JOIN customers cu ON cu.id = j.customer_id WHERE j.company_id = ? ORDER BY j.id DESC LIMIT 300").bind(c).all<any>()).results ?? []) as any[];
     const jobTitle = (id: number | string) => jobs.find((j) => String(j.id) === String(id))?.title ?? (id === "none" ? "No job" : `Job ${id}`);
-    const entriesOf = async (wid: number | null) => ((await env.DB.prepare(`SELECT worker_id AS workerId, job_id AS jobId, work_date AS workDate, minutes FROM time_entries WHERE company_id = ? AND work_date BETWEEN ? AND ?${wid ? " AND worker_id = ?" : ""}`).bind(...(wid ? [c, from, to, wid] : [c, from, to])).all<any>()).results ?? []) as (Entry & { workerId: number })[];
+    const entriesOf = async (wid: number | null) => ((await env.DB.prepare(`SELECT id, worker_id AS workerId, job_id AS jobId, work_date AS workDate, minutes FROM time_entries WHERE company_id = ? AND work_date BETWEEN ? AND ?${wid ? " AND worker_id = ?" : ""}`).bind(...(wid ? [c, from, to, wid] : [c, from, to])).all<any>()).results ?? []) as (Entry & { workerId: number; id: number })[];
     const payments = ((await env.DB.prepare("SELECT p.id, p.worker_id AS workerId, p.job_id AS jobId, j.title AS jobTitle, p.paid_on AS paidOn, p.amount_cents AS amountCents, p.note FROM worker_payments p LEFT JOIN jobs j ON j.id = p.job_id WHERE p.company_id = ? AND p.paid_on BETWEEN ? AND ? ORDER BY p.paid_on DESC, p.id DESC").bind(c, from, to).all<any>()).results ?? []) as any[];
     const settings = await loadSettings(env, c);
     const meta = await loadBlob<PayMeta>(env, payKey(c), {});
     const absAll = (await loadBlob<AbsBlob>(env, absKey(c), { next: 1, list: [] })).list;
     const absYear = absAll.filter((a) => a.date >= from && a.date <= to).sort((a, b) => (a.date < b.date ? 1 : -1));
+    const approvals = readApprovals(await loadBlob<unknown>(env, timeApprKey(c), {}));
+    const reworkIds = new Set(readRework(await loadBlob<unknown>(env, reworkKey(c), {})));
     for (const p of payments) {
       p.method = meta[String(p.id)]?.method ?? "";
       p.ref = meta[String(p.id)]?.ref ?? "";
@@ -246,8 +244,8 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
       const head = { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="paintersmax-crew-${ex}-${year}.csv"`, "cache-control": "no-store" };
       const name = (id: number) => workers.find((w) => w.id === id)?.name ?? "";
       if (ex === "hours") {
-        const rows = ((await env.DB.prepare("SELECT worker_id, job_id, work_date, clock_in, clock_out, minutes, note FROM time_entries WHERE company_id = ? AND work_date BETWEEN ? AND ? ORDER BY work_date, worker_id").bind(c, from, to).all<any>()).results ?? []) as any[];
-        return new Response(toCsv([["Date", "Worker", "Job", "Clock in", "Clock out", "Hours", "Note"], ...rows.map((r) => [r.work_date, name(r.worker_id), r.job_id ? jobTitle(r.job_id) : "", r.clock_in, r.clock_out, hoursOf(r.minutes), r.note])]), { headers: head });
+        const rows = ((await env.DB.prepare("SELECT id, worker_id, job_id, work_date, clock_in, clock_out, minutes, note FROM time_entries WHERE company_id = ? AND work_date BETWEEN ? AND ? ORDER BY work_date, worker_id").bind(c, from, to).all<any>()).results ?? []) as any[];
+        return new Response(toCsv([["Date", "Worker", "Job", "Clock in", "Clock out", "Hours", "Callback or rework", "Week approved", "Note"], ...rows.map((r) => [r.work_date, name(r.worker_id), r.job_id ? jobTitle(r.job_id) : "", r.clock_in, r.clock_out, hoursOf(r.minutes), reworkIds.has(r.id) ? "Yes" : "", approvals[approvalKey(r.worker_id, weekStart(r.work_date))]?.on ?? "", r.note])]), { headers: head });
       }
       if (ex === "payments") return new Response(toCsv([["Paid on", "Worker", "Type", "Job", "Amount", "Paid by", "Check number or reference", "Note"], ...payments.map((p) => [p.paidOn, name(p.workerId), workers.find((w) => w.id === p.workerId)?.kind ?? "", p.jobTitle ?? "", (p.amountCents / 100).toFixed(2), p.method ? p.method.replace(/_/g, " ") : "", p.ref, p.note])]), { headers: head });
       if (ex === "attendance") return new Response(toCsv([["Date", "Worker", "Type", "Paid hours", "Note"], ...[...absYear].reverse().map((a) => [a.date, name(a.workerId), a.kind, a.hours || "", a.note])]), { headers: head });
@@ -283,7 +281,21 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
       end.setUTCDate(end.getUTCDate() + 6);
       const rows = ((await env.DB.prepare("SELECT id, job_id AS jobId, work_date AS workDate, clock_in AS clockIn, clock_out AS clockOut, minutes, note FROM time_entries WHERE company_id = ? AND worker_id = ? AND work_date BETWEEN ? AND ? ORDER BY work_date, id").bind(c, wk, day, end.toISOString().slice(0, 10)).all<any>()).results ?? []) as any[];
       const endDay = end.toISOString().slice(0, 10);
-      return json({ week: day, entries: rows.map((r) => ({ ...r, hours: hoursOf(r.minutes), jobTitle: r.jobId ? jobTitle(r.jobId) : null })), absences: absAll.filter((a) => a.workerId === wk && a.date >= day && a.date <= endDay).sort((a, b) => (a.date < b.date ? -1 : 1)), totalHours: hoursOf(rows.reduce((s, r) => s + r.minutes, 0)) });
+      const totalMin = rows.reduce((s, r) => s + r.minutes, 0);
+      const kind = workers.find((w) => w.id === wk)?.kind ?? "employee";
+      const ap = approvals[approvalKey(wk, day)];
+      return json({
+        week: day,
+        kind,
+        entries: rows.map((r) => ({ ...r, hours: hoursOf(r.minutes), jobTitle: r.jobId ? jobTitle(r.jobId) : null, rework: reworkIds.has(r.id) })),
+        absences: absAll.filter((a) => a.workerId === wk && a.date >= day && a.date <= endDay).sort((a, b) => (a.date < b.date ? -1 : 1)),
+        totalHours: hoursOf(totalMin),
+        overtimeHours: hoursOf(overtimeMinutes(totalMin, kind)),
+        reworkHours: hoursOf(rows.filter((r) => reworkIds.has(r.id)).reduce((s, r) => s + r.minutes, 0)),
+        approved: ap ? { on: ap.on, hours: hoursOf(ap.minutes) } : null,
+        canApprove: day <= todayLocal() && totalMin > 0,
+        usesApprovals: usesApprovals(approvals),
+      });
     }
 
     const allEntries = await entriesOf(null);
@@ -291,7 +303,8 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
       const ents = allEntries.filter((e) => e.workerId === w.id);
       const r = rollups(ents);
       const paid = payments.filter((p) => p.workerId === w.id).reduce((s, p) => s + p.amountCents, 0);
-      return { ...w, hours: r.totalHours, byWeek: r.byWeek, byMonth: r.byMonth, byJob: Object.fromEntries(Object.entries(r.byJob).map(([k, v]) => [jobTitle(k), v])), estimatedCents: estimatePayCents(w.payUnit, w.payCents, ents), paidCents: paid };
+      const reworkHours = hoursOf(ents.filter((e) => reworkIds.has(e.id)).reduce((s, e) => s + e.minutes, 0));
+      return { ...w, hours: r.totalHours, overtimeWeeks: overtimeWeeks(ents, w.kind).length, reworkHours, byWeek: r.byWeek, byMonth: r.byMonth, byJob: Object.fromEntries(Object.entries(r.byJob).map(([k, v]) => [jobTitle(k), v])), estimatedCents: estimatePayCents(w.payUnit, w.payCents, ents), paidCents: paid };
     });
     const list = list1099(workers.map((w) => ({ id: w.id, name: w.name, kind: w.kind, w9: !!w.w9FileId })), payments, settings.threshold1099Cents);
     return json({ year, workers: per, jobs, payments, list1099: list, threshold1099Cents: settings.threshold1099Cents || DEFAULT_1099_CENTS, plan, absences: absYear, absenceSummary: absenceSummary(absYear), payMethods: PAY_METHODS, absenceKinds: ABSENCE_KINDS, today: new Date().toISOString().slice(0, 10) });
@@ -325,12 +338,59 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
     if ("error" in t) return json({ error: t.error }, 400);
     if (!(await workerOwned(t.workerId))) return json({ error: "Worker not found." }, 404);
     if (!(await jobOwned(t.jobId))) return json({ error: "Job not found." }, 404);
+    const appr = readApprovals(await loadBlob<unknown>(env, timeApprKey(c), {}));
+    if (appr[approvalKey(t.workerId, weekStart(t.workDate))]) return json({ error: "That week is approved. Unapprove it to change the hours." }, 400);
     const r = await env.DB.prepare("INSERT INTO time_entries (company_id, worker_id, job_id, work_date, clock_in, clock_out, minutes, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(c, t.workerId, t.jobId, t.workDate, t.clockIn, t.clockOut, t.minutes, t.note || null).run();
-    return json({ ok: true, id: Number(r.meta.last_row_id) });
+    const id = Number(r.meta.last_row_id);
+    if (b.rework === true) {
+      const ids = readRework(await loadBlob<unknown>(env, reworkKey(c), {}));
+      if (ids.length < MAX_REWORK) await saveBlob(env, reworkKey(c), { ids: [...ids, id] });
+    }
+    return json({ ok: true, id });
   }
   if (b?.action === "deleteTime") {
-    await env.DB.prepare("DELETE FROM time_entries WHERE id = ? AND company_id = ?").bind(Number(b.id), c).run();
+    const id = Number(b.id);
+    const row = await env.DB.prepare("SELECT worker_id AS w, work_date AS d FROM time_entries WHERE id = ? AND company_id = ?").bind(id, c).first<{ w: number; d: string }>();
+    if (!row) return json({ ok: true });
+    const appr = readApprovals(await loadBlob<unknown>(env, timeApprKey(c), {}));
+    if (appr[approvalKey(row.w, weekStart(row.d))]) return json({ error: "That week is approved. Unapprove it to change the hours." }, 400);
+    await env.DB.prepare("DELETE FROM time_entries WHERE id = ? AND company_id = ?").bind(id, c).run();
+    const ids = readRework(await loadBlob<unknown>(env, reworkKey(c), {}));
+    if (ids.includes(id)) await saveBlob(env, reworkKey(c), { ids: ids.filter((x) => x !== id) });
     return json({ ok: true });
+  }
+  if (b?.action === "setRework") {
+    // A label only (this time was a callback or fixing earlier work), so it is allowed even in an approved week.
+    const id = Number(b.id);
+    const row = await env.DB.prepare("SELECT id FROM time_entries WHERE id = ? AND company_id = ?").bind(id, c).first();
+    if (!row) return json({ error: "Not found." }, 404);
+    const ids = readRework(await loadBlob<unknown>(env, reworkKey(c), {}));
+    const next = b.rework === true ? (ids.includes(id) ? ids : [...ids, id]) : ids.filter((x) => x !== id);
+    if (next.length > MAX_REWORK) return json({ error: "Too many callback records. Download your hours, then ask support to archive old years." }, 400);
+    await saveBlob(env, reworkKey(c), { ids: next });
+    return json({ ok: true, rework: next.includes(id) });
+  }
+  if (b?.action === "approveWeek" || b?.action === "unapproveWeek") {
+    const wid = Number(b.workerId);
+    if (!(await workerOwned(wid))) return json({ error: "Worker not found." }, 404);
+    if (!isDate(b.week)) return json({ error: "Choose the week." }, 400);
+    const wkd = weekStart(b.week);
+    const appr = readApprovals(await loadBlob<unknown>(env, timeApprKey(c), {}));
+    const key = approvalKey(wid, wkd);
+    if (b.action === "unapproveWeek") {
+      delete appr[key];
+      await saveBlob(env, timeApprKey(c), appr);
+      return json({ ok: true });
+    }
+    if (wkd > todayLocal()) return json({ error: "That week has not started yet." }, 400);
+    const end = new Date(wkd + "T00:00:00Z");
+    end.setUTCDate(end.getUTCDate() + 6);
+    const sum = await env.DB.prepare("SELECT COALESCE(SUM(minutes), 0) AS m FROM time_entries WHERE company_id = ? AND worker_id = ? AND work_date BETWEEN ? AND ?").bind(c, wid, wkd, end.toISOString().slice(0, 10)).first<{ m: number }>();
+    if (!sum?.m) return json({ error: "There are no hours that week to approve." }, 400);
+    if (!appr[key] && Object.keys(appr).length >= MAX_APPROVALS) return json({ error: "Too many approved weeks. Download your hours, then ask support to archive old years." }, 400);
+    appr[key] = { on: todayLocal(), minutes: sum.m };
+    await saveBlob(env, timeApprKey(c), appr);
+    return json({ ok: true, approved: { on: appr[key].on, hours: hoursOf(sum.m) } });
   }
   if (b?.action === "addPayment") {
     const cents = Math.round(Number(b.amountCents));

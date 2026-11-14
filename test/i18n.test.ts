@@ -53,3 +53,20 @@ test("Unknown text, such as customer names and AI answers, is not changed", () =
   assert.equal(T("Maria Lopez"), "Maria Lopez");
   assert.equal(T("Use two coats of stain-blocking primer."), "Use two coats of stain-blocking primer.");
 });
+
+test("Spanish mode translates the time sheet reminders and labels", () => {
+  const { T } = load("es");
+  assert.equal(T("Approve this week"), "Aprobar esta semana");
+  assert.equal(T("Callback or rework"), "Regreso o retrabajo");
+  assert.equal(
+    T("Luis has 45 hours this week. Employees over 40 hours in a week may be owed overtime, so tell your accountant."),
+    "Luis tiene 45 horas esta semana. Los empleados con más de 40 horas en una semana pueden tener derecho a horas extra, avise a su contador.",
+  );
+  assert.equal(
+    T("Ana had 41.5 hours last week. Employees over 40 hours in a week may be owed overtime, so tell your accountant."),
+    "Ana tuvo 41.5 horas la semana pasada. Los empleados con más de 40 horas en una semana pueden tener derecho a horas extra, avise a su contador.",
+  );
+  assert.equal(T("Nothing is on the time sheet for last week yet. Add the hours so crew pay and job costs stay right."), "Todavía no hay nada en la hoja de horas de la semana pasada. Agregue las horas para que el pago de la cuadrilla y los costos del trabajo salgan bien.");
+  assert.equal(T("Time sheets waiting for your approval: A, B, C and 2 more."), "Hojas de horas esperando su aprobación: A, B, C y 2 más.");
+  assert.equal(T("That week is approved. Unapprove it to change the hours."), "Esa semana está aprobada. Quite la aprobación para cambiar las horas.");
+});

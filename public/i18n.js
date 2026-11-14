@@ -1832,5 +1832,40 @@
     ]);
   })();
 
+  /* ---- Part 18: Time sheet extras (overtime, approval, callback tick, Home reminders) ---- */
+  pmI18n.add({
+    "Time sheet": "Hoja de horas",
+    "hours over 40 this week.": "horas sobre 40 esta semana.",
+    "Employees over 40 hours in a week may be owed overtime. Tell your accountant.": "Los empleados con más de 40 horas en una semana pueden tener derecho a horas extra. Avise a su contador.",
+    "Approved": "Aprobada",
+    "The hours are locked.": "Las horas están bloqueadas.",
+    "Unapprove": "Quitar aprobación",
+    "Approve this week": "Aprobar esta semana",
+    "Approving says you checked these hours. It locks them so they cannot be changed by mistake. You can unapprove any time. It is optional.": "Aprobar significa que usted revisó estas horas. Las bloquea para que no se cambien por error. Puede quitar la aprobación cuando quiera. Es opcional.",
+    "hours this week were callbacks or rework.": "horas de esta semana fueron regresos o retrabajo.",
+    "Callback or rework": "Regreso o retrabajo",
+    "Callback": "Regreso",
+    "Locked": "Bloqueada",
+    "week over 40 hours": "semana con más de 40 horas",
+    "weeks over 40 hours": "semanas con más de 40 horas",
+    "callback or rework hours": "horas de regreso o retrabajo",
+    "This was a callback or rework (fixing earlier work)": "Fue un regreso o retrabajo (arreglar trabajo anterior)",
+    "Tick this when the crew went back to fix something on a job that was already done. It adds no money anywhere. It lets you see, later, how many hours went to redoing work.": "Marque esto cuando la cuadrilla regresó a arreglar algo en un trabajo ya terminado. No suma dinero en ningún lado. Le permite ver, más adelante, cuántas horas se fueron en rehacer trabajo.",
+    "Unapprove this week? You will be able to change the hours again.": "¿Quitar la aprobación de esta semana? Podrá cambiar las horas otra vez.",
+    "That week is approved. Unapprove it to change the hours.": "Esa semana está aprobada. Quite la aprobación para cambiar las horas.",
+    "There are no hours that week to approve.": "No hay horas esa semana para aprobar.",
+    "That week has not started yet.": "Esa semana todavía no empieza.",
+    "Choose the week.": "Elija la semana.",
+  }, [
+    [/^(.+?) has ([\d.]+) hours this week$/, function (a, n, h) { return n + ' tiene ' + h + ' horas esta semana'; }],
+    [/^(.+?) had ([\d.]+) hours last week$/, function (a, n, h) { return n + ' tuvo ' + h + ' horas la semana pasada'; }],
+    [/^(.+)\. Employees over 40 hours in a week may be owed overtime, so tell your accountant\.$/, function (a, list) {
+      var parts = list.split('. ').map(function (p) { return pmI18n.x(p); });
+      return parts.join('. ') + '. Los empleados con más de 40 horas en una semana pueden tener derecho a horas extra, avise a su contador.';
+    }],
+    [/^Nothing is on the time sheet for (last week|this week) yet\. Add the hours so crew pay and job costs stay right\.$/, function (a, w) { return 'Todavía no hay nada en la hoja de horas de ' + (w === 'last week' ? 'la semana pasada' : 'esta semana') + '. Agregue las horas para que el pago de la cuadrilla y los costos del trabajo salgan bien.'; }],
+    [/^Time sheets waiting for your approval: (.+?)\.$/, function (a, list) { return 'Hojas de horas esperando su aprobación: ' + list.replace(/ and (\d+) more$/, ' y $1 más') + '.'; }],
+  ]);
+
   pmI18n.start();
 })();
