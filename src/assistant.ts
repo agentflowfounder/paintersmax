@@ -1,3 +1,4 @@
+import { briefText, cleanBrief } from "./jobbrief.ts";
 import type { Env } from "./types.ts";
 import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
 
@@ -41,7 +42,7 @@ const cut = (s: unknown, n: number) => (typeof s === "string" ? s.slice(0, n) : 
 /** A compact, privacy-light summary of one job: no street address, email or phone leaves our servers. */
 export async function buildJobContext(env: Env, companyId: number, jobId: number): Promise<string | null> {
   const job = await env.DB.prepare(
-    `SELECT j.title, j.trade, j.stage, c.name AS customer, p.city, p.zip, co.name AS company, cp.data AS profile
+    `SELECT j.title, j.trade, j.stage, c.name AS customer, p.city, p.zip, co.name AS company, cp.data AS profile, json_extract(j.data,'$.brief') AS brief
        FROM jobs j JOIN customers c ON c.id = j.customer_id JOIN companies co ON co.id = j.company_id
        LEFT JOIN properties p ON p.id = j.property_id LEFT JOIN company_profiles cp ON cp.company_id = j.company_id
       WHERE j.id = ? AND j.company_id = ?`,
@@ -69,6 +70,8 @@ export async function buildJobContext(env: Env, companyId: number, jobId: number
   const prof = [l.hourlyRate && `hourly rate $${l.hourlyRate}`, l.crewSize && `crew of ${l.crewSize}`, l.minimumJob && `minimum job $${l.minimumJob}`, l.depositPct && `deposit ${l.depositPct}%`, profile.warranty?.laborMonths && `labor warranty ${profile.warranty.laborMonths} months`].filter(Boolean);
   if (prof.length) lines.push(`Business: ${prof.join(", ")}`);
   if (card) lines.push(`Price card (${card.method}): ${cut(card.data, 600)}`);
+  const briefRaw = parse(job.brief);
+  if (briefRaw?.type) lines.push("What the painter told me about this job:", ...briefText(cleanBrief(briefRaw)).split("\n").map((x) => `  ${cut(x, 300)}`));
   for (const d of docs.results) {
     const b = parse(d.body);
     if (d.kind === "estimate") {

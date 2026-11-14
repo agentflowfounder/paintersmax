@@ -9,7 +9,7 @@ body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;mar
 header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
 header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
-main{max-width:720px;margin:0 auto;padding:16px 16px 60px}
+main{max-width:720px;margin:0 auto;padding:16px 16px 100px}
 h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 8px;font-size:26px}
 h3{margin:18px 0 6px;font-size:16px}
 .card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
@@ -36,7 +36,35 @@ small,.muted{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{
 .fab{position:fixed;right:14px;bottom:16px;z-index:30;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.28);padding:13px 20px;font-size:16px}@media print{.fab{display:none}}
 .bub{padding:10px 12px;border-radius:10px;margin:8px 0;white-space:pre-wrap;line-height:1.45}.bub.u{background:#eceae4;margin-left:24px}.bub.a{background:#fff8e8;border:1px solid #f0d9a0;margin-right:12px}.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.chip{border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:6px 12px;font-size:13px;cursor:pointer}.mini{border:0;background:none;color:#0F1B2D;text-decoration:underline;font-size:12px;cursor:pointer;padding:2px 0}
 @media(max-width:520px){.line{grid-template-columns:1fr 60px 50px 80px 26px}}
-.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin:10px 0}.fi img{width:100%;height:100px;object-fit:cover;border-radius:8px;display:block}</style></head><body>
+.fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin:10px 0}.fi img{width:100%;height:100px;object-fit:cover;border-radius:8px;display:block}
+.grp{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:20px;margin:26px 0 2px}.grpn{margin:0 0 8px;font-size:13px}
+details.acc{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;margin:0 0 10px}
+details.acc>summary{list-style:none;cursor:pointer;padding:12px 44px 12px 16px;display:flex;flex-direction:column;gap:2px;position:relative;min-height:48px;justify-content:center}
+details.acc>summary::-webkit-details-marker{display:none}
+details.acc>summary::after{content:"+";position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:24px;line-height:1;color:#4A5568}
+details.acc[open]>summary::after{content:"\2212"}
+details.acc[open]>summary{border-bottom:1px solid #eee}
+.at{font-weight:700;font-size:16px}.asub{font-size:13px;color:#4A5568}.asub:empty{display:none}
+.accin{padding:12px 16px 16px}
+.accin .card:not([style]){border:0;padding:0;margin:0 0 12px;background:none}
+.next{background:#eef5ff;border:1px solid #9cc2f0;border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:15px;line-height:1.4}
+.contact{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.cbtn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:8px;background:#eceae4;color:#0F1B2D;font-weight:700;text-decoration:none;font-size:15px}
+.dtf{border-top:1px solid #eee;margin-top:12px;padding-top:10px}
+.jtypes{display:flex;flex-wrap:wrap;gap:8px}
+.jt{border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:8px 16px;font-size:15px;font-weight:600;cursor:pointer;min-height:44px;color:#0F1B2D}
+.jt.on{background:#0F1B2D;color:#fff;border-color:#0F1B2D}
+.ckgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.ck{display:flex;gap:8px;align-items:center;font-weight:400;margin:0;padding:8px 10px;border:1px solid #cfd5dc;border-radius:8px;font-size:14px;min-height:44px}.ck input{width:auto}
+.coach{background:#fff8e8;border:1px solid #f0d9a0;border-radius:10px;padding:10px 12px;margin:12px 0}.coach ul{margin:6px 0 0;padding-left:18px}.coach li{margin:5px 0}
+.modal{position:fixed;inset:0;background:rgba(15,27,45,.55);z-index:60;display:flex;align-items:flex-end;justify-content:center}
+.mbox{background:#fff;width:100%;max-width:520px;border-radius:14px 14px 0 0;padding:18px 16px 22px;max-height:90vh;overflow:auto}
+@media(min-width:600px){.modal{align-items:center}.mbox{border-radius:14px}}
+.mrow{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #f0eee9;font-size:14px}.mrow span{color:#4A5568}.mrow b{text-align:right;word-break:break-word}
+.np{border-color:#E8A33D!important;background:#fff8e6}
+.ed{white-space:nowrap;padding:10px 8px;font-size:14px;min-height:44px}
+@media(max-width:520px){.btn{min-height:44px}.mini{padding:8px 4px}}
+</style></head><body>
 <header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Estimating Setup</a><a href="/calendar">Calendar</a><a href="/records">Records</a><a href="/crew">Crew</a><a href="/lessons">Lessons</a><a href="/analysis">Analysis</a><a href="/builders">Builder rates</a><a href="/import">Import customers</a><a href="/materials">Materials</a><a href="/insurance">Insurance</a><a href="/dashboard">Settings and leads</a></div></header>
 <main><div id="view">Loading...</div><div id="msg"></div></main>
 <script>
@@ -63,7 +91,7 @@ const QCATS=[
 function assistantCard(jobId){
  if(chatJob!==jobId||chat===null){chat=[];}chatJob=jobId;
  const es=(localStorage.getItem('as_lang')||window.PM_LANG)==='es';
- return `<h3>Job assistant</h3><div class="card">
+ return `${jobId?'':'<h3>Job assistant</h3>'}<div class="card">
  <div style="display:flex;justify-content:space-between;gap:10px;align-items:end;flex-wrap:wrap"><label for="as_in" style="margin:0">${jobId?'Ask about this job, or any painting question':'Ask any painting or business question'}</label>
  <select id="as_lang" style="width:auto;padding:6px 8px" aria-label="Language"><option value="en" ${es?'':'selected'}>English</option><option value="es" ${es?'selected':''}>Español</option></select></div>
  <textarea id="as_in" rows="3" placeholder="Example: What primer should I use over water stains on a ceiling? Type your question, or tap the Mic button and speak it. Ask about bidding, safety, stains, coatings or equipment."></textarea>
@@ -95,12 +123,12 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};
 });
 document.addEventListener('change',e=>{if(e.target.id==='as_lang'){try{localStorage.setItem('as_lang',e.target.value);}catch(x){}}});
 document.addEventListener('change',async e=>{if(e.target.id!=='as_cam'||!e.target.files[0])return;const f=e.target.files[0];e.target.value='';try{msg('Adding photo...',true);const b=await shrinkImg(f),fd=new FormData();fd.append('file',b);fd.append('jobId',chatJob);fd.append('kind','photo');const r=await fetch('/api/files',{method:'POST',body:fd});if(r.status===401){location.href='/login';return;}const j=await r.json().catch(()=>({}));if(!r.ok){msg(j.error||'Could not add the photo.');return;}chatFile=j.id;attDraw();msg('');if(typeof filesLoad==='function')filesLoad();$('as_in').focus();}catch(x){msg('Could not add the photo.');}});
-document.addEventListener('click',e=>{const d=e.target.dataset||{};if(d.adetach){chatFile=0;attDraw();}else if(e.target.id==='ask_fab'||(e.target.closest&&e.target.closest('#ask_fab'))){const i=$('as_in');if(i){i.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>i.focus(),350);}}});
+document.addEventListener('click',e=>{const d=e.target.dataset||{};if(d.adetach){chatFile=0;attDraw();}else if(e.target.id==='ask_fab'||(e.target.closest&&e.target.closest('#ask_fab'))){if(typeof openAcc==='function')openAcc('help');const i=$('as_in');if(i){i.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>i.focus(),350);}}});
 (function(){const b=document.createElement('button');b.id='ask_fab';b.className='btn fab';b.type='button';b.textContent='Ask';b.setAttribute('aria-label','Ask the assistant');document.body.appendChild(b);})();
 
 // ---- Photos and files ----
 let FL=null;
-function filesCard(){return `<h3>Photos and files</h3><div class="card" id="fl_card"><div id="fl_meter" class="muted">Loading...</div>
+function filesCard(){return `<label style="margin-top:14px">Photos and files</label><div class="card" id="fl_card"><div id="fl_meter" class="muted">Loading...</div>
  <div class="btns"><label class="btn" style="cursor:pointer">Take or add photos<input id="fl_in" type="file" accept="image/*" multiple style="display:none"></label>
  </div>
  <small class="muted" style="display:block;margin-top:6px">Tap a photo's <b>Analyze</b> button to have the AI look for possible issues. Receipts go in <a href="/records?job=${J.job.id}">Records</a>, where they are read and filed as expenses.</small>
@@ -141,7 +169,7 @@ document.addEventListener('click',async e=>{const d=e.target.dataset||{};
 
 // ---- Work orders and change orders ----
 let WOS=[],WOE=null;
-function woCard(){return `<h3>Work orders and change orders</h3><div class="card" id="wo_card"><div id="wo_list" class="muted">Loading...</div><div id="wo_form"></div><div class="btns"><button class="btn sec" data-wonew="work_order">New work order</button><button class="btn sec" data-wonew="change_order">New change order</button></div><small class="muted">A change order is for extra work after the estimate was approved. Your customer approves it on a private page, or you can print it. Approved change orders add to the job total.</small></div>`;}
+function woCard(){return `<div class="card" id="wo_card"><div id="wo_list" class="muted">Loading...</div><div id="wo_form"></div><div class="btns"><button class="btn sec" data-wonew="work_order">New work order</button><button class="btn sec" data-wonew="change_order">New change order</button></div><small class="muted">A change order is for extra work after the estimate was approved. Your customer approves it on a private page, or you can print it. Approved change orders add to the job total.</small></div>`;}
 function woMoney(c){return '$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 async function woLoad(){const b=$('wo_list');if(!b)return;try{const r=await api('/api/workorders?jobId='+J.job.id);WOS=r.workOrders;
  b.innerHTML=(WOS.length?WOS.map(w=>`<div style="border-top:1px solid #eee;padding:8px 0"><b>${esc(w.label)}</b> ${esc(w.title)} <span class="tag">${esc(w.status)}</span> &middot; ${woMoney(w.totalCents)}${w.decidedBy?' &middot; '+esc(w.decidedBy):''}
@@ -180,7 +208,7 @@ const PMETH={cash:'Cash',check:'Check',zelle:'Zelle',cash_app:'CashApp',venmo:'V
 const PKIND={deposit:'Deposit',progress:'Progress payment',final:'Final payment',other:'Payment'};
 const dtf=s=>(window.pmDate?window.pmDate(s):s);
 let PAY=null,PAYE=null;
-function payCard(){return `<h3>Payments from the customer</h3><div class="card" id="pay_card"><div id="pay_body" class="muted">Loading...</div></div>`;}
+function payCard(){return `<div class="card" id="pay_card"><div id="pay_body" class="muted">Loading...</div></div>`;}
 async function payLoad(){const b=$('pay_body');if(!b)return;try{PAY=await api('/api/jobpay?jobId='+J.job.id);payDraw();}catch(e){}}
 function payForm(p){const m=PAY.methods.map(k=>`<option value="${k}" ${p.method===k?'selected':''}>${PMETH[k]||k}</option>`).join('');const kd=Object.keys(PKIND).map(k=>`<option value="${k}" ${p.kind===k?'selected':''}>${PKIND[k]}</option>`).join('');
  return `<div style="border:1px solid #cfd5dc;border-radius:8px;padding:10px;margin:10px 0;background:#faf9f6"><b>${p.id?'Change this payment':'Record a payment'}</b>
@@ -190,7 +218,7 @@ function payForm(p){const m=PAY.methods.map(k=>`<option value="${k}" ${p.method=
  <label>Note <small class="muted">(optional)</small></label><input id="py_note" value="${esc(p.note||'')}" placeholder="Example: paid at the door">
  <small class="muted">Please never type a full bank or card number here. PaintersMax does not store them.</small>
  <div class="btns"><button class="btn" data-pysave="${esc(p.id||'')}">${p.id?'Save changes':'Save payment'}</button><button class="btn sec" data-pycancel="1">Cancel</button></div></div>`;}
-function payDraw(){const b=$('pay_body');if(!b||!PAY)return;const P=PAY,f=c=>$$(c);
+function payDraw(){const b=$('pay_body');if(!b||!PAY)return;const P=PAY,f=c=>$$(c);const as=$('accs_pay');if(as)as.textContent=P.totalCents>0?(P.paidInFull?'Paid in full':(P.paidCents?f(P.paidCents)+' paid, '+f(P.balanceCents)+' to go':'Nothing paid yet')):'';
  const status=P.totalCents>0?(P.paidInFull?`<b style="color:#0a7a3d">Paid in full</b>${P.overpaidCents?` <span class="muted">(${f(P.overpaidCents)} more than the total. Check the amounts.)</span>`:''}`:`Balance due <b>${f(P.balanceCents)}</b>`):'<span class="muted">Save an estimate to see what is owed.</span>';
  let guide='';
  if(!P.payments.length&&P.totalCents>0)guide=P.depositCents>0?`<p style="margin:0 0 8px">${P.signed?'The customer signed.':'When the customer says yes,'} your deposit is <b>${f(P.depositCents)}</b>. When it arrives, record it here and I will keep track. Then add the job to the <a href="/calendar">calendar</a>.</p><div class="btns" style="margin:0 0 8px"><button class="btn" data-pydep="1">Record the ${f(P.depositCents)} deposit</button></div>`:`<p style="margin:0 0 8px">Nothing paid yet. When the customer pays you, record it here so your balance stays right.</p>`;
@@ -212,12 +240,10 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  else if(ds.pyhow){try{msg('');const r=await api('/api/jobpay',{action:'saveHowToPay',text:$('py_how').value});PAY.howToPay=r.howToPay;msg('Saved. It will print on your invoices.',true);}catch(x){if(x)msg(x.message);}}
 });
 
-function costCard(){return `<h3>Expenses and mileage for this job</h3><div class="card" id="jc_card"><div id="jc_sum" class="muted">Loading...</div><div class="btns"><a class="btn sec" href="/records?job=${J.job.id}">Add an expense or trip</a><a class="btn sec" href="/records">All records</a></div><small class="muted">Records for your accountant, not tax advice.</small></div>`;}
-async function costLoad(){const b=$('jc_sum');if(!b)return;try{const r=await api('/api/records?jobTotals='+J.job.id);b.innerHTML=r.expenseCount||r.miles?`<b>${woMoney(r.expenseCents)}</b> in ${r.expenseCount} expense${r.expenseCount===1?'':'s'} &middot; <b>${r.miles}</b> miles${r.mileageValueCents!=null?' ('+woMoney(r.mileageValueCents)+')':''}`:'Nothing recorded for this job yet.';}catch(e){}}
 
 // ---- Warranty certificate ----
 let WC=null;
-function wcCard(){return `<h3>Warranty certificate</h3><div class="card" id="wc_card"><div id="wc_body" class="muted">Loading...</div></div>`;}
+function wcCard(){return `<h3 style="font-size:15px;margin:18px 0 6px">Warranty certificate</h3><div class="card" id="wc_card"><div id="wc_body" class="muted">Loading...</div></div>`;}
 async function wcLoad(){const b=$('wc_body');if(!b)return;try{WC=await api('/api/warranty?jobId='+J.job.id);wcDraw();}catch(e){}}
 const WCD={classic:'Classic',modern:'Modern',badge:'Badge'};
 function wcDraw(open){const b=$('wc_body');if(!b||!WC)return;const c=WC.cert,sg=WC.suggested;
@@ -226,7 +252,7 @@ function wcDraw(open){const b=$('wc_body');if(!b||!WC)return;const c=WC.cert,sg=
  b.innerHTML=`<div class="row"><div><label>Design</label><select id="wc_design">${Object.keys(WCD).map(k=>`<option value="${k}"${v.design===k?' selected':''}>${WCD[k]}</option>`).join('')}</select></div><div><label>Labor warranty (months)</label><input id="wc_m" inputmode="numeric" value="${v.months}"></div><div><label>Work finished on</label><input id="wc_s" type="date" value="${esc(v.startOn)}"></div><div><label>Language</label><select id="wc_l"><option value="en"${v.language==='es'?'':' selected'}>English</option><option value="es"${v.language==='es'?' selected':''}>Español</option></select></div></div>
  <label>What the warranty covers (leave blank for the standard sentence)</label><textarea id="wc_t" rows="3" maxlength="1500">${esc(v.terms||'')}</textarea><label>Not covered (optional)</label><input id="wc_x" maxlength="800" value="${esc(v.exclusions||'')}" placeholder="Example: damage from floods, abuse or normal wear">
  <label style="font-weight:400"><input type="checkbox" id="wc_def" style="width:auto"> Use this design as my default</label>
- ${c?`<p class="muted">Ends <b>${esc(c.endOn)}</b>${c.status==='sent'?' &middot; sent to the customer':' &middot; draft'}. You will get a reminder on Home before it ends.</p>`:''}
+ ${c?`<p class="muted">Ends <b>${esc(dtf(c.endOn))}</b>${c.status==='sent'?' &middot; sent to the customer':' &middot; draft'}. You will get a reminder on Home before it ends.</p>`:''}
  <div class="btns"><button class="btn" data-wcsave="1">Save</button>${c?` <a class="btn sec" href="/api/warranty?jobId=${J.job.id}&print=1" target="_blank">Preview and print</a> <button class="btn sec" data-wcsend="email">Email to customer</button> <button class="btn sec" data-wcsend="link">Get link</button>${WC.link?` <button class="btn sec" data-wccopy="${esc(WC.link)}">Copy link</button>`:''} <button class="btn sec" data-wcdel="1">Delete</button>`:''}</div>
  <small class="muted">Save, then use Preview to see how the design looks. Records only: check the wording with your attorney if you want it to be a formal legal warranty.</small>`;}
 document.addEventListener('click',async e=>{const d=e.target.dataset||{};
@@ -239,7 +265,7 @@ document.addEventListener('click',async e=>{const d=e.target.dataset||{};
 
 // ---- Lessons learned ----
 let LS=null,LSE=null;
-function lsCard(){return `<h3>Lessons learned</h3><div class="card" id="ls_card"><div id="ls_body" class="muted">Loading...</div></div>`;}
+function lsCard(){return `<div class="card" id="ls_card"><div id="ls_body" class="muted">Loading...</div></div>`;}
 async function lsLoad(){const b=$('ls_body');if(!b)return;try{LS=await api('/api/lessons?jobId='+J.job.id);lsDraw();}catch(e){}}
 function lsDraw(){const b=$('ls_body');if(!b||!LS)return;
  if(LS.locked){b.innerHTML='<p style="margin-top:0">Build your own playbook: after each job, save what you learned. The job assistant reads it, so future answers fit how you work. Included in Basic and Pro.</p><a class="btn sec" href="/dashboard#billing">See Basic and Pro plans</a>';return;}
@@ -256,29 +282,13 @@ document.addEventListener('click',async e=>{const d=e.target.dataset||{};
  else if(d.lsdel){if(!confirm('Delete this lesson?'))return;try{await api('/api/lessons',{action:'delete',id:+d.lsdel});await lsLoad();}catch(x){if(x)msg(x.message);}}
 });
 
-// ---- Job file download and free up storage ----
-let JF=null,JFDL=false;
-function jfCard(){return `<h3>Job file download</h3><div class="card" id="jf_card"><div id="jf_body" class="muted">Loading...</div></div>`;}
-function mb(b){return b>=1048576?(b/1048576).toFixed(1)+' MB':Math.max(1,Math.round(b/1024))+' KB';}
-async function jfLoad(){const b=$('jf_body');if(!b)return;try{JF=await api('/api/jobfile?jobId='+J.job.id);jfDraw();}catch(e){}}
-function jfDraw(){const b=$('jf_body');if(!b||!JF)return;
- b.innerHTML=`<p style="margin-top:0">One ZIP with everything about this job, organized by section: a summary page, your photos and receipts, documents, work and change orders, crew hours, expenses, mileage, warranty, lessons and your private chat.</p>
- <div class="btns">${JF.tooBig?'<span class="bad">Too big for one download. Download photos one at a time.</span>':`<a class="btn" id="jf_dl" href="/api/jobfile?jobId=${J.job.id}&download=1">Download job file (ZIP)</a>`}</div>
- ${JF.stored?`<div style="margin-top:12px;border-top:1px solid #eee;padding-top:10px"><b>Free up storage</b><p class="muted" style="margin:4px 0">This job has ${JF.stored} stored file${JF.stored===1?'':'s'} (${mb(JF.bytes)}). After you download the ZIP, you can remove them from storage. The record stays: file names, notes and approved findings. Nothing is removed unless you tell us to.</p>
- <label style="font-weight:400"><input type="checkbox" id="jf_ok" style="width:auto"${JFDL?'':' disabled'}> I downloaded the ZIP and it opens</label>
- <div class="btns"><button class="btn sec" id="jf_free" data-jffree="1"${JFDL?'':' disabled'}>Remove this job's photos and files from storage</button></div></div>`:'<p class="muted">No files are stored for this job.</p>'}
- <small class="muted">Records for your accountant, not tax advice. Your data stays safe here, and you can download it any time.</small>`;}
-document.addEventListener('click',async e=>{const t=e.target;
- if(t.id==='jf_dl'){JFDL=true;setTimeout(()=>{if($('jf_ok')){$('jf_ok').disabled=false;$('jf_free')&&($('jf_free').disabled=false);}},1500);}
- else if(t.dataset&&t.dataset.jffree){if(!$('jf_ok').checked){msg('Tick the box to confirm you downloaded the ZIP.');return;}if(!confirm('Remove this job\'s photos and files from storage? Download the ZIP first. This cannot be undone.'))return;try{const r=await api('/api/jobfile',{action:'freeUp',jobId:J.job.id,confirm:true});msg(r.files+' file'+(r.files===1?'':'s')+' removed. '+mb(r.freedBytes)+' freed.',true);JFDL=false;await jfLoad();if(typeof filesLoad==='function')filesLoad();}catch(x){if(x)msg(x.message);}}
-});
 async function loadJobChat(){if(!chatJob)return;try{const r=await api('/api/jobchat?jobId='+chatJob);chat=r.messages||[];chatDraw();}catch(e){}}
 const LOSTR={price:'Price',timing:'Timing',no_reply:'No reply',chose_other:'Chose someone else',other:'Other'};
 function lostCard(d){const j=d.job||{};let l=null;try{l=j.lost?JSON.parse(j.lost):null;}catch(e){}
  if(j.stage==='lost')return `<div class="card" style="background:#fdf3f2"><b>Lost lead</b>: ${esc(LOSTR[l&&l.reason]||'No reason saved')}${l&&l.note?' &middot; '+esc(l.note):''}<div class="btns"><button class="btn sec" data-reopen="1">Reopen this job</button></div><small class="muted">Lost jobs stay in your records so you can see why you did not win them.</small></div>`;
  if(j.stage==='closed')return '';
- return `<details class="card"><summary><b>Did you lose this job?</b></summary><label>Why?</label><select id="lost_reason"><option value="">Choose a reason</option>${Object.keys(LOSTR).map(k=>`<option value="${k}">${LOSTR[k]}</option>`).join('')}</select><label>Note (optional)</label><input id="lost_note" maxlength="300" placeholder="Example: They went with a cheaper bid"><div class="btns"><button class="btn sec" data-lost="1">Mark as lost</button></div><small class="muted">The job stays in your records. You can reopen it later.</small></details>`;}
-function micInit(){const m=$('as_mic');if(m&&(window.SpeechRecognition||window.webkitSpeechRecognition))m.style.display='';}
+ return `<div class="card"><label style="margin-top:0">Why did you lose it?</label><select id="lost_reason"><option value="">Choose a reason</option>${Object.keys(LOSTR).map(k=>`<option value="${k}">${LOSTR[k]}</option>`).join('')}</select><label>Note (optional)</label><input id="lost_note" maxlength="300" placeholder="Example: They went with a cheaper bid"><div class="btns"><button class="btn sec" data-lost="1">Mark as lost</button></div><small class="muted">The job stays in your records. You can reopen it later.</small></div>`;}
+function micInit(){const ok=window.SpeechRecognition||window.webkitSpeechRecognition;['as_mic','bf_mic'].forEach(i=>{const m=$(i);if(m&&ok)m.style.display='';});}
 const GROUPS=[['New leads',['lead'],'Customers who asked for a quote. Build an estimate to bid on them.'],['Estimate approved',['bid:signed'],'The customer signed the estimate. Build and send the contract next.'],['Waiting on the customer',['bid','contract'],'Estimates and contracts you sent. Waiting for the customer to approve or sign.'],['In progress',['scheduled','in_progress','punch'],'Approved jobs that are scheduled or underway.'],['Completed',['invoiced','closed'],'Finished and invoiced jobs.'],['Lost',['lost'],'']];
 const COVC={likely_covered:['#e6f4ea','#0a7a3d','Insured: appears covered'],check_with_agent:['#fff3d6','#8a5a00','Check your insurance'],likely_excluded:['#fdecea','#b42318','Insurance: may not cover'],expired:['#fdecea','#b42318','Policy expired']};
 function covPill(c){const x=COVC[c];return x?`<span class="sg" style="background:${x[0]};color:${x[1]}">${x[2]}</span>`:'';}
@@ -289,7 +299,7 @@ function commBanner(c){if(!c)return'';
   return '';}
 function covBanner(c){if(!c)return `<div class="card" style="background:#f4f1ea"><small>Want to know if your insurance covers each job? <a href="/insurance">Upload your policy</a> and PaintersMax will check every lead and job for you. No insurance yet? Customers often ask for proof before they hire, so you may win more jobs with coverage. <a href="/insurance-guide">Read the insurance guide</a>.</small></div>`;const x=COVC[c.status];return `<div class="card" style="background:${x[0]};border-color:${x[1]}33"><b style="color:${x[1]}">${esc(c.headline)}</b>${c.note?`<br><small>${esc(c.note)}</small>`:''}<br><small>This is general information from your saved policy summary, not insurance advice. Confirm with your agent before a big job. <a href="/insurance">Open your policy</a></small></div>`;}
 
-function portalCard(d){const j=d.job||{};return `<h3>Customer portal</h3><div class="card"><p class="muted" style="margin-top:0">One private link where your customer sees what you have sent them: estimate, contract, signature status, schedule, invoice and proof of insurance. Drafts are never shown.</p>
+function portalCard(d){const j=d.job||{};return `<div class="card"><p class="muted" style="margin-top:0">One private link where your customer sees what you have sent them: estimate, contract, signature status, schedule, invoice and proof of insurance. Drafts are never shown.</p>
  <div id="pt_box"></div><div class="btns" style="margin-top:0"><button class="btn sec" data-ptshow="1">Show link</button><button class="btn sec" data-ptmail="1" ${j.customerEmail?'':'disabled'}>Email link to customer</button><button class="btn sec" data-ptnew="1">Make a new link</button></div><small class="muted">Making a new link turns the old one off.</small></div>`;}
 function ptShow(l){$('pt_box').innerHTML='<input readonly id="pt_link" value="'+esc(l)+'" style="width:100%;margin:6px 0" onclick="this.select()"><a href="'+esc(l)+'" target="_blank" rel="noopener">Open the customer view</a>';}
 function protectCard(d){const j=d.job||{};const has=!!d.coverage;const can=has&&j.customerEmail;
@@ -340,7 +350,7 @@ function totals(){
 }
 const $$=c=>'$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 function drawLines(){
-  $('lines').innerHTML=lines.length?`<div class="line head"><span>Description</span><span>Qty</span><span>Unit</span><span>Price ($)</span><span></span></div>`+lines.map((l,i)=>`<div class="line"><input data-i="${i}" data-f="description" value="${esc(l.description)}"><input data-i="${i}" data-f="qty" inputmode="decimal" value="${esc(l.qty)}"><input data-i="${i}" data-f="unit" value="${esc(l.unit)}"><input data-i="${i}" data-f="unitPrice" inputmode="decimal" value="${esc(l.unitPrice)}"><button data-del="${i}" title="Remove">&times;</button></div>`).join(''):'<p class="muted">No lines yet. Fill them from your prices above, or add a line by hand.</p>';
+  $('lines').innerHTML=lines.length?`<div class="line head"><span>Description</span><span>Qty</span><span>Unit</span><span>Price ($)</span><span></span></div>`+lines.map((l,i)=>`<div class="line"><input data-i="${i}" data-f="description" value="${esc(l.description)}"><input data-i="${i}" data-f="qty" inputmode="decimal" value="${esc(l.qty)}"><input data-i="${i}" data-f="unit" value="${esc(l.unit)}"><input data-i="${i}" data-f="unitPrice" inputmode="decimal" class="${l.needsPrice&&!(+l.unitPrice>0)?'np':''}" value="${esc(l.unitPrice)}"><button data-del="${i}" title="Remove">&times;</button></div>`).join(''):'<p class="muted">No lines yet. Fill them from your prices above, or add a line by hand.</p>';
   drawTotals();
 }
 function drawTotals(){if($('sched'))drawSched();const t=totals();$('tot').innerHTML=`Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;}
@@ -380,7 +390,7 @@ async function sigLoad(jobId,est,ctr){
   const mine=reqs.filter(r=>r.kind===k&&r.documentId===doc.id);
   el.innerHTML='<div class="btns" style="margin-top:8px"><button class="btn sec" data-sigsend="'+doc.id+'">Send for e-signature</button></div>'+
    '<small>The customer gets a private link, signs on their phone, and you both get the signed copy by email. Save any changes first.</small>'+
-   mine.map(r=>'<div class="ev"><b>'+esc(SIGST[r.status]||r.status)+'</b> &middot; '+esc(r.signerName)+' ('+esc(r.signerEmail)+') &middot; '+esc(r.signedAt||r.createdAt)+
+   mine.map(r=>'<div class="ev"><b>'+esc(SIGST[r.status]||r.status)+'</b> &middot; '+esc(r.signerName)+' ('+esc(r.signerEmail)+') &middot; '+esc(dtf(String(r.signedAt||r.createdAt||'').slice(0,10)))+
     (r.status==='signed'?' <a href="/api/esign/record?id='+r.id+'" target="_blank">Open signed copy</a> &middot; <a href="/api/esign/record?id='+r.id+'&format=pdf" target="_blank">PDF</a>':'')+
     (r.status==='pending'?' <button class="btn sec" data-sigvoid="'+r.id+'" style="padding:2px 8px">Cancel</button>':'')+'</div>').join('');});
 }
@@ -389,81 +399,197 @@ document.addEventListener('click',async e=>{const ds=e.target.dataset||{};
   try{msg('');const r=await api('/api/esign',{action:'send',docId:+ds.sigsend,signerEmail:to});await detail(J.job.id);msg(r.emailed?'Sent for signature.':'Created, but the email could not be sent. Copy this link: '+r.link,r.emailed);}catch(x){if(x)msg(x.message);}}
  else if(ds.sigvoid){if(!confirm('Cancel this signature request? The link stops working.'))return;try{await api('/api/esign',{action:'void',id:+ds.sigvoid});await detail(J.job.id);msg('Cancelled.',true);}catch(x){if(x)msg(x.message);}}
 });
+// ---- Job page layout helpers: sections that open and close, the header card, the next-step line, "tell me about the job" ----
+const ACC={};
+function acc(id,title,sub,open,inner){const o=ACC[id]!==undefined?ACC[id]:!!open;return `<details class="acc" id="acc_${id}" data-acc="${id}" ${o?'open':''}><summary><span class="at">${title}</span>${sub?`<span class="asub" id="accs_${id}">${sub}</span>`:`<span class="asub" id="accs_${id}"></span>`}</summary><div class="accin">${inner}</div></details>`;}
+document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.dataset.acc)ACC[d.dataset.acc]=d.open;},true);
+function openAcc(id){const a=$('acc_'+id);if(a){a.open=true;ACC[id]=true;}}
+const GUESS={interior:'interior',exterior:'exterior',power_washing:'power_wash',commercial:'commercial',decks_fences:'wood_stain'};
+const guessType=t=>GUESS[t]||'custom';
+let BF=null,bfT=null;
+
+function headCard(d){const j=d.job;const tel=String(j.customerPhone||'').replace(/[^\d+]/g,'');const addr=[j.address,j.city,j.zip].filter(Boolean).join(', ');
+ const pill=d.coverage?covPill(d.coverage.status):'';
+ return `<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div><b style="font-size:17px">${esc(j.customerName)}</b> <span class="tag">${esc(STAGE[j.stage]||j.stage)}</span> ${pill}</div><button class="mini ed" data-dtedit="1">Edit details</button></div>
+ <div class="contact">${tel?`<a class="cbtn" href="tel:${esc(tel)}">Call</a><a class="cbtn" href="sms:${esc(tel)}">Text</a>`:''}${j.customerEmail?`<a class="cbtn" href="mailto:${esc(j.customerEmail)}">Email</a>`:''}${addr?`<a class="cbtn" target="_blank" rel="noopener" href="https://maps.google.com/?q=${encodeURIComponent(addr)}">Map</a>`:''}</div>
+ <small>${esc([j.customerEmail,j.customerPhone].filter(Boolean).join(' · ')||'No contact details yet. Tap Edit details to add them.')}<br>${esc(addr||'No address yet')} &middot; ${esc(TRADES[j.trade]||j.trade)}</small><div id="dt_form"></div></div>`;}
+function dtOpen(){const f=$('dt_form');if(!f||!J)return;const j=J.job;
+ f.innerHTML=`<div class="dtf"><b>Edit details</b><small class="muted" style="display:block">Fix a name, number or address any time. Changes are saved to the job history.</small>
+ <div class="row"><div><label>Customer name</label><input id="dt_name" value="${esc(j.customerName)}"></div><div><label>Job title</label><input id="dt_title" value="${esc(j.title)}"></div></div>
+ <div class="row"><div><label>Phone</label><input id="dt_phone" inputmode="tel" value="${esc(j.customerPhone||'')}"></div><div><label>Email</label><input id="dt_email" inputmode="email" value="${esc(j.customerEmail||'')}"></div></div>
+ <label>Street address</label><input id="dt_addr" value="${esc(j.address||'')}"><div class="row"><div><label>City</label><input id="dt_city" value="${esc(j.city||'')}"></div><div><label>ZIP</label><input id="dt_zip" inputmode="numeric" value="${esc(j.zip||'')}"></div></div>
+ <div class="btns"><button class="btn" data-dtsave="1">Save</button><button class="btn sec" data-dtcancel="1">Cancel</button></div></div>`;
+ const n=$('dt_name');if(n)n.focus();}
+function nextStep(d){const j=d.job,e=d.estimate,st=j.stage;const nm=String(j.customerName||'the customer').split(/\s+/)[0];let t='';
+ if(st==='lead')t=e?`You started an estimate. Review it, then send it to ${nm}.`:`This is a new lead. Tell me about the job below, then tap Create estimate.`;
+ else if(st==='bid')t=e&&e.status==='sent'?`Estimate sent. Waiting for ${nm} to approve it. A friendly call or text often helps.`:`Your estimate is saved. Send it to ${nm} when it looks right.`;
+ else if(st==='contract')t=`Contract stage. Record the deposit when it arrives, then add the job to the calendar.`;
+ else if(st==='scheduled')t=`Scheduled. Record the deposit if you have not, and make crew instructions and a materials list.`;
+ else if(st==='in_progress')t=`Work in progress. If ${nm} asks for something extra, make a change order so the price stays right.`;
+ else if(st==='punch')t=`Final walkthrough. Finish the punch list, then build the invoice.`;
+ else if(st==='invoiced')t=`Invoice sent. Record payments as they come in. When it is paid the job closes, and you can send the warranty.`;
+ else if(st==='closed')t=`This job is done. Send the warranty certificate and save what you learned.`;
+ return t?`<div class="next"><b>Next:</b> ${esc(t)}</div>`:'';}
+
+function briefCard(){return `<div class="card"><label style="margin-top:0">What kind of job is it?</label><div class="jtypes" id="bf_types"></div>
+ <label for="bf_details">Tell me about it. Type it, or tap the mic and talk.</label>
+ <textarea id="bf_details" rows="4" placeholder="Example: Two bedrooms and the hall. Walls are in good shape. Customer wants it done before Thanksgiving."></textarea>
+ <div class="btns" style="margin-top:6px"><button type="button" class="btn sec mic" id="bf_mic" style="display:none" aria-label="Speak your notes"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>Mic</button></div>
+ <div id="bf_q"></div>
+ ${filesCard()}
+ <label for="bf_photo">What should I know about the photos?</label>
+ <textarea id="bf_photo" rows="2" placeholder="Example: Water stain on the bedroom ceiling. Peeling paint on the north wall."></textarea>
+ <div class="btns"><button class="btn" id="bf_create">Create estimate</button></div>
+ <small class="muted">I write the scope and work out the quantities from what you told me. Your own price list sets the prices, and you can change anything before it goes out.</small></div>`;}
+function bfDraw(){if(!BF||!J)return;const T_=J.jobTypes||[];const def=T_.find(t=>t.id===BF.type)||T_[0];if(!def||!$('bf_types'))return;
+ $('bf_types').innerHTML=T_.map(t=>`<button type="button" class="jt ${t.id===BF.type?'on':''}" data-jt="${t.id}" title="${esc(t.hint)}">${esc(t.label)}</button>`).join('');
+ $('bf_q').innerHTML=`<small class="muted" style="display:block;margin-top:8px">${esc(def.hint)}. Tap what fits. Skip anything you do not know.</small>`+def.questions.map(q=>{const v=BF.answers[q.id];let h=`<label>${esc(q.label)}${q.help&&window.pmHelp?window.pmHelp(q.help):''}</label>`;
+  if(q.kind==='select')h+=`<select data-bq="${q.id}"><option value="">Choose...</option>${q.options.map(o=>`<option ${v===o?'selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  else if(q.kind==='multi')h+=`<div class="ckgrid">${q.options.map(o=>`<label class="ck"><input type="checkbox" data-bqm="${q.id}" value="${esc(o)}" ${(v||[]).includes(o)?'checked':''}> ${esc(o)}</label>`).join('')}</div>`;
+  else if(q.kind==='number')h+=`<input data-bq="${q.id}" inputmode="decimal" value="${esc(v||'')}">`;
+  else h+=`<input data-bq="${q.id}" value="${esc(v||'')}">`;
+  return h;}).join('');
+ $('bf_details').value=BF.details||'';$('bf_photo').value=BF.photoNote||'';}
+function bfSaveSoon(){clearTimeout(bfT);bfT=setTimeout(bfSave,700);}
+async function bfSave(){clearTimeout(bfT);if(!J||!BF)return;try{await api('/api/job',{action:'brief',jobId:J.job.id,brief:BF});}catch(e){}}
+async function bfCreate(){const btn=$('bf_create');if(!btn||!J)return;if(lines.length&&!confirm('This replaces the scope and lines on the page with a fresh draft. Continue?'))return;
+ await bfSave();btn.disabled=true;btn.textContent='Writing your estimate...';msg('');
+ try{const r=await api('/api/estimate',{action:'aiDraft',jobId:J.job.id});
+  if(r.scope&&$('scope'))$('scope').value=r.scope;lines=(r.lines||[]).map(l=>({...l}));
+  [['e_incl',r.inclusions],['e_excl',r.exclusions],['e_assume',r.assumptions]].forEach(([id,a])=>{if(a&&a.length&&$(id))$(id).value=a.join('\n');});
+  drawLines();coachDraw(r);openAcc('est');const a=$('acc_est');if(a)a.scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(x){if(x)msg(x.message);}
+ btn.disabled=false;btn.textContent='Create estimate';}
+function coachDraw(r){const b=$('bf_coach');if(!b)return;let h='';
+ if(r.pricedCount)h+=`<li>I priced <b>${r.pricedCount}</b> ${r.pricedCount===1?'item':'items'} from your own price list, as a starting point only. Check the quantities and change any price that does not fit this job, then tap <b>Recalculate</b>.</li>`;
+ if(r.needsPriceCount)h+=`<li><b>${r.needsPriceCount}</b> ${r.needsPriceCount===1?'line needs':'lines need'} your price (marked in orange). I never guess your prices.</li>`;
+ if(!r.hasPriceList)h+=`<li>You have not set prices for this type of work yet. <a href="/app">Open Estimating Setup</a> and your next estimates will price themselves.</li>`;
+ if(r.assumptions&&r.assumptions.length)h+=`<li>I made these assumptions. Please confirm them: ${r.assumptions.map(esc).join('; ')}.</li>`;
+ if(r.questions&&r.questions.length)h+=`<li>Good questions to ask ${esc(String(J.job.customerName||'the customer').split(/\s+/)[0])} before you send:<ul>${r.questions.map(q=>'<li>'+esc(q)+'</li>').join('')}</ul></li>`;
+ h+=`<li>Not sure about the total? Tap <b>Get a second opinion on my price</b>. The Quote helper builds its own price without your price list, then compares the two and coaches you if you have been bidding too low or too high.</li>`;
+ b.innerHTML=`<div class="coach"><b>Here is what I did</b><ul>${h}</ul></div>`;}
+async function bfOpinion(){if(!J)return;openAcc('help');const el=$('acc_help');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+ const q=$('as_in');if(q&&!q.value.trim())q.value='Please build your own quote for this job and compare it with my estimate. Tell me if I am too low or too high.';
+ setTimeout(()=>{if(typeof askNow==='function')askNow($('as_in').value,'quote');},200);}
+
+// ---- "Check the information" before something goes to the customer ----
+function checkInfo(title,extra,go){return new Promise(res=>{const j=J.job;
+ const rows=[['Customer',j.customerName],['Email',j.customerEmail||'(none)'],['Phone',j.customerPhone||'(none)'],['Address',[j.address,j.city,j.zip].filter(Boolean).join(', ')||'(none)'],['Job',j.title]].concat(extra||[]);
+ const w=document.createElement('div');w.className='modal';
+ w.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="Check the information"><b style="font-size:17px">${esc(title)}</b><p class="muted" style="margin:4px 0 10px">Take a quick look. This is what the customer will see, and it is hard to take back once it goes out.</p>${rows.map(([a,b])=>`<div class="mrow"><span>${esc(a)}</span><b>${esc(b)}</b></div>`).join('')}<div class="btns"><button class="btn" data-ok="1">${esc(go||'Looks right, send it')}</button><button class="btn sec" data-fix="1">Fix something</button></div></div>`;
+ const done=v=>{document.removeEventListener('keydown',key);w.remove();res(v);if(!v){window.scrollTo({top:0,behavior:'smooth'});dtOpen();}};
+ const key=e=>{if(e.key==='Escape')done(false);};
+ w.addEventListener('click',e=>{if(e.target.dataset&&e.target.dataset.ok)done(true);else if((e.target.dataset&&e.target.dataset.fix)||e.target===w)done(false);});
+ document.addEventListener('keydown',key);document.body.appendChild(w);const ok=w.querySelector('[data-ok]');if(ok)ok.focus();});}
+
+document.addEventListener('change',e=>{const t=e.target;if(!J||!BF||!t.dataset)return;
+ if(t.dataset.bq!==undefined){BF.answers[t.dataset.bq]=t.value;bfSaveSoon();}
+ else if(t.dataset.bqm!==undefined){const id=t.dataset.bqm;BF.answers[id]=[...document.querySelectorAll('[data-bqm="'+id+'"]')].filter(x=>x.checked).map(x=>x.value);bfSaveSoon();}});
+document.addEventListener('input',e=>{const t=e.target;if(!J||!BF)return;if(t.id==='bf_details'){BF.details=t.value;bfSaveSoon();}else if(t.id==='bf_photo'){BF.photoNote=t.value;bfSaveSoon();}else if(t.dataset&&t.dataset.bq!==undefined&&t.tagName==='INPUT'){BF.answers[t.dataset.bq]=t.value;bfSaveSoon();}});
+document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if(!J)return;
+ if(ds.jt){if(BF&&BF.type!==ds.jt){BF.type=ds.jt;BF.answers={};await bfSave();await detail(J.job.id);}}
+ else if(t.id==='bf_create'){bfCreate();}
+ else if(t.id==='bf_opinion'){bfOpinion();}
+ else if(ds.dtedit){dtOpen();}
+ else if(ds.dtcancel){const f=$('dt_form');if(f)f.innerHTML='';}
+ else if(ds.dtsave){try{msg('');await api('/api/job',{action:'update',jobId:J.job.id,name:$('dt_name').value,title:$('dt_title').value,phone:$('dt_phone').value,email:$('dt_email').value,address:$('dt_addr').value,city:$('dt_city').value,zip:$('dt_zip').value});await detail(J.job.id);msg('Saved. The change is in the job history.',true);}catch(x){if(x)msg(x.message);}}
+ else if(t.closest&&t.closest('#bf_mic')){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return;const b=$('bf_mic');const r=new R();r.lang=window.PM_LANG==='es'?'es-US':'en-US';b.classList.add('on');r.onresult=ev=>{const d=$('bf_details');d.value=((d.value?d.value+' ':'')+ev.results[0][0].transcript).trim();BF.details=d.value;bfSaveSoon();};r.onend=r.onerror=()=>b.classList.remove('on');r.start();}
+});
 async function detail(id){
-  const d=await api('/api/job?id='+id);J=d;const j=d.job,e=d.estimate;
+  const sy=window.scrollY;const d=await api('/api/job?id='+id);J=d;const j=d.job,e=d.estimate;
   lines=e&&e.estimate?e.estimate.lines.map(l=>({description:l.description,qty:l.qty,unit:l.unit,unitPrice:l.unitCents/100})):[];
   const qf=qtyFields(d.rateCard);const est=e&&e.estimate?e.estimate:{};const ct=d.contract&&d.contract.contract?d.contract.contract:{};sched=(est.schedule||[]).map(m=>({...m}));cost=est.costBuild?{items:(est.costBuild.items||[]).map(c=>({...c})),markupPct:est.costBuild.markupPct||0}:{items:[],markupPct:0};clauses=ct.clauses?ct.clauses.map(c=>({...c})):[];
-  $('view').innerHTML=`<p><a href="/jobs">&larr; All jobs</a></p>
+  BF=d.brief?{...d.brief,answers:{...(d.brief.answers||{})}}:{type:guessType(j.trade),details:'',answers:{},photoNote:''};
+  const st=j.stage,early=(st==='lead'||st==='bid'),mid=['contract','scheduled','in_progress','punch'].includes(st),late=(st==='invoiced'||st==='closed');
+  const estSub=e&&e.totals?`${$$(e.totals.totalCents)} &middot; ${esc(e.status)}`:'Not saved yet';
+  $('view').innerHTML=`<p><a href="/jobs">&larr; All jobs</a> &middot; <a href="/dashboard">Home</a></p>
   <h2>${esc(j.title)}</h2>
-  <div class="card"><b>${esc(j.customerName)}</b> <span class="tag">${esc(STAGE[j.stage]||j.stage)}</span><br>
-   <small>${esc([j.customerEmail,j.customerPhone].filter(Boolean).join(' · ')||'No contact details')}<br>${esc([j.address,j.city,j.zip].filter(Boolean).join(', ')||'No address yet')} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div>
+  ${headCard(d)}
+  ${nextStep(d)}
   ${commBanner(d.commercial)}
-  ${covBanner(d.coverage)}
-  ${protectCard(d)}
-  ${portalCard(d)}
-  ${lostCard(d)}
-  ${filesCard()}
-  ${woCard()}
-  ${payCard()}
-  ${costCard()}
-  ${wcCard()}
-  ${lsCard()}
-  ${jfCard()}
-  ${assistantCard(j.id)}
-  <h3>1. Measurements and quantities</h3>
-  <div class="card">${d.rateCard?`<small>Using your ${esc(TRADES[j.trade]||j.trade)} prices. Enter how many of each; leave blank for none.</small>
-   <div class="row">${qf.map(([k,l])=>`<div><label>${esc(l)}</label><input data-q="${esc(k)}" inputmode="decimal"></div>`).join('')}</div>
-   <div class="btns"><button class="btn sec" id="fill">Fill lines from my prices</button></div>`:`<p class="muted">You have not set prices for this type of work yet. <a href="/app">Open Estimating Setup</a> (step 3), or add lines by hand below.</p>`}</div>
-  <h3>2. Estimate</h3>
-  <div class="card"><label>Scope of work (what the customer gets)</label><textarea id="scope" rows="4">${esc(est.scope||'')}</textarea>
+  ${st==='lost'?lostCard(d):''}
+  <h3 class="grp">Estimate</h3>
+  ${acc('type','1. Tell me about the job','',early,briefCard())}
+  ${acc('est','2. Estimate',estSub,early&&(!!e||lines.length>0),`<div class="card">
+   <label style="margin-top:0">Scope of work (what the customer gets)</label><textarea id="scope" rows="4" placeholder="Tap Create estimate above and I will write this for you, or type your own.">${esc(est.scope||'')}</textarea>
    <div id="lines" style="margin-top:12px"></div>
    <div class="btns"><button class="btn sec" id="addline">+ Add a line</button></div>
-   <div class="row"><div><label>Discount ($)</label><input id="discount" inputmode="decimal" value="${esc((est.discountCents||0)/100||'')}"></div><div><label>Sales tax (%)</label><input id="tax" inputmode="decimal" value="${esc(est.taxPct||'')}"></div></div>
-   <div class="row"><div><label>Valid for (days)</label><input id="valid" inputmode="numeric" value="${esc(est.validDays||30)}"></div><div><label>Language</label><select id="lang"><option value="en">English</option><option value="es" ${est.language==='es'?'selected':''}>Español</option></select></div></div>
-   <h3 style="margin-top:18px">What is included and not included</h3>
-   <small>One item per line. These print on the estimate. The included, not included and assumptions lists also carry into the contract.</small>
-   <label>Included</label><textarea id="e_incl" rows="3">${esc((est.inclusions||[]).join('\n'))}</textarea>
-   <label>Not included</label><textarea id="e_excl" rows="3">${esc((est.exclusions||[]).join('\n'))}</textarea>
-   <label>Assumptions</label><textarea id="e_assume" rows="3">${esc((est.assumptions||[]).join('\n'))}</textarea>
-   <label>Allowances (adjusted to actual cost)</label><textarea id="e_allow" rows="2">${esc((est.allowances||[]).join('\n'))}</textarea>
-   <label>Options, priced on request</label><textarea id="e_opts" rows="2">${esc((est.options||[]).join('\n'))}</textarea>
-   <h3 style="margin-top:18px">Payment schedule</h3>
-   <small>Leave empty to use your deposit and final payment. Or split the price into milestones that add up to 100%.</small>
-   <div class="btns" style="margin-top:6px"><button class="btn sec" data-pre="30,30,30,10">30 / 30 / 30 / 10</button><button class="btn sec" data-pre="50,50">50 / 50</button><button class="btn sec" data-pre="clear">No schedule</button></div>
-   <div id="sched"></div>
-   <h3 style="margin-top:18px">Cost build-up for a lump-sum bid</h3>
-   <small>Private to you. Add your costs and your markup for overhead, contingency and profit, then use the result as the project total line.</small>
-   <div id="cost"></div>
-   <label>Notes for the customer</label><textarea id="notes" rows="3">${esc(est.notes||'')}</textarea>
+   <div id="bf_coach"></div>
+   <details class="g"><summary>Measurements and quantities (optional)</summary><div class="inner">${d.rateCard?`<small>Using your ${esc(TRADES[j.trade]||j.trade)} prices. Enter how many of each, and I will fill the lines from your price list. Leave blank for none.</small>
+    <div class="row">${qf.map(([k,l])=>`<div><label>${esc(l)}</label><input data-q="${esc(k)}" inputmode="decimal"></div>`).join('')}</div>
+    <div class="btns"><button class="btn sec" id="fill">Fill lines from my prices</button></div>`:`<p class="muted">You have not set prices for this type of work yet. <a href="/app">Open Estimating Setup</a> (Your prices), or add lines by hand.</p>`}</div></details>
    <div class="tot" id="tot"></div>
-   <div class="btns"><button class="btn" id="save">Save estimate</button><button class="btn sec" id="view_doc" ${e?'':'disabled'}>View / print</button><button class="btn sec" id="pdf_doc" ${e?'':'disabled'}>Download PDF</button><button class="btn sec" id="send" ${j.customerEmail?'':'disabled'}>Email to customer</button></div>
-   <small>${e?`Status: ${esc(e.status)}`:'Not saved yet'}</small><div id="sig_estimate"></div></div>
-  <h3>3. Contract</h3>
-  <div class="card" id="ctr">${e?`<p class="muted" style="margin-top:0"><b>Template, not legal advice.</b> Have an attorney in your state review it before you use it with customers. Spanish text should be checked by a native speaker.</p>
+   <div class="btns"><button class="btn" id="save">Recalculate estimate and save</button><button class="btn sec" id="send" ${j.customerEmail?'':'disabled'}>Send estimate to customer</button></div>
+   ${j.customerEmail?'':'<small class="muted">Add an email address in Edit details above to send it from here.</small>'}
+   <div class="btns" style="margin-top:6px"><button class="btn sec" id="view_doc" ${e?'':'disabled'}>View / print</button><button class="btn sec" id="pdf_doc" ${e?'':'disabled'}>Download PDF</button><button class="btn sec" id="bf_opinion">Get a second opinion on my price</button></div>
+   <small>${e?`Status: ${esc(e.status)}`:'Not saved yet'}</small><div id="sig_estimate"></div>
+   <details class="g"><summary>More estimate options (what is included, payment schedule, discount, tax)</summary><div class="inner">
+    <div class="row"><div><label>Discount ($)</label><input id="discount" inputmode="decimal" value="${esc((est.discountCents||0)/100||'')}"></div><div><label>Sales tax (%)</label><input id="tax" inputmode="decimal" value="${esc(est.taxPct||'')}"></div></div>
+    <div class="row"><div><label>Valid for (days)</label><input id="valid" inputmode="numeric" value="${esc(est.validDays||30)}"></div><div><label>Language</label><select id="lang"><option value="en">English</option><option value="es" ${est.language==='es'?'selected':''}>Español</option></select></div></div>
+    <h3 style="margin-top:14px">What is included and not included</h3>
+    <small>One item per line. These print on the estimate. The included, not included and assumptions lists also carry into the contract.</small>
+    <label>Included</label><textarea id="e_incl" rows="3">${esc((est.inclusions||[]).join('\n'))}</textarea>
+    <label>Not included</label><textarea id="e_excl" rows="3">${esc((est.exclusions||[]).join('\n'))}</textarea>
+    <label>Assumptions</label><textarea id="e_assume" rows="3">${esc((est.assumptions||[]).join('\n'))}</textarea>
+    <label>Allowances (adjusted to actual cost)</label><textarea id="e_allow" rows="2">${esc((est.allowances||[]).join('\n'))}</textarea>
+    <label>Options, priced on request</label><textarea id="e_opts" rows="2">${esc((est.options||[]).join('\n'))}</textarea>
+    <h3 style="margin-top:14px">Payment schedule</h3>
+    <small>Leave empty to use your deposit and final payment. Or split the price into milestones that add up to 100%.</small>
+    <div class="btns" style="margin-top:6px"><button class="btn sec" data-pre="30,30,30,10">30 / 30 / 30 / 10</button><button class="btn sec" data-pre="50,50">50 / 50</button><button class="btn sec" data-pre="clear">No schedule</button></div>
+    <div id="sched"></div>
+    <h3 style="margin-top:14px">Cost build-up for a lump-sum bid</h3>
+    <small>Private to you. Add your costs and your markup for overhead, contingency and profit, then use the result as the project total line.</small>
+    <div id="cost"></div>
+    <label>Notes for the customer</label><textarea id="notes" rows="3">${esc(est.notes||'')}</textarea>
+   </div></details></div>`)}
+  ${acc('help','Ask for help (Job assistant and Quote helper)','Photo questions, step-by-step plans, a second opinion on your price',false,assistantCard(j.id))}
+
+  <h3 class="grp">After the customer says yes</h3>
+  <p class="muted grpn">Deposit, contract, schedule, crew, and changes the customer asks for.</p>
+  ${acc('pay','Deposit and payments','',mid,payCard())}
+  ${acc('ctr','Contract','',mid,`<div class="card" id="ctr">${e?`<p class="muted" style="margin-top:0"><b>Template, not legal advice.</b> Have an attorney in your state review it before you use it with customers. Spanish text should be checked by a native speaker.</p>
    <div class="row"><div><label>Start date</label><input id="c_start" value="${esc(ct.startDate||'')}" placeholder="Example: Monday, Nov 17"></div><div><label>Finish date</label><input id="c_end" value="${esc(ct.endDate||'')}" placeholder="Example: Friday, Nov 21"></div></div>
    <div class="row"><div><label>Language</label><select id="c_lang"><option value="en">English</option><option value="es" ${ct.language==='es'?'selected':''}>Español</option></select></div></div>
    <div class="btns"><button class="btn sec" id="c_build">${clauses.length?'Rebuild from my estimate (replaces edits)':'Build contract from my estimate'}</button></div>
    <div id="clauses"></div>
    <div class="btns" id="c_btns" style="display:none"><button class="btn" id="c_save">Save contract</button><button class="btn sec" id="c_view" ${d.contract?'':'disabled'}>View / print</button><button class="btn sec" id="c_pdf" ${d.contract?'':'disabled'}>Download PDF</button><button class="btn sec" id="c_send" ${j.customerEmail&&d.contract?'':'disabled'}>Email to customer</button><button class="btn sec" id="c_signed" ${d.contract?'':'disabled'}>Mark as signed</button></div>
-   <small>${d.contract?`Status: ${esc(d.contract.status)}`:'Not saved yet'}</small><div id="sig_contract"></div>`:'<p class="muted">Save the estimate first. The contract uses its price and scope.</p>'}</div>
-  <div id="more"></div>
-  <h3>Job history</h3><div class="card">${d.events.map(v=>`<div class="ev"><b>${esc(v.kind)}</b> &middot; ${esc(v.at)}<br>${esc(v.text).slice(0,600)}</div>`).join('')||'<small>Nothing yet.</small>'}</div>`;
+   <small>${d.contract?`Status: ${esc(d.contract.status)}`:'Not saved yet'}</small><div id="sig_contract"></div>`:'<p class="muted">Save the estimate first. The contract uses its price and scope.</p>'}</div>`)}
+  ${acc('sched','Schedule','',mid,'<div id="m_sched"></div>')}
+  ${acc('mat','Materials list','',false,'<div id="m_mat"></div>')}
+  ${acc('crew','Crew instructions','',false,'<div id="m_crew"></div>')}
+  ${acc('wo','Work orders and change orders','',st==='in_progress',woCard())}
+  ${acc('portal','Customer portal link','',false,portalCard(d))}
+
+  <h3 class="grp">When the work is done</h3>
+  <p class="muted grpn">Final walkthrough, invoice, and the warranty after the invoice is paid.</p>
+  ${acc('punch','Punch list','',st==='punch','<div id="m_punch"></div>')}
+  ${acc('inv','Invoice','',late||st==='punch','<div id="m_inv"></div>')}
+  ${acc('warr','Warranty','Best after the invoice is paid',st==='closed','<div id="m_warr"></div>'+wcCard())}
+
+  <h3 class="grp">Keep on record</h3>
+  ${acc('prot','Insurance and protecting this job','',false,covBanner(d.coverage)+protectCard(d))}
+  ${acc('ls','Lessons learned','',false,lsCard())}
+  ${st!=='lost'&&st!=='closed'?acc('lost','Lost this job?','',false,lostCard(d)):''}
+  ${acc('hist','Job history','',false,`<div class="card">${d.events.map(v=>`<div class="ev"><b>${esc(v.kind)}</b> &middot; ${esc(dtf((v.at||'').slice(0,10)))}<br>${esc(v.text).slice(0,600)}</div>`).join('')||'<small>Nothing yet.</small>'}</div>`)}
+  <div class="card"><small class="muted">Expenses, mileage and receipts for this job are kept in <a href="/records">Records</a>. Your full job file (photos and documents in one download) is in Records, under Download.</small></div>`;
+  bfDraw();
   drawLines();sigLoad(j.id,e,d.contract);
   const f=$('fill');if(f)f.onclick=async()=>{try{msg('');const quantities={};document.querySelectorAll('[data-q]').forEach(i=>{if(i.value!=='')quantities[i.dataset.q]=Number(i.value);});const r=await api('/api/estimate',{action:'draft',jobId:j.id,quantities});if(!r.lines.length)throw new Error('Enter at least one quantity first.');lines=r.lines;drawLines();msg('Lines filled. Review and change anything you like.',true);}catch(e){if(e)msg(e.message);}};
   $('addline').onclick=()=>{lines.push({description:'',qty:1,unit:'ea',unitPrice:0});drawLines();};
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
   $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>msg('Saved.',true));};
-  $('send').onclick=async()=>{if(!confirm('Email this estimate to '+j.customerEmail+'?'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
-  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad();findingsLoad();woLoad();payLoad();costLoad();wcLoad();lsLoad();jfLoad();
+  $('send').onclick=async()=>{if(!await checkInfo('Send this estimate',[['Estimate total',$$(totals().total)]],'Looks right, send it'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
+  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad();findingsLoad();woLoad();payLoad();wcLoad();lsLoad();
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};
   const cact=async(action)=>{try{msg('');const r=await api('/api/contract',{action,jobId:j.id,contract:{startDate:$('c_start').value,endDate:$('c_end').value,language:$('c_lang').value,clauses}});return r;}catch(x){if(x)msg(x.message);}};
   const cs=$('c_save');if(cs){cs.onclick=async()=>{const r=await cact('save');if(r)detail(j.id).then(()=>msg('Contract saved.',true));};
-   $('c_send').onclick=async()=>{if(!confirm('Email this contract to '+j.customerEmail+'?'))return;const r=await cact('send');if(r)detail(j.id).then(()=>msg('Contract emailed.',true));};
+   $('c_send').onclick=async()=>{if(!await checkInfo('Send this contract',[['Contract','Built from your saved estimate']],'Looks right, send it'))return;const r=await cact('send');if(r)detail(j.id).then(()=>msg('Contract emailed.',true));};
    $('c_view').onclick=()=>{if(d.contract)window.open('/api/doc?id='+d.contract.id,'_blank');};
    $('c_pdf').onclick=()=>{if(d.contract)window.open('/api/doc?id='+d.contract.id+'&format=pdf','_blank');};
    $('c_signed').onclick=async()=>{if(!confirm('Mark this contract as signed by both sides?'))return;const r=await cact('signed');if(r)detail(j.id).then(()=>msg('Marked as signed. The job moves to Scheduled.',true));};}
   $('view_doc').onclick=()=>{if(e)window.open('/api/doc?id='+e.id,'_blank');};
   $('pdf_doc').onclick=()=>{if(e)window.open('/api/doc?id='+e.id+'&format=pdf','_blank');};
+  if(sy)window.scrollTo(0,sy);
 }
 
 const DOCS=[
@@ -477,7 +603,7 @@ function wDraw(k){const c=$('wl_'+k);if(!c)return;const d=docs[k];const m=DOCS.f
  c.innerHTML=d?`<label>Intro</label><textarea data-dk="${k}" data-df="intro" rows="2">${esc(d.intro||'')}</textarea>`+d.items.map((it,i)=>`<div class="line" style="grid-template-columns:${m.cols?'1fr 56px 56px 80px 1fr':'1fr 150px'} 30px;"><input data-dk="${k}" data-di="${i}" data-df="text" value="${esc(it.text)}">${m.cols?`<input data-dk="${k}" data-di="${i}" data-df="qty" inputmode="decimal" value="${it.qty||''}" placeholder="Qty"><input data-dk="${k}" data-di="${i}" data-df="unit" value="${esc(it.unit)}" placeholder="Unit"><select data-dk="${k}" data-di="${i}" data-df="group">${[['material','Buy'],['rental','Rent'],['tool','Tools'],['safety','Safety']].map(([v,l])=>`<option value="${v}" ${(it.group||'material')===v?'selected':''}>${l}</option>`).join('')}</select>`:''}<input data-dk="${k}" data-di="${i}" data-df="detail" value="${esc(it.detail)}" placeholder="${k==='schedule'?'Date':'Notes'}"><button data-dkdel="${k}:${i}">&times;</button></div>`).join('')+`<div class="btns"><button class="btn sec" data-dkadd="${k}">+ Add a line</button></div>`:'';
  const b=$('wb_'+k);if(b)b.style.display=d?'flex':'none';}
 function docCard(m,d){const x=d.docs[m.k];const lang=docs[m.k]?docs[m.k].language:(m.crew?d.crewLanguage:'en');
- return `<h3>${m.n}. ${m.t}</h3><div class="card"><p class="muted" style="margin-top:0">${m.h}</p>
+ return `<div class="card"><p class="muted" style="margin-top:0">${m.h}</p>
  <div class="row"><div><label>Language</label><select id="wlang_${m.k}"><option value="en">English</option><option value="es" ${lang==='es'?'selected':''}>Español</option></select></div>
  ${m.start?`<div><label>Start date</label><input id="wstart_${m.k}" type="date"></div>`:''}${m.done?`<div><label>Completion date</label><input id="wdone_${m.k}" placeholder="Example: Nov 21, 2026"></div>`:''}</div>
  <div class="btns"><button class="btn sec" data-dkbuild="${m.k}">${x?'Rebuild (replaces edits)':'Build it'}</button></div>
@@ -485,7 +611,7 @@ function docCard(m,d){const x=d.docs[m.k];const lang=docs[m.k]?docs[m.k].languag
  <div class="btns" id="wb_${m.k}" style="display:none"><button class="btn" data-dksave="${m.k}">Save</button><button class="btn sec" data-dkview="${m.k}" ${x?'':'disabled'}>View / print</button>${m.cust?`<button class="btn sec" data-dksend="${m.k}" ${x&&d.job.customerEmail?'':'disabled'}>Email to customer</button>`:''}</div>
  <small>${x?'Status: '+esc(x.status):'Not saved yet'}</small></div>`;}
 function invCard(d){const x=d.docs.invoice;const lock=!!x&&(x.status==='sent'||x.status==='paid');
- return `<h3>8. Invoice</h3><div class="card">${d.estimate?`${lock?'<div style="background:#eef5ff;border:1px solid #9cc2f0;border-radius:8px;padding:10px 12px;margin-bottom:10px"><b>This invoice is locked.</b> The customer already has it, so it stays exactly as sent. You can view it or email it again. To change something, tap <b>Create corrected invoice</b>. The original stays on record.</div>':''}<p class="muted" style="margin-top:0">Uses the price from your saved estimate. The amount already paid comes from the payments you recorded above.</p>
+ return `<div class="card">${d.estimate?`${lock?'<div style="background:#eef5ff;border:1px solid #9cc2f0;border-radius:8px;padding:10px 12px;margin-bottom:10px"><b>This invoice is locked.</b> The customer already has it, so it stays exactly as sent. You can view it or email it again. To change something, tap <b>Create corrected invoice</b>. The original stays on record.</div>':''}<p class="muted" style="margin-top:0">Uses the price from your saved estimate. The amount already paid comes from the payments you recorded above.</p>
  <div class="btns" style="margin-top:0"><button class="btn sec" data-ivbuild="1">${x?'Rebuild (replaces edits)':'Job complete: build invoice'}</button></div>
  <div id="iv_chk"></div><div id="ivf" style="display:none"><div class="row"><div><label>Invoice number</label><input id="iv_num"></div><div><label>Due</label><input id="iv_due" placeholder="Example: on completion, or Dec 1"></div></div>
  <div id="iv_ms"></div><div class="row"><div><label>Already paid ($)</label><input id="iv_paid" inputmode="decimal"></div><div><label>Language</label><select id="iv_lang"><option value="en">English</option><option value="es">Español</option></select></div></div>
@@ -498,7 +624,10 @@ function ivRead(){const ms=$('iv_msel');return{milestone:ms&&ms.value!==''?Numbe
 function drawMore(d){
  docs={};for(const m of DOCS){if(d.docs[m.k]&&d.docs[m.k].doc)docs[m.k]=JSON.parse(JSON.stringify(d.docs[m.k].doc));}
  inv=d.docs.invoice&&d.docs.invoice.invoice?{...d.docs.invoice.invoice,paid:(d.docs.invoice.invoice.paidCents||0)/100}:{};
- $('more').innerHTML=DOCS.slice(0,4).map(m=>docCard(m,d)).join('')+invCard(d)+docCard(DOCS[4],d);
+ const put=(id,h)=>{const el=$(id);if(el)el.innerHTML=h;};
+ put('m_sched',docCard(DOCS[1],d));put('m_mat',docCard(DOCS[0],d));put('m_crew',docCard(DOCS[2],d));put('m_punch',docCard(DOCS[3],d));put('m_inv',invCard(d));put('m_warr','<b>Warranty letter</b>'+docCard(DOCS[4],d));
+ const ST={draft:'Saved as a draft',sent:'Sent to the customer',paid:'Paid',signed:'Signed',approved:'Approved'};
+ [['schedule','sched'],['materials','mat'],['instructions','crew'],['punch','punch'],['invoice','inv'],['warranty','warr']].forEach(([k,a])=>{const x=d.docs[k];const el=$('accs_'+a);if(el)el.textContent=x?(ST[x.status]||x.status||'Saved'):'Not started';});
  DOCS.forEach(m=>wDraw(m.k));msOpts=((d.estimate&&d.estimate.estimate&&d.estimate.estimate.schedule)||[]).map((m,i,a)=>({label:m.label,pct:m.pct,amountCents:Math.round(((d.estimate.totals||{}).totalCents||0)*m.pct/100)}));if(d.docs.invoice&&d.docs.invoice.invoice)ivFill();
 }
 async function jd(body){try{msg('');return await api('/api/jobdoc',{jobId:J.job.id,...body});}catch(x){if(x)msg(x.message);}}
@@ -506,14 +635,14 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  const rel=()=>detail(J.job.id);
  if(ds.dkbuild){const k=ds.dkbuild;if(docs[k]&&!confirm('This replaces what is on screen with a fresh draft. Continue?'))return;const r=await jd({action:'draft',kind:k,language:$('wlang_'+k).value,startDate:($('wstart_'+k)||{}).value,completionDate:($('wdone_'+k)||{}).value});if(r){docs[k]=r.doc;wDraw(k);msg('Built. Edit anything you like.',true);}}
  else if(ds.dksave){const k=ds.dksave;docs[k].language=$('wlang_'+k).value;const r=await jd({action:'save',kind:k,doc:docs[k]});if(r)rel().then(()=>msg('Saved.',true));}
- else if(ds.dksend){const k=ds.dksend;if(!confirm('Email this to '+J.job.customerEmail+'?'))return;docs[k].language=$('wlang_'+k).value;const r=await jd({action:'send',kind:k,doc:docs[k]});if(r)rel().then(()=>msg('Emailed.',true));}
+ else if(ds.dksend){const k=ds.dksend;if(!await checkInfo('Email this to '+String(J.job.customerName||'the customer').split(/\s+/)[0],[['Document',(DOCS.find(x=>x.k===k)||{}).t||'Document']],'Looks right, send it'))return;docs[k].language=$('wlang_'+k).value;const r=await jd({action:'send',kind:k,doc:docs[k]});if(r)rel().then(()=>msg('Emailed.',true));}
  else if(ds.dkview){const x=J.docs[ds.dkview];if(x)window.open('/api/doc?id='+x.id,'_blank');}
  else if(ds.dkadd){const k=ds.dkadd;docs[k].items.push({text:'',detail:'',qty:0,unit:''});wDraw(k);}
  else if(ds.dkdel){const[k,i]=ds.dkdel.split(':');docs[k].items.splice(+i,1);wDraw(k);}
  else if(ds.ivbuild){if(inv.number&&!confirm('This replaces the invoice on screen. Continue?'))return;const r=await jd({action:'draft',kind:'invoice',language:'en'});if(r){inv=r.invoice;msOpts=r.milestones||[];ivFill();const c=$('iv_chk'),T=window.pmT||function(q){return q};if(c)c.innerHTML=(r.checks&&r.checks.length)?'<div style="background:#fff7e6;border:1px solid #E8A33D;border-radius:8px;padding:10px 12px;margin:10px 0"><b>'+T('Check before you send')+'</b><ul style="margin:6px 0 0;padding-left:18px">'+r.checks.map(x=>'<li>'+esc(T(x))+'</li>').join('')+'</ul></div>':'<p class="muted">'+T('No problems found. Review the amounts, then save and send.')+'</p>';}}
  else if(ds.ivnote){const r=await jd({action:'note',kind:'invoice',language:($('iv_lang')||{}).value||'en'});if(r&&r.note){const n=$('iv_notes');n.value=(n.value?n.value+'\n\n':'')+r.note;msg('Note added. Review it, then save.',true);}}
  else if(ds.ivsave){const lk=J.docs.invoice&&(J.docs.invoice.status==='sent'||J.docs.invoice.status==='paid');if(lk&&!confirm('Create a corrected invoice? The invoice you already sent stays on record, and the corrected one starts as a draft.'))return;const iv=ivRead();const r=await jd({action:'save',kind:'invoice',invoice:iv,corrected:lk||undefined});if(r){if(iv.howToPay)api('/api/jobpay',{action:'saveHowToPay',text:iv.howToPay}).catch(()=>{});rel().then(()=>msg(lk?'Corrected invoice created. Review it, then email it.':'Invoice saved.',true));}}
- else if(ds.ivsend){if(!confirm('Email this invoice to '+J.job.customerEmail+'?'))return;const r=await jd({action:'send',kind:'invoice',invoice:ivRead()});if(r)rel().then(()=>msg('Invoice emailed.',true));}
+ else if(ds.ivsend){const iv=ivRead();if(!await checkInfo('Send this invoice',[['Invoice number',iv.number||'(next number)'],['Amount already paid',iv.paid?('$'+iv.paid):'$0']],'Looks right, send it'))return;const r=await jd({action:'send',kind:'invoice',invoice:iv});if(r)rel().then(()=>msg('Invoice emailed.',true));}
  else if(ds.ivview){const x=J.docs.invoice;if(x)window.open('/api/doc?id='+x.id,'_blank');}
  else if(ds.ivpaid){if(!confirm(PAY&&PAY.totalCents>0&&!PAY.paidInFull?'Your recorded payments still show a balance of '+$$(PAY.balanceCents)+'. Mark this invoice as paid anyway? The job will close.':'Mark this invoice as paid? The job will close.'))return;const r=await jd({action:'paid',kind:'invoice'});if(r)rel().then(()=>msg('Paid. Job closed.',true));}
 });

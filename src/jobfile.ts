@@ -71,6 +71,9 @@ ${sec("Assistant chat (private to you)", d.chat.length ? d.chat.map((m) => `<p><
 </body></html>`;
 }
 
+/** Removing stored files is off until the storage rules are decided. */
+const FREE_UP_ON = false;
+
 /**
  * GET  /api/jobfile?jobId=              what is stored and whether it fits in a ZIP
  * GET  /api/jobfile?jobId=&download=1   the Job File ZIP
@@ -91,6 +94,7 @@ export async function handleJobFile(request: Request, env: Env): Promise<Respons
       return json({ error: "Invalid JSON." }, 400);
     }
     if (b?.action !== "freeUp") return json({ error: "Unknown action." }, 400);
+    if (!FREE_UP_ON) return json({ error: "Freeing up storage is turned off for now. Your files are safe, and you can download them any time." }, 400);
     if (b.confirm !== true) return json({ error: "Please confirm that you downloaded the job file." }, 400);
     const jobId = Number(b.jobId);
     if (!Number.isInteger(jobId) || !(await env.DB.prepare("SELECT id FROM jobs WHERE id = ? AND company_id = ?").bind(jobId, c).first())) return json({ error: "Job not found." }, 404);
