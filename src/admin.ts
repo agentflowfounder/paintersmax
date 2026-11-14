@@ -3,6 +3,8 @@ import { listDomains, removeDomain, setDomain } from "./domains.ts";
 import { RESERVED_SLUGS } from "./settings.ts";
 import { adminTickerView, saveConfig } from "./ticker.ts";
 import { getSessionUser, requestLoginLink } from "./auth.ts";
+import { grantCredits } from "./credits.ts";
+import { todayLocal } from "./dates.ts";
 import { normalizePlan } from "./usage.ts";
 import { adminHelpDelete, adminHelpDismiss, adminHelpDraft, adminHelpSave, adminHelpView } from "./helplib.ts";
 import type { Env } from "./types.ts";
@@ -112,6 +114,14 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
     if (b?.action === "help_draft") {
       const d = await adminHelpDraft(env, String(b.question ?? "").slice(0, 400), String(b.hint ?? "").slice(0, 1000));
       return d ? json({ ok: true, draft: d }) : json({ error: "The AI could not write a draft right now. Write the answer yourself, or try again." }, 503);
+    }
+    if (b?.action === "credits_grant") {
+      // Add AI credits to a client (for example after they pay for a pack another way). Only paid clients can use them.
+      const id = Number(b?.companyId);
+      const co = Number.isInteger(id) ? await env.DB.prepare("SELECT id FROM companies WHERE id = ?").bind(id).first() : null;
+      if (!co) return json({ error: "Client not found." }, 404);
+      const r = await grantCredits(env, id, { id: `admin:${Date.now()}:${crypto.randomUUID().slice(0, 8)}`, credits: Number(b?.credits), source: "admin", note: typeof b?.note === "string" ? b.note.trim().slice(0, 100) : "" }, todayLocal());
+      return r.ok ? json({ ok: true }) : json({ error: r.error ?? "Could not add credits." }, 400);
     }
     if (b?.action === "plan") {
       const id = Number(b?.companyId);

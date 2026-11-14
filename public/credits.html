@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>AI use and credits - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+main{max-width:860px;margin:0 auto;padding:16px 12px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:14px;margin:0 0 14px}
+.muted{color:#4A5568;font-size:14px}.bad{color:#b42318;font-weight:600}.ok{color:#0a7a3d;font-weight:600}
+.big{font-family:Newsreader,Georgia,serif;font-size:44px;line-height:1.1}
+button,.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:9px 13px;background:#E8A33D;color:#0F1B2D;cursor:pointer;text-decoration:none;display:inline-block}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 4px;border-bottom:1px solid #eee;text-align:left;font-size:14px}td.r,th.r{text-align:right}tr:last-child td{border-bottom:0}
+.scroll{overflow-x:auto}.note{background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px;font-size:14px}
+.bar{height:6px;background:#eceae4;border-radius:3px;margin-top:4px;min-width:60px}.bar i{display:block;height:6px;border-radius:3px;background:#0F1B2D}.bar i.full{background:#b42318}
+a{color:#0F1B2D}
+</style></head><body>
+<header><div><b>PaintersMax</b> AI use and credits</div><div></div></header>
+<main>
+<h1>AI use and credits</h1>
+<p class="muted" style="margin-top:0">Your plan includes a monthly amount of AI help, like the help chat, receipt and photo reads, and color previews. If one of them runs out, credits keep it going until the month starts over.</p>
+<div id="msg" class="muted">Loading...</div>
+<div id="body" style="display:none">
+<div id="thanks" class="note" style="display:none;margin-bottom:14px">Thank you. Your credits show up here within a minute.</div>
+<div class="card" id="bal"></div>
+<div class="card" id="buy"></div>
+<div class="card scroll"><b id="mt"></b><table style="margin-top:6px"><thead><tr><th>What</th><th class="r">Used</th><th class="r">Monthly amount</th><th class="r">Paid with credits</th><th class="r">Credits per use</th></tr></thead><tbody id="rows"></tbody></table></div>
+<p class="muted">Credits are used only after a monthly amount runs out, and only for things your plan already includes. A heavier job, like a photo preview, uses more credits than a simple question.</p>
+<p class="muted" id="exp"></p>
+</div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+var T=window.pmT||function(s){return s};
+var DT=window.pmDate||function(s){return s};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function usd(c){var n=c/100;return '$'+(n%1===0?n:n.toFixed(2));}
+var D=null;
+function draw(d){
+ D=d;
+ var b='<div class="muted">'+T('Credits left')+'</div><div class="big">'+d.balance+'</div>';
+ if(d.balance>0&&d.nextExpiry)b+='<div class="muted">'+d.nextExpiry.credits+' '+T('can be used until')+' '+esc(DT(d.nextExpiry.on))+'</div>';
+ else if(!d.canUseCredits)b+='<div class="muted">'+T('Credits come with a paid plan.')+' <a href="/dashboard#billing">'+T('See plans')+'</a></div>';
+ else b+='<div class="muted">'+T('You have no credits right now.')+'</div>';
+ if(d.trialDaysLeft>0)b+='<p class="muted" style="margin:8px 0 0">'+T('Your free trial has the Basic monthly amounts. Credits start once you choose a plan.')+'</p>';
+ $('bal').innerHTML=b;
+ var buy='<b>'+T('Add credits')+'</b>';
+ if(!d.canUseCredits)buy+='<p class="muted">'+T('Choose a paid plan to add credits.')+'</p>';
+ else buy+=d.packs.map(function(p){return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px"><div><b>'+p.credits+' '+T('credits')+'</b>'+(p.priceCents!==null?' <span class="muted">'+usd(p.priceCents)+'</span>':'')+'</div>'+(p.forSale?'<button data-buy="'+esc(p.id)+'">'+T('Buy')+'</button>':'<span class="muted">'+T('Packs are not for sale yet. Ask us and we can add credits to your account.')+'</span>')+'</div>'}).join('');
+ $('buy').innerHTML=buy;
+ $('mt').textContent=T('This month')+' ('+d.period+')';
+ $('rows').innerHTML=d.features.map(function(f){
+  var pct=f.limit?Math.min(100,Math.round(100*f.used/f.limit)):0;
+  return '<tr><td>'+esc(T(f.label))+(f.limit?'<div class="bar"><i'+(pct>=100?' class="full"':'')+' style="width:'+pct+'%"></i></div>':'<div class="muted">'+T('Not in your plan')+'</div>')+'</td><td class="r">'+f.used+'</td><td class="r">'+(f.limit||'-')+'</td><td class="r">'+(f.creditUses||'')+'</td><td class="r">'+f.creditCost+'</td></tr>'}).join('')||'<tr><td colspan="5" class="muted">'+T('Nothing used yet this month.')+'</td></tr>';
+ $('exp').textContent=T('Credits last')+' '+d.expiryDays+' '+T('days, and the oldest are used first. If an AI use fails, the credits come back.');
+ if(/[?&]bought=1/.test(location.search))$('thanks').style.display='';
+ $('msg').style.display='none';$('body').style.display='';
+}
+document.addEventListener('click',function(e){var id=e.target.dataset&&e.target.dataset.buy;if(!id)return;
+ e.target.disabled=true;
+ fetch('/api/credits',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'buy',pack:id})}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});}).then(function(j){location.href=j.url;}).catch(function(x){e.target.disabled=false;$('msg').style.display='';$('msg').className='bad';$('msg').textContent=T(x.message);});
+});
+fetch('/api/credits').then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});}).then(draw).catch(function(x){if(x){$('msg').className='bad';$('msg').textContent=T(x.message);}});
+</script><script src="/nav.js"></script></body></html>

@@ -1867,5 +1867,32 @@
     [/^Time sheets waiting for your approval: (.+?)\.$/, function (a, list) { return 'Hojas de horas esperando su aprobación: ' + list.replace(/ and (\d+) more$/, ' y $1 más') + '.'; }],
   ]);
 
+  /* ---- Part 19: AI use and credits ---- */
+  pmI18n.add({
+    "AI use and credits": "Uso de IA y créditos", "AI use and credits - PaintersMax": "Uso de IA y créditos - PaintersMax", "Credits": "Créditos",
+    "Your plan includes a monthly amount of AI help, like the help chat, receipt and photo reads, and color previews. If one of them runs out, credits keep it going until the month starts over.": "Su plan incluye una cantidad mensual de ayuda de IA, como el chat de ayuda, la lectura de recibos y fotos, y las vistas previas de color. Si una se acaba, los créditos la mantienen funcionando hasta que empiece el mes.",
+    "Thank you. Your credits show up here within a minute.": "Gracias. Sus créditos aparecen aquí en un minuto.",
+    "Monthly amount": "Cantidad mensual", "Used": "Usado", "Paid with credits": "Pagado con créditos", "Credits per use": "Créditos por uso",
+    "Credits left": "Créditos disponibles", "can be used until": "se pueden usar hasta",
+    "Credits come with a paid plan.": "Los créditos vienen con un plan de pago.", "You have no credits right now.": "Ahora no tiene créditos.",
+    "Your free trial has the Basic monthly amounts. Credits start once you choose a plan.": "Su prueba gratis tiene las cantidades mensuales del plan Basic. Los créditos empiezan cuando elija un plan.",
+    "Add credits": "Agregar créditos", "Choose a paid plan to add credits.": "Elija un plan de pago para agregar créditos.", "credits": "créditos",
+    "Packs are not for sale yet. Ask us and we can add credits to your account.": "Los paquetes todavía no están a la venta. Pídanoslo y podemos agregar créditos a su cuenta.",
+    "Not in your plan": "No está en su plan", "Nothing used yet this month.": "Todavía no se ha usado nada este mes.",
+    "Credits are used only after a monthly amount runs out, and only for things your plan already includes. A heavier job, like a photo preview, uses more credits than a simple question.": "Los créditos se usan solo después de que se acaba una cantidad mensual, y solo para lo que su plan ya incluye. Un trabajo más pesado, como una vista previa de foto, usa más créditos que una pregunta sencilla.",
+    "Credits last": "Los créditos duran", "days, and the oldest are used first. If an AI use fails, the credits come back.": "días, y se usan primero los más antiguos. Si un uso de IA falla, los créditos regresan.",
+    "Credit packs are not for sale yet. Ask us and we can add credits to your account.": "Los paquetes de créditos todavía no están a la venta. Pídanoslo y podemos agregar créditos a su cuenta.",
+    "Credits come with a paid plan. Choose a plan first.": "Los créditos vienen con un plan de pago. Elija un plan primero.",
+    "Payments are not open yet.": "Los pagos todavía no están abiertos.", "Choose a pack.": "Elija un paquete.", "That pack cannot be bought right now.": "Ese paquete no se puede comprar ahora.",
+    "Website instant quotes": "Cotizaciones instantáneas del sitio web", "Estimate helper": "Ayudante de presupuestos", "Invoice notes": "Notas de factura", "Photo tags": "Etiquetas de fotos",
+    "Color smart select": "Selección inteligente de color", "HD color renders": "Imágenes de color en HD", "Job assistant questions": "Preguntas al asistente de trabajos",
+    "Insurance policy reads": "Lecturas de póliza de seguro", "Detailed answers": "Respuestas detalladas", "Photo analysis": "Análisis de fotos", "Step-by-step deep answers": "Respuestas detalladas paso a paso",
+    "Receipt reads": "Lecturas de recibos", "Bank statement reads": "Lecturas de estados de cuenta", "Quote helper": "Ayudante de cotizaciones", "Estimate drafts": "Borradores de presupuestos",
+    "Help chat": "Chat de ayuda", "Vehicle photo reads": "Lecturas de fotos de vehículos", "Color previews on a photo": "Vistas previas de color en una foto",
+  }, [
+    [/^(\d+) AI requests? could not run this month because a monthly amount ran out\. Add AI credits so they keep working\.$/, function (a, n) { return n + (n === '1' ? ' solicitud de IA no pudo ejecutarse' : ' solicitudes de IA no pudieron ejecutarse') + ' este mes porque se acabó una cantidad mensual. Agregue créditos de IA para que sigan funcionando.'; }],
+    [/^Your AI credits are almost gone: (\d+) left\.$/, function (a, n) { return 'Sus créditos de IA casi se acaban: quedan ' + n + '.'; }],
+  ]);
+
   pmI18n.start();
 })();

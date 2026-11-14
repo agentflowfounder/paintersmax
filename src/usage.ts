@@ -1,16 +1,18 @@
+import { CREDIT_COST, refundCredits, spendCredits } from "./credits.ts";
+import { todayLocal } from "./dates.ts";
 import type { Env } from "./types.ts";
 
-export type Feature = "ai_quote" | "ai_estimate" | "ai_invoice" | "photo_tag" | "smart_select" | "hd_render" | "ai_assistant" | "insurance_scan" | "ai_detailed" | "photo_analysis" | "ai_deep" | "receipt_read" | "bank_read" | "quote_helper" | "estimate_draft" | "help_chat" | "vehicle_read";
+export type Feature = "ai_quote" | "ai_estimate" | "ai_invoice" | "photo_tag" | "smart_select" | "hd_render" | "ai_assistant" | "insurance_scan" | "ai_detailed" | "photo_analysis" | "ai_deep" | "receipt_read" | "bank_read" | "quote_helper" | "estimate_draft" | "help_chat" | "vehicle_read" | "color_repaint";
 export type Plan = "free" | "starter" | "basic" | "pro";
 
-export const FEATURES: Feature[] = ["ai_quote", "ai_estimate", "ai_invoice", "photo_tag", "smart_select", "hd_render", "ai_assistant", "insurance_scan", "ai_detailed", "photo_analysis", "ai_deep", "receipt_read", "bank_read", "quote_helper", "estimate_draft", "help_chat", "vehicle_read"];
+export const FEATURES: Feature[] = ["ai_quote", "ai_estimate", "ai_invoice", "photo_tag", "smart_select", "hd_render", "ai_assistant", "insurance_scan", "ai_detailed", "photo_analysis", "ai_deep", "receipt_read", "bank_read", "quote_helper", "estimate_draft", "help_chat", "vehicle_read", "color_repaint"];
 
 /** Monthly allowance per plan. 0 means the plan does not include the feature. Adjust here as pricing is decided. */
 export const PLAN_LIMITS: Record<Plan, Record<Feature, number>> = {
-  free:    { ai_quote: 10,  ai_estimate: 3,  ai_invoice: 2,  photo_tag: 10,  smart_select: 0,   hd_render: 0,  ai_assistant: 15, insurance_scan: 1, ai_detailed: 0, photo_analysis: 3, ai_deep: 0, receipt_read: 5, bank_read: 1, quote_helper: 1, estimate_draft: 2, help_chat: 20, vehicle_read: 2 },
-  starter: { ai_quote: 200, ai_estimate: 30, ai_invoice: 30, photo_tag: 100, smart_select: 100, hd_render: 0,  ai_assistant: 150, insurance_scan: 3, ai_detailed: 10, photo_analysis: 10, ai_deep: 2, receipt_read: 15, bank_read: 3, quote_helper: 5, estimate_draft: 15, help_chat: 60, vehicle_read: 6 },
-  basic:   { ai_quote: 600, ai_estimate: 100, ai_invoice: 100, photo_tag: 400, smart_select: 400, hd_render: 20, ai_assistant: 600, insurance_scan: 8, ai_detailed: 40, photo_analysis: 40, ai_deep: 10, receipt_read: 60, bank_read: 10, quote_helper: 20, estimate_draft: 60, help_chat: 150, vehicle_read: 20 },
-  pro:     { ai_quote: 2000, ai_estimate: 400, ai_invoice: 400, photo_tag: 1500, smart_select: 1500, hd_render: 100, ai_assistant: 3000, insurance_scan: 20, ai_detailed: 150, photo_analysis: 150, ai_deep: 40, receipt_read: 200, bank_read: 30, quote_helper: 60, estimate_draft: 200, help_chat: 400, vehicle_read: 60 },
+  free:    { ai_quote: 10,  ai_estimate: 3,  ai_invoice: 2,  photo_tag: 10,  smart_select: 0,   hd_render: 0,  ai_assistant: 15, insurance_scan: 1, ai_detailed: 0, photo_analysis: 3, ai_deep: 0, receipt_read: 5, bank_read: 1, quote_helper: 1, estimate_draft: 2, help_chat: 20, vehicle_read: 2, color_repaint: 0 },
+  starter: { ai_quote: 200, ai_estimate: 30, ai_invoice: 30, photo_tag: 100, smart_select: 100, hd_render: 0,  ai_assistant: 150, insurance_scan: 3, ai_detailed: 10, photo_analysis: 10, ai_deep: 2, receipt_read: 15, bank_read: 3, quote_helper: 5, estimate_draft: 15, help_chat: 60, vehicle_read: 6, color_repaint: 2 },
+  basic:   { ai_quote: 600, ai_estimate: 100, ai_invoice: 100, photo_tag: 400, smart_select: 400, hd_render: 20, ai_assistant: 600, insurance_scan: 8, ai_detailed: 40, photo_analysis: 40, ai_deep: 10, receipt_read: 60, bank_read: 10, quote_helper: 20, estimate_draft: 60, help_chat: 150, vehicle_read: 20, color_repaint: 5 },
+  pro:     { ai_quote: 2000, ai_estimate: 400, ai_invoice: 400, photo_tag: 1500, smart_select: 1500, hd_render: 100, ai_assistant: 3000, insurance_scan: 20, ai_detailed: 150, photo_analysis: 150, ai_deep: 40, receipt_read: 200, bank_read: 30, quote_helper: 60, estimate_draft: 200, help_chat: 400, vehicle_read: 60, color_repaint: 25 },
 };
 
 /** Per-visitor daily cap, so one person cannot burn a client's allowance. */
@@ -42,7 +44,7 @@ export function effectivePlan(company: { plan: string; createdAt?: string | null
 }
 
 export type Consume =
-  | { allowed: true; used: number; limit: number }
+  | { allowed: true; used: number; limit: number; credit?: number }
   | { allowed: false; reason: "kill_switch" | "not_in_plan" | "monthly_limit" | "visitor_limit"; used: number; limit: number };
 
 /** Adds 1 to a counter only if it stays within the limit. Returns the new count, or null when the limit is reached. */
@@ -56,6 +58,16 @@ async function bump(env: Env, companyId: number, feature: string, period: string
     .bind(companyId, feature, period, limit)
     .first<{ count: number }>();
   return row ? row.count : null;
+}
+
+/** Adds 1 to a counter with no limit (used to count the uses paid for with credits). */
+async function bumpAlways(env: Env, companyId: number, feature: string, period: string) {
+  await env.DB.prepare(
+    `INSERT INTO usage_counters (company_id, feature, period, count) VALUES (?, ?, ?, 1)
+     ON CONFLICT(company_id, feature, period) DO UPDATE SET count = count + 1`,
+  )
+    .bind(companyId, feature, period)
+    .run();
 }
 
 /** Counts how often someone hit a limit, so the dashboard can show "missed" requests. */
@@ -87,7 +99,17 @@ export async function consume(
   }
   const used = await bump(env, company.id, feature, monthKey(), limit);
   if (used === null) {
+    // The monthly allowance is used up. A paid plan can keep going on AI credits it added (see credits.ts).
+    if (normalizePlan(company.plan) !== "free") {
+      const cost = CREDIT_COST[feature];
+      const spent = await spendCredits(env, company.id, cost, todayLocal());
+      if (spent.ok) {
+        await bumpAlways(env, company.id, `${feature}:credit`, monthKey());
+        return { allowed: true, used: limit, limit, credit: cost };
+      }
+    }
     await recordMissed(env, company.id, feature);
+    await bumpAlways(env, company.id, `${feature}:full`, monthKey()); // the allowance ran out (credits could have helped)
     return { allowed: false, reason: "monthly_limit", used: limit, limit };
   }
   return { allowed: true, used, limit };
@@ -106,7 +128,7 @@ export async function usageSummary(env: Env, company: { id: number; plan: string
     plan: normalizePlan(company.plan),
     trialDaysLeft: trialDaysLeft(company),
     period: month,
-    features: FEATURES.map((f) => ({ feature: f, used: by.get(f) ?? 0, limit: limits[f], missed: by.get(`${f}:missed`) ?? 0 })),
+    features: FEATURES.map((f) => ({ feature: f, used: by.get(f) ?? 0, limit: limits[f], missed: by.get(`${f}:missed`) ?? 0, creditUses: by.get(`${f}:credit`) ?? 0 })),
   };
 }
 
@@ -116,6 +138,13 @@ export async function refund(env: Env, company: { id: number }, feature: Feature
     env.DB.prepare("UPDATE usage_counters SET count = MAX(count - 1, 0) WHERE company_id = ? AND feature = ? AND period = ?")
       .bind(company.id, f, period)
       .run();
-  await dec(feature, monthKey());
+  // If this month's allowance was already used up, the call that failed was paid for with credits: give those back instead.
+  const cr = await env.DB.prepare("SELECT count FROM usage_counters WHERE company_id = ? AND feature = ? AND period = ?").bind(company.id, `${feature}:credit`, monthKey()).first<{ count: number }>();
+  if (cr && cr.count > 0) {
+    await dec(`${feature}:credit`, monthKey());
+    await refundCredits(env, company.id, CREDIT_COST[feature]);
+  } else {
+    await dec(feature, monthKey());
+  }
   if (visitorHash) await dec(`${feature}:v:${visitorHash}`, dayKey());
 }

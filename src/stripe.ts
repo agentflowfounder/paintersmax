@@ -1,5 +1,7 @@
 import { getSessionUser } from "./auth.ts";
 import { provisionClient } from "./admin.ts";
+import { CREDIT_PACKS, grantCredits } from "./credits.ts";
+import { todayLocal } from "./dates.ts";
 import { normalizePlan, type Plan } from "./usage.ts";
 import type { Env } from "./types.ts";
 
@@ -11,7 +13,7 @@ export const PLAN_PRICES: Record<Exclude<Plan, "free">, number> = { starter: 990
 export const SETUP_FEE_CENTS = 49900;
 const PLAN_RANK: Record<Plan, number> = { free: 0, starter: 1, basic: 2, pro: 3 };
 
-const api = async (env: Env, path: string, form: URLSearchParams) => {
+export const stripeApi = async (env: Env, path: string, form: URLSearchParams) => {
   const r = await fetch(`https://api.stripe.com/v1/${path}`, {
     method: "POST",
     headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "content-type": "application/x-www-form-urlencoded" },
@@ -61,7 +63,7 @@ export async function handleCheckout(request: Request, env: Env): Promise<Respon
   const email = typeof b?.email === "string" ? b.email.trim().toLowerCase().slice(0, 200) : "";
   if (!name) return json({ error: "Enter your company name." }, 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Enter a valid email." }, 400);
-  const session = await api(env, "checkout/sessions", checkoutForm(new URL(request.url).origin, { plan, name, email }));
+  const session = await stripeApi(env, "checkout/sessions", checkoutForm(new URL(request.url).origin, { plan, name, email }));
   return json({ url: session.url });
 }
 
@@ -136,6 +138,12 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
     await env.DB.prepare("UPDATE companies SET plan = ?, stripe_customer_id = ?, stripe_subscription_id = ? WHERE id = ?")
       .bind(newPlan, typeof obj.customer === "string" ? obj.customer : null, typeof obj.subscription === "string" ? obj.subscription : null, r.companyId)
       .run();
+  } else if (event.type === "checkout.session.completed" && obj.mode === "payment" && obj.metadata?.kind === "credits" && obj.payment_status === "paid") {
+    // A credit pack was paid for. The pack size comes from our own list, never from the message. The same payment is added once.
+    const pack = CREDIT_PACKS.find((p) => p.id === obj.metadata?.pack);
+    const cid = Number(obj.metadata?.company_id);
+    const co = pack && Number.isInteger(cid) ? await env.DB.prepare("SELECT id FROM companies WHERE id = ?").bind(cid).first() : null;
+    if (pack && co && typeof obj.id === "string") await grantCredits(env, cid, { id: `stripe:${obj.id}`, credits: pack.credits, source: "pack", note: `Pack of ${pack.credits}` }, todayLocal());
   } else if (event.type === "customer.subscription.deleted" && typeof obj.id === "string") {
     await env.DB.prepare("UPDATE companies SET plan = 'free' WHERE stripe_subscription_id = ?").bind(obj.id).run();
     await setPastDue(env, "stripe_subscription_id", obj.id, false);
@@ -160,6 +168,6 @@ export async function handleBilling(request: Request, env: Env): Promise<Respons
   const c = await env.DB.prepare("SELECT stripe_customer_id AS id FROM companies WHERE id = ?").bind(user.companyId).first<{ id: string | null }>();
   if (!c?.id) return json({ error: "No billing account is linked to this company yet." }, 404);
   const f = new URLSearchParams({ customer: c.id, return_url: `${new URL(request.url).origin}/jobs` });
-  const s = await api(env, "billing_portal/sessions", f);
+  const s = await stripeApi(env, "billing_portal/sessions", f);
   return json({ url: s.url });
 }

@@ -55,6 +55,10 @@ small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#
 <div><button class="btn" id="dm_add">Connect domain</button></div><div id="dm_list" style="margin-top:10px"></div></div>
 <h2>Clients</h2><div id="msg"></div>
 <div class="card" id="list">Loading...</div>
+<h2 style="font-size:20px">Add AI credits</h2>
+<div class="card"><div class="row"><div><label>Client</label><select id="cr_c"></select></div><div><label>Credits</label><input id="cr_n" inputmode="numeric" placeholder="25"></div><div><label>Note (optional)</label><input id="cr_note" maxlength="100" placeholder="Paid by Zelle"></div></div>
+<button class="btn" id="cr_go">Add credits</button>
+<p><small>Credits are extra AI uses, used only after a monthly allowance runs out, and they last 90 days. They only work on a paid plan. A 25-credit pack is the usual size.</small></p></div>
 <h2 style="font-size:20px">Add a client</h2>
 <div class="card"><div class="row"><div><label>Company name</label><input id="n"></div><div><label>Owner email</label><input id="e" type="email"></div><div><label>Plan</label><select id="p"><option value="free">Free</option><option value="starter">Starter</option><option value="basic">Basic</option><option value="pro">Pro</option></select></div></div>
 <button class="btn" id="go">Create client and email sign-in link</button>
@@ -65,8 +69,9 @@ const $=id=>document.getElementById(id);
 function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
 async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
 const PLANS=['free','starter','basic','pro'];
-async function load(){try{const {clients}=await api('/api/admin');$('dm_slug').innerHTML=clients.map(c=>`<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join('');$('list').innerHTML=clients.map(c=>`<div class="c"><div><b>${esc(c.name)}</b> <small>${esc(c.slug)}</small><br><small>${esc(c.owners||'no login yet')} &middot; ${c.jobs} jobs &middot; ${c.leads} leads</small></div><select data-id="${c.id}">${PLANS.map(p=>`<option value="${p}" ${p===c.plan?'selected':''}>${p}</option>`).join('')}</select></div>`).join('');}catch(e){if(e)$('list').textContent='You do not have access to this page.';}}
+async function load(){try{const {clients}=await api('/api/admin');$('dm_slug').innerHTML=clients.map(c=>`<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join('');$('cr_c').innerHTML=clients.map(c=>`<option value="${c.id}">${esc(c.name)} (${esc(c.plan)})</option>`).join('');$('list').innerHTML=clients.map(c=>`<div class="c"><div><b>${esc(c.name)}</b> <small>${esc(c.slug)}</small><br><small>${esc(c.owners||'no login yet')} &middot; ${c.jobs} jobs &middot; ${c.leads} leads</small></div><select data-id="${c.id}">${PLANS.map(p=>`<option value="${p}" ${p===c.plan?'selected':''}>${p}</option>`).join('')}</select></div>`).join('');}catch(e){if(e)$('list').textContent='You do not have access to this page.';}}
 document.addEventListener('change',async e=>{const id=e.target.dataset&&e.target.dataset.id;if(!id)return;try{await api('/api/admin',{action:'plan',companyId:+id,plan:e.target.value});msg('Plan updated.',true);}catch(x){if(x)msg(x.message);}});
+$('cr_go').onclick=async()=>{try{msg('');await api('/api/admin',{action:'credits_grant',companyId:+$('cr_c').value,credits:+$('cr_n').value,note:$('cr_note').value});msg('Credits added.',true);$('cr_n').value='';$('cr_note').value='';}catch(x){if(x)msg(x.message);}};
 $('go').onclick=async()=>{try{msg('');const r=await api('/api/admin',{action:'create',name:$('n').value,email:$('e').value,plan:$('p').value});msg(r.created?'Client created. Sign-in link sent.':'That email already has an account. Nothing changed.',true);$('n').value='';$('e').value='';load();}catch(x){if(x)msg(x.message);}};
 async function tkLoad(){try{const v=await api('/api/admin?ticker=1');const c=v.config;
  $('tk').innerHTML=`<label class="sw"><input type="checkbox" id="tk_on" ${c.enabled?'checked':''}> Show the ticker on the public homepage</label>

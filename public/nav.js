@@ -9,7 +9,7 @@
     ['/records', 'Records'], ['/analysis', 'Analysis'], ['/lessons', 'Lessons'],
   ];
   var MORE = [
-    ['/pulse', 'Business pulse'], ['/vehicles', 'Vehicles'], ['/app', 'Estimating Setup'], ['/builders', 'Builder rates'], ['/citypages', 'City pages'], ['/import', 'Import customers'],
+    ['/pulse', 'Business pulse'], ['/vehicles', 'Vehicles'], ['/credits', 'AI use and credits'], ['/app', 'Estimating Setup'], ['/builders', 'Builder rates'], ['/citypages', 'City pages'], ['/import', 'Import customers'],
     ['/materials', 'Materials'], ['/insurance', 'Insurance'], ['/insurance-guide', 'Insurance guide'], ['/brand', 'Brand kit'], ['/help', 'Help'],
   ];
   function go() {

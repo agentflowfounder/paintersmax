@@ -46,6 +46,7 @@ import { sendInvoiceReminders } from "./reminders.ts";
 import { bookedVisits, handleVisit, sendVisitReminders } from "./visit.ts";
 import { sendStartNotices } from "./startnotice.ts";
 import { handlePulse } from "./pulse.ts";
+import { handleCredits } from "./creditsapi.ts";
 import { handleVehicles } from "./vehicles.ts";
 import { handleSignoff } from "./signoff.ts";
 import { consume, isFeature, refund, usageSummary } from "./usage.ts";
@@ -610,6 +611,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleVehicles(request, env);
       } catch (err) {
         console.error("vehicles failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/credits") {
+      try {
+        return await handleCredits(request, env);
+      } catch (err) {
+        console.error("credits failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

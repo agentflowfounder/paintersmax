@@ -9,7 +9,8 @@ import { bookedVisits } from "./visit.ts";
 import { dueWords, nextDue } from "./duedates.ts";
 import { loadVehicles, tripsSince, vehicleAlerts } from "./vehicles.ts";
 import { readApprovals, timeApprKey, timesheetNudges } from "./timesheet.ts";
-import { effectivePlan } from "./usage.ts";
+import { creditView } from "./credits.ts";
+import { effectivePlan, monthKey, normalizePlan } from "./usage.ts";
 import { storageLimitFor, storageUsed } from "./files.ts";
 import type { Env } from "./types.ts";
 
@@ -276,6 +277,19 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     snoozed = {};
   }
   const plan2 = co ? effectivePlan({ plan: co.plan, createdAt: co.createdAt }) : "free";
+  // AI credits: a paid painter hears when a monthly amount ran out (and a credit pack would help), or when credits are nearly gone.
+  try {
+    const hidden = snoozed.credits && Date.parse(snoozed.credits) > Date.now();
+    if (co && normalizePlan(co.plan) !== "free" && !hidden) {
+      const view = await creditView(env, c, todayLocal());
+      const full = await env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS n FROM usage_counters WHERE company_id = ? AND period = ? AND feature LIKE '%:full'").bind(c, monthKey()).first<{ n: number }>();
+      const n = full?.n ?? 0;
+      if (n > 0 && view.balance === 0) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `${n} AI request${n === 1 ? "" : "s"} could not run this month because a monthly amount ran out. Add AI credits so they keep working.` });
+      else if (view.balance > 0 && view.balance <= 5) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `Your AI credits are almost gone: ${view.balance} left.` });
+    }
+  } catch {
+    /* credits are optional */
+  }
   const lastDl = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(`lastdl:${c}`).first<{ value: string }>().catch(() => null);
   const baseDate = Date.parse((lastDl?.value ?? co?.createdAt ?? "").replace(" ", "T") + "Z");
   const daysSince = Number.isFinite(baseDate) ? Math.floor((Date.now() - baseDate) / 86400000) : 0;
