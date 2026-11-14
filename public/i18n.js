@@ -1732,6 +1732,64 @@
     [/^\+(\d+) more$/, function (a, n) { return '+' + n + ' más'; }],
   ]);
 
+  /* ---- Part 17: Vehicles ---- */
+  (function () {
+    var SV = { 'Oil change': 'Cambio de aceite', 'Tire rotation': 'Rotación de llantas', 'Brake check': 'Revisión de frenos' };
+    var sv = function (n) { return SV[n] || n; };
+    var when = function (w) {
+      var m;
+      if (w === 'today') return 'hoy';
+      if (w === 'tomorrow') return 'mañana';
+      if ((m = /^in (\d+) days$/.exec(w))) return 'en ' + m[1] + ' días';
+      if ((m = /^(\d+) days? ago$/.exec(w))) return 'hace ' + m[1] + (m[1] === '1' ? ' día' : ' días');
+      return w;
+    };
+    var W = '(today|tomorrow|in \\d+ days|\\d+ days? ago)';
+    pmI18n.add({
+      "Vehicles": "Vehículos", "Vehicle": "Vehículo",
+      "Keep your work vehicles in one place: odometer, insurance, registration, loan details for your own records, and a service log with reminders. Never type a bank, loan or card number here. Reminders show on Home.": "Tenga sus vehículos de trabajo en un solo lugar: odómetro, seguro, registro, datos del préstamo para sus propios registros y un historial de servicio con recordatorios. Nunca escriba aquí un número de banco, préstamo o tarjeta. Los recordatorios aparecen en Inicio.",
+      "No vehicles yet. Add your work truck or van to get service and insurance reminders.": "Todavía no hay vehículos. Agregue su camioneta o van de trabajo para recibir recordatorios de servicio y de seguro.",
+      "Add a vehicle": "Agregar un vehículo", "Add vehicle": "Agregar vehículo", "Save vehicle": "Guardar vehículo", "Remove vehicle": "Quitar vehículo",
+      "Remove this vehicle and its history?": "¿Quitar este vehículo y su historial?", "Main": "Principal",
+      "Service reminders": "Recordatorios de servicio", "Add the odometer reading so mileage reminders can work.": "Agregue la lectura del odómetro para que funcionen los recordatorios por millas.",
+      "Add a service": "Agregar un servicio", "Service history": "Historial de servicio", "Details": "Detalles",
+      "Log it": "Registrar", "Odometer": "Odómetro", "Cost ($)": "Costo ($)", "Note": "Nota",
+      "Also add the cost as an expense (Vehicle)": "Agregar también el costo como gasto (Vehículo)", "Save service": "Guardar servicio",
+      "Service name": "Nombre del servicio", "Every how many miles": "Cada cuántas millas", "Every how many months": "Cada cuántos meses",
+      "These are typical starting numbers. Your owner manual and your own habits come first.": "Estos son números típicos para empezar. El manual de su vehículo y sus propios hábitos van primero.",
+      "Remove service": "Quitar servicio", "Remove this service?": "¿Quitar este servicio?",
+      "Name (like Work truck)": "Nombre (como Camioneta de trabajo)", "Year": "Año", "Make": "Marca", "Model": "Modelo", "Odometer (miles)": "Odómetro (millas)",
+      "Read from a photo": "Leer de una foto", "Read insurance card from a photo": "Leer la tarjeta del seguro de una foto",
+      "This is my main vehicle. Trips I log in Records count toward its odometer.": "Este es mi vehículo principal. Los viajes que registro en Registros cuentan para su odómetro.",
+      "Insurance": "Seguro", "Company": "Compañía", "Policy number": "Número de póliza", "Coverage ends": "La cobertura termina",
+      "Registration due": "Vencimiento del registro", "Inspection due": "Vencimiento de la inspección",
+      "Loan (for your own records)": "Préstamo (para sus propios registros)",
+      "Type only the lender, the payment and the balance. Never type an account, routing or card number. PaintersMax does not store those.": "Escriba solo el prestamista, el pago y el saldo. Nunca escriba un número de cuenta, de ruta o de tarjeta. PaintersMax no los guarda.",
+      "Lender": "Prestamista", "Monthly payment ($)": "Pago mensual ($)", "Balance ($)": "Saldo ($)", "Payment due on day of month (1 to 31)": "Pago vence el día del mes (1 a 31)", "Notes": "Notas",
+      "On track": "Al día", "Due now": "Toca ahora", "Needs setup": "Falta configurar", "Not logged yet": "Todavía no registrado",
+      "Oil change": "Cambio de aceite", "Tire rotation": "Rotación de llantas", "Brake check": "Revisión de frenos",
+      "Reading the photo...": "Leyendo la foto...", "Could not read the odometer. Type it in instead.": "No se pudo leer el odómetro. Escríbalo.",
+      "Read from the photo. Check it, then save.": "Leído de la foto. Revíselo y luego guarde.", "Service saved.": "Servicio guardado.",
+      "Give the vehicle a name, like Work truck.": "Póngale un nombre al vehículo, como Camioneta de trabajo.",
+      "That has a long number in it, like a bank, loan or card number. PaintersMax never stores those. Take it out and save again.": "Tiene un número largo, como de banco, préstamo o tarjeta. PaintersMax nunca los guarda. Quítelo y guarde de nuevo.",
+      "Give the service a name, like Oil change.": "Póngale un nombre al servicio, como Cambio de aceite.",
+      "Set how often: every so many miles, every so many months, or both.": "Indique cada cuánto: cada tantas millas, cada tantos meses, o ambos.",
+      "That is plenty of services for one vehicle.": "Son suficientes servicios para un vehículo.", "Choose which service you did.": "Elija qué servicio hizo.",
+      "That date is in the future.": "Esa fecha es en el futuro.", "Vehicle not found.": "No se encontró el vehículo.",
+      "Choose odometer or insurance card.": "Elija odómetro o tarjeta del seguro.", "Choose a photo (JPEG, PNG or WebP) that is not too large.": "Elija una foto (JPEG, PNG o WebP) que no sea muy grande.",
+      "Photo reading is paused right now. Type it in instead.": "La lectura de fotos está en pausa ahora. Escríbalo.",
+      "You have used this month's photo reads. You can still type it in, or upgrade for more.": "Ya usó las lecturas de fotos de este mes. Aún puede escribirlo, o mejorar su plan para tener más.",
+    }, [
+      [/^Your plan includes (\d+) vehicles?\. Upgrade for more\.$/, function (a, n) { return 'Su plan incluye ' + n + (n === '1' ? ' vehículo' : ' vehículos') + '. Mejore su plan para tener más.'; }],
+      [/^(.+?) is due on (.+?)\.(?: It is ([\d,]+) miles past\.)?$/, function (a, s, v, m) { return sv(s) + ' vence en ' + v + '.' + (m ? ' Lleva ' + m + ' millas de retraso.' : ''); }],
+      [/^(.+?) is coming up on (.+?)(?:, in about ([\d,]+) miles|, by (\d{4}-\d{2}-\d{2}))?\.$/, function (a, s, v, m, d) { return sv(s) + ' se acerca en ' + v + (m ? ', en unas ' + m + ' millas' : d ? ', para el ' + d : '') + '.'; }],
+      [new RegExp('^Insurance on (.+?) (?:ends|ended) ' + W + '\\.$'), function (a, v, w) { return 'El seguro de ' + v + (/ago$/.test(w) ? ' terminó ' : ' termina ') + when(w) + '.'; }],
+      [new RegExp('^Registration for (.+?) (?:is due|was due) ' + W + '\\.$'), function (a, v, w) { return 'El registro de ' + v + (/ago$/.test(w) ? ' venció ' : ' vence ') + when(w) + '.'; }],
+      [new RegExp('^Inspection for (.+?) (?:is due|was due) ' + W + '\\.$'), function (a, v, w) { return 'La inspección de ' + v + (/ago$/.test(w) ? ' venció ' : ' vence ') + when(w) + '.'; }],
+      [new RegExp('^The loan payment for (.+?) is due ' + W + '\\.$'), function (a, v, w) { return 'El pago del préstamo de ' + v + ' vence ' + when(w) + '.'; }],
+    ]);
+  })();
+
   /* ---- Part 15e: "We start tomorrow" notice ---- */
   pmI18n.add({
     "Notice language": "Idioma del aviso",

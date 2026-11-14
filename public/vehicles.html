@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Vehicles - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+main{max-width:760px;margin:0 auto;padding:16px 12px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+h4{margin:16px 0 6px;font-size:15px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:0;margin:0 0 14px}
+.card>summary{cursor:pointer;padding:12px 14px;list-style:none}.card>summary::-webkit-details-marker{display:none}
+.card>summary b{font-size:17px}.card .inner{padding:0 14px 14px}
+button,.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:9px 13px;background:#E8A33D;color:#0F1B2D;cursor:pointer}button.s{background:#eceae4}button.d{background:#fff;border:1px solid #cfd5dc;color:#b42318}button.sm{padding:6px 10px;font-size:13px}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}input,textarea,select{font:inherit;width:100%;padding:9px;border:1px solid #cfd5dc;border-radius:8px;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}@media(max-width:520px){.row3{grid-template-columns:1fr 1fr}}
+.muted{color:#4A5568;font-size:14px}.ok{color:#0a7a3d;font-weight:600}.bad{color:#b42318;font-weight:600}
+.pill{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px;margin-left:6px}.pill.ok{background:#e6f4ea}.pill.soon{background:#fff3d6;color:#8a5a00}.pill.due{background:#fdecea;color:#b42318}.pill.unset{background:#eceae4;color:#4A5568}
+.svc{display:grid;grid-template-columns:1fr auto;gap:6px;padding:9px 0;border-bottom:1px solid #eee;font-size:14px}.svc:last-child{border-bottom:0}
+.box{background:#f8f6f1;border-radius:8px;padding:10px;margin:8px 0}
+.chk{display:flex;gap:8px;align-items:flex-start;font-weight:500}.chk input{width:auto;margin-top:3px}
+.log div{padding:6px 0;border-bottom:1px solid #eee;font-size:14px}.log div:last-child{border-bottom:0}
+.note{background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px;font-size:14px;margin:8px 0}
+</style></head><body>
+<header><div><b>PaintersMax</b> Vehicles</div><div></div></header>
+<main>
+<h1>Vehicles</h1>
+<p class="muted" style="margin-top:0">Keep your work vehicles in one place: odometer, insurance, registration, loan details for your own records, and a service log with reminders. Never type a bank, loan or card number here. Reminders show on Home.</p>
+<div id="msg" class="muted">Loading...</div>
+<div id="list"></div>
+<div id="add"></div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+var T=window.pmT||function(s){return s};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+var V=[],LIMIT=1,TODAY='',OPEN={},LOGOPEN={},NEW=false,ES=window.PM_LANG==='es';
+function msg(t,c){$('msg').textContent=t||'';$('msg').className=c||'muted';}
+function api(b){return fetch('/api/vehicles',b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined).then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});});}
+function take(d){V=d.vehicles;LIMIT=d.limit;TODAY=d.today;render();}
+var nf=function(n){return n==null||n===''?'':Number(n).toLocaleString('en-US')};
+var dt=function(k){return k&&window.pmDate?window.pmDate(k):(k||'')};
+function pill(st){var w={ok:'On track',soon:'Coming up',due:'Due now',unset:'Needs setup'}[st.state];return'<span class="pill '+st.state+'">'+esc(T(w))+'</span>';}
+function every(s){var a=[];if(s.everyMiles)a.push(ES?'cada '+nf(s.everyMiles)+' mi':'every '+nf(s.everyMiles)+' mi');if(s.everyMonths)a.push(ES?'cada '+s.everyMonths+' meses':'every '+s.everyMonths+' mo');return a.join(ES?' o ':' or ');}
+function svcRow(v,s){var st=v.serviceStatus[s.id]||{state:'unset'},bits=[];
+ if(st.milesLeft!=null)bits.push(st.milesLeft>0?(ES?'faltan unas '+nf(Math.round(st.milesLeft))+' mi':'about '+nf(Math.round(st.milesLeft))+' mi left'):(ES?nf(Math.round(-st.milesLeft))+' mi de retraso':nf(Math.round(-st.milesLeft))+' mi past'));
+ if(st.dueOn)bits.push((ES?'para el ':'by ')+dt(st.dueOn));
+ var last=s.lastOn?(ES?'Última vez: ':'Last done ')+dt(s.lastOn)+(s.lastOdo!=null?(ES?' a ':' at ')+nf(s.lastOdo)+' mi':''):T('Not logged yet');
+ return'<div class="svc"><div><b>'+esc(T(s.label))+'</b>'+pill(st)+'<div class="muted">'+esc(every(s))+(bits.length?' &middot; '+esc(bits.join(', ')):'')+'</div><div class="muted">'+esc(last)+'</div></div><div><button class="sm" data-lg="'+v.id+'" data-sv="'+s.id+'">'+T('Log it')+'</button> <button class="sm s" data-es="'+v.id+'" data-sv="'+s.id+'">'+T('Edit')+'</button></div></div>'
+ +(LOGOPEN[v.id+':'+s.id]?logForm(v,s):'')+(OPEN['es:'+v.id+':'+s.id]?svcForm(v,s):'');}
+function logForm(v,s){return'<div class="box" data-lf="'+v.id+':'+s.id+'"><div class="row3"><div><label>'+T('Date')+'</label><input type="date" class="lg_on" value="'+TODAY+'"></div><div><label>'+T('Odometer')+'</label><input class="lg_odo" inputmode="numeric" value="'+esc(v.estimatedOdometer||'')+'"></div><div><label>'+T('Cost ($)')+'</label><input class="lg_cost" inputmode="decimal" placeholder="0.00"></div></div><label>'+T('Note')+'</label><input class="lg_note" maxlength="200"><label class="chk"><input type="checkbox" class="lg_exp" checked> <span>'+T('Also add the cost as an expense (Vehicle)')+'</span></label><div style="margin-top:10px;display:flex;gap:8px"><button data-lgsave="'+v.id+'" data-sv="'+s.id+'">'+T('Save service')+'</button><button class="s" data-lgx="'+v.id+':'+s.id+'">'+T('Cancel')+'</button></div></div>';}
+function svcForm(v,s){s=s||{id:'',label:'',everyMiles:'',everyMonths:''};return'<div class="box" data-sf="'+v.id+':'+s.id+'"><label>'+T('Service name')+'</label><input class="sv_l" value="'+esc(s.label)+'" maxlength="40"><div class="row"><div><label>'+T('Every how many miles')+'</label><input class="sv_mi" inputmode="numeric" value="'+esc(s.everyMiles||'')+'"></div><div><label>'+T('Every how many months')+'</label><input class="sv_mo" inputmode="numeric" value="'+esc(s.everyMonths||'')+'"></div></div><div class="muted" style="margin-top:6px">'+T('These are typical starting numbers. Your owner manual and your own habits come first.')+'</div><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button data-svsave="'+v.id+'" data-sv="'+s.id+'">'+T('Save')+'</button><button class="s" data-svx="'+v.id+':'+s.id+'">'+T('Cancel')+'</button>'+(s.id?'<button class="d" data-svrm="'+v.id+'" data-sv="'+s.id+'">'+T('Remove service')+'</button>':'')+'</div></div>';}
+function field(id,label,val,extra){return'<div><label>'+T(label)+'</label><input class="f_'+id+'" value="'+esc(val==null?'':val)+'" '+(extra||'')+'></div>';}
+function vForm(v){var n=!v.id;v=v.id?v:{id:'',nickname:'',year:'',make:'',model:'',main:V.length===0,odometer:'',insuranceCompany:'',insurancePolicy:'',insuranceEnds:'',registrationDue:'',inspectionDue:'',loanLender:'',loanMonthly:'',loanBalance:'',loanDueDay:'',notes:''};
+ return'<div data-vf="'+v.id+'"><div class="row">'+field('nickname','Name (like Work truck)',v.nickname,'maxlength="40"')+field('year','Year',v.year,'inputmode="numeric" maxlength="4"')+'</div><div class="row">'+field('make','Make',v.make)+field('model','Model',v.model)+'</div>'
+ +'<div class="row"><div><label>'+T('Odometer (miles)')+'</label><input class="f_odometer" inputmode="numeric" value="'+esc(v.odometer==null?'':v.odometer)+'"></div><div><label>&nbsp;</label><label class="s btn" style="display:block;text-align:center;margin:0;cursor:pointer;padding:9px;background:#eceae4">'+T('Read from a photo')+'<input type="file" accept="image/*" capture="environment" data-ph="odometer" style="display:none"></label></div></div>'
+ +'<label class="chk"><input type="checkbox" class="f_main"'+(v.main?' checked':'')+'> <span>'+T('This is my main vehicle. Trips I log in Records count toward its odometer.')+'</span></label>'
+ +'<h4>'+T('Insurance')+'</h4><div class="row">'+field('insuranceCompany','Company',v.insuranceCompany)+field('insurancePolicy','Policy number',v.insurancePolicy)+'</div><div class="row"><div><label>'+T('Coverage ends')+'</label><input type="date" class="f_insuranceEnds" value="'+esc(v.insuranceEnds)+'"></div><div><label>&nbsp;</label><label class="s btn" style="display:block;text-align:center;margin:0;cursor:pointer;padding:9px;background:#eceae4">'+T('Read insurance card from a photo')+'<input type="file" accept="image/*" capture="environment" data-ph="insurance" style="display:none"></label></div></div>'
+ +'<div class="row"><div><label>'+T('Registration due')+'</label><input type="date" class="f_registrationDue" value="'+esc(v.registrationDue)+'"></div><div><label>'+T('Inspection due')+'</label><input type="date" class="f_inspectionDue" value="'+esc(v.inspectionDue)+'"></div></div>'
+ +'<h4>'+T('Loan (for your own records)')+'</h4><div class="note">'+T('Type only the lender, the payment and the balance. Never type an account, routing or card number. PaintersMax does not store those.')+'</div><div class="row">'+field('loanLender','Lender',v.loanLender)+field('loanMonthly','Monthly payment ($)',v.loanMonthly,'inputmode="decimal"')+'</div><div class="row">'+field('loanBalance','Balance ($)',v.loanBalance,'inputmode="decimal"')+field('loanDueDay','Payment due on day of month (1 to 31)',v.loanDueDay,'inputmode="numeric"')+'</div>'
+ +'<label>'+T('Notes')+'</label><textarea class="f_notes" rows="2" maxlength="300">'+esc(v.notes)+'</textarea>'
+ +'<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button data-vsave="'+v.id+'">'+T(n?'Add vehicle':'Save vehicle')+'</button>'+(n?'<button class="s" data-vnx="1">'+T('Cancel')+'</button>':'<button class="d" data-vrm="'+v.id+'">'+T('Remove vehicle')+'</button>')+'</div></div>';}
+function card(v){
+ var alerts=v.services.filter(function(s){var x=v.serviceStatus[s.id];return x&&(x.state==='due'||x.state==='soon')});
+ var sub=[(v.year+' '+v.make+' '+v.model).trim(),v.estimatedOdometer!=null?(ES?'unas ':'about ')+nf(v.estimatedOdometer)+' mi':''].filter(Boolean).join(' · ');
+ var badge=alerts.length?' <span class="pill '+(alerts.some(function(s){return v.serviceStatus[s.id].state==='due'})?'due':'soon')+'">'+esc(T(alerts[0].label))+(alerts.length>1?' +'+(alerts.length-1):'')+'</span>':'';
+ return'<details class="card" data-v="'+v.id+'"'+(OPEN[v.id]||V.length===1?' open':'')+'><summary><b>'+esc(v.nickname)+'</b>'+(v.main?' <span class="pill unset">'+T('Main')+'</span>':'')+badge+'<div class="muted">'+esc(sub)+'</div></summary><div class="inner">'
+ +'<h4>'+T('Service reminders')+'</h4>'+(v.estimatedOdometer==null?'<div class="note">'+T('Add the odometer reading so mileage reminders can work.')+'</div>':'')+v.services.map(function(s){return svcRow(v,s)}).join('')+(OPEN['es:'+v.id+':']?svcForm(v,null):'<div style="margin-top:8px"><button class="sm s" data-es="'+v.id+'" data-sv="">+ '+T('Add a service')+'</button></div>')
+ +(v.log.length?'<h4>'+T('Service history')+'</h4><div class="log">'+v.log.slice(0,8).map(function(l){return'<div><b>'+esc(l.label)+'</b> &middot; '+esc(dt(l.on))+(l.odometer!=null?' &middot; '+nf(l.odometer)+' mi':'')+(l.costCents?' &middot; $'+(l.costCents/100).toFixed(2):'')+(l.note?'<div class="muted">'+esc(l.note)+'</div>':'')+'</div>'}).join('')+'</div>':'')
+ +'<h4>'+T('Details')+'</h4>'+vForm(v)+'</div></details>';}
+function render(){
+ msg('');
+ $('list').innerHTML=V.map(card).join('')||'<div class="card inner" style="padding:14px"><span class="muted">'+T('No vehicles yet. Add your work truck or van to get service and insurance reminders.')+'</span></div>';
+ $('add').innerHTML=NEW?'<div class="card inner" style="padding:14px"><b>'+T('Add a vehicle')+'</b>'+vForm({id:''})+'</div>':(V.length<LIMIT?'<button id="addbtn">+ '+T('Add a vehicle')+'</button>':'<div class="muted">'+esc(ES?'Su plan incluye '+LIMIT+' vehículo'+(LIMIT===1?'':'s')+'. Mejore su plan para tener más.':'Your plan includes '+LIMIT+' vehicle'+(LIMIT===1?'':'s')+'. Upgrade for more.')+'</div>');
+}
+function read(root){var g=function(c){var e=root.querySelector('.f_'+c);return e?(e.type==='checkbox'?e.checked:e.value):''};
+ return{nickname:g('nickname'),year:g('year'),make:g('make'),model:g('model'),odometer:g('odometer'),main:g('main'),insuranceCompany:g('insuranceCompany'),insurancePolicy:g('insurancePolicy'),insuranceEnds:g('insuranceEnds'),registrationDue:g('registrationDue'),inspectionDue:g('inspectionDue'),loanLender:g('loanLender'),loanMonthly:g('loanMonthly'),loanBalance:g('loanBalance'),loanDueDay:g('loanDueDay'),notes:g('notes')};}
+function fail(x){if(x){msg(T(x.message),'bad');window.scrollTo({top:0,behavior:'smooth'});}}
+function shrink(file){return new Promise(function(res,rej){var im=new Image(),u=URL.createObjectURL(file);im.onload=function(){var m=1400,k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.85).split(',')[1]);};im.onerror=function(){rej(new Error('That photo could not be opened.'));};im.src=u;});}
+document.addEventListener('change',function(ev){var t=ev.target;if(!t.dataset||!t.dataset.ph||!t.files||!t.files[0])return;
+ var root=t.closest('[data-vf]'),kind=t.dataset.ph;msg(T('Reading the photo...'));
+ shrink(t.files[0]).then(function(b64){return api({action:'readPhoto',kind:kind,mime:'image/jpeg',data:b64});}).then(function(r){var d=r.draft||{},set=function(c,v){var e=root.querySelector('.f_'+c);if(e&&v)e.value=v;};
+  if(kind==='odometer'){if(d.odometer==null){msg(T('Could not read the odometer. Type it in instead.'),'bad');return;}set('odometer',d.odometer);}else{set('insuranceCompany',d.insuranceCompany);set('insurancePolicy',d.insurancePolicy);set('insuranceEnds',d.insuranceEnds);}
+  msg(T('Read from the photo. Check it, then save.'),'ok');}).catch(fail);t.value='';});
+document.addEventListener('click',function(ev){var t=ev.target.closest('button');if(!t)return;var d=t.dataset||{};
+ if(t.id==='addbtn'){NEW=true;render();$('add').scrollIntoView({behavior:'smooth'});return;}
+ if(d.vnx){NEW=false;render();return;}
+ if(d.vsave!==undefined){var root=t.closest('[data-vf]');var b=read(root);b.action='save';if(d.vsave)b.id=d.vsave;OPEN[d.vsave]=true;api(b).then(function(r){NEW=false;take(r);msg(T('Saved.'),'ok');}).catch(fail);return;}
+ if(d.vrm){if(!confirm(T('Remove this vehicle and its history?')))return;api({action:'remove',id:d.vrm}).then(take).catch(fail);return;}
+ if(d.lg){LOGOPEN[d.lg+':'+d.sv]=true;OPEN[d.lg]=true;render();return;}
+ if(d.lgx){delete LOGOPEN[d.lgx];render();return;}
+ if(d.lgsave){var f=t.closest('[data-lf]');var q=function(c){return f.querySelector('.'+c)};OPEN[d.lgsave]=true;
+  api({action:'logService',vehicleId:d.lgsave,serviceId:d.sv,on:q('lg_on').value,odometer:q('lg_odo').value,cost:q('lg_cost').value,note:q('lg_note').value,addExpense:q('lg_exp').checked}).then(function(r){delete LOGOPEN[d.lgsave+':'+d.sv];take(r);msg(T('Service saved.'),'ok');}).catch(fail);return;}
+ if(d.es!==undefined){OPEN['es:'+d.es+':'+d.sv]=true;OPEN[d.es]=true;render();return;}
+ if(d.svx){delete OPEN['es:'+d.svx];render();return;}
+ if(d.svsave!==undefined){var sf=t.closest('[data-sf]');var s={label:sf.querySelector('.sv_l').value,everyMiles:sf.querySelector('.sv_mi').value,everyMonths:sf.querySelector('.sv_mo').value};if(d.sv)s.id=d.sv;OPEN[d.svsave]=true;
+  api({action:'saveService',vehicleId:d.svsave,service:s}).then(function(r){delete OPEN['es:'+d.svsave+':'+d.sv];take(r);msg(T('Saved.'),'ok');}).catch(fail);return;}
+ if(d.svrm){if(!confirm(T('Remove this service?')))return;OPEN[d.svrm]=true;api({action:'removeService',vehicleId:d.svrm,serviceId:d.sv}).then(function(r){delete OPEN['es:'+d.svrm+':'+d.sv];take(r);}).catch(fail);return;}
+});
+document.addEventListener('toggle',function(ev){var t=ev.target;if(t.dataset&&t.dataset.v)OPEN[t.dataset.v]=t.open;},true);
+api().then(take).catch(function(x){if(x){$('msg').className='bad';$('msg').textContent=T(x.message);}});
+</script><script src="/nav.js"></script></body></html>

@@ -7,6 +7,7 @@ import { buildNudges, SNOOZE_DAYS } from "./nudges.ts";
 import { addDaysIso, friendlyDate, friendlyTime, todayLocal } from "./dates.ts";
 import { bookedVisits } from "./visit.ts";
 import { dueWords, nextDue } from "./duedates.ts";
+import { loadVehicles, tripsSince, vehicleAlerts } from "./vehicles.ts";
 import { effectivePlan } from "./usage.ts";
 import { storageLimitFor, storageUsed } from "./files.ts";
 import type { Env } from "./types.ts";
@@ -156,6 +157,19 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
   }
   upcoming.sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : 0));
 
+  // Vehicles: services due, insurance, registration, inspection and loan payment dates.
+  try {
+    const vs = await loadVehicles(env, c);
+    if (vs.length) {
+      const main = vs.find((v) => v.main && v.odometer !== null);
+      const trips = main ? await tripsSince(env, c, main.odometerOn) : [];
+      const alerts = vehicleAlerts(vs, trips, todayLocal());
+      for (const a of alerts.filter((x) => x.urgent)) attention.push({ type: "vehicle", link: "/vehicles", text: a.text });
+      for (const a of alerts.filter((x) => !x.urgent).slice(0, 3)) attention.push({ type: "vehicle", link: "/vehicles", text: a.text });
+    }
+  } catch {
+    /* vehicles are optional */
+  }
   const prof = await env.DB.prepare("SELECT data, setup_step, completed FROM company_profiles WHERE company_id = ?").bind(c).first<{ data: string; setup_step: string; completed: number }>().catch(() => null);
   let noResume = false;
   try {
