@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cleanFindings, priceIssue, allowanceNote, withPrices } from "../src/photoanalysis.ts";
+import { ANALYSIS_PROMPT, analysisUserText, cleanFindings, priceIssue, allowanceNote, withPrices } from "../src/photoanalysis.ts";
 
 const raw = { summary: "Ceiling stain", issues: [{ title: "Water stain", severity: "high", what: "x", fix: "y", hours: 2.3, materials: [{ item: "Primer", costLow: 30, costHigh: 20 }] }, { title: "" }, "bad"] };
 
@@ -26,4 +26,20 @@ test("allowance note offers an upgrade from 80%", () => {
   assert.equal(n.upgrade, true);
   assert.ok(n.message.includes("2 photo analyses left"));
   assert.equal(allowanceNote(10, 10, "pro").upgrade, false);
+});
+
+test("analysis keeps what the AI saw, and asks about windows and doors", () => {
+  const f = cleanFindings({ summary: "x", seen: [{ item: "2 windows", condition: "frames need caulk" }, { item: "" }, { item: "door" }], issues: [] });
+  assert.deepEqual(f.seen, [{ item: "2 windows", condition: "frames need caulk" }, { item: "door", condition: "" }]);
+  assert.match(ANALYSIS_PROMPT, /windows/);
+  assert.match(ANALYSIS_PROMPT, /doors and door frames/);
+  assert.match(ANALYSIS_PROMPT, /"seen"/);
+});
+
+test("analysis text carries the focus, the note and what earlier photos already found", () => {
+  assert.equal(analysisUserText("", [], []), "Look at this photo.");
+  const t = analysisUserText("guest bedroom", ["windows", "doors"], ["Cracked caulk", "Water stain"]);
+  assert.match(t, /look closely at: windows, doors/);
+  assert.match(t, /guest bedroom/);
+  assert.match(t, /Already noted from other photos of this job.*Cracked caulk; Water stain/);
 });

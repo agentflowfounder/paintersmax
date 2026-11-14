@@ -1,6 +1,6 @@
 import { getSessionUser, randomToken, sha256Hex } from "./auth.ts";
 import { htmlToPdf } from "./pdf.ts";
-import { catalogItems, roundPrice } from "./ratecatalog.ts";
+import { catalogItems, loadMarkets, MARKET_TIERS, roundPrice, seedData } from "./ratecatalog.ts";
 import { loadRateDocParts, renderRateCardHtml, todayText, type RateSection } from "./ratecardpdf.ts";
 import { normalizePlan, type Plan } from "./usage.ts";
 import type { Env } from "./types.ts";
@@ -132,6 +132,22 @@ export async function handleRateSheets(request: Request, env: Env): Promise<Resp
     return json({ error: "Invalid JSON." }, 400);
   }
   const id = typeof b?.id === "string" && /^[a-f0-9]{10}$/.test(b.id) ? b.id : "";
+
+  if (b?.action === "seed") {
+    // Creates the builder price list (Standard level, the painter's market) so there is something to share. Never overwrites a saved one.
+    if (limit === 0) return json({ error: "Builder rate sheets are on the Basic and Pro plans." }, 403);
+    const have = await env.DB.prepare("SELECT method FROM rate_cards WHERE company_id = ? AND trade = 'interior' AND audience = 'builder'").bind(user.companyId).first<{ method: string }>();
+    if (have?.method === "catalog") return json({ ok: true, existed: true });
+    const prof = parse((await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(user.companyId).first<{ data: string }>())?.data ?? null);
+    const tier = (MARKET_TIERS as readonly string[]).includes(prof?.market?.tier) ? prof.market.tier : "average";
+    const mult = (await loadMarkets(env))[tier as (typeof MARKET_TIERS)[number]] ?? 1;
+    const data = { ...seedData("builder", 1, mult), position: 1, tier: (MARKET_TIERS as readonly string[]).indexOf(tier) };
+    await env.DB.prepare(
+      `INSERT INTO rate_cards (company_id, trade, audience, method, data, updated_at) VALUES (?, 'interior', 'builder', 'catalog', ?, datetime('now'))
+       ON CONFLICT(company_id, trade, audience) DO UPDATE SET method = excluded.method, data = excluded.data, updated_at = datetime('now')`,
+    ).bind(user.companyId, JSON.stringify(data)).run();
+    return json({ ok: true });
+  }
 
   if (b?.action === "save") {
     if (limit === 0) return json({ error: "Builder rate sheets are on the Basic and Pro plans." }, 403);

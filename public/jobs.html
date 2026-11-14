@@ -26,6 +26,9 @@ input,select,textarea{width:100%;padding:11px;border:1px solid #cfd5dc;border-ra
 .chips2 summary{cursor:pointer;font-weight:600;font-size:14px;margin:12px 0 4px}
 .cat{margin:8px 0}.cat b{font-size:13px}.cat .chip{margin:4px 4px 0 0}
 .mic{display:inline-flex;align-items:center;gap:6px}.mic.on{background:#E8A33D}
+.stp{display:flex;gap:10px;align-items:flex-start;margin:14px 0 4px}.stp .n{width:24px;height:24px;border-radius:50%;background:#0F1B2D;color:#fff;font-weight:700;font-size:13px;display:inline-flex;align-items:center;justify-content:center;flex:none}.stp.off{opacity:.6}
+.rdchip{display:inline-block;background:#eaf6ee;color:#0a7a3d;border-radius:999px;font-size:12px;font-weight:700;padding:2px 8px;margin:3px 0}
+.fch{display:inline-flex;align-items:center;gap:6px;border:1px solid #cfd5dc;border-radius:999px;padding:6px 12px;margin:3px 4px 3px 0;font-size:14px;background:#fff;font-weight:500}.fch input{width:auto;margin:0}
 .tag{font-size:12px;background:#eceae4;border-radius:99px;padding:3px 10px;white-space:nowrap;align-self:center}
 .line{display:grid;grid-template-columns:1fr 70px 60px 90px 30px;gap:6px;margin:6px 0;align-items:center}
 .line input{padding:8px}.line button{border:0;background:none;font-size:18px;cursor:pointer;color:#b42318}
@@ -119,7 +122,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};
  else if(ds.lost){const r=$('lost_reason').value;if(!r){msg('Choose why it was lost.');return;}try{await api('/api/joblost',{jobId:J.job.id,action:'lost',reason:r,note:$('lost_note').value});await detail(J.job.id);msg('Marked lost. It stays in your records.',true);}catch(x){if(x)msg(x.message);}}
  else if(ds.reopen){try{await api('/api/joblost',{jobId:J.job.id,action:'reopen'});await detail(J.job.id);msg('Reopened.',true);}catch(x){if(x)msg(x.message);}}
  else if(ds.asave!==undefined&&ds.asave!==''){try{await api('/api/jobnote',{jobId:chatJob,text:'Assistant note: '+chat[+ds.asave].content});t.textContent='Saved';t.disabled=true;}catch(x){if(x)msg(x.message);}}
- else if(t.closest&&t.closest('#as_mic')){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return;const b=$('as_mic');const r=new R();r.lang=($('as_lang')||{value:'en'}).value==='es'?'es-US':'en-US';b.classList.add('on');r.onresult=ev=>{$('as_in').value=(($('as_in').value?$('as_in').value+' ':'')+ev.results[0][0].transcript).trim();};r.onend=r.onerror=()=>b.classList.remove('on');r.start();}
+ else if(t.closest&&t.closest('#as_mic')){micToggle($('as_mic'),()=>($('as_lang')||{value:'en'}).value==='es'?'es-US':'en-US',x=>{$('as_in').value=(($('as_in').value?$('as_in').value+' ':'')+x).trim();});}
 });
 document.addEventListener('change',e=>{if(e.target.id==='as_lang'){try{localStorage.setItem('as_lang',e.target.value);}catch(x){}}});
 document.addEventListener('change',async e=>{if(e.target.id!=='as_cam'||!e.target.files[0])return;const f=e.target.files[0];e.target.value='';try{msg('Adding photo...',true);const b=await shrinkImg(f),fd=new FormData();fd.append('file',b);fd.append('jobId',chatJob);fd.append('kind','photo');const r=await fetch('/api/files',{method:'POST',body:fd});if(r.status===401){location.href='/login';return;}const j=await r.json().catch(()=>({}));if(!r.ok){msg(j.error||'Could not add the photo.');return;}chatFile=j.id;attDraw();msg('');if(typeof filesLoad==='function')filesLoad();$('as_in').focus();}catch(x){msg('Could not add the photo.');}});
@@ -138,7 +141,7 @@ function meterHtml(st){if(!st)return '';const col=st.level==='ok'?'#0a7a3d':st.l
  return `<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Storage</b><span>${st.percent}% used</span></div><div style="height:8px;border-radius:5px;background:#eceae4;margin:4px 0 6px"><div style="height:8px;border-radius:5px;width:${st.percent}%;background:${col}"></div></div>${st.message?`<div style="background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px;margin-top:6px">${esc(st.message)}${st.upgrade?' <a href="/dashboard#billing"><b>See plans</b></a>':''}</div>`:''}`;}
 async function filesLoad(){if(!$('fl_card'))return;try{FL=await api('/api/files?jobId='+J.job.id);$('fl_meter').innerHTML=meterHtml(FL.storage);
  if(!FL.enabled)$('fl_meter').innerHTML+='<div class="muted">File storage is not available yet.</div>';
- $('fl_list').innerHTML=FL.files.length?FL.files.map(f=>f.removed?`<div class="fi"><div class="muted" style="font-size:12px">${esc(f.name)}<br>removed from storage</div></div>`:`<div class="fi">${f.mime.startsWith('image/')?`<a href="/api/files?id=${f.id}" target="_blank"><img src="/api/files?id=${f.id}" alt="${esc(f.name)}" loading="lazy"></a>`:`<a href="/api/files?id=${f.id}" target="_blank">${esc(f.name)}</a>`}<div class="muted" style="font-size:12px">${esc(f.kind)}${f.by==='customer'?' &middot; from customer':''}</div><div>${f.mime.startsWith('image/')&&f.kind==='photo'?`<button class="btn sec" style="padding:6px 10px;font-size:13px" data-fanalyze="${f.id}">Analyze photo</button> `:''}<button class="mini" data-fldel="${f.id}">Delete</button></div></div>`).join(''):'<p class="muted">No photos or files yet.</p>';}catch(e){if(e)$('fl_meter').textContent='Could not load files.';}}
+ $('fl_list').innerHTML=FL.files.length?FL.files.map(f=>f.removed?`<div class="fi"><div class="muted" style="font-size:12px">${esc(f.name)}<br>removed from storage</div></div>`:`<div class="fi">${f.mime.startsWith('image/')?`<a href="/api/files?id=${f.id}" target="_blank"><img src="/api/files?id=${f.id}" alt="${esc(f.name)}" loading="lazy"></a>`:`<a href="/api/files?id=${f.id}" target="_blank">${esc(f.name)}</a>`}<div class="muted" style="font-size:12px">${esc(f.kind)}${f.by==='customer'?' &middot; from customer':''}</div>${f.mime.startsWith('image/')&&f.kind==='photo'?`<div data-fread="${f.id}"></div>`:''}<div>${f.mime.startsWith('image/')&&f.kind==='photo'?`<button class="btn sec" style="padding:6px 10px;font-size:13px" data-fopen="${f.id}">Analyze photo</button> `:''}<button class="mini" data-fldel="${f.id}">Delete</button></div></div>`).join(''):'<p class="muted">No photos or files yet.</p>';markRead();}catch(e){if(e)$('fl_meter').textContent='Could not load files.';}}
 async function filesUpload(list,kind){for(const f of list){try{msg('Uploading '+(f.name||'file')+'...',true);const b=await shrinkImg(f),fd=new FormData();fd.append('file',b);fd.append('jobId',J.job.id);fd.append('kind',kind);const r=await fetch('/api/files',{method:'POST',body:fd});if(r.status===401){location.href='/login';return;}const j=await r.json().catch(()=>({}));if(!r.ok){msg(j.error||'Could not upload.');break;}}catch(e){msg('Could not upload.');break;}}msg('');await filesLoad();}
 document.addEventListener('change',e=>{if(e.target.id==='fl_in'){filesUpload([...e.target.files],'photo');e.target.value='';}else if(e.target.id==='fl_doc'){filesUpload([...e.target.files],$('fl_kind').value);e.target.value='';}});
 document.addEventListener('click',async e=>{const d=e.target.dataset||{};if(d.fldel){if(!confirm('Delete this file? This cannot be undone.'))return;try{await api('/api/files',{action:'delete',id:+d.fldel});await filesLoad();}catch(x){if(x)msg(x.message);}}});
@@ -147,22 +150,34 @@ document.addEventListener('click',async e=>{const d=e.target.dataset||{};if(d.fl
 const $m=c=>'$'+Math.round(c/100).toLocaleString('en-US');
 function allowHtml(a){if(!a)return '';return `<div class="muted" style="margin-top:6px">${esc(a.message)}${a.upgrade?' <a href="/dashboard#billing"><b>See plans</b></a>':''}</div>`;}
 function findHtml(f,mode){const sev={low:'#0a7a3d',medium:'#8a5a00',high:'#b42318'};
- return `<div class="card" style="margin:10px 0" data-find="${f.id}"><b>${mode==='draft'?'Draft analysis (not saved yet)':'Approved findings'}</b>${f.summary?`<p style="margin:6px 0">${esc(f.summary)}</p>`:''}
+ return `<div class="card" style="margin:10px 0" data-find="${f.id}">${f.fileId?`<img src="/api/files?id=${f.fileId}" alt="" style="float:right;width:64px;height:64px;object-fit:cover;border-radius:8px;margin:0 0 6px 8px">`:''}<b>${mode==='draft'?'Draft analysis (not saved yet)':'Approved findings'}</b>${f.summary?`<p style="margin:6px 0">${esc(f.summary)}</p>`:''}
+ ${(f.seen||[]).length?`<div style="margin:6px 0;font-size:14px"><b>What the AI saw in this photo:</b> ${f.seen.map(x=>esc(x.item)+(x.condition?' ('+esc(x.condition)+')':'')).join('; ')}</div>`:''}
  ${(f.issues||[]).length?f.issues.map(i=>`<div style="border-top:1px solid #eee;padding:8px 0"><b>${esc(i.title)}</b> <span style="color:${sev[i.severity]};font-size:12px;font-weight:700;text-transform:uppercase">${esc(i.severity)}</span>
   <div>${esc(i.what)}</div><div><b>How to fix:</b> ${esc(i.fix)}</div><div class="muted"><b>Labor:</b> about ${esc(i.hours)} hr${i.materials&&i.materials.length?' &middot; <b>Materials:</b> '+i.materials.map(m=>esc(m.item)+' ($'+Math.round(m.costLow)+'-$'+Math.round(m.costHigh)+')').join(', '):''}</div>
   ${i.price?`<div><b>Rough cost to you:</b> ${$m(i.price.costLowCents)} to ${$m(i.price.costHighCents)} &middot; <b>Suggested charge:</b> ${$m(i.price.chargeLowCents)} to ${$m(i.price.chargeHighCents)}</div>`:'<div class="muted">Add your hourly rate in Estimating Setup to see a suggested charge.</div>'}</div>`).join(''):'<p class="muted">No clear issues found in this photo.</p>'}
  <small class="muted">Possible issues to check, not a diagnosis. Prices are rough: check them before you quote.</small>
  ${mode==='draft'?`<div class="btns"><button class="btn" data-fapprove="${f.id}">Approve and save to job</button><button class="btn sec" data-fwo="${f.id}">Approve and make a work order</button><button class="btn sec" data-fdiscard="${f.id}">Discard</button></div>`:`<div class="btns"><button class="btn sec" data-fwo="${f.id}">Make a work order from this</button></div>`}</div>`;}
 let FDRAFTS={};
-async function findingsLoad(){const box=$('fl_find');if(!box)return;try{const r=await api('/api/photoanalysis?jobId='+J.job.id);$('fl_allow').innerHTML=allowHtml(r.allowance);box.innerHTML=r.findings.filter(f=>f.status==='approved').map(f=>findHtml(f,'saved')).join('');}catch(e){}}
+let FREAD=new Set();
+const FOCUS=['walls','ceiling','trim and baseboards','windows','doors','floors','cabinets','siding and outside','fixtures and outlets'];
+function markRead(){document.querySelectorAll('[data-fread]').forEach(el=>{const id=+el.dataset.fread,on=FREAD.has(id);el.innerHTML=on?'<span class="rdchip">&#10003; AI has read this photo</span>':'';const b=document.querySelector('[data-fopen="'+id+'"]');if(b)b.textContent=on?'Analyze again':'Analyze photo';});}
+function askPanel(id){return `<div class="card" id="fl_ask" style="margin:10px 0"><b>Before the AI looks</b><img src="/api/files?id=${id}" alt="" style="float:right;width:64px;height:64px;object-fit:cover;border-radius:8px;margin-left:8px">
+ <p style="margin:6px 0">What should it look at closely? Tick any that matter. The AI checks the whole photo either way, but this helps it notice windows, doors and trim, not only walls.</p>
+ <div>${FOCUS.map(x=>`<label class="fch"><input type="checkbox" data-focus="${x}"> ${x}</label>`).join('')}</div>
+ <label for="fl_note">What should I know about this photo? (optional)</label><textarea id="fl_note" rows="2" placeholder="Example: guest bedroom, the window leaked last spring."></textarea>
+ <div class="btns"><button class="btn" data-fanalyze="${id}">Analyze this photo</button><button class="btn sec" data-fcancel="1">Cancel</button></div>
+ <small class="muted">Tip: photos from different angles (each wall, the windows, the doors, the ceiling) give the best results. Photos that look alike get similar answers.</small></div>`;}
+async function findingsLoad(){const box=$('fl_find');if(!box)return;try{const r=await api('/api/photoanalysis?jobId='+J.job.id);$('fl_allow').innerHTML=allowHtml(r.allowance);FREAD=new Set(r.findings.map(f=>f.fileId));box.innerHTML=r.findings.map(f=>{if(f.status!=='approved')FDRAFTS[f.id]=f;return findHtml(f,f.status==='approved'?'saved':'draft');}).join('');markRead();}catch(e){}}
 document.addEventListener('click',async e=>{const d=e.target.dataset||{};
- if(d.fanalyze){const btn=e.target;btn.disabled=true;btn.textContent='Analyzing...';
+ if(d.fopen){const o=$('fl_ask');if(o)o.remove();$('fl_find').insertAdjacentHTML('afterbegin',askPanel(+d.fopen));$('fl_ask').scrollIntoView({behavior:'smooth',block:'center'});}
+ else if(d.fcancel){const o=$('fl_ask');if(o)o.remove();}
+ else if(d.fanalyze){const ask=$('fl_ask'),focus=ask?[...ask.querySelectorAll('[data-focus]:checked')].map(x=>x.dataset.focus):[],note=ask&&$('fl_note')?$('fl_note').value.trim():'';
+  if(ask)ask.remove();
   const old=$('fl_busy');if(old)old.remove();
   $('fl_find').insertAdjacentHTML('afterbegin','<div id="fl_busy" class="note" style="margin:10px 0;background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px">Looking at your photo. This usually takes 10 to 20 seconds. Please keep this page open.</div>');
   $('fl_busy').scrollIntoView({behavior:'smooth',block:'center'});
-  try{const r=await api('/api/photoanalysis',{action:'analyze',fileId:+d.fanalyze,language:window.PM_LANG==='es'?'es':'en'});$('fl_busy').remove();FDRAFTS[r.id]=r;$('fl_find').insertAdjacentHTML('afterbegin',findHtml(r,'draft'));$('fl_allow').innerHTML=allowHtml(r.allowance);}
-  catch(x){if(x){const b=$('fl_busy');if(b){b.style.borderLeftColor='#b42318';b.innerHTML='<b style="color:#b42318">'+esc(x.message)+'</b><div class="muted">Nothing was used from your allowance.'+(x.detail?' Technical note: '+esc(x.detail):'')+'</div>';}if(x.allowance)$('fl_allow').innerHTML=allowHtml(x.allowance);}else{const b=$('fl_busy');if(b)b.remove();}}
-  btn.disabled=false;btn.textContent='Analyze photo';}
+  try{const r=await api('/api/photoanalysis',{action:'analyze',fileId:+d.fanalyze,focus,note,language:window.PM_LANG==='es'?'es':'en'});$('fl_busy').remove();FDRAFTS[r.id]=r;FREAD.add(+d.fanalyze);markRead();$('fl_find').insertAdjacentHTML('afterbegin',findHtml(r,'draft'));$('fl_allow').innerHTML=allowHtml(r.allowance);}
+  catch(x){if(x){const b=$('fl_busy');if(b){b.style.borderLeftColor='#b42318';b.innerHTML='<b style="color:#b42318">'+esc(x.message)+'</b><div class="muted">Nothing was used from your allowance.'+(x.detail?' Technical note: '+esc(x.detail):'')+'</div>';}if(x.allowance)$('fl_allow').innerHTML=allowHtml(x.allowance);}else{const b=$('fl_busy');if(b)b.remove();}}}
  else if(d.fapprove||d.fwo){const id=+(d.fapprove||d.fwo);try{const r=await api('/api/photoanalysis',{action:'approve',id});msg(r.allowance.message,true);const dr=FDRAFTS[id];if(d.fwo&&typeof woFromFinding==='function'){woFromFinding(dr||{id,issues:[]});}await findingsLoad();document.querySelectorAll('[data-find="'+id+'"]').forEach(x=>{if(x.querySelector('[data-fapprove]'))x.remove();});}catch(x){if(x)msg(x.message);}}
  else if(d.fdiscard){try{await api('/api/photoanalysis',{action:'discard',id:+d.fdiscard});document.querySelectorAll('[data-find="'+d.fdiscard+'"]').forEach(x=>x.remove());}catch(x){if(x)msg(x.message);}}
 });
@@ -288,6 +303,26 @@ function lostCard(d){const j=d.job||{};let l=null;try{l=j.lost?JSON.parse(j.lost
  if(j.stage==='lost')return `<div class="card" style="background:#fdf3f2"><b>Lost lead</b>: ${esc(LOSTR[l&&l.reason]||'No reason saved')}${l&&l.note?' &middot; '+esc(l.note):''}<div class="btns"><button class="btn sec" data-reopen="1">Reopen this job</button></div><small class="muted">Lost jobs stay in your records so you can see why you did not win them.</small></div>`;
  if(j.stage==='closed')return '';
  return `<div class="card"><label style="margin-top:0">Why did you lose it?</label><select id="lost_reason"><option value="">Choose a reason</option>${Object.keys(LOSTR).map(k=>`<option value="${k}">${LOSTR[k]}</option>`).join('')}</select><label>Note (optional)</label><input id="lost_note" maxlength="300" placeholder="Example: They went with a cheaper bid"><div class="btns"><button class="btn sec" data-lost="1">Mark as lost</button></div><small class="muted">The job stays in your records. You can reopen it later.</small></div>`;}
+// Mic that stays on until you tap it again. Browsers end a listening session after a short pause (about 5 to 10 seconds on a phone),
+// so we start a fresh one right away while the button is on. Only finished phrases are added to the box.
+const MIC={};
+function micLabel(b,on){const t=b.lastChild;if(t&&t.nodeType===3)t.textContent=on?(window.PM_LANG==='es'?'Escuchando. Toca para parar':'Listening. Tap to stop'):(window.pmT?window.pmT('Mic'):'Mic');b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');}
+function micToggle(b,lang,onText){
+  const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R||!b)return;
+  if(MIC[b.id]){MIC[b.id].stop();return;}
+  const st={want:true,r:null,bad:0,t:0,stop(){st.want=false;try{st.r&&st.r.stop();}catch(e){}delete MIC[b.id];micLabel(b,false);}};
+  MIC[b.id]=st;micLabel(b,true);
+  const begin=()=>{
+    if(!st.want)return;
+    const r=new R();st.r=r;r.lang=lang();r.continuous=true;r.interimResults=false;
+    st.t=Date.now();
+    r.onresult=ev=>{st.bad=0;for(let i=ev.resultIndex;i<ev.results.length;i++){if(ev.results[i].isFinal){const x=(ev.results[i][0].transcript||'').trim();if(x)onText(x);}}};
+    r.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){st.stop();msg(window.PM_LANG==='es'?'El micrófono está bloqueado. Permítelo en la configuración del navegador.':'The microphone is blocked. Allow it in your browser settings.');}};
+    r.onend=()=>{if(!st.want)return;if(Date.now()-st.t<800){if(++st.bad>=4){st.stop();return;}}setTimeout(begin,250);};
+    try{r.start();}catch(e){setTimeout(begin,400);}
+  };
+  begin();
+}
 function micInit(){const ok=window.SpeechRecognition||window.webkitSpeechRecognition;['as_mic','bf_mic'].forEach(i=>{const m=$(i);if(m&&ok)m.style.display='';});}
 const GROUPS=[['New leads',['lead'],'Customers who asked for a quote. Build an estimate to bid on them.'],['Estimate approved',['bid:signed'],'The customer signed the estimate. Build and send the contract next.'],['Waiting on the customer',['bid','contract'],'Estimates and contracts you sent. Waiting for the customer to approve or sign.'],['In progress',['scheduled','in_progress','punch'],'Approved jobs that are scheduled or underway.'],['Completed',['invoiced','closed'],'Finished and invoiced jobs.'],['Lost',['lost'],'']];
 const COVC={likely_covered:['#e6f4ea','#0a7a3d','Insured: appears covered'],check_with_agent:['#fff3d6','#8a5a00','Check your insurance'],likely_excluded:['#fdecea','#b42318','Insurance: may not cover'],expired:['#fdecea','#b42318','Policy expired']};
@@ -461,7 +496,7 @@ async function bfCreate(){const btn=$('bf_create');if(!btn||!J)return;if(lines.l
  }catch(x){if(x)msg(x.message);}
  btn.disabled=false;btn.textContent='Create estimate';}
 function coachDraw(r){const b=$('bf_coach');if(!b)return;const T=window.pmT||(q=>q);const L=t=>`<li>${esc(T(t))}</li>`;let h='';const nm=String(J.job.customerName||'the customer').split(/\s+/)[0];
- if(r.pricedCount)h+=L(`I priced ${r.pricedCount} ${r.pricedCount===1?'item':'items'} from your own price list, as a starting point only. Check the quantities and change any price that does not fit this job, then tap Recalculate.`);
+ if(r.pricedCount)h+=L(`I priced ${r.pricedCount} ${r.pricedCount===1?'item':'items'} from your own price list, as a starting point only. Check the quantities and change any price that does not fit this job, then tap Create final estimate.`);
  if(r.needsPriceCount)h+=L(`${r.needsPriceCount} ${r.needsPriceCount===1?'line needs':'lines need'} your price (marked in orange). I never guess your prices.`);
  if(!r.hasPriceList)h+=`<li>${esc(T('You have not set prices for this type of work yet.'))} <a href="/app">${esc(T('Open Estimating Setup'))}</a> ${esc(T('and your next estimates will price themselves.'))}</li>`;
  if(r.assumptions&&r.assumptions.length)h+=L(`I made these assumptions. Please confirm them: ${r.assumptions.join('; ')}.`);
@@ -493,7 +528,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  else if(ds.dtedit){dtOpen();}
  else if(ds.dtcancel){const f=$('dt_form');if(f)f.innerHTML='';}
  else if(ds.dtsave){try{msg('');await api('/api/job',{action:'update',jobId:J.job.id,name:$('dt_name').value,title:$('dt_title').value,phone:$('dt_phone').value,email:$('dt_email').value,address:$('dt_addr').value,city:$('dt_city').value,zip:$('dt_zip').value});await detail(J.job.id);msg('Saved. The change is in the job history.',true);}catch(x){if(x)msg(x.message);}}
- else if(t.closest&&t.closest('#bf_mic')){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return;const b=$('bf_mic');const r=new R();r.lang=window.PM_LANG==='es'?'es-US':'en-US';b.classList.add('on');r.onresult=ev=>{const d=$('bf_details');d.value=((d.value?d.value+' ':'')+ev.results[0][0].transcript).trim();BF.details=d.value;bfSaveSoon();};r.onend=r.onerror=()=>b.classList.remove('on');r.start();}
+ else if(t.closest&&t.closest('#bf_mic')){micToggle($('bf_mic'),()=>window.PM_LANG==='es'?'es-US':'en-US',x=>{const d=$('bf_details');d.value=((d.value?d.value+' ':'')+x).trim();BF.details=d.value;bfSaveSoon();});}
 });
 async function detail(id){
   const sy=window.scrollY;const d=await api('/api/job?id='+id);J=d;const j=d.job,e=d.estimate;
@@ -519,9 +554,12 @@ async function detail(id){
     <div class="row">${qf.map(([k,l])=>`<div><label>${esc(l)}</label><input data-q="${esc(k)}" inputmode="decimal"></div>`).join('')}</div>
     <div class="btns"><button class="btn sec" id="fill">Fill lines from my prices</button></div>`:`<p class="muted">You have not set prices for this type of work yet. <a href="/app">Open Estimating Setup</a> (Your prices), or add lines by hand.</p>`}</div></details>
    <div class="tot" id="tot"></div>
-   <div class="btns"><button class="btn" id="save">Recalculate estimate and save</button><button class="btn sec" id="send" ${j.customerEmail?'':'disabled'}>Send estimate to customer</button></div>
-   ${j.customerEmail?'':'<small class="muted">Add an email address in Edit details above to send it from here.</small>'}
-   <div class="btns" style="margin-top:6px"><button class="btn sec" id="view_doc" ${e?'':'disabled'}>View / print</button><button class="btn sec" id="pdf_doc" ${e?'':'disabled'}>Download PDF</button><button class="btn sec" id="bf_opinion">Get a second opinion on my price</button></div>
+   <div class="stp"><span class="n">1</span><div><b>Create the final estimate</b><small class="muted" style="display:block">Adds up your lines and saves the customer's copy. You can come back and update it.</small></div></div>
+   <div class="btns"><button class="btn" id="save">${e?'Update final estimate':'Create final estimate'}</button></div>
+   <div class="stp ${e?'':'off'}"><span class="n">2</span><div><b>Check it, then send it</b><small class="muted" style="display:block">${!e?'Create the final estimate first. Then you can preview it and send it.':!j.customerEmail?'Add an email address in Edit details above to send it from here, or download the PDF.':e.status==='sent'?'Sent. If you change anything, update the estimate and send it again.':'Preview it the way '+esc(String(j.customerName||'the customer').split(/\s+/)[0])+' will see it, then send it.'}</small></div></div>
+   <div class="btns"><button class="btn sec" id="view_doc" ${e?'':'disabled'}>Preview customer's copy</button><button class="btn sec" id="pdf_doc" ${e?'':'disabled'}>Download PDF</button></div>
+   <div class="btns"><button class="btn${e?'':' sec'}" id="send" ${e&&j.customerEmail?'':'disabled'}>Send estimate to ${esc(String(j.customerName||'customer').split(/\s+/)[0])}</button></div>
+   <div class="btns" style="margin-top:6px"><button class="btn sec" id="bf_opinion">Get a second opinion on my price</button></div>
    <small>${e?`Status: ${esc(e.status)}`:'Not saved yet'}</small><div id="sig_estimate"></div>
    <details class="g"><summary>More estimate options (what is included, payment schedule, discount, tax)</summary><div class="inner">
     <div class="row"><div><label>Discount ($)</label><input id="discount" inputmode="decimal" value="${esc((est.discountCents||0)/100||'')}"></div><div><label>Sales tax (%)</label><input id="tax" inputmode="decimal" value="${esc(est.taxPct||'')}"></div></div>
@@ -577,7 +615,7 @@ async function detail(id){
   const f=$('fill');if(f)f.onclick=async()=>{try{msg('');const quantities={};document.querySelectorAll('[data-q]').forEach(i=>{if(i.value!=='')quantities[i.dataset.q]=Number(i.value);});const r=await api('/api/estimate',{action:'draft',jobId:j.id,quantities});if(!r.lines.length)throw new Error('Enter at least one quantity first.');lines=r.lines;drawLines();msg('Lines filled. Review and change anything you like.',true);}catch(e){if(e)msg(e.message);}};
   $('addline').onclick=()=>{lines.push({description:'',qty:1,unit:'ea',unitPrice:0});drawLines();};
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
-  $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>msg('Saved.',true));};
+  $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>{msg('Final estimate ready. Total '+$$(r.totals.totalCents)+'. Preview it, then send it.',true);const sd=$('send');if(sd&&!sd.disabled&&sd.scrollIntoView)sd.scrollIntoView({behavior:'smooth',block:'center'});});};
   $('send').onclick=async()=>{if(!await checkInfo('Send this estimate',[['Estimate total',$$(totals().total)]],'Looks right, send it'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
   drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad();findingsLoad();woLoad();payLoad();wcLoad();lsLoad();
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};

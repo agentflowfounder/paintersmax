@@ -73,8 +73,9 @@ function draw(){
   if(!D)return;
   let h='';
   if(D.limit===0){$('body').innerHTML='<div class="card"><b>Builder rate sheets are on the Basic and Pro plans.</b><p>Basic includes 1 builder sheet. Pro includes unlimited sheets, one for every builder you work with.</p></div>';return;}
-  if(!D.hasBuilderCard){$('body').innerHTML='<div class="card"><b>Set your builder rates first.</b><p>Open <a href="/app">Estimating Setup</a>, choose "New construction (builders)" under services, and save your prices on the Your prices step. Then come back here.</p></div>';return;}
+  if(!D.hasBuilderCard){$('body').innerHTML='<div class="card"><b>Start with your builder price list</b><p>A builder rate sheet is a private price list for a home builder or general contractor who sends you steady work. These prices are usually lower than what a homeowner pays, because you get the work all year.</p><p><b>Step 1.</b> Tap the button to create your builder price list. We fill in starting prices for production, semi-custom and custom builders, and you can change any number later in <a href="/app">Estimating Setup</a>.</p><p><b>Step 2.</b> Make a sheet for each builder, with its own discount, its own link and a PDF you can send.</p><button class="btn" data-seed="1">Create my builder price list</button></div>';return;}
   const n=D.sheets.length,can=D.limit===null||n<D.limit;
+  h+='<p class="muted">Want to change the starting prices? <a href="/app">Open Estimating Setup</a> and edit Builder rates on the Your prices step.</p>';
   h+=D.sheets.map(s=>sheetForm(s)).join('');
   h+=can?`<h2 style="font-size:20px;margin-top:18px">New builder sheet</h2>${sheetForm(null)}`:`<div class="card"><b>You have used your ${D.limit} builder sheet${D.limit===1?'':'s'}.</b> Pro has unlimited sheets.</div>`;
   h=`<p class="muted">${n} sheet${n===1?'':'s'}${D.limit===null?'':' of '+D.limit}</p>`+h;
@@ -90,7 +91,8 @@ async function load(){try{D=await api('/api/ratesheets');draw();}catch(e){if(e)$
 document.addEventListener('click',async e=>{
   const t=e.target,ds=t.dataset||{};
   try{
-    if(ds.save){msg('');const el=t.closest('[data-sheet]');await api('/api/ratesheets',{action:'save',id:ds.save==='new'?undefined:ds.save,sheet:read(el)});msg('Saved.',true);await load();}
+    if(ds.seed){t.disabled=true;msg('');await api('/api/ratesheets',{action:'seed'});await load();msg('Your builder price list is ready. Make your first sheet below.',true);}
+    else if(ds.save){msg('');const el=t.closest('[data-sheet]');await api('/api/ratesheets',{action:'save',id:ds.save==='new'?undefined:ds.save,sheet:read(el)});msg('Saved.',true);await load();}
     else if(ds.copy){try{await navigator.clipboard.writeText(ds.copy);msg('Link copied.',true);}catch{msg('Select the link below and copy it.');}}
     else if(ds.reset){if(!confirm('The old link will stop working. Make a new link?'))return;await api('/api/ratesheets',{action:'reset',id:ds.reset});msg('New link ready. Send it to the builder again.',true);await load();}
     else if(ds.del){if(!confirm('Delete this sheet? Its link will stop working.'))return;await api('/api/ratesheets',{action:'delete',id:ds.del});msg('Deleted.',true);await load();}
