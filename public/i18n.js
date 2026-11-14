@@ -1732,6 +1732,12 @@
     [/^\+(\d+) more$/, function (a, n) { return '+' + n + ' más'; }],
   ]);
 
+  /* ---- Part 16b: Calendar day and week views ---- */
+  pmI18n.add({
+    "Day": "Día", "Week": "Semana", "All crew": "Todo el equipo", "No crew assigned.": "Sin equipo asignado.",
+    "Nothing scheduled this day.": "No hay nada programado este día.", "Edit dates and crew": "Editar fechas y equipo",
+  });
+
   /* ---- Part 17: Vehicles ---- */
   (function () {
     var SV = { 'Oil change': 'Cambio de aceite', 'Tire rotation': 'Rotación de llantas', 'Brake check': 'Revisión de frenos' };

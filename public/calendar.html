@@ -18,6 +18,13 @@ button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:9px 13px;
 .day i{font-style:normal;font-size:12px;color:#4A5568}
 .chip{display:block;width:100%;text-align:left;font-size:11px;font-weight:600;border-radius:4px;padding:2px 4px;margin-top:2px;background:#0F1B2D;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border:0}
 .chip.p{background:#0a7a3d}.chip.c{background:#4A5568}.chip.v{background:#1f5fbf}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;border:1px solid #fff;vertical-align:middle}
+.seg{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap}.seg button{background:#eceae4}.seg button.on{background:#0F1B2D;color:#fff}
+.lgd{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}.lgd button{background:#fff;border:1px solid #cfd5dc;font-weight:600;font-size:13px;padding:5px 9px}.lgd button.on{background:#0F1B2D;color:#fff}.lgd .dot{border-color:transparent}
+.wk{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}@media(max-width:700px){.wk{grid-template-columns:1fr}}
+.wkd{background:#fbfaf8;border:1px solid #eee;border-radius:6px;padding:6px;min-height:70px}.wkd.t{border-color:#E8A33D;background:#fff7e6}.wkd h5{margin:0 0 4px;font-size:13px}
+.wkd .chip{white-space:normal;font-size:12px;padding:4px 6px}
+.ent{border-left:5px solid #0F1B2D;background:#fbfaf8;border-radius:6px;padding:8px 10px;margin:0 0 8px;font-size:14px}.ent b{font-size:15px}.ent .acts{margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;font-size:13px}
 label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}input,textarea{font:inherit;width:100%;padding:9px;border:1px solid #cfd5dc;border-radius:8px}
 .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}@media(max-width:560px){.row{grid-template-columns:1fr}.day{min-height:56px}.chip{font-size:10px}}
 .muted{color:#4A5568;font-size:14px}.ok{color:#0a7a3d;font-weight:600}.bad{color:#b42318;font-weight:600}
@@ -27,8 +34,10 @@ label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}input,texta
 <main>
 <h1>Calendar and crew schedule</h1>
 <div id="msg" class="muted"></div>
-<div class="card"><div class="bar"><button class="s" id="prev">&larr;</button><b id="mon"></b><button class="s" id="next">&rarr;</button><button class="s" id="today">Today</button></div>
-<div class="g" id="dow"></div><div class="g" id="grid"></div></div>
+<div class="card"><div class="seg" id="modes"><button class="s" data-mode="day">Day</button><button class="s" data-mode="week">Week</button><button class="s" data-mode="month">Month</button></div>
+<div class="lgd" id="legend"></div>
+<div class="bar"><button class="s" id="prev">&larr;</button><b id="mon"></b><button class="s" id="next">&rarr;</button><button class="s" id="today">Today</button></div>
+<div class="g" id="dow"></div><div class="g" id="grid"></div><div id="wk" class="wk" style="display:none"></div><div id="dayv" style="display:none"></div></div>
 <div class="card" id="edit" style="display:none"></div>
 <div class="card"><b>Crew contacts</b><p class="muted" style="margin:4px 0 6px">One person per line: name, email, phone. Add <code>es</code> at the end to send that person Spanish emails. Emails go out only when you tick "Email the crew" while saving a job's dates. Text messages are not available yet.</p>
 <textarea id="crew_t" rows="4" placeholder="Luis, luis@example.com, 214-555-0101, es"></textarea><div style="margin-top:8px"><button class="s" id="crew_save">Save crew contacts</button></div></div>
@@ -47,19 +56,68 @@ var iso=function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 $('dow').innerHTML=DOW.map(function(d){return'<div class="dow">'+T(d)+'</div>'}).join('');
 function load(){return api('/api/schedule').then(function(d){jobs=d.jobs;visits=d.visits||[];needs=d.needsDate;crew=d.crew;draw();});}
-function draw(){
+var CREWCOL=['#b5470f','#0a7a3d','#7b3fa0','#0e7c86','#a3274a','#6b7a00','#4338ca','#7c5e3c'];
+function colorOf(name){var h=0,n=String(name).toLowerCase();for(var i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))>>>0;return CREWCOL[h%CREWCOL.length];}
+var mode=(function(){try{return localStorage.getItem('pm_calmode')}catch(e){return null}})()||'month',anchor=new Date(),fc='';
+if(['day','week','month'].indexOf(mode)<0)mode='month';
+var vt=function(t){var m=/^(\d\d):(\d\d)$/.exec(t||'');if(!m)return'';var hh=+m[1];return (hh%12||12)+':'+m[2]+(hh<12?'a':'p')};
+var vt2=function(t){var m=/^(\d\d):(\d\d)$/.exec(t||'');if(!m)return'';var hh=+m[1];return (hh%12||12)+':'+m[2]+' '+(hh<12?'AM':'PM')};
+function jobsOn(k){return jobs.filter(function(j){return j.start<=k&&k<=j.end&&(!fc||(j.crew||[]).some(function(n){return n.toLowerCase()===fc.toLowerCase()}))});}
+function chipV(v){return'<button class="chip v" data-visit="'+v.jobId+'" title="'+esc(T('Site visit')+' - '+v.customer+(v.address?' - '+v.address:''))+'">'+esc((vt(v.time)?vt(v.time)+' ':'')+T('Visit')+': '+v.customer)+'</button>';}
+function chipJ(j,k){var cr=j.crew||[],col=cr.length?colorOf(cr[0]):'',st=cr.length?'':(j.stage==='closed'||j.stage==='invoiced'?' c':j.stage==='in_progress'?' p':'');
+ var dots=cr.slice(1).map(function(n){return'<i class="dot" style="background:'+colorOf(n)+'"></i>'}).join('');
+ return'<button class="chip'+st+'" data-job="'+j.jobId+'" style="'+(col?'background:'+col:'')+'" title="'+esc(j.title+' - '+j.customer+(cr.length?' - '+cr.join(', '):''))+'">'+dots+esc((j.startTime&&k===j.start?j.startTime+' ':'')+j.title)+'</button>';}
+function dayChips(k){return visits.filter(function(v){return v.date===k}).map(chipV).concat(jobsOn(k).map(function(j){return chipJ(j,k)}));}
+function drawLegend(){
+ var el=$('legend');if(!crew.length){el.innerHTML='';return;}
+ el.innerHTML='<button data-fc=""'+(fc?'':' class="on"')+'>'+T('All crew')+'</button>'+crew.map(function(n){return'<button data-fc="'+esc(n)+'"'+(fc.toLowerCase()===n.toLowerCase()?' class="on"':'')+'><i class="dot" style="background:'+colorOf(n)+'"></i>'+esc(n)+'</button>'}).join('');
+}
+function title(){
+ var L=window.PM_LANG==='es'?'es-US':'en-US';
+ if(mode==='month')return view.toLocaleDateString(L,{month:'long',year:'numeric'});
+ if(mode==='day')return nice(iso(anchor));
+ var a=wkStart(anchor),b=new Date(a.getFullYear(),a.getMonth(),a.getDate()+6);return nice(iso(a))+' - '+nice(iso(b));
+}
+function wkStart(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate()-d.getDay());}
+function drawMonth(){
  var y=view.getFullYear(),m=view.getMonth();
- $('mon').textContent=view.toLocaleDateString(window.PM_LANG==='es'?'es-US':'en-US',{month:'long',year:'numeric'});
  var first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),today=iso(new Date()),h='';
  for(var i=0;i<42;i++){var d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i),k=iso(d);
-  var vs=visits.filter(function(v){return v.date===k}),js=jobs.filter(function(j){return j.start<=k&&k<=j.end});
-  var vt=function(t){var m=/^(\d\d):(\d\d)$/.exec(t||'');if(!m)return'';var hh=+m[1];return (hh%12||12)+':'+m[2]+(hh<12?'a':'p')};
-  var chips=vs.map(function(v){return'<button class="chip v" data-visit="'+v.jobId+'" title="'+esc(T('Site visit')+' - '+v.customer+(v.address?' - '+v.address:''))+'">'+esc((vt(v.time)?vt(v.time)+' ':'')+T('Visit')+': '+v.customer)+'</button>'}).concat(js.map(function(j){return'<button class="chip '+(j.stage==='closed'||j.stage==='invoiced'?'c':j.stage==='in_progress'?'p':'')+'" data-job="'+j.jobId+'" title="'+esc(j.title+' - '+j.customer)+'">'+esc((j.startTime&&k===j.start?j.startTime+' ':'')+j.title)+'</button>'})).slice(0,3).join('');
-  var more=vs.length+js.length-3;
+  var all=dayChips(k),chips=all.slice(0,3).join(''),more=all.length-3;
   h+='<div class="day'+(d.getMonth()!==m?' o':'')+(k===today?' t':'')+'"><i>'+d.getDate()+'</i>'+chips+(more>0?'<i>+'+more+'</i>':'')+'</div>';}
  $('grid').innerHTML=h;
+}
+function drawWeek(){
+ var a=wkStart(anchor),today=iso(new Date()),h='';
+ for(var i=0;i<7;i++){var d=new Date(a.getFullYear(),a.getMonth(),a.getDate()+i),k=iso(d),all=dayChips(k);
+  h+='<div class="wkd'+(k===today?' t':'')+'"><h5>'+esc(T(DOW[d.getDay()]))+' '+d.getDate()+'</h5>'+(all.join('')||'<span class="muted">&nbsp;</span>')+'</div>';}
+ $('wk').innerHTML=h;
+}
+function drawDay(){
+ var k=iso(anchor),vs=visits.filter(function(v){return v.date===k}),js=jobsOn(k),h='';
+ vs.forEach(function(v){h+='<div class="ent" style="border-color:#1f5fbf"><b>'+esc(T('Site visit'))+': '+esc(v.customer)+'</b>'+(v.time?' &middot; '+esc(vt2(v.time)):'')+(v.address?'<div class="muted">'+esc(v.address)+'</div>':'')+'<div class="acts"><a href="/jobs?id='+v.jobId+'">'+T('Open the job')+'</a></div></div>';});
+ js.forEach(function(j){var cr=j.crew||[],span=Math.round((Date.parse(j.end+'T00:00:00Z')-Date.parse(j.start+'T00:00:00Z'))/86400000)+1,n=Math.round((Date.parse(k+'T00:00:00Z')-Date.parse(j.start+'T00:00:00Z'))/86400000)+1;
+  h+='<div class="ent" style="border-color:'+(cr.length?colorOf(cr[0]):'#0F1B2D')+'"><b>'+esc(j.title)+'</b> <span class="muted">'+esc(j.customer||'')+'</span>'+(j.startTime&&k===j.start?' &middot; '+esc(vt2(j.startTime)):'')
+   +(span>1?'<div class="muted">'+esc(window.PM_LANG==='es'?'Día '+n+' de '+span:'Day '+n+' of '+span)+'</div>':'')
+   +(j.address?'<div class="muted">'+esc(j.address)+'</div>':'')
+   +(cr.length?'<div>'+cr.map(function(c){return'<i class="dot" style="background:'+colorOf(c)+'"></i>'+esc(c)}).join(' &nbsp; ')+'</div>':'<div class="muted">'+T('No crew assigned.')+'</div>')
+   +(j.notes?'<div class="muted">'+esc(j.notes)+'</div>':'')
+   +'<div class="acts"><button class="sm s" data-job="'+j.jobId+'">'+T('Edit dates and crew')+'</button><a href="/jobs?id='+j.jobId+'">'+T('Open the job')+'</a></div></div>';});
+ $('dayv').innerHTML=h||'<p class="muted">'+T('Nothing scheduled this day.')+'</p>';
+}
+function draw(){
+ [].forEach.call(document.querySelectorAll('#modes button'),function(b){b.classList.toggle('on',b.dataset.mode===mode)});
+ $('mon').textContent=title();
+ $('dow').style.display=$('grid').style.display=mode==='month'?'':'none';
+ $('wk').style.display=mode==='week'?'':'none';$('dayv').style.display=mode==='day'?'':'none';
+ drawLegend();
+ if(mode==='month')drawMonth();else if(mode==='week')drawWeek();else drawDay();
  $('nd').innerHTML=needs.length?needs.map(function(n){return'<div class="nd"><div><b>'+esc(n.title)+'</b><br><span class="muted">'+esc(n.customer)+'</span></div><button class="s" data-need="'+n.jobId+'">'+T('Set dates')+'</button></div>'}).join(''):'<p class="muted">'+T('Nothing waiting.')+'</p>';
 }
+function step(dir){
+ if(mode==='month')view.setMonth(view.getMonth()+dir);
+ else anchor=new Date(anchor.getFullYear(),anchor.getMonth(),anchor.getDate()+dir*(mode==='week'?7:1));
+ draw();}
 
 function nice(k){return k&&window.pmDate?window.pmDate(k):(k||'');}
 function frDraw(){var f=$('e_fr'),g=$('e_gc'),s=$('e_s'),e=$('e_e'),t=window.calJob;if(!f||!s)return;
@@ -93,8 +151,13 @@ function openEdit(id,fresh){
 }
 document.addEventListener('click',function(e){var t=e.target,d=t.dataset||{};
  if(d.job)openEdit(+d.job);else if(d.need)openEdit(+d.need,true);else if(d.visit)location.href='/jobs?id='+d.visit;
- else if(t.id==='prev'){view.setMonth(view.getMonth()-1);draw();}else if(t.id==='next'){view.setMonth(view.getMonth()+1);draw();}
- else if(t.id==='today'){view=new Date();view.setDate(1);draw();}
+ else if(t.id==='prev')step(-1);else if(t.id==='next')step(1);
+ else if(t.id==='today'){view=new Date();view.setDate(1);anchor=new Date();draw();}
+ else if(d.mode){var was=mode;mode=d.mode;try{localStorage.setItem('pm_calmode',mode)}catch(x){}
+  if(mode==='month'){view=new Date(anchor.getFullYear(),anchor.getMonth(),1);}
+  else if(was==='month'){var n0=new Date();anchor=(n0.getFullYear()===view.getFullYear()&&n0.getMonth()===view.getMonth())?n0:new Date(view.getFullYear(),view.getMonth(),1);}
+  draw();}
+ else if(d.fc!==undefined&&t.closest('#legend')){fc=d.fc;draw();}
  else if(t.id==='e_save'){var body={jobId:+d.id,start:$('e_s').value,end:$('e_e').value,startTime:$('e_t').value,crew:$('e_c').value.split(','),notes:$('e_n').value,notify:$('e_mail').checked,startNotice:!!($('e_sn')&&$('e_sn').checked),noticeLang:$('e_snl')?$('e_snl').value:'en'};
   api('/api/schedule',body).then(function(r){var c=(r.conflicts||[]).map(function(x){return x.crew+' '+T('is also booked on')+' '+x.title});var n=r.notified,extra='';if(n){if(n.emailed.length)extra+=' '+T('Emailed:')+' '+n.emailed.join(', ')+'.';if(n.noEmail.length)extra+=' '+T('No email on file for:')+' '+n.noEmail.join(', ')+'.';if(n.failed.length)extra+=' '+T('Could not email:')+' '+n.failed.join(', ')+'.';}load().then(function(){$('e_msg').className=c.length||(n&&(n.noEmail.length||n.failed.length))?'bad':'ok';var nm=r.notice==='queued'?' '+T('The customer will be emailed the "We start tomorrow" notice the day before.'):r.notice==='soon'?' '+T('It is too late for the day-before notice, so none will be sent. A quick call or text works.'):r.notice==='sent'?' '+T('The notice was already emailed.'):'';$('e_msg').textContent=(c.length?T('Saved, but check this:')+' '+c.join('; '):T('Saved.'))+extra+nm;});}).catch(function(x){if(x){$('e_msg').className='bad';$('e_msg').textContent=T(x.message);}});}
  else if(t.id==='e_clr'){if(!confirm(T('Remove this job from the calendar?')))return;api('/api/schedule',{jobId:+d.id,clear:true}).then(function(){$('edit').style.display='none';load();});}
