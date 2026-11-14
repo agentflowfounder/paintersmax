@@ -4,6 +4,7 @@ import { RESERVED_SLUGS } from "./settings.ts";
 import { adminTickerView, saveConfig } from "./ticker.ts";
 import { getSessionUser, requestLoginLink } from "./auth.ts";
 import { normalizePlan } from "./usage.ts";
+import { adminHelpDelete, adminHelpDismiss, adminHelpDraft, adminHelpSave, adminHelpView } from "./helplib.ts";
 import type { Env } from "./types.ts";
 
 const json = (data: unknown, status = 200) =>
@@ -97,6 +98,21 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
     if (b?.action === "domain_remove") {
       return (await removeDomain(env, b.host)) ? json({ ok: true }) : json({ error: "Domain not found." }, 404);
     }
+    if (b?.action === "help_save") {
+      const r = await adminHelpSave(env, b.article);
+      return r.ok ? json({ ok: true, article: r.article }) : json({ error: r.error }, 400);
+    }
+    if (b?.action === "help_delete") {
+      return (await adminHelpDelete(env, String(b.id ?? ""))) ? json({ ok: true }) : json({ error: "Article not found." }, 404);
+    }
+    if (b?.action === "help_dismiss") {
+      await adminHelpDismiss(env, String(b.id ?? ""));
+      return json({ ok: true });
+    }
+    if (b?.action === "help_draft") {
+      const d = await adminHelpDraft(env, String(b.question ?? "").slice(0, 400), String(b.hint ?? "").slice(0, 1000));
+      return d ? json({ ok: true, draft: d }) : json({ error: "The AI could not write a draft right now. Write the answer yourself, or try again." }, 503);
+    }
     if (b?.action === "plan") {
       const id = Number(b?.companyId);
       if (!Number.isInteger(id)) return json({ error: "Client not found." }, 404);
@@ -108,6 +124,7 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
 
   if (new URL(request.url).searchParams.get("markets") === "1") return json({ markets: await loadMarkets(env) });
   if (new URL(request.url).searchParams.get("domains") === "1") return json({ domains: await listDomains(env) });
+  if (new URL(request.url).searchParams.get("help") === "1") return json(await adminHelpView(env));
   if (new URL(request.url).searchParams.get("ticker") === "1") return json(await adminTickerView(env));
 
   const rows = await env.DB.prepare(

@@ -38,6 +38,17 @@ small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#
 <label>Buy links</label><textarea id="m_links" rows="2" placeholder="Buy at Store | https://example.com/item | affiliate"></textarea>
 <div><button class="btn" id="m_save">Save item</button> <button class="btn" id="m_clear" style="background:#eceae4;color:#0F1B2D">New item</button> <button class="btn" id="m_reset" style="background:#fbe9e7;color:#b42318">Reset to starting list</button></div>
 <div id="m_list" style="margin-top:10px"></div></div>
+<h2>Help guide and questions</h2>
+<div class="card"><small>Painters ask questions on the Help page. When the guide cannot answer one, the question (never the painter's name or company) lands here. Draft an answer with AI if you want, edit it, then approve it. Nothing joins the guide until you save it. Editing a starter article saves your own copy, which replaces the starter.</small>
+<div id="h_un" style="margin-top:10px"></div>
+<label>Topic</label><select id="h_topic"></select>
+<label>Title</label><input id="h_title" placeholder="How do I ...">
+<label>Words painters might use (comma separated, English or Spanish)</label><input id="h_keys">
+<label>Answer (start a step with 1. 2. 3. on its own line)</label><textarea id="h_body" rows="6" style="width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit"></textarea>
+<div class="row"><div><label>Button label (optional)</label><input id="h_ll" placeholder="Open Jobs"></div><div><label>Button page (optional)</label><input id="h_lh" placeholder="/jobs"></div></div>
+<label>Notes for the AI draft (optional)</label><input id="h_hint" placeholder="Tell the AI what is true in the app">
+<div><button class="btn" id="h_save">Approve and add to the guide</button> <button class="btn" id="h_draft" style="background:#eceae4">Draft with AI</button> <button class="btn" id="h_clear" style="background:#eceae4">New</button></div>
+<div id="h_list" style="margin-top:10px"></div></div>
 <h2>Client domains</h2>
 <div class="card"><small>For a client with their own domain: add the domain to your Cloudflare account, add it to the paintersmax-site worker (Workers, Settings, Domains and Routes, Add custom domain), then connect it here. Add both the bare domain and the www version if you want both. The client still signs in at paintersmax.app.</small>
 <div class="row"><div><label>Domain</label><input id="dm_host" placeholder="rivera-painting.com"></div><div><label>Client</label><select id="dm_slug"></select></div></div>
@@ -85,7 +96,24 @@ $('m_reset').onclick=async()=>{if(!confirm('Replace the whole list with the star
 document.addEventListener('click',async e=>{const d=e.target.dataset||{};
  if(d.me){const m=MAT.find(x=>x.id===d.me);MID=m.id;$('m_group').value=m.group;$('m_name').value=m.name;$('m_why').value=m.why;$('m_how').value=m.how;$('m_photo').value=m.photo;$('m_need').value=m.need;$('m_links').value=m.links.map(l=>l.label+' | '+l.url+(l.affiliate?' | affiliate':'')).join('\n');window.scrollTo(0,$('m_group').offsetTop-80);}
  if(d.md){if(!confirm('Delete this item?'))return;try{await api('/api/materials',{action:'delete',id:d.md});msg('Deleted.',true);mLoad();}catch(x){if(x)msg(x.message);}}});
+let HV=null,HID='',HFQ='';
+function hClear(){HID='';HFQ='';['title','keys','body','ll','lh','hint'].forEach(k=>$('h_'+k).value='');}
+function hFill(a){HID=a.id;$('h_topic').value=a.topic;$('h_title').value=a.title;$('h_keys').value=(a.keywords||[]).join(', ');$('h_body').value=a.body;$('h_ll').value=a.link?a.link.label:'';$('h_lh').value=a.link?a.link.href:'';window.scrollTo(0,$('h_topic').offsetTop-120);}
+async function hLoad(){try{HV=await api('/api/admin?help=1');$('h_topic').innerHTML=HV.topics.map(t=>`<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('');
+ $('h_un').innerHTML=HV.unanswered.length?'<label style="margin-top:0">Questions the guide could not answer</label>'+HV.unanswered.map(u=>`<div class="c"><div>${esc(u.q)} <small>asked ${u.n} time${u.n===1?'':'s'}</small></div><span><button class="btn" style="margin:0" data-hq="${esc(u.id)}">Answer</button> <button class="btn" style="margin:0;background:#eceae4" data-hx="${esc(u.id)}">Dismiss</button></span></div>`).join(''):'<small>No unanswered questions right now.</small>';
+ const ids=new Set(HV.custom.map(a=>a.id));
+ $('h_list').innerHTML='<label>Your articles ('+HV.custom.length+')</label>'+(HV.custom.map(a=>`<div class="c"><div><b>${esc(a.title)}</b> <small>${esc(a.id)}</small></div><span><button class="btn" style="margin:0" data-he="c:${esc(a.id)}">Edit</button> <button class="btn" style="margin:0;background:#fbe9e7;color:#b42318" data-hd="${esc(a.id)}">Delete</button></span></div>`).join('')||'<small>None yet.</small>')+
+  '<label>Starter articles (Edit makes your own copy that replaces it)</label>'+HV.starter.map(a=>`<div class="c"><div>${esc(a.title)} <small>${ids.has(a.id)?'replaced by yours':''}</small></div><button class="btn" style="margin:0;background:#eceae4" data-he="s:${esc(a.id)}">Edit</button></div>`).join('');}catch(e){}}
+document.addEventListener('click',async e=>{const d=e.target.dataset||{};
+ if(d.hq){const u=HV.unanswered.find(x=>x.id===d.hq);hClear();HFQ=u.id;$('h_title').value=u.q;$('h_body').focus();window.scrollTo(0,$('h_topic').offsetTop-120);msg('Write the answer below, or tap Draft with AI.',true);}
+ if(d.hx){try{await api('/api/admin',{action:'help_dismiss',id:d.hx});hLoad();}catch(x){if(x)msg(x.message);}}
+ if(d.he){const [k,id]=d.he.split(':');const a=(k==='c'?HV.custom:HV.starter).find(x=>x.id===id);hFill(a);}
+ if(d.hd){if(!confirm('Delete this article?'))return;try{await api('/api/admin',{action:'help_delete',id:d.hd});msg('Deleted.',true);hLoad();}catch(x){if(x)msg(x.message);}}});
+$('h_clear').onclick=hClear;
+$('h_draft').onclick=async()=>{try{msg('Writing a draft...',true);const r=await api('/api/admin',{action:'help_draft',question:$('h_title').value,hint:$('h_hint').value});$('h_title').value=r.draft.title;$('h_keys').value=r.draft.keywords.join(', ');$('h_body').value=r.draft.body;msg('Draft ready. Read it, fix anything wrong, then approve.',true);}catch(x){if(x)msg(x.message);}};
+$('h_save').onclick=async()=>{try{msg('');const lh=$('h_lh').value.trim(),ll=$('h_ll').value.trim();await api('/api/admin',{action:'help_save',article:{id:HID||undefined,topic:$('h_topic').value,title:$('h_title').value,keywords:$('h_keys').value,body:$('h_body').value,link:lh&&ll?{label:ll,href:lh}:undefined,fromQuestion:HFQ||undefined}});hClear();msg('Saved to the guide.',true);hLoad();}catch(x){if(x)msg(x.message);}};
 tkLoad();
+hLoad();
 mLoad();
 mkLoad();
 dmLoad();

@@ -1482,5 +1482,47 @@
     [/^Final estimate ready\. Total (\$[\d,]+\.\d\d)\. Preview it, then send it\.$/, function (a, m) { return 'Presupuesto final listo. Total ' + m + '. Véalo y luego envíelo.'; }],
   ]);
 
+  /* ---- Part 13: Help page and guide ---- */
+  pmI18n.add({
+    "Help": "Ayuda", "Help - PaintersMax": "Ayuda - PaintersMax",
+    "How can I help?": "¿Cómo puedo ayudarle?",
+    "Ask a question in your own words, or browse the guide below. Answers come from the PaintersMax guide, so they match what you see on your screen.": "Haga una pregunta con sus propias palabras o explore la guía de abajo. Las respuestas salen de la guía de PaintersMax, así que coinciden con lo que ve en su pantalla.",
+    "Ask": "Preguntar",
+    "Example: How do I send an estimate to a customer?": "Ejemplo: ¿Cómo envío un presupuesto a un cliente?",
+    "Your question": "Su pregunta",
+    "How do I send an estimate to a customer?": "¿Cómo envío un presupuesto a un cliente?",
+    "How do I change my prices?": "¿Cómo cambio mis precios?",
+    "How do I add a crew member?": "¿Cómo agrego a un miembro del equipo?",
+    "How do I download my records for my accountant?": "¿Cómo descargo mis registros para mi contador?",
+    "If the guide does not cover your question, we save only the question, never your name or company, so we can add an answer. Nothing is added to the guide until the PaintersMax team reviews it.": "Si la guía no cubre su pregunta, guardamos solo la pregunta, nunca su nombre ni su empresa, para poder agregar una respuesta. Nada se agrega a la guía hasta que el equipo de PaintersMax lo revise.",
+    "Browse the guide": "Explorar la guía",
+    "Search the guide (free, no AI)": "Buscar en la guía (gratis, sin IA)",
+    "Search the guide": "Buscar en la guía",
+    "articles": "artículos",
+    "Help questions this month": "Preguntas de ayuda este mes",
+    "Browsing the guide is always free.": "Explorar la guía siempre es gratis.",
+    "Looking through the guide...": "Buscando en la guía...",
+    "From the guide": "De la guía",
+    "That question is not in the guide yet. We saved it (without your name) so we can add an answer.": "Esa pregunta todavía no está en la guía. La guardamos (sin su nombre) para poder agregar una respuesta.",
+    "Nothing matched. Try different words, or ask the question above.": "No hubo resultados. Pruebe otras palabras o haga la pregunta arriba.",
+    "Back to the guide": "Volver a la guía",
+    "Translated by AI from the English guide.": "Traducido por IA de la guía en inglés.",
+    "Getting started": "Primeros pasos",
+    "Prices and rate cards": "Precios y tarifas",
+    "Jobs and estimates": "Trabajos y presupuestos",
+    "Scheduling and finishing a job": "Programar y terminar un trabajo",
+    "Invoices, payments and records": "Facturas, pagos y registros",
+    "Insurance, cities and your account": "Seguro, ciudades y su cuenta",
+    "Open Calendar": "Abrir Calendario", "Open City pages": "Abrir Páginas de ciudades", "Open Crew": "Abrir Equipo",
+    "Open Estimating Setup": "Abrir Configuración de presupuestos", "Open Insurance": "Abrir Seguro", "Open Jobs": "Abrir Trabajos",
+    "Open Records": "Abrir Registros", "Open Your prices": "Abrir Sus precios", "Open builder rate sheets": "Abrir tarifas para constructores",
+    "Open the sign-in page": "Abrir la página de inicio de sesión",
+    "Type your question first.": "Escriba primero su pregunta.",
+    "Help chat is paused right now. Try again soon, or browse the guide.": "El chat de ayuda está en pausa. Intente de nuevo pronto o explore la guía.",
+    "You have used this month's help questions. You can still browse the guide.": "Usó las preguntas de ayuda de este mes. Todavía puede explorar la guía.",
+    "The help assistant could not answer right now. Nothing was used from your allowance. Try the guide below.": "El asistente de ayuda no pudo responder ahora. No se usó nada de su cupo. Pruebe la guía de abajo.",
+    "Article not found.": "No se encontró el artículo.",
+  }, []);
+
   pmI18n.start();
 })();
