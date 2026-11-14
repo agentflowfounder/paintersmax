@@ -1,4 +1,5 @@
 import type { Env, QuoteRequest } from "./types.ts";
+import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
 
 /** What the AI sees in the customer's photos. It never sets prices; only scope, effort weights and questions. */
 export interface Brief {
@@ -55,7 +56,7 @@ function parse(text: string): Brief | null {
 }
 
 async function viaGemini(env: Env, text: string, photos: { mime: string; data: string }[]): Promise<string> {
-  const model = env.MODEL_GEMINI ?? "gemini-2.5-flash";
+  const model = geminiModel(env);
   const call = (thinkingOff: boolean) =>
     fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
@@ -66,7 +67,7 @@ async function viaGemini(env: Env, text: string, photos: { mime: string; data: s
           responseMimeType: "application/json",
           temperature: 0.2,
           // Thinking tokens are billed as output and are not needed for reading photos.
-          ...(thinkingOff ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+          ...(thinkingOff ? thinkingCfg(model) : {}),
         },
       }),
     });

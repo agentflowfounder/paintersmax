@@ -1,4 +1,5 @@
 import { getSessionUser, randomToken, sha256Hex } from "./auth.ts";
+import { geminiModel } from "./gemini.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { addJobEvent } from "./crm.ts";
 import { complete, keyFor, sanitizeHistory } from "./assistant.ts";
@@ -94,7 +95,7 @@ interface FilePart {
 
 async function viaGeminiDoc(env: Env, file: FilePart, prompt: string, json_: boolean, maxTokens: number): Promise<string> {
   const base = env.GEMINI_API_BASE ?? "https://generativelanguage.googleapis.com";
-  const model = env.MODEL_GEMINI ?? "gemini-2.5-flash";
+  const model = geminiModel(env);
   const r = await fetch(`${base}/v1beta/models/${model}:generateContent`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY! },

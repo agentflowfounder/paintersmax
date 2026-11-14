@@ -1,4 +1,5 @@
 import type { Env } from "./types.ts";
+import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
 
 /**
  * One photo plus a question, answered by whichever AI provider works. Gemini goes first (cheapest), then OpenAI, then Anthropic.
@@ -33,7 +34,7 @@ async function failure(p: string, r: Response): Promise<string> {
 }
 
 async function viaGemini(env: Env, i: VisionIn, json: boolean): Promise<{ text: string } | { fail: string }> {
-  const model = env.MODEL_GEMINI ?? "gemini-2.5-flash";
+  const model = geminiModel(env);
   const call = (thinkingOff: boolean) =>
     fetch(`${env.GEMINI_API_BASE ?? "https://generativelanguage.googleapis.com"}/v1beta/models/${model}:generateContent`, {
       method: "POST",
@@ -41,7 +42,7 @@ async function viaGemini(env: Env, i: VisionIn, json: boolean): Promise<{ text: 
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: i.system }] },
         contents: [{ role: "user", parts: [{ inline_data: { mime_type: i.mime, data: i.data } }, { text: i.user }] }],
-        generationConfig: { ...(json ? { responseMimeType: "application/json" } : {}), maxOutputTokens: i.maxTokens ?? 1200, ...(thinkingOff ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
+        generationConfig: { ...(json ? { responseMimeType: "application/json" } : {}), maxOutputTokens: i.maxTokens ?? 1200, ...(thinkingOff ? thinkingCfg(model) : {}) },
       }),
     });
   let r = await call(true);

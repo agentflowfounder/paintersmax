@@ -1,4 +1,5 @@
 import { coverageLine } from "./insurance.ts";
+import { geminiModel } from "./gemini.ts";
 import { handleHome } from "./home.ts";
 import { coiLink, handleInsurance, handlePublicInsurance, sendInsuranceReminders, showsCustomers } from "./insurance.ts";
 import { handlePublicTicker } from "./ticker.ts";
@@ -424,7 +425,7 @@ export default {
           const out = await visionAsk(env, { system: "Reply with the single word OK.", user: "Reply OK.", mime: "image/png", data: px, maxTokens: 20 }, { json: false, prefer: [p] });
           result[p] = out.ok ? "works" : out.why;
         }
-        return json({ ok: true, models: { gemini: env.MODEL_GEMINI ?? "gemini-2.5-flash", openai: env.MODEL_OPENAI ?? "gpt-4.1-mini", anthropic: env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5" }, photoQuestion: result });
+        return json({ ok: true, models: { gemini: geminiModel(env), openai: env.MODEL_OPENAI ?? "gpt-4.1-mini", anthropic: env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5" }, photoQuestion: result });
       }
       return json({
         ok: true,

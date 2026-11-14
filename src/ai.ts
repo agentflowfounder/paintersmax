@@ -1,4 +1,5 @@
 import type { Env, JobType, Provider, QuoteRequest } from "./types.ts";
+import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
 
 /** Which provider handles which kind of job. Edit here, or later move to per-company settings. */
 export function pickProviders(req: QuoteRequest): Provider[] {
@@ -24,7 +25,7 @@ function prompt(req: QuoteRequest, low: number, high: number): string {
 }
 
 async function callGemini(env: Env, text: string): Promise<string> {
-  const model = env.MODEL_GEMINI ?? "gemini-2.5-flash";
+  const model = geminiModel(env);
   const call = (thinkingOff: boolean) =>
     fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
@@ -32,7 +33,7 @@ async function callGemini(env: Env, text: string): Promise<string> {
       body: JSON.stringify({
         contents: [{ parts: [{ text }] }],
         // A 90-word summary does not need thinking tokens (they are billed as output).
-        generationConfig: { ...(thinkingOff ? { thinkingConfig: { thinkingBudget: 0 } } : {}), maxOutputTokens: 400 },
+        generationConfig: { ...(thinkingOff ? thinkingCfg(model) : {}), maxOutputTokens: 400 },
       }),
     });
   let r = await call(true);

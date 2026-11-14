@@ -1,4 +1,5 @@
 import type { Env } from "./types.ts";
+import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
 
 export interface Turn {
   role: "user" | "assistant";
@@ -109,7 +110,7 @@ export async function buildJobContext(env: Env, companyId: number, jobId: number
 export const keyFor = (env: Env, p: "gemini" | "openai" | "anthropic") => (p === "anthropic" ? env.ANTHROPIC_API_KEY : p === "openai" ? env.OPENAI_API_KEY : env.GEMINI_API_KEY);
 
 async function viaGemini(env: Env, system: string, turns: Turn[], maxTokens = 900): Promise<string> {
-  const model = env.MODEL_GEMINI ?? "gemini-2.5-flash";
+  const model = geminiModel(env);
   const call = (thinkingOff: boolean) =>
     fetch(`${env.GEMINI_API_BASE ?? "https://generativelanguage.googleapis.com"}/v1beta/models/${model}:generateContent`, {
       method: "POST",
@@ -117,7 +118,7 @@ async function viaGemini(env: Env, system: string, turns: Turn[], maxTokens = 90
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: turns.map((t) => ({ role: t.role === "assistant" ? "model" : "user", parts: [...(t.image ? [{ inline_data: { mime_type: t.image.mime, data: t.image.data } }] : []), { text: t.content }] })),
-        generationConfig: { ...(thinkingOff ? { thinkingConfig: { thinkingBudget: 0 } } : {}), maxOutputTokens: maxTokens },
+        generationConfig: { ...(thinkingOff ? thinkingCfg(model) : {}), maxOutputTokens: maxTokens },
       }),
     });
   let r = await call(true);
