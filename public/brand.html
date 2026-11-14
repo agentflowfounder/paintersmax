@@ -57,6 +57,7 @@ iframe{width:100%;border:1px solid rgba(15,27,45,.12);border-radius:10px;backgro
 <label for="f_services">What you offer (one per line, up to 8)</label><textarea id="f_services" rows="4"></textarea>
 <label for="f_area">Where you work</label><input id="f_area" maxlength="100" placeholder="Dallas, Plano, Frisco">
 <div class="row"><label><input type="checkbox" id="f_ins"> We carry business insurance (prints "Insured")</label></div>
+<div class="row"><label><input type="checkbox" id="f_free" checked> We give free estimates (prints "Free estimates")</label></div>
 <div class="hint" id="insHint" hidden>You have an insurance policy on file. Tick the box above to show "Insured" on your printed pieces.</div>
 <label for="f_review">Your Google review link (optional, used in the thank-you email)</label><input id="f_review" maxlength="300" placeholder="https://g.page/r/...">
 <div class="row"><button class="btn" id="save">Save my details</button></div>
@@ -75,6 +76,23 @@ iframe{width:100%;border:1px solid rgba(15,27,45,.12);border-radius:10px;backgro
 <p class="hint">Tip: perforated card stock such as Avery 5371 (10 cards per sheet) fits the sheet exactly. Turn cut lines off for it. Print at 100%, not "Fit to page".</p>
 </div>
 
+<div id="p_emails" class="card" hidden>
+<h2>Emails</h2>
+<p class="muted" style="margin:0">Pick a message, fill in the customer's first name, then copy it into your own email app. It goes out from your own address. PaintersMax does not send these.</p>
+<div class="dz" id="ed"></div>
+<div class="g">
+<div><label for="e_name">Customer's first name</label><input id="e_name" maxlength="40"></div>
+<div><label for="e_proj">The project</label><input id="e_proj" maxlength="80" placeholder="Example: your kitchen cabinets"></div>
+</div>
+<label for="e_offer">An extra line (optional)</label><input id="e_offer" maxlength="200" placeholder="Example: Book before March 15 and ask about our spring schedule.">
+<label for="e_subj">Subject</label><input id="e_subj" maxlength="200">
+<label for="e_text">Message (you can edit it)</label><textarea id="e_text" rows="13"></textarea>
+<div class="hint">Changing the name, project or extra line writes a fresh message and replaces your edits.</div>
+<div class="row"><button class="btn" id="e_copyhtml">Copy formatted email</button><button class="btn sec" id="e_copytext">Copy plain text</button><button class="btn sec" id="e_copysubj">Copy subject</button><button class="btn sec" id="e_mailto">Open in my email app</button></div>
+<label>Formatted preview</label>
+<iframe id="e_pv" title="Email preview" style="height:430px;background:#f4f1ec"></iframe>
+</div>
+
 <div id="empty" class="card" hidden>Loading...</div>
 </main>
 <script>
@@ -83,21 +101,37 @@ const T=window.pmT||(s=>s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
 function msg(t,ok){$('msg').textContent=t||'';$('msg').className=ok?'ok':'bad';}
-const TABS=[['cards','Business cards']];
-let TAB=localStorage.getItem('brand_tab')||'cards',DESIGN=localStorage.getItem('brand_design')||'classic',CARDS=[];
-function read(){return{company:$('f_company').value,person:$('f_person').value,title:$('f_title').value,phone:$('f_phone').value,email:$('f_email').value,website:$('f_website').value,license:$('f_license').value,tagline:$('f_tag').value,color:$('f_color').value,logoUrl:$('f_logo').value,qrUrl:$('f_qr').value,services:$('f_services').value.split('\n'),area:$('f_area').value,insured:$('f_ins').checked,reviewUrl:$('f_review').value,language:$('f_lang').value};}
-function fill(b){$('f_company').value=b.company;$('f_person').value=b.person;$('f_title').value=b.title;$('f_phone').value=b.phone;$('f_email').value=b.email;$('f_website').value=b.website;$('f_license').value=b.license;$('f_tag').value=b.tagline;$('f_color').value=b.color;$('f_logo').value=b.logoUrl;$('f_qr').value=b.qrUrl;$('f_services').value=b.services.join('\n');$('f_area').value=b.area;$('f_ins').checked=!!b.insured;$('f_review').value=b.reviewUrl;$('f_lang').value=b.language;}
+const TABS=[['cards','Business cards'],['emails','Emails']];
+let TAB=localStorage.getItem('brand_tab')||'cards',DESIGN=localStorage.getItem('brand_design')||'classic',CARDS=[],ETPL=[],ETYPE=localStorage.getItem('brand_email')||'estimate',LASTHTML='';
+function read(){return{company:$('f_company').value,person:$('f_person').value,title:$('f_title').value,phone:$('f_phone').value,email:$('f_email').value,website:$('f_website').value,license:$('f_license').value,tagline:$('f_tag').value,color:$('f_color').value,logoUrl:$('f_logo').value,qrUrl:$('f_qr').value,services:$('f_services').value.split('\n'),area:$('f_area').value,insured:$('f_ins').checked,freeEstimates:$('f_free').checked,reviewUrl:$('f_review').value,language:$('f_lang').value};}
+function fill(b){$('f_company').value=b.company;$('f_person').value=b.person;$('f_title').value=b.title;$('f_phone').value=b.phone;$('f_email').value=b.email;$('f_website').value=b.website;$('f_license').value=b.license;$('f_tag').value=b.tagline;$('f_color').value=b.color;$('f_logo').value=b.logoUrl;$('f_qr').value=b.qrUrl;$('f_services').value=b.services.join('\n');$('f_area').value=b.area;$('f_ins').checked=!!b.insured;$('f_free').checked=b.freeEstimates!==false;$('f_review').value=b.reviewUrl;$('f_lang').value=b.language;}
 function tabs(){$('tabs').innerHTML=TABS.map(t=>`<button class="tab${t[0]===TAB?' on':''}" role="tab" data-tab="${t[0]}">${esc(T(t[1]))}</button>`).join('');TABS.forEach(t=>{const p=$('p_'+t[0]);if(p)p.hidden=t[0]!==TAB;});}
 let timer=null;
-function refresh(){clearTimeout(timer);timer=setTimeout(async()=>{try{if(TAB==='cards'){const r=await api('/api/brand',{action:'render',kind:'cards',design:DESIGN,mode:'preview',brand:read()});$('pv').srcdoc=r.html;}}catch(e){if(e)msg(e.message);}},250);}
+function refresh(freshEmail){clearTimeout(timer);timer=setTimeout(async()=>{try{if(TAB==='emails'){await emailRender(freshEmail===true||!$('e_text').value);}if(TAB==='cards'){const r=await api('/api/brand',{action:'render',kind:'cards',design:DESIGN,mode:'preview',brand:read()});$('pv').srcdoc=r.html;}}catch(e){if(e)msg(e.message);}},250);}
 function designs(){$('cd').innerHTML=CARDS.map(d=>`<button data-d="${d.id}" class="${d.id===DESIGN?'on':''}">${esc(T(d.label))}</button>`).join('');}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-tab],[data-d]');if(!t)return;if(t.dataset.tab){TAB=t.dataset.tab;localStorage.setItem('brand_tab',TAB);tabs();refresh();}else{DESIGN=t.dataset.d;localStorage.setItem('brand_design',DESIGN);designs();refresh();}});
-document.querySelectorAll('#det input,#det select,#det textarea').forEach(el=>el.addEventListener('input',refresh));
+document.querySelectorAll('#det input,#det select,#det textarea').forEach(el=>el.addEventListener('input',()=>refresh(true)));
+
+function efields(){return{name:$('e_name').value,project:$('e_proj').value,offer:$('e_offer').value};}
+async function emailRender(fresh){const body={action:'render',kind:'email',template:ETYPE,fields:efields(),brand:read()};if(!fresh){body.subject=$('e_subj').value;body.text=$('e_text').value;}
+ const r=await api('/api/brand',body);if(fresh){$('e_subj').value=r.subject;$('e_text').value=r.text;}LASTHTML=r.html;$('e_pv').srcdoc=r.html;}
+function etabs(){$('ed').innerHTML=ETPL.map(d=>`<button data-et="${d.id}" class="${d.id===ETYPE?'on':''}">${esc(T(d.label))}</button>`).join('');}
+let etimer=null;
+function emailAuto(fresh){clearTimeout(etimer);etimer=setTimeout(async()=>{try{await emailRender(fresh);}catch(e){if(e)msg(e.message);}},300);}
+['e_name','e_proj','e_offer'].forEach(id=>$(id).addEventListener('input',()=>emailAuto(true)));
+['e_subj','e_text'].forEach(id=>$(id).addEventListener('input',()=>emailAuto(false)));
+document.addEventListener('click',e=>{const t=e.target.closest('[data-et]');if(!t)return;ETYPE=t.dataset.et;localStorage.setItem('brand_email',ETYPE);etabs();emailAuto(true);});
+async function copyText(t,done){try{await navigator.clipboard.writeText(t);msg(done,true);}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();msg(ok?done:'Your browser would not copy. Select the text and copy it yourself.',ok);}}
+$('e_copytext').onclick=()=>copyText($('e_text').value,'Copied. Paste it into your email.');
+$('e_copysubj').onclick=()=>copyText($('e_subj').value,'Subject copied.');
+$('e_mailto').onclick=()=>{location.href='mailto:?subject='+encodeURIComponent($('e_subj').value)+'&body='+encodeURIComponent($('e_text').value);};
+$('e_copyhtml').onclick=async()=>{try{await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([LASTHTML],{type:'text/html'}),'text/plain':new Blob([$('e_text').value],{type:'text/plain'})})]);msg('Copied with your colors and layout. Paste it into your email.',true);}
+ catch(e){try{const d=$('e_pv').contentDocument;const r=d.createRange();r.selectNodeContents(d.body);const sel=d.defaultView.getSelection();sel.removeAllRanges();sel.addRange(r);const ok=d.execCommand('copy');sel.removeAllRanges();msg(ok?'Copied with your colors and layout. Paste it into your email.':'Your browser would not copy. Use Copy plain text instead.',ok);}catch(x){msg('Your browser would not copy. Use Copy plain text instead.');}}};
 $('save').onclick=async()=>{try{const r=await api('/api/brand',{action:'save',brand:read()});fill(r.brand);msg('Saved.',true);refresh();}catch(e){if(e)msg(e.message);}};
 async function openPrint(body){const w=window.open('','_blank');try{const r=await api('/api/brand',body);if(!w){msg('Your browser blocked the new window. Allow pop-ups for this site and try again.');return;}w.document.open();w.document.write(r.html);w.document.close();}catch(e){if(w)w.close();if(e)msg(e.message);}}
 $('printCards').onclick=async()=>{const mode=document.querySelector('input[name=cm]:checked').value;try{await api('/api/brand',{action:'save',brand:read()});}catch(e){}openPrint({action:'render',kind:'cards',design:DESIGN,mode,guides:$('guides').checked,brand:read()});};
 document.querySelectorAll('input[name=cm]').forEach(r=>r.addEventListener('change',()=>{$('guideRow').hidden=document.querySelector('input[name=cm]:checked').value!=='sheet';}));
-(async()=>{try{const v=await api('/api/brand');CARDS=v.cardDesigns;fill(v.brand||v.suggested);$('insHint').hidden=!v.hasInsurance||!!(v.brand&&v.brand.insured);$('det').open=!v.brand;
+(async()=>{try{const v=await api('/api/brand');CARDS=v.cardDesigns;ETPL=v.emailTemplates;if(!ETPL.some(x=>x.id===ETYPE))ETYPE='estimate';etabs();fill(v.brand||v.suggested);$('insHint').hidden=!v.hasInsurance||!!(v.brand&&v.brand.insured);$('det').open=!v.brand;
  if(!TABS.some(t=>t[0]===TAB))TAB=TABS[0][0];if(!CARDS.some(d=>d.id===DESIGN))DESIGN='classic';tabs();designs();refresh();}
 catch(e){if(e)msg(e.message);}})();
 </script><script src="/nav.js"></script></body></html>

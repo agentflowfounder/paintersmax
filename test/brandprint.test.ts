@@ -77,6 +77,14 @@ test("the QR code uses the painter's address, else the fallback", () => {
   assert.equal(svg(a), svg(c));
 });
 
+test("Free estimates is claimed only when the painter says they give them", () => {
+  const yes = renderCards(cleanBrand(base), { design: "bold", fallbackUrl: FALLBACK });
+  assert.ok(yes.includes("Free estimates"));
+  const no = renderCards(cleanBrand({ ...base, freeEstimates: false }), { design: "bold", fallbackUrl: FALLBACK });
+  assert.ok(!no.includes("Free estimates") && !no.includes("free estimate") && no.includes("Request an estimate"));
+  assert.equal(cleanBrand({}).freeEstimates, true);
+});
+
 test("Spanish pieces use Spanish words", () => {
   const html = renderCards(cleanBrand({ ...base, language: "es" }), { design: "classic", mode: "sheet", fallbackUrl: FALLBACK });
   assert.ok(html.includes("Escanee para un presupuesto gratis"));

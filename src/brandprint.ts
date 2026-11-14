@@ -23,6 +23,8 @@ export interface Brand {
   area: string;
   /** The painter ticked "we carry insurance". Never assumed. */
   insured: boolean;
+  /** They give free estimates. Printed pieces say "Free estimates" only when this is true. */
+  freeEstimates: boolean;
   /** Link to their Google review page, used in the thank-you email. */
   reviewUrl: string;
   language: "en" | "es";
@@ -56,6 +58,7 @@ export function cleanBrand(i: any): Brand {
     services,
     area: str(i?.area, 100),
     insured: i?.insured === true,
+    freeEstimates: i?.freeEstimates !== false,
     reviewUrl: httpsOrEmpty(i?.reviewUrl, 300),
     language: i?.language === "es" ? "es" : "en",
   };
@@ -103,7 +106,11 @@ const WORDS = {
     bleedHint: "Dos páginas: frente y reverso, cada una de 3.75 x 2.25 pulgadas con 1/8 de pulgada de sangrado. Envíe este PDF a una imprenta en línea y elija tarjetas estándar de 3.5 x 2 pulgadas.",
     front: "FRENTE", back: "REVERSO" },
 };
-export const wordsFor = (b: Brand) => WORDS[b.language];
+const NOT_FREE = {
+  en: { free: "Request an estimate", scan: "Scan to request an estimate" },
+  es: { free: "Solicite un presupuesto", scan: "Escanee para solicitar un presupuesto" },
+};
+export const wordsFor = (b: Brand) => ({ ...WORDS[b.language], ...(b.freeEstimates ? {} : NOT_FREE[b.language]) });
 
 export function trustLine(b: Brand): string {
   const w = wordsFor(b);

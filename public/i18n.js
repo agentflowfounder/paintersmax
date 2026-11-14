@@ -1543,6 +1543,7 @@
     "What you offer (one per line, up to 8)": "Lo que ofrece (uno por línea, hasta 8)",
     "Where you work": "Dónde trabaja",
     "We carry business insurance (prints \"Insured\")": "Tenemos seguro de negocio (imprime \"Asegurado\")",
+    "We give free estimates (prints \"Free estimates\")": "Damos presupuestos gratis (imprime \"Presupuestos gratis\")",
     "You have an insurance policy on file. Tick the box above to show \"Insured\" on your printed pieces.": "Tiene una póliza de seguro registrada. Marque la casilla de arriba para mostrar \"Asegurado\" en sus piezas impresas.",
     "Your Google review link (optional, used in the thank-you email)": "Su enlace de reseñas de Google (opcional, se usa en el correo de agradecimiento)",
     "Save my details": "Guardar mis datos",
@@ -1558,6 +1559,23 @@
     "Saved.": "Guardado.",
     "Add your company name first.": "Primero agregue el nombre de su empresa.",
     "Your browser blocked the new window. Allow pop-ups for this site and try again.": "Su navegador bloqueó la ventana nueva. Permita las ventanas emergentes de este sitio e intente de nuevo.",
+  }, []);
+
+  pmI18n.add({
+    "Emails": "Correos",
+    "Pick a message, fill in the customer's first name, then copy it into your own email app. It goes out from your own address. PaintersMax does not send these.": "Elija un mensaje, escriba el nombre del cliente y cópielo en su propia app de correo. Sale desde su propia dirección. PaintersMax no envía estos correos.",
+    "Estimate follow-up": "Seguimiento de presupuesto", "Thank you and review request": "Agradecimiento y petición de reseña", "Checking in with a past customer": "Saludo a un cliente anterior",
+    "Customer's first name": "Nombre del cliente", "The project": "El proyecto", "Example: your kitchen cabinets": "Ejemplo: los gabinetes de su cocina",
+    "An extra line (optional)": "Una línea extra (opcional)",
+    "Example: Book before March 15 and ask about our spring schedule.": "Ejemplo: Reserve antes del 15 de marzo y pregunte por nuestra agenda de primavera.",
+    "Subject": "Asunto", "Message (you can edit it)": "Mensaje (puede editarlo)",
+    "Changing the name, project or extra line writes a fresh message and replaces your edits.": "Cambiar el nombre, el proyecto o la línea extra escribe un mensaje nuevo y reemplaza sus ediciones.",
+    "Copy formatted email": "Copiar correo con formato", "Copy plain text": "Copiar texto sin formato", "Copy subject": "Copiar asunto", "Open in my email app": "Abrir en mi app de correo",
+    "Formatted preview": "Vista previa con formato", "Email preview": "Vista previa del correo",
+    "Copied. Paste it into your email.": "Copiado. Péguelo en su correo.", "Subject copied.": "Asunto copiado.",
+    "Copied with your colors and layout. Paste it into your email.": "Copiado con sus colores y diseño. Péguelo en su correo.",
+    "Your browser would not copy. Use Copy plain text instead.": "Su navegador no pudo copiar. Use Copiar texto sin formato.",
+    "Your browser would not copy. Select the text and copy it yourself.": "Su navegador no pudo copiar. Seleccione el texto y cópielo usted.",
   }, []);
 
   pmI18n.start();

@@ -2,6 +2,7 @@ import { getSessionUser } from "./auth.ts";
 import { listDomains } from "./domains.ts";
 import { readSettings } from "./settings.ts";
 import { CARD_DESIGNS, cleanBrand, renderCards, type Brand } from "./brandprint.ts";
+import { EMAIL_TEMPLATES, cleanFields, emailHtml, emailText } from "./brandemail.ts";
 import type { Env } from "./types.ts";
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -63,6 +64,7 @@ export async function suggestBrand(env: Env, companyId: number): Promise<{ brand
       services: trades.map((t) => TRADE_LABELS[t]).filter(Boolean),
       area: cities.slice(0, 4).join(", "),
       insured: false,
+      freeEstimates: true,
       language: prof.language?.ui === "es" ? "es" : "en",
     }),
   };
@@ -73,6 +75,7 @@ export async function suggestBrand(env: Env, companyId: number): Promise<{ brand
  *  GET                               the saved brand (or null), what it would start with, and the design lists
  *  POST {action:"save", brand}       save the brand
  *  POST {action:"render", kind:"cards", design, mode, guides, brand}   printable HTML for the preview and the print window
+ *  POST {action:"render", kind:"email", template, fields:{name,project,offer}, brand, subject?, text?}   subject, plain text and formatted HTML
  */
 export async function handleBrand(request: Request, env: Env): Promise<Response> {
   const user = await getSessionUser(env, request);
@@ -81,7 +84,7 @@ export async function handleBrand(request: Request, env: Env): Promise<Response>
   if (request.method === "GET") {
     const saved = parse(await getSetting(env, key(c)));
     const sug = await suggestBrand(env, c);
-    return json({ brand: saved ? cleanBrand(saved) : null, suggested: sug.brand, hasInsurance: sug.hasInsurance, quoteUrl: sug.quoteUrl, cardDesigns: CARD_DESIGNS });
+    return json({ brand: saved ? cleanBrand(saved) : null, suggested: sug.brand, hasInsurance: sug.hasInsurance, quoteUrl: sug.quoteUrl, cardDesigns: CARD_DESIGNS, emailTemplates: EMAIL_TEMPLATES });
   }
   if (request.method !== "POST") return json({ error: "Not found." }, 404);
   let b: any;
@@ -101,6 +104,13 @@ export async function handleBrand(request: Request, env: Env): Promise<Response>
     if (!brand.company) return json({ error: "Add your company name first." }, 400);
     const fallbackUrl = (await suggestBrand(env, c)).quoteUrl;
     if (b.kind === "cards") return json({ html: renderCards(brand, { design: b.design, mode: b.mode, guides: b.guides !== false, fallbackUrl }) });
+    if (b.kind === "email") {
+      const made = emailText(brand, b.template, cleanFields(b.fields));
+      // The painter may have edited the message; the formatted copy follows what they wrote.
+      const subject = typeof b.subject === "string" && b.subject.trim() ? b.subject.trim().slice(0, 200) : made.subject;
+      const text = typeof b.text === "string" && b.text.trim() ? b.text.slice(0, 6000) : made.text;
+      return json({ subject, text, html: emailHtml(brand, subject, text) });
+    }
     return json({ error: "Unknown kind." }, 400);
   }
   return json({ error: "Unknown action." }, 400);
