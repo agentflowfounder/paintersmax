@@ -28,6 +28,8 @@ export interface Brand {
   /** Link to their Google review page, used in the thank-you email. */
   reviewUrl: string;
   language: "en" | "es";
+  /** Words for fliers and door hangers. Blank fields use a plain starting line. */
+  flyer: { headline: string; sub: string; offer: string; points: string[]; street: string };
 }
 
 const str = (v: unknown, n: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, n) : "");
@@ -61,6 +63,13 @@ export function cleanBrand(i: any): Brand {
     freeEstimates: i?.freeEstimates !== false,
     reviewUrl: httpsOrEmpty(i?.reviewUrl, 300),
     language: i?.language === "es" ? "es" : "en",
+    flyer: {
+      headline: str(i?.flyer?.headline, 70),
+      sub: str(i?.flyer?.sub, 120),
+      offer: str(i?.flyer?.offer, 140),
+      points: (Array.isArray(i?.flyer?.points) ? i.flyer.points : typeof i?.flyer?.points === "string" ? i.flyer.points.split("\n") : []).map((x: unknown) => str(x, 60)).filter(Boolean).slice(0, 4),
+      street: str(i?.flyer?.street, 60),
+    },
   };
 }
 

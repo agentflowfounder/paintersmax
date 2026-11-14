@@ -1578,5 +1578,21 @@
     "Your browser would not copy. Select the text and copy it yourself.": "Su navegador no pudo copiar. Seleccione el texto y cópielo usted.",
   }, []);
 
+  pmI18n.add({
+    "Fliers": "Volantes", "Door hangers": "Colgadores de puerta",
+    "Your words": "Sus palabras",
+    "Leave any box empty and a plain starting line is used. An offer only prints if you type one.": "Deje vacía cualquier casilla y se usa una línea sencilla de inicio. Una oferta solo se imprime si usted la escribe.",
+    "Headline": "Titular", "Example: Give your home a fresh new look": "Ejemplo: Dele a su casa un aspecto nuevo",
+    "Line under the headline": "Línea debajo del titular", "Example: Interior and exterior painting": "Ejemplo: Pintura interior y exterior",
+    "Offer (optional)": "Oferta (opcional)", "Example: 10% off for neighbors this month": "Ejemplo: 10% de descuento para vecinos este mes",
+    "Good to know (one per line, up to 4, optional)": "Es bueno saber (uno por línea, hasta 4, opcional)", "Example: Same crew from start to finish": "Ejemplo: El mismo equipo de principio a fin",
+    "Street where you are working now (for the neighborhood pieces)": "Calle donde está trabajando ahora (para las piezas de vecindario)", "Example: Maple Street": "Ejemplo: Calle Maple",
+    "One Letter-size page. Pick a look and check the preview.": "Una página tamaño Carta. Elija un estilo y revise la vista previa.",
+    "Flier preview": "Vista previa del volante", "Door hanger preview": "Vista previa del colgador",
+    "3.5 x 8.5 in. Three fit on one landscape Letter page.": "3.5 x 8.5 pulgadas. Caben tres en una página Carta horizontal.",
+    "In your neighborhood": "En su vecindario",
+    "We are painting nearby": "Estamos pintando cerca", "Sorry we missed you": "Lamentamos no encontrarle", "Free estimate": "Presupuesto gratis",
+  }, []);
+
   pmI18n.start();
 })();

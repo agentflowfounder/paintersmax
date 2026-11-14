@@ -2,6 +2,7 @@ import { getSessionUser } from "./auth.ts";
 import { listDomains } from "./domains.ts";
 import { readSettings } from "./settings.ts";
 import { CARD_DESIGNS, cleanBrand, renderCards, type Brand } from "./brandprint.ts";
+import { FLYER_DESIGNS, HANGER_DESIGNS, renderFlyer, renderHangers } from "./brandflyer.ts";
 import { EMAIL_TEMPLATES, cleanFields, emailHtml, emailText } from "./brandemail.ts";
 import type { Env } from "./types.ts";
 
@@ -84,7 +85,7 @@ export async function handleBrand(request: Request, env: Env): Promise<Response>
   if (request.method === "GET") {
     const saved = parse(await getSetting(env, key(c)));
     const sug = await suggestBrand(env, c);
-    return json({ brand: saved ? cleanBrand(saved) : null, suggested: sug.brand, hasInsurance: sug.hasInsurance, quoteUrl: sug.quoteUrl, cardDesigns: CARD_DESIGNS, emailTemplates: EMAIL_TEMPLATES });
+    return json({ brand: saved ? cleanBrand(saved) : null, suggested: sug.brand, hasInsurance: sug.hasInsurance, quoteUrl: sug.quoteUrl, cardDesigns: CARD_DESIGNS, emailTemplates: EMAIL_TEMPLATES, flyerDesigns: FLYER_DESIGNS, hangerDesigns: HANGER_DESIGNS });
   }
   if (request.method !== "POST") return json({ error: "Not found." }, 404);
   let b: any;
@@ -104,6 +105,8 @@ export async function handleBrand(request: Request, env: Env): Promise<Response>
     if (!brand.company) return json({ error: "Add your company name first." }, 400);
     const fallbackUrl = (await suggestBrand(env, c)).quoteUrl;
     if (b.kind === "cards") return json({ html: renderCards(brand, { design: b.design, mode: b.mode, guides: b.guides !== false, fallbackUrl }) });
+    if (b.kind === "flyer") return json({ html: renderFlyer(brand, { design: b.design, mode: b.mode, fallbackUrl }) });
+    if (b.kind === "hanger") return json({ html: renderHangers(brand, { design: b.design, mode: b.mode, guides: b.guides !== false, fallbackUrl }) });
     if (b.kind === "email") {
       const made = emailText(brand, b.template, cleanFields(b.fields));
       // The painter may have edited the message; the formatted copy follows what they wrote.
