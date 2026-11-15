@@ -3,7 +3,7 @@ import { CREDIT_COST, creditView, grantCredits } from "./credits.ts";
 import { FEATURE_LABELS } from "./creditsapi.ts";
 import { listDomains } from "./domains.ts";
 import { envelopeUse, forgetClientModel, FEATURE_GROUP, GROUP_LABELS, GROUPS, loadEnvelopes, saveEnvelopes } from "./envelopes.ts";
-import { adminFeedbackAct, adminFeedbackList, feedbackForCompany } from "./feedback.ts";
+import { adminFeedbackAct, adminFeedbackList, feedbackForCompany, saveQuick } from "./feedback.ts";
 import { decideHeld, domainQueue, loadHeld, saveHeld } from "./helddomains.ts";
 import { blobsWithPrefix, readBlob, str, updateBlob } from "./kv.ts";
 import { CHANNELS, loadPromos, normCode, promoPrice, promoUses, savePromo, setPromoActive, validatePromo } from "./promos.ts";
@@ -174,7 +174,7 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
     if (q.get("csv") === "1") return { area: "research", csv: contactsCsv(list), filename: `contacts-${id}-${today}.csv` };
     return { area: "research", data: { contacts: list, counts: contactCounts(list) } };
   }
-  if (q.get("feedback") === "1") return { area: "feedback", data: await adminFeedbackList(env, q.get("status")) };
+  if (q.get("feedback") === "1") return { area: "feedback", data: await adminFeedbackList(env, q.get("status"), { assignee: q.get("assignee") ?? "", kind: q.get("kind") ?? "" }) };
   if (q.get("held") === "1") {
     const [held, subs] = await Promise.all([loadHeld(env), allSubs(env, today)]);
     const ended = new Map<number, string>();
@@ -206,6 +206,7 @@ export const ACT_AREAS: Record<string, Area> = {
   envelopes_set: "credits", bundle_apply: "credits",
   market_save: "research", market_lesson: "research", contact_save: "research", contacts_import: "research",
   feedback_reply: "feedback",
+  quickreply_save: "feedback",
   held_save: "domains", held_decide: "domains",
   team_set: "security",
 };
@@ -306,7 +307,12 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
     }
     case "feedback_reply": {
       const r = await adminFeedbackAct(env, b, actor.email);
-      return r.ok ? { ok: true, companyId: r.thread.companyId, data: { thread: r.thread }, detail: `${b.id} ${r.thread.status}${b.text ? " replied" : ""}` } : fail(r.error);
+      const did = [b.text ? "replied" : "", b.note ? "noted" : "", typeof b.assignee === "string" ? `assigned ${r.ok ? r.thread.assignee || "nobody" : ""}` : ""].filter(Boolean).join(", ");
+      return r.ok ? { ok: true, companyId: r.thread.companyId, data: { thread: r.thread }, detail: `${b.id} ${r.thread.status}${did ? ` ${did}` : ""}` } : fail(r.error);
+    }
+    case "quickreply_save": {
+      const r = await saveQuick(env, b);
+      return r.ok ? { ok: true, detail: b.remove === true ? `deleted quick reply ${str(b.id, 20)}` : `quick reply ${r.result?.title}` } : fail(r.error);
     }
     case "held_save": {
       const r = await saveHeld(env, b.domain ?? {});

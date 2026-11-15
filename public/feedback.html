@@ -23,7 +23,7 @@ button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 14px
 <p class="muted" style="margin-top:0">Found something that does not work, or have an idea that would help your business? Tell us here. We read every message and answer in this page, and we email you when we answer.</p>
 <div class="card">
 <label for="kind">What is it about?</label>
-<select id="kind"><option value="bug">Something does not work</option><option value="idea">An idea or a feature I want</option><option value="question">A question</option><option value="other">Something else</option></select>
+<select id="kind"><option value="bug">Something does not work</option><option value="idea">An idea or a feature I want</option><option value="question">A question</option><option value="support">I need help with my account</option><option value="other">Something else</option></select>
 <label for="text">Your message</label>
 <textarea id="text" rows="5" maxlength="2000" placeholder="What happened, or what would you like PaintersMax to do?"></textarea>
 <button id="send">Send feedback</button>
@@ -36,7 +36,7 @@ button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 14px
 const T=window.pmT||(s=>s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=id=>document.getElementById(id);
-const KIND={bug:'Something does not work',idea:'Idea',question:'Question',other:'Something else'};
+const KIND={bug:'Something does not work',idea:'Idea',question:'Question',support:'Help with my account',other:'Something else'};
 const STATUS={new:'Sent',waiting:'Sent',answered:'Answered',closed:'Closed'};
 function msg(t,ok){$('msg').textContent=T(t||'');$('msg').className=ok?'ok':'bad';}
 async function api(b){const r=await fetch('/api/feedback',b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}

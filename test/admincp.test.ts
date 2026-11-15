@@ -172,3 +172,16 @@ test("market pack fields: real numbers or empty, lists from lines", async () => 
   assert.equal(n.priority, 2);
   assert.deepEqual(n.gatheringPlaces, []);
 });
+
+test("support inbox: tickets keep an assignee and staff notes, quick replies are cleaned", async () => {
+  const { readThread, readQuick } = await import("../src/feedback.ts");
+  const t = readThread({ id: "abc123x", companyId: 5, kind: "support", messages: [{ from: "client", text: "help" }], assignee: " Sam@Example.com ", internalNotes: [{ by: "a@b.co", at: "2026-11-15", text: "called" }, { text: "" }] });
+  assert.equal(t?.kind, "support");
+  assert.equal(t?.assignee, "sam@example.com");
+  assert.equal(t?.internalNotes.length, 1);
+  const old = readThread({ id: "abc123x", companyId: 5, kind: "bug", messages: [{ from: "client", text: "x y" }] });
+  assert.equal(old?.assignee, "");
+  assert.deepEqual(old?.internalNotes, []);
+  const q = readQuick([{ id: "abcd1", title: "Reset", text: "Use the link" }, { id: "abcd1", title: "Dup", text: "x" }, { id: "!", title: "Bad", text: "x" }, { id: "abcd2", title: "", text: "x" }]);
+  assert.deepEqual(q.map((x) => x.id), ["abcd1"]);
+});

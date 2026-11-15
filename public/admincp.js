@@ -23,7 +23,7 @@
   var KIND = { floor: 'Land on the floor price', percent: 'Percent off the list price', amount: 'Dollars off the list price' };
   var QUEUE = { expires_60: 'Expires within 60 days', expires_30: 'Expires within 30 days', expires_7: 'Expires within 7 days', expired: 'Expired', reuse_ready: 'Ready to reuse', transfer_requested: 'Transfer asked' };
   var DSTATUS = { active: 'Active', transfer_requested: 'Transfer asked', transferred: 'Transferred', released: 'Released', pool: 'Reuse pool' };
-  var FBKIND = { bug: 'Bug', idea: 'Idea', question: 'Question', other: 'Other' };
+  var FBKIND = { bug: 'Bug', idea: 'Idea', question: 'Question', support: 'Support', other: 'Other' };
   var FBSTATUS = { new: 'New', waiting: 'Client wrote again', answered: 'Answered', closed: 'Closed' };
 
   var canSee = function (a) { return !!ME && ME.see.indexOf(a) >= 0; };
@@ -295,24 +295,50 @@
 
   // ------------------------------------------------------------- feedback
   function feedbackLoad() {
-    var st = CACHE.fbStatus || 'open';
-    api('/api/admin?feedback=1&status=' + st).then(function (v) {
-      var c = v.counts;
-      $('fb_box').innerHTML = '<div class="tiles"><div class="tile"><b>' + c.new + '</b><span>New</span></div><div class="tile"><b>' + c.waiting + '</b><span>Client wrote again</span></div><div class="tile"><b>' + c.answered + '</b><span>Answered</span></div><div class="tile"><b>' + c.closed + '</b><span>Closed</span></div></div>' +
-        '<div class="card"><label>Show</label><select id="fb_st" style="max-width:260px">' + opts({ open: 'Waiting for us', all: 'All', new: 'New', answered: 'Answered', closed: 'Closed' }, st) + '</select>' +
+    var st = CACHE.fbStatus || 'open', kd = CACHE.fbKind || '', as = CACHE.fbAssignee || '';
+    api('/api/admin?feedback=1&status=' + st + '&kind=' + kd + '&assignee=' + encodeURIComponent(as)).then(function (v) {
+      var c = v.counts, staffOpts = function (sel) { return '<option value=""' + (sel ? '' : ' selected') + '>' + esc(T('Nobody')) + '</option>' + v.staff.map(function (e) { return '<option' + (e === sel ? ' selected' : '') + '>' + esc(e) + '</option>'; }).join(''); };
+      var asOpts = '<option value="">' + esc(T('Everyone')) + '</option><option value="none"' + (as === 'none' ? ' selected' : '') + '>' + esc(T('Nobody has it')) + '</option>' + v.staff.map(function (e) { return '<option' + (e === as ? ' selected' : '') + '>' + esc(e) + '</option>'; }).join('');
+      var quickOpts = '<option value="">' + esc(T('Insert a quick reply...')) + '</option>' + v.quick.map(function (q) { return '<option value="' + esc(q.id) + '">' + esc(q.title) + '</option>'; }).join('');
+      $('fb_box').innerHTML = '<div class="tiles"><div class="tile"><b>' + c.new + '</b><span>New</span></div><div class="tile"><b>' + c.waiting + '</b><span>Client wrote again</span></div><div class="tile"><b>' + c.late + '</b><span>Waiting too long</span></div><div class="tile"><b>' + c.unassigned + '</b><span>Nobody has it</span></div><div class="tile"><b>' + c.support + '</b><span>Support requests waiting</span></div><div class="tile"><b>' + c.answered + '</b><span>Answered</span></div><div class="tile"><b>' + c.closed + '</b><span>Closed</span></div></div>' +
+        '<div class="card"><div class="g3"><div><label>Show</label><select id="fb_st">' + opts({ open: 'Waiting for us', all: 'All', new: 'New', answered: 'Answered', closed: 'Closed' }, st) + '</select></div><div><label>Kind</label><select id="fb_kd">' + opts({ '': 'All kinds', support: 'Support', bug: 'Bug', idea: 'Idea', question: 'Question', other: 'Other' }, kd) + '</select></div><div><label>Handled by</label><select id="fb_as">' + asOpts + '</select></div></div>' +
         (v.threads.length ? v.threads.map(function (t) {
-          return '<div style="border-top:1px solid #eee;margin-top:12px;padding-top:10px"><div>' + pill(T(FBKIND[t.kind])) + pill(T(FBSTATUS[t.status]), t.status === 'new' || t.status === 'waiting' ? 'gold' : '') + ' <a class="lk" href="#client/' + t.companyId + '">' + esc(t.companyName) + '</a> <small>' + esc(d(t.updatedAt)) + (t.page ? ' &middot; ' + esc(t.page) : '') + '</small></div>' +
+          return '<div style="border-top:1px solid #eee;margin-top:12px;padding-top:10px"><div>' + pill(T(FBKIND[t.kind]), t.kind === 'support' ? 'gold' : '') + pill(T(FBSTATUS[t.status]), t.status === 'new' || t.status === 'waiting' ? 'gold' : '') + (t.waitingDays >= v.lateDays ? pill(t.waitingDays + ' ' + T('days waiting'), 'gold') : '') + ' <a class="lk" href="#client/' + t.companyId + '">' + esc(t.companyName) + '</a> <small>' + esc(d(t.updatedAt)) + (t.page ? ' &middot; ' + esc(t.page) : '') + '</small></div>' +
             '<div class="msgs">' + t.messages.map(function (m) { return '<div class="' + (m.from === 'admin' ? 'a' : '') + '"><small>' + esc(m.by) + ' &middot; ' + esc(d(m.at)) + '</small>\n' + esc(m.text) + '</div>'; }).join('') + '</div>' +
+            (t.internalNotes.length ? '<div class="msgs" style="background:#fff8e6">' + t.internalNotes.map(function (n) { return '<div><small>' + esc(T('Staff note')) + ' &middot; ' + esc(n.by) + ' &middot; ' + esc(d(n.at)) + '</small>\n' + esc(n.text) + '</div>'; }).join('') + '</div>' : '') +
+            '<label>' + esc(T('Handled by')) + '</label><select data-fba="' + esc(t.id) + '" data-c="' + t.companyId + '"' + dis('feedback') + '>' + staffOpts(t.assignee) + '</select>' +
+            '<select data-fbq="' + esc(t.id) + '" style="margin-top:6px">' + quickOpts + '</select>' +
             '<textarea rows="2" maxlength="2000" data-fbt="' + esc(t.id) + '" placeholder="' + esc(T('Write a reply. The client gets an email that you answered.')) + '"></textarea>' +
-            '<div><button class="btn sm" data-fbr="' + esc(t.id) + '" data-c="' + t.companyId + '"' + dis('feedback') + '>Send reply</button> <button class="btn sm gray" data-fbc="' + esc(t.id) + '" data-c="' + t.companyId + '" data-s="' + (t.status === 'closed' ? 'answered' : 'closed') + '"' + dis('feedback') + '>' + (t.status === 'closed' ? 'Reopen' : 'Close') + '</button></div></div>';
-        }).join('') : '<p><small>Nothing here.</small></p>') + '</div>';
+            '<div><button class="btn sm" data-fbr="' + esc(t.id) + '" data-c="' + t.companyId + '"' + dis('feedback') + '>Send reply</button> <button class="btn sm gray" data-fbc="' + esc(t.id) + '" data-c="' + t.companyId + '" data-s="' + (t.status === 'closed' ? 'answered' : 'closed') + '"' + dis('feedback') + '>' + (t.status === 'closed' ? 'Reopen' : 'Close') + '</button></div>' +
+            '<input maxlength="1000" data-fbn="' + esc(t.id) + '" placeholder="' + esc(T('Staff note (the client never sees it)')) + '" style="margin-top:6px"> <button class="btn sm gray" data-fbnb="' + esc(t.id) + '" data-c="' + t.companyId + '"' + dis('feedback') + '>Add note</button></div>';
+        }).join('') : '<p><small>Nothing here.</small></p>') + '</div>' +
+        '<div class="card"><h3>Quick replies</h3><small>Saved answers for questions you get often. Pick one in a ticket to fill the reply box, then change it if you need to.</small>' +
+        (v.quick.length ? v.quick.map(function (q) { return '<div style="border-top:1px solid #eee;margin-top:8px;padding-top:6px"><b>' + esc(q.title) + '</b> <button class="btn sm gray" data-qd="' + esc(q.id) + '"' + dis('feedback') + '>Delete</button><br><small>' + esc(q.text) + '</small></div>'; }).join('') : '') +
+        '<label>Title</label><input id="qr_title" maxlength="60"><label>Reply text</label><textarea id="qr_text" rows="3" maxlength="2000"></textarea><button class="btn sm" id="qr_add"' + dis('feedback') + '>Save quick reply</button></div>';
+      CACHE.quick = v.quick;
       $('fb_st').onchange = function () { CACHE.fbStatus = this.value; feedbackLoad(); };
+      $('fb_kd').onchange = function () { CACHE.fbKind = this.value; feedbackLoad(); };
+      $('fb_as').onchange = function () { CACHE.fbAssignee = this.value; feedbackLoad(); };
+      var cid = function (b) { return Number(b.getAttribute('data-c')); };
       [].forEach.call(document.querySelectorAll('[data-fbr]'), function (b) {
-        b.onclick = function () { var id = b.getAttribute('data-fbr'); var ta = document.querySelector('[data-fbt="' + id + '"]'); post({ action: 'feedback_reply', id: id, companyId: Number(b.getAttribute('data-c')), text: ta.value }).then(function () { ok('Reply sent.'); feedbackLoad(); }).catch(bad); };
+        b.onclick = function () { var id = b.getAttribute('data-fbr'); var ta = document.querySelector('[data-fbt="' + id + '"]'); post({ action: 'feedback_reply', id: id, companyId: cid(b), text: ta.value }).then(function () { ok('Reply sent.'); feedbackLoad(); }).catch(bad); };
       });
       [].forEach.call(document.querySelectorAll('[data-fbc]'), function (b) {
-        b.onclick = function () { post({ action: 'feedback_reply', id: b.getAttribute('data-fbc'), companyId: Number(b.getAttribute('data-c')), status: b.getAttribute('data-s') }).then(function () { ok('Saved.'); feedbackLoad(); }).catch(bad); };
+        b.onclick = function () { post({ action: 'feedback_reply', id: b.getAttribute('data-fbc'), companyId: cid(b), status: b.getAttribute('data-s') }).then(function () { ok('Saved.'); feedbackLoad(); }).catch(bad); };
       });
+      [].forEach.call(document.querySelectorAll('[data-fba]'), function (sel) {
+        sel.onchange = function () { post({ action: 'feedback_reply', id: sel.getAttribute('data-fba'), companyId: cid(sel), assignee: sel.value }).then(function () { ok('Saved.'); feedbackLoad(); }).catch(bad); };
+      });
+      [].forEach.call(document.querySelectorAll('[data-fbq]'), function (sel) {
+        sel.onchange = function () { var q = CACHE.quick.filter(function (x) { return x.id === sel.value; })[0]; var ta = document.querySelector('[data-fbt="' + sel.getAttribute('data-fbq') + '"]'); if (q) ta.value = q.text; };
+      });
+      [].forEach.call(document.querySelectorAll('[data-fbnb]'), function (b) {
+        b.onclick = function () { var id = b.getAttribute('data-fbnb'); var inp = document.querySelector('[data-fbn="' + id + '"]'); post({ action: 'feedback_reply', id: id, companyId: cid(b), note: inp.value }).then(function () { ok('Note added.'); feedbackLoad(); }).catch(bad); };
+      });
+      [].forEach.call(document.querySelectorAll('[data-qd]'), function (b) {
+        b.onclick = function () { post({ action: 'quickreply_save', id: b.getAttribute('data-qd'), remove: true }).then(function () { ok('Deleted.'); feedbackLoad(); }).catch(bad); };
+      });
+      $('qr_add').onclick = function () { post({ action: 'quickreply_save', title: $('qr_title').value, text: $('qr_text').value }).then(function () { ok('Quick reply saved.'); feedbackLoad(); }).catch(bad); };
     }).catch(function (x) { $('fb_box').textContent = x ? x.message : ''; });
   }
 

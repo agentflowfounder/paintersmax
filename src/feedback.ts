@@ -1,6 +1,7 @@
 import { getSessionUser } from "./auth.ts";
 import { sendLeadEmail } from "./email.ts";
-import { blobsWithPrefix, str, updateBlob } from "./kv.ts";
+import { blobsWithPrefix, readBlob, str, updateBlob } from "./kv.ts";
+import { ADMIN_COMPANY_SLUG, loadTeam } from "./adminroles.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -8,8 +9,8 @@ import type { Env } from "./types.ts";
  * One app_settings row per thread: fb:<companyId>:<threadId>. Admin lists all of them; a painter sees only their company's.
  */
 
-export type FbKind = "bug" | "idea" | "question" | "other";
-export const FB_KINDS: FbKind[] = ["bug", "idea", "question", "other"];
+export type FbKind = "bug" | "idea" | "question" | "support" | "other";
+export const FB_KINDS: FbKind[] = ["bug", "idea", "question", "support", "other"];
 export type FbStatus = "new" | "answered" | "waiting" | "closed";
 
 export interface FbMessage {
@@ -28,10 +29,16 @@ export interface FbThread {
   createdAt: string;
   updatedAt: string;
   clientUnread: boolean;
+  /** Support inbox: who is handling it (admin email, or empty) and notes only staff can see. */
+  assignee: string;
+  internalNotes: { by: string; at: string; text: string }[];
 }
 
 const MAX_TEXT = 2000;
 const MAX_MESSAGES = 40;
+const MAX_NOTES = 30;
+/** A thread waiting on us longer than this many days is "late" in the support inbox. */
+export const LATE_DAYS = 2;
 const PER_DAY = 10;
 export const fbKey = (c: number, id: string) => `fb:${c}:${id}`;
 
@@ -52,6 +59,8 @@ export function readThread(raw: unknown): FbThread | null {
     createdAt: str(r.createdAt, 30),
     updatedAt: str(r.updatedAt, 30),
     clientUnread: r.clientUnread === true,
+    assignee: str(r.assignee, 200).toLowerCase(),
+    internalNotes: Array.isArray(r.internalNotes) ? r.internalNotes.filter((n: any) => str(n?.text, 1000)).map((n: any) => ({ by: str(n.by, 200), at: str(n.at, 30), text: str(n.text, 1000) })).slice(-MAX_NOTES) : [],
   };
 }
 
@@ -101,7 +110,7 @@ export async function handleFeedback(request: Request, env: Env): Promise<Respon
       .first();
     if (!room) return json({ error: "Thanks for all the feedback today. Please send more tomorrow." }, 429);
     const id = `${Date.now().toString(36)}${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
-    const t: FbThread = { id, companyId: c, kind: FB_KINDS.includes(b.kind) ? b.kind : "other", page: str(b.page, 120), status: "new", messages: [{ from: "client", by: user.email, at: now, text }], createdAt: now, updatedAt: now, clientUnread: false };
+    const t: FbThread = { id, companyId: c, kind: FB_KINDS.includes(b.kind) ? b.kind : "other", page: str(b.page, 120), status: "new", messages: [{ from: "client", by: user.email, at: now, text }], createdAt: now, updatedAt: now, clientUnread: false, assignee: "", internalNotes: [] };
     await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))").bind(fbKey(c, id), JSON.stringify(t)).run();
     await sendLeadEmail(env, env.NOTIFY_EMAIL, `New PaintersMax feedback (${t.kind}) from ${user.companyName}`, `${user.companyName} sent ${t.kind} feedback${t.page ? ` from ${t.page}` : ""}:\n\n${text}\n\nReply in Admin, Feedback tab: https://paintersmax.app/admin#feedback`).catch(() => {});
     return json({ ok: true, thread: forClient(t) });
@@ -125,7 +134,56 @@ export async function handleFeedback(request: Request, env: Env): Promise<Respon
 
 // ---------------------------------------------------------------- admin side
 
-export async function adminFeedbackList(env: Env, status: string | null) {
+export const QUICK_KEY = "supportreplies";
+export interface QuickReply {
+  id: string;
+  title: string;
+  text: string;
+}
+export function readQuick(raw: unknown): QuickReply[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const out: QuickReply[] = [];
+  for (const q of list) {
+    const id = str(q?.id, 20);
+    if (/^[a-z0-9]{4,20}$/.test(id) && str(q?.title, 60) && str(q?.text, MAX_TEXT) && !out.some((x) => x.id === id)) out.push({ id, title: str(q.title, 60), text: str(q.text, MAX_TEXT) });
+  }
+  return out.slice(0, 30);
+}
+
+/** Saves or deletes a saved quick reply. */
+export async function saveQuick(env: Env, b: any) {
+  return updateBlob(env, QUICK_KEY, readQuick, (list) => {
+    const id = str(b?.id, 20);
+    if (b?.remove === true) return { value: list.filter((q) => q.id !== id), result: null as QuickReply | null };
+    const title = str(b?.title, 60);
+    const text = str(b?.text, MAX_TEXT);
+    if (!title || !text) return { error: "Give the quick reply a title and the text." };
+    const i = id ? list.findIndex((q) => q.id === id) : -1;
+    if (id && i < 0) return { error: "Quick reply not found." };
+    if (i < 0 && list.length >= 30) return { error: "Too many quick replies. Delete one first." };
+    const q = { id: i >= 0 ? id : crypto.randomUUID().replace(/-/g, "").slice(0, 10), title, text };
+    const next = [...list];
+    if (i >= 0) next[i] = q;
+    else next.push(q);
+    return { value: next, result: q as QuickReply | null };
+  });
+}
+
+/** The admins who can be given a ticket: every active login of the PaintersMax company. */
+async function staffEmails(env: Env): Promise<string[]> {
+  const team = await loadTeam(env);
+  const rows = await env.DB.prepare("SELECT u.email AS email, u.role AS loginRole FROM users u JOIN companies c ON c.id = u.company_id WHERE c.slug = ?").bind(ADMIN_COMPANY_SLUG).all<{ email: string; loginRole: string }>();
+  const out: string[] = [];
+  for (const r of rows.results ?? []) {
+    const email = r.email.toLowerCase();
+    const m = team.find((t) => t.email === email);
+    if (m ? m.role !== "removed" : r.loginRole === "owner") out.push(email);
+  }
+  return out.sort();
+}
+
+/** `assignee`: "" all, "none" nobody has it, or an admin email. `kind`: "" all, or one kind. */
+export async function adminFeedbackList(env: Env, status: string | null, o: { assignee?: string; kind?: string } = {}) {
   const rows = await blobsWithPrefix(env, "fb:", 5000);
   const threads = rows.map((r) => readThread(r.value)).filter((t): t is FbThread => !!t);
   const names = new Map<number, string>();
@@ -136,26 +194,55 @@ export async function adminFeedbackList(env: Env, status: string | null) {
     for (const c of res.results ?? []) names.set(c.id, c.name);
   }
   const counts = { new: 0, waiting: 0, answered: 0, closed: 0 };
-  for (const t of threads) counts[t.status]++;
-  const open = status === "open" ? threads.filter((t) => t.status === "new" || t.status === "waiting") : status && status !== "all" ? threads.filter((t) => t.status === status) : threads;
-  open.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-  return { counts, threads: open.slice(0, 300).map((t) => ({ ...t, companyName: names.get(t.companyId) ?? `#${t.companyId}` })) };
+  const waitingOn = (t: FbThread) => t.status === "new" || t.status === "waiting";
+  const days = (t: FbThread) => Math.max(0, Math.floor((Date.now() - Date.parse(t.updatedAt || t.createdAt)) / 86400000)) || 0;
+  let late = 0;
+  let unassigned = 0;
+  let support = 0;
+  for (const t of threads) {
+    counts[t.status]++;
+    if (waitingOn(t) && days(t) >= LATE_DAYS) late++;
+    if (waitingOn(t) && !t.assignee) unassigned++;
+    if (waitingOn(t) && t.kind === "support") support++;
+  }
+  let open = status === "open" ? threads.filter(waitingOn) : status && status !== "all" ? threads.filter((t) => t.status === status) : threads;
+  if (FB_KINDS.includes(o.kind as FbKind)) open = open.filter((t) => t.kind === o.kind);
+  if (o.assignee === "none") open = open.filter((t) => !t.assignee);
+  else if (o.assignee) open = open.filter((t) => t.assignee === o.assignee!.toLowerCase());
+  // Oldest waiting first, so the longest wait is on top. Everything else newest first.
+  open.sort((a, b) => (status === "open" ? (a.updatedAt > b.updatedAt ? 1 : -1) : a.updatedAt < b.updatedAt ? 1 : -1));
+  return {
+    counts: { ...counts, late, unassigned, support },
+    staff: await staffEmails(env),
+    quick: await readBlob(env, QUICK_KEY, readQuick),
+    lateDays: LATE_DAYS,
+    threads: open.slice(0, 300).map((t) => ({ ...t, companyName: names.get(t.companyId) ?? `#${t.companyId}`, waitingDays: waitingOn(t) ? days(t) : 0 })),
+  };
 }
 
-/** Admin replies (the client gets an email that a reply is waiting) or changes the status. */
+/** Admin replies (the client gets an email that a reply is waiting), changes the status, hands the ticket to someone, or adds a note only staff see. */
 export async function adminFeedbackAct(env: Env, b: any, by: string): Promise<{ ok: true; thread: FbThread } | { ok: false; error: string }> {
   const c = Number(b?.companyId);
   const id = str(b?.id, 30);
   if (!Number.isInteger(c) || !/^[a-z0-9]{6,30}$/.test(id)) return { ok: false, error: "Not found." };
   const now = new Date().toISOString();
   const text = str(b?.text, MAX_TEXT);
+  const note = str(b?.note, 1000);
   const status: FbStatus | null = b?.status === "closed" || b?.status === "answered" || b?.status === "new" || b?.status === "waiting" ? b.status : null;
-  if (!text && !status) return { ok: false, error: "Write a reply or choose a status." };
+  let assignee: string | null = null;
+  if (typeof b?.assignee === "string") {
+    assignee = str(b.assignee, 200).toLowerCase();
+    if (assignee && !(await staffEmails(env)).includes(assignee)) return { ok: false, error: "Choose someone on the team." };
+  }
+  if (!text && !status && !note && assignee === null) return { ok: false, error: "Write a reply, add a note, or choose a status." };
   const r = await updateBlob(env, fbKey(c, id), readThread, (t) => {
     if (!t) return { error: "Not found." };
     if (text && t.messages.length >= MAX_MESSAGES) return { error: "This conversation is full." };
     const messages = text ? [...t.messages, { from: "admin" as const, by, at: now, text }] : t.messages;
-    return { value: { ...t, messages, status: status ?? (text ? "answered" : t.status), clientUnread: text ? true : t.clientUnread, updatedAt: now } };
+    const internalNotes = note ? [...t.internalNotes, { by, at: now, text: note }].slice(-MAX_NOTES) : t.internalNotes;
+    // Replying to a ticket nobody has takes it.
+    const owner = assignee !== null ? assignee : text && !t.assignee ? by.toLowerCase() : t.assignee;
+    return { value: { ...t, messages, internalNotes, assignee: owner, status: status ?? (text ? "answered" : t.status), clientUnread: text ? true : t.clientUnread, updatedAt: text || status ? now : t.updatedAt } };
   });
   if (!r.ok) return r;
   const thread = r.value!;
