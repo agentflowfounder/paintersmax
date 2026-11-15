@@ -11,4 +11,5 @@ Disallow: /q/
 Disallow: /portal/
 Disallow: /rates/
 Disallow: /cal/
+Disallow: /home-preview
 Sitemap: https://paintersmax.app/sitemap.xml
