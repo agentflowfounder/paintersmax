@@ -32,6 +32,8 @@ import { handleLessons } from "./lessons.ts";
 import { handleCertPublic, handleWarranty } from "./warranty.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleHelp } from "./helplib.ts";
+import { handleDemo } from "./demo.ts";
+import { requireAgreement } from "./agreement.ts";
 import { handleBrand } from "./brand.ts";
 import { visionAsk } from "./vision.ts";
 import { handleFiles } from "./files.ts";
@@ -886,6 +888,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return json({ error: "Something went wrong." }, 500);
       }
     }
+    if (pathname.startsWith("/api/demo/")) {
+      try {
+        return await handleDemo(request, env);
+      } catch (err) {
+        console.error("demo failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
     if (pathname === "/api/help") {
       try {
         return await handleHelp(request, env);
@@ -944,6 +954,10 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     }
     if (pathname === "/api/checkout") {
       try {
+        if (request.method === "POST") {
+          const stop = await requireAgreement(request, env);
+          if (stop) return stop;
+        }
         return await handleCheckout(request, env);
       } catch (err) {
         console.error("handleCheckout failed", String(err));
