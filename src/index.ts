@@ -418,9 +418,22 @@ export default {
     ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    return friendly404(request, env, await handle(request, env, ctx));
+    return withSecurityHeaders(await friendly404(request, env, await handle(request, env, ctx)));
   },
 } satisfies ExportedHandler<Env>;
+
+/**
+ * Headers every answer carries: browsers must not guess a file's type, links to other sites send no full address,
+ * and the site is only reachable over https. Client websites embed our quote pages, so framing is left open.
+ */
+function withSecurityHeaders(res: Response): Response {
+  if (res.status === 101 || res.headers.has("x-content-type-options")) return res;
+  const out = new Response(res.body, res);
+  out.headers.set("x-content-type-options", "nosniff");
+  if (!out.headers.has("referrer-policy")) out.headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  out.headers.set("strict-transport-security", "max-age=15552000");
+  return out;
+}
 
 /**
  * A browser that lands on a plain-text "Not found." (an old customer link, a mistyped address) sees the friendly
