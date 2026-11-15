@@ -18,6 +18,9 @@ export function randomToken(): string {
 
 const inFuture = (ms: number) => new Date(Date.now() + ms).toISOString();
 
+/** True when the request carries a session cookie (valid or not); used to decide whether a write needs the same-origin check. */
+export const hasSessionCookie = (request: Request): boolean => !!readCookie(request.headers.get("cookie"), SESSION_COOKIE);
+
 export function readCookie(header: string | null, name: string): string | null {
   if (!header) return null;
   for (const part of header.split(";")) {
