@@ -11,7 +11,8 @@ import { handleAdmin } from "./admin.ts";
 import { handleAuthConfig, handleGoogleCallback, handleGoogleStart } from "./google.ts";
 import { handleBilling, handleCheckout, handleStripeWebhook } from "./stripe.ts";
 import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleLang, handleProfile, handleRateCard } from "./wizard-api.ts";
-import { endSession, getSessionUser, requestLoginLink, verifyLoginLink } from "./auth.ts";
+import { endSession, getSessionUser, hasSessionCookie, requestLoginLink, verifyLoginLink } from "./auth.ts";
+import { crossSiteWrite, visitorKey } from "./guard.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import { readSettings, renderQuotePage, sanitize, tenantFromHost } from "./settings.ts";
@@ -31,6 +32,8 @@ import { handleLessons } from "./lessons.ts";
 import { handleCertPublic, handleWarranty } from "./warranty.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleHelp } from "./helplib.ts";
+import { handleDemo } from "./demo.ts";
+import { requireAgreement } from "./agreement.ts";
 import { handleBrand } from "./brand.ts";
 import { visionAsk } from "./vision.ts";
 import { handleFiles } from "./files.ts";
@@ -51,7 +54,7 @@ import { handleNotices, sendOwnerDigests } from "./notices.ts";
 import { handleColors } from "./colors.ts";
 import { handleVehicles } from "./vehicles.ts";
 import { handleSignoff } from "./signoff.ts";
-import { consume, isFeature, refund, usageSummary } from "./usage.ts";
+import { consume, dailyCap, isFeature, refund, usageSummary } from "./usage.ts";
 import { handleSiteAdmin, handleSiteApi, handleSitePhoto, handleSitePhotoUpload, handleSitePreview, handleSiteReviews, serveTenantSite } from "./sitebuilder.ts";
 import { handleDirAdmin, handleDirClaim, handleDirectory, handleDirLead, handleDirMe } from "./directory.ts";
 import { DIR_HOST, isDirHost } from "./dircore.ts";
@@ -80,6 +83,8 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
     .bind(q.companySlug)
     .first<{ id: number; name: string; notify_email: string | null; plan: string; settings: string; createdAt?: string }>();
   if (!company) return json({ error: "Unknown company." }, 404);
+  const visitor = await visitorKey(request, body?.visitor);
+  if (!(await dailyCap(env, company.id, `quote:v:${visitor}`, 10))) return json({ error: "That is a lot of quotes for one day. Please call or email us and we will help you directly." }, 429);
 
   const { lowCents, highCents } = priceRange(q.jobType, q.sqft, readSettings(company.settings).rates);
   const { provider, summary } = await writeSummary(env, q, lowCents, highCents);
@@ -87,10 +92,10 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   // Photo brief: metered under ai_estimate. If the plan is used up or the AI fails, the normal quote still goes out.
   let brief: Awaited<ReturnType<typeof writeBrief>> = null;
   if (q.photos?.length) {
-    const use = await consume(env, company, "ai_estimate");
+    const use = await consume(env, company, "ai_estimate", visitor);
     if (use.allowed) {
       brief = await writeBrief(env, q, lowCents, highCents);
-      if (!brief) await refund(env, company, "ai_estimate");
+      if (!brief) await refund(env, company, "ai_estimate", visitor);
     }
   }
 
@@ -188,12 +193,14 @@ async function handleLeadNote(request: Request, env: Env, ctx: ExecutionContext)
     .bind(str(body?.companySlug, 60) || "dfw-painters")
     .first<{ id: number; name: string; notify_email: string | null }>();
   if (!company) return json({ error: "Unknown company." }, 404);
+  // One answer whether or not the email is known, so nobody can use this to list a painter's customers.
+  if (!(await dailyCap(env, company.id, `leadnote:v:${await visitorKey(request)}`, 30))) return json({ ok: true });
   const lead = await env.DB.prepare(
     "SELECT id, name, phone, notes, job_id FROM leads WHERE company_id = ? AND lower(email) = ? ORDER BY id DESC LIMIT 1",
   )
     .bind(company.id, email)
     .first<{ id: number; name: string; phone: string | null; notes: string | null; job_id: number | null }>();
-  if (!lead) return json({ error: "No matching lead." }, 404);
+  if (!lead) return json({ ok: true });
   if (lead.job_id) await addJobEvent(env, company.id, lead.job_id, "chat", note);
   const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
   const merged = `${lead.notes ? lead.notes + "\n\n" : ""}[Chat ${stamp} UTC] ${note}`.slice(0, 6000);
@@ -217,6 +224,8 @@ async function handleLead(request: Request, env: Env, ctx?: ExecutionContext): P
     .bind(str(body?.companySlug, 60) || "dfw-painters")
     .first<{ id: number; name: string; notify_email: string | null }>();
   if (!company) return json({ error: "Unknown company." }, 404);
+  // A flood from one address is accepted quietly and dropped, like the honeypot, so the script learns nothing.
+  if (!(await dailyCap(env, company.id, `lead:v:${await visitorKey(request)}`, 20))) return json({ ok: true });
   const source = str(body?.source, 60) || "website";
   const leadIns = await env.DB.prepare("INSERT INTO leads (company_id, name, email, phone, zip, source, notes) VALUES (?, ?, ?, ?, ?, ?, ?)")
     .bind(company.id, name, email, str(body?.phone, 40) || null, str(body?.zip, 10) || null, source, str(body?.details, 2000) || null)
@@ -425,9 +434,22 @@ export default {
     ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    return friendly404(request, env, await handle(request, env, ctx));
+    return withSecurityHeaders(await friendly404(request, env, await handle(request, env, ctx)));
   },
 } satisfies ExportedHandler<Env>;
+
+/**
+ * Headers every answer carries: browsers must not guess a file's type, links to other sites send no full address,
+ * and the site is only reachable over https. Client websites embed our quote pages, so framing is left open.
+ */
+function withSecurityHeaders(res: Response): Response {
+  if (res.status === 101 || res.headers.has("x-content-type-options")) return res;
+  const out = new Response(res.body, res);
+  out.headers.set("x-content-type-options", "nosniff");
+  if (!out.headers.has("referrer-policy")) out.headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  out.headers.set("strict-transport-security", "max-age=15552000");
+  return out;
+}
 
 /**
  * A browser that lands on a plain-text "Not found." (an old customer link, a mistyped address) sees the friendly
@@ -475,6 +497,8 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return Response.redirect(`https://paintersmax.app${pathname}`, 302);
       }
     }
+    // A signed-in browser's writes must come from our own pages. Public forms (no session cookie) are not affected.
+    if (pathname.startsWith("/api/") && crossSiteWrite(request, hasSessionCookie(request))) return json({ error: "This request came from another site and was not applied." }, 403);
     if (pathname === "/api/health") {
       // ?probe=1 (signed in only): one tiny photo question per AI provider, so a failing key, quota or model name shows up here.
       if (new URL(request.url).searchParams.get("probe") === "1") {
@@ -907,6 +931,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return json({ error: "Something went wrong." }, 500);
       }
     }
+    if (pathname.startsWith("/api/demo/")) {
+      try {
+        return await handleDemo(request, env);
+      } catch (err) {
+        console.error("demo failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
     if (pathname === "/api/help") {
       try {
         return await handleHelp(request, env);
@@ -965,6 +997,10 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     }
     if (pathname === "/api/checkout") {
       try {
+        if (request.method === "POST") {
+          const stop = await requireAgreement(request, env);
+          if (stop) return stop;
+        }
         return await handleCheckout(request, env);
       } catch (err) {
         console.error("handleCheckout failed", String(err));
