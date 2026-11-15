@@ -1,5 +1,6 @@
 import { CREDIT_COST, refundCredits, spendCredits } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
+import { releaseEnvelope, reserveEnvelope } from "./envelopes.ts";
 import type { Env } from "./types.ts";
 
 export type Feature = "ai_quote" | "ai_estimate" | "ai_invoice" | "photo_tag" | "smart_select" | "hd_render" | "ai_assistant" | "insurance_scan" | "ai_detailed" | "photo_analysis" | "ai_deep" | "receipt_read" | "bank_read" | "quote_helper" | "estimate_draft" | "help_chat" | "vehicle_read" | "color_repaint";
@@ -101,8 +102,12 @@ export async function consume(
   const used = limit < 1 ? null : await bump(env, company.id, feature, monthKey(), limit);
   if (used === null) {
     // The monthly amount is used up, or the plan has none for this feature. Any plan can keep going on AI credits (see credits.ts).
+    // If admin set credit envelopes for this client, the tool's envelope must have room too (envelopes.ts).
     const cost = CREDIT_COST[feature];
-    const spent = await spendCredits(env, company.id, cost, todayLocal());
+    const roomInEnvelope = await reserveEnvelope(env, company.id, feature, cost, monthKey());
+    const spent = roomInEnvelope ? await spendCredits(env, company.id, cost, todayLocal()) : { ok: false, balance: 0 };
+    if (roomInEnvelope && !spent.ok) await releaseEnvelope(env, company.id, feature, cost, monthKey());
+    if (!roomInEnvelope) await bumpAlways(env, company.id, `${feature}:envelope`, monthKey());
     if (spent.ok) {
       await bumpAlways(env, company.id, `${feature}:credit`, monthKey());
       return { allowed: true, used: limit, limit, credit: cost };
@@ -143,6 +148,7 @@ export async function refund(env: Env, company: { id: number }, feature: Feature
   if (cr && cr.count > 0) {
     await dec(`${feature}:credit`, monthKey());
     await refundCredits(env, company.id, CREDIT_COST[feature]);
+    await releaseEnvelope(env, company.id, feature, CREDIT_COST[feature], monthKey());
   } else {
     await dec(feature, monthKey());
   }

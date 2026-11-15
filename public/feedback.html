@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Feedback - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+main{max-width:760px;margin:0 auto;padding:16px 16px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:14px;margin:0 0 14px}
+label{display:block;font-size:14px;font-weight:600;margin:10px 0 4px}
+select,textarea{width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
+button{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 14px;background:#E8A33D;color:#0F1B2D;cursor:pointer;margin-top:10px}
+.muted{color:#4A5568;font-size:14px}.ok{color:#0a7a3d;font-weight:600}.bad{color:#b42318;font-weight:600}
+.pill{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px;margin-right:4px;background:#eceae4}.pill.gold{background:#fff3d6;color:#8a5a00}
+.m{border-left:3px solid #cfd5dc;padding:6px 10px;margin:8px 0;white-space:pre-wrap;font-size:14px}.m.a{border-color:#E8A33D;background:#fff8e6}
+</style></head><body>
+<header><div><b>PaintersMax</b> Feedback</div><div></div></header>
+<main>
+<h1>Feedback</h1>
+<p class="muted" style="margin-top:0">Found something that does not work, or have an idea that would help your business? Tell us here. We read every message and answer in this page, and we email you when we answer.</p>
+<div class="card">
+<label for="kind">What is it about?</label>
+<select id="kind"><option value="bug">Something does not work</option><option value="idea">An idea or a feature I want</option><option value="question">A question</option><option value="other">Something else</option></select>
+<label for="text">Your message</label>
+<textarea id="text" rows="5" maxlength="2000" placeholder="What happened, or what would you like PaintersMax to do?"></textarea>
+<button id="send">Send feedback</button>
+<div id="msg" class="muted"></div>
+</div>
+<h2 style="font-family:Newsreader,Georgia,serif;font-weight:500">Your messages</h2>
+<div id="list" class="muted">Loading...</div>
+</main>
+<script>
+const T=window.pmT||(s=>s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
+const KIND={bug:'Something does not work',idea:'Idea',question:'Question',other:'Something else'};
+const STATUS={new:'Sent',waiting:'Sent',answered:'Answered',closed:'Closed'};
+function msg(t,ok){$('msg').textContent=T(t||'');$('msg').className=ok?'ok':'bad';}
+async function api(b){const r=await fetch('/api/feedback',b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
+const when=s=>window.pmDate?pmDate(String(s).slice(0,10)):String(s).slice(0,10);
+async function load(){try{const {threads}=await api();
+ $('list').innerHTML=threads.length?threads.map(t=>`<div class="card"><div><span class="pill">${esc(T(KIND[t.kind]))}</span><span class="pill ${t.status==='answered'?'gold':''}">${esc(T(STATUS[t.status]))}</span>${t.unread?'<span class="pill gold">'+esc(T('New reply'))+'</span>':''}</div>
+ ${t.messages.map(m=>`<div class="m ${m.from==='admin'?'a':''}"><small>${esc(T(m.from==='admin'?'PaintersMax':'You'))} &middot; ${esc(when(m.at))}</small>\n${esc(m.text)}</div>`).join('')}
+ ${t.status==='closed'?'':`<textarea rows="2" maxlength="2000" data-r="${esc(t.id)}" placeholder="${esc(T('Write a reply'))}"></textarea><button data-s="${esc(t.id)}">${esc(T('Send reply'))}</button>`}</div>`).join(''):'<p>'+esc(T('No messages yet.'))+'</p>';
+ for(const t of threads)if(t.unread)api({action:'read',id:t.id}).catch(()=>{});
+}catch(x){if(x)$('list').textContent=x.message;}}
+$('send').onclick=async()=>{try{msg('');await api({action:'send',kind:$('kind').value,text:$('text').value,page:document.referrer?new URL(document.referrer).pathname:''});$('text').value='';msg('Thank you. We got your message.',true);load();}catch(x){if(x)msg(x.message);}};
+document.addEventListener('click',async e=>{const id=e.target.dataset&&e.target.dataset.s;if(!id)return;const ta=document.querySelector('[data-r="'+id+'"]');try{await api({action:'reply',id,text:ta.value});load();}catch(x){if(x)alert(x.message);}});
+load();
+</script>
+<script src="/nav.js"></script>
+</body></html>

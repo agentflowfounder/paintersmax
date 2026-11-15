@@ -1,0 +1,410 @@
+/* PaintersMax admin control panel: tabs by role, client page, subscriptions, credits and envelopes, promotions,
+ * marketing research, feedback inbox, held domains, team and audit log. Uses esc, $, msg and api from admin.html.
+ * Every change is checked on the server for the signed-in person's role and written to the audit log. */
+(function () {
+  'use strict';
+  var T = window.pmT || function (s) { return s; };
+  var ME = null, CACHE = {};
+  var TABS = [
+    ['clients', 'Clients', 'clients'], ['subs', 'Subscriptions', 'subscriptions'], ['credits', 'Credits', 'credits'], ['promos', 'Promotions', 'promos'],
+    ['research', 'Research', 'research'], ['feedback', 'Feedback', 'feedback'], ['domains', 'Domains', 'domains'], ['sites', 'Websites', 'sites'],
+    ['content', 'Help guide', 'content'], ['settings', 'Settings', 'settings'], ['security', 'Team and audit log', 'security'],
+  ];
+  var DOOR = { free: 'Free', launch: 'Launch', grow: 'Grow', signature: 'Signature' };
+  var doorName = function (k) { return k === 'free' ? esc(T('Free')) : '<span translate="no">' + esc(DOOR[k] || k) + '</span>'; };
+  var doorOpts = function (cur) { return Object.keys(DOOR).map(function (k) { return '<option value="' + k + '"' + (k === cur ? ' selected' : '') + (k === 'free' ? '' : ' translate="no"') + '>' + esc(k === 'free' ? T('Free') : DOOR[k]) + '</option>'; }).join(''); };
+  var STATE = { free: 'Free', paid: 'Paid', due_60: 'Renews in 60 days', due_30: 'Renews in 30 days', missed: 'Missed renewal', cancelled: 'Cancelled', refunded: 'Refunded' };
+  var STATE_PILL = { missed: 'red', due_30: 'gold', due_60: 'gold', paid: 'green', cancelled: '', refunded: '', free: '' };
+  var OUTREACH = { none: 'No outreach yet', todo: 'To contact', contacted: 'Contacted', won_back: 'Won back', declined: 'Declined' };
+  var FLAG = { needs_help: 'Needs help', at_risk: 'At risk', vip: 'VIP', trade_group: 'Trade group', do_not_contact: 'Do not contact' };
+  var GROUP = { website: 'Website and color', estimates: 'Photo analysis and estimates', assistant: 'Job assistant and deep answers', automation: 'Automation (invoices, receipts, reads)', marketing: 'Marketing (posts, emails, images)' };
+  var CONTACT = { new: 'New', called: 'Called', texted: 'Texted', emailed: 'Emailed', visited: 'Visited', no_answer: 'No answer', free: 'Free account', paid: 'Paid', declined: 'Declined' };
+  var CHANNEL = { season: 'Season offer', founding: 'Founding painters', referral: 'Referral', store: 'Paint store card', event: 'Event or meeting', ad: 'Ad campaign', winback: 'Win-back', upgrade: 'Upgrade credit', trade_group: 'Trade group', other: 'Other' };
+  var KIND = { floor: 'Land on the floor price', percent: 'Percent off the list price', amount: 'Dollars off the list price' };
+  var QUEUE = { expires_60: 'Expires within 60 days', expires_30: 'Expires within 30 days', expires_7: 'Expires within 7 days', expired: 'Expired', reuse_ready: 'Ready to reuse', transfer_requested: 'Transfer asked' };
+  var DSTATUS = { active: 'Active', transfer_requested: 'Transfer asked', transferred: 'Transferred', released: 'Released', pool: 'Reuse pool' };
+  var FBKIND = { bug: 'Bug', idea: 'Idea', question: 'Question', other: 'Other' };
+  var FBSTATUS = { new: 'New', waiting: 'Client wrote again', answered: 'Answered', closed: 'Closed' };
+
+  var canSee = function (a) { return !!ME && ME.see.indexOf(a) >= 0; };
+  var canChange = function (a) { return !!ME && ME.change.indexOf(a) >= 0; };
+  var money = function (c) { c = Number(c) || 0; return '$' + (c % 100 ? (c / 100).toFixed(2) : String(c / 100)); };
+  var d = function (s) { return s ? (window.pmDate ? window.pmDate(String(s).slice(0, 10)) : String(s).slice(0, 10)) : ''; };
+  var opts = function (map, cur) { return Object.keys(map).map(function (k) { return '<option value="' + esc(k) + '"' + (k === cur ? ' selected' : '') + '>' + esc(map[k]) + '</option>'; }).join(''); };
+  var pill = function (txt, cls) { return '<span class="pill ' + (cls || '') + '">' + esc(txt) + '</span>'; };
+  var post = function (b) { return api('/api/admin', b); };
+  var ok = function (t) { msg(T(t), true); };
+  var bad = function (x) { if (x) msg(x.message || String(x)); };
+  var dis = function (area) { return canChange(area) ? '' : ' disabled'; };
+
+  // ------------------------------------------------------------- tabs and routing
+  function drawTabs(cur) {
+    $('tabs').innerHTML = TABS.filter(function (t) { return canSee(t[2]); }).map(function (t) {
+      var href = t[0] === 'sites' ? '/admin/sites' : '#' + t[0];
+      return '<a href="' + href + '"' + (t[0] === cur ? ' class="on" aria-current="page"' : '') + '>' + esc(T(t[1])) + '</a>';
+    }).join('');
+  }
+  function route() {
+    var h = (location.hash || '').slice(1) || 'clients';
+    var parts = h.split('/');
+    var tab = parts[0];
+    if (tab === 'client') tab = 'client';
+    var allowedTab = TABS.filter(function (t) { return t[0] === tab && canSee(t[2]); })[0];
+    if (tab !== 'client' && !allowedTab) tab = TABS.filter(function (t) { return canSee(t[2]) && t[0] !== 'sites'; })[0][0];
+    drawTabs(tab === 'client' ? 'clients' : tab);
+    [].forEach.call(document.querySelectorAll('section.area'), function (s) { s.classList.toggle('on', s.getAttribute('data-area') === tab); });
+    msg('');
+    var f = LOAD[tab];
+    if (f) f(parts[1]);
+    window.scrollTo(0, 0);
+  }
+
+  // ------------------------------------------------------------- clients
+  function clientsLoad() {
+    api('/api/admin?clients=1').then(function (v) {
+      CACHE.clients = v.clients;
+      $('cl_box').innerHTML = '<div class="g4"><div><label>Search</label><input id="cl_q" placeholder="Name, email or slug"></div>' +
+        '<div><label>Door</label><select id="cl_door"><option value="">All</option>' + doorOpts('') + '</select></div>' +
+        '<div><label>Status</label><select id="cl_state"><option value="">All</option>' + opts(STATE) + '</select></div>' +
+        '<div><label>Flag</label><select id="cl_flag"><option value="">All</option>' + opts(FLAG) + '</select></div></div><div id="cl_list" class="scroll" style="margin-top:12px"></div>';
+      ['cl_q', 'cl_door', 'cl_state', 'cl_flag'].forEach(function (id) { $(id).addEventListener('input', clientsDraw); });
+      clientsDraw();
+    }).catch(function (x) { $('cl_box').textContent = x ? x.message : ''; });
+  }
+  function clientsDraw() {
+    var q = $('cl_q').value.trim().toLowerCase(), door = $('cl_door').value, st = $('cl_state').value, fl = $('cl_flag').value;
+    var rows = CACHE.clients.filter(function (c) {
+      return (!q || (c.name + ' ' + (c.owners || '') + ' ' + c.slug).toLowerCase().indexOf(q) >= 0) && (!door || c.door === door) && (!st || c.state === st) && (!fl || c.flags.indexOf(fl) >= 0);
+    });
+    $('cl_list').innerHTML = '<small><b>' + rows.length + '</b> <span>of</span> <b>' + CACHE.clients.length + '</b> <span>clients</span></small>' +
+      '<table class="t"><thead><tr><th>Client</th><th>Door</th><th>Status</th><th>Renews</th><th>Jobs</th><th>Leads</th><th>Last sign-in</th></tr></thead><tbody>' +
+      rows.map(function (c) {
+        return '<tr><td><a class="lk" href="#client/' + c.id + '">' + esc(c.name) + '</a><br><small>' + esc(c.owners || T('no login yet')) + '</small><br>' + c.flags.map(function (f) { return pill(T(FLAG[f]), f === 'at_risk' || f === 'do_not_contact' ? 'red' : 'gold'); }).join('') + '</td>' +
+          '<td>' + doorName(c.door) + '</td><td>' + pill(T(STATE[c.state]), STATE_PILL[c.state]) + '</td><td>' + esc(d(c.renewsOn)) + '</td><td>' + c.jobs + '</td><td>' + c.leads + '</td><td>' + esc(d(c.lastSignIn)) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+
+  // ------------------------------------------------------------- one client
+  function clientLoad(id) {
+    $('cp_box').innerHTML = T('Loading...');
+    api('/api/admin?client=' + encodeURIComponent(id)).then(function (v) { CACHE.client = v; clientDraw(v); }).catch(function (x) { $('cp_box').textContent = x ? x.message : ''; });
+  }
+  function clientDraw(v) {
+    var c = v.company, s = v.subscription, e = v.envelopes;
+    var h = '<p><a class="lk" href="#clients">&larr; <span>All clients</span></a></p><h2>' + esc(c.name) + '</h2><p><small>' + esc(c.slug) + ' &middot; <span>Joined</span> ' + esc(d(c.createdAt)) + ' &middot; <span>Client number</span> ' + c.id + '</small></p>';
+    // Summary
+    h += '<div class="tiles"><div class="tile"><b>' + doorName(v.door) + '</b><span>Door</span></div><div class="tile"><b>' + esc(T(STATE[v.state])) + '</b><span>Status</span></div>' +
+      '<div class="tile"><b>' + v.credits.balance + '</b><span>Credits left</span></div><div class="tile"><b>' + (v.counts.leads || 0) + '</b><span>Leads</span></div><div class="tile"><b>' + (v.counts.jobs || 0) + '</b><span>Jobs</span></div></div>';
+    // Door and plan
+    h += '<div class="card"><h3>Door and plan</h3><div class="g2"><div><label>Door (what the website includes)</label><select id="cp_door"' + dis('subscriptions') + '>' + doorOpts(v.door) + '</select></div>' +
+      '<div><label>App plan (sets the monthly AI amounts)</label><select data-id="' + c.id + '"' + dis('subscriptions') + '>' + ['free', 'starter', 'basic', 'pro'].map(function (p) { return '<option value="' + p + '"' + (p === c.plan ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></div></div>' +
+      '<small><span>Stripe customer</span>: ' + (c.stripeCustomer ? T('yes') : T('no')) + ' &middot; <span>Stripe subscription</span>: ' + (c.stripeSubscription ? T('yes') : T('no')) + '</small></div>';
+    // Subscription
+    h += '<div class="card"><h3>Yearly subscription</h3>' + (s ? '<p>' + pill(T(STATE[v.state]), STATE_PILL[v.state]) + (s.daysToRenewal !== null && s.daysToRenewal !== undefined ? ' <small><span>Days to renewal</span>: <b>' + s.daysToRenewal + '</b></small>' : '') + (s.refundUntil ? ' ' + pill(T('In the refund window until') + ' ' + d(s.refundUntil), 'gold') + ' <small><span>Refund would be</span> ' + money(s.refundCents) + '</small>' : '') + (s.founding ? ' ' + pill(T('Founding painter'), 'gold') : '') + '</p>' : '<p><small>No paid year recorded yet. Fill this in when the client pays for a door.</small></p>') +
+      '<div class="g3"><div><label>Paid year started</label><input id="sb_start" type="date" value="' + esc(s ? s.startedOn : '') + '"></div><div><label>Renewal due</label><input id="sb_renew" type="date" value="' + esc(s ? s.renewsOn : '') + '"></div>' +
+      '<div><label>Status</label><select id="sb_status">' + opts({ active: 'Active', cancelled: 'Cancelled', refunded: 'Refunded' }, s ? s.status : 'active') + '</select></div>' +
+      '<div><label>Paid for this year ($)</label><input id="sb_paid" inputmode="decimal" value="' + (s ? (s.paidCents / 100) : '') + '"></div><div><label>Next renewal ($, blank = the door\'s floor)</label><input id="sb_renewal" inputmode="decimal" value="' + (s && s.renewalCents ? s.renewalCents / 100 : '') + '" placeholder="' + (s ? s.renewalCents / 100 : '') + '"></div>' +
+      '<div><label>Promo code used</label><input id="sb_code" value="' + esc(s ? s.promoCode : '') + '"></div></div><label class="chk"><input type="checkbox" id="sb_found"' + (s && s.founding ? ' checked' : '') + '> <span>Founding painter (badge, floor price for life on renewals)</span></label>' +
+      '<div><button class="btn" id="sb_save"' + dis('subscriptions') + '>Save subscription</button></div>' +
+      (s ? '<div class="g2" style="margin-top:12px"><div><label>Renewal paid: amount ($)</label><input id="sb_rpaid" inputmode="decimal" value="' + s.renewalCents / 100 + '"></div><div style="align-self:end"><button class="btn" id="sb_renewed"' + dis('subscriptions') + '>Mark the renewal paid</button></div></div>' +
+        '<h3 style="margin-top:16px">Outreach</h3><small>A missed renewal never shuts the site off. Reach out with help, a win-back offer (floor price plus credits) or a lead pack for their city.</small>' +
+        '<div class="g2"><div><label>Outreach status</label><select id="sb_out"' + (canChange('subscriptions') || canChange('research') ? '' : ' disabled') + '>' + opts(OUTREACH, s.outreach) + '</select></div><div><label>Note</label><input id="sb_onote" maxlength="300" value="' + esc(s.outreachNote) + '"></div></div>' +
+        (s.outreachOn ? '<small><span>Last outreach update</span> ' + esc(d(s.outreachOn)) + '</small>' : '') + '<div><button class="btn" id="sb_osave"' + (canChange('subscriptions') || canChange('research') ? '' : ' disabled') + '>Save outreach</button></div>' : '') + '</div>';
+    // Credits and envelopes
+    h += '<div class="card"><h3>AI credits</h3><p><b>' + v.credits.balance + '</b> <span>credits left</span>' + (v.credits.nextExpiry ? ' &middot; <b>' + v.credits.nextExpiry.credits + '</b> <span>run out on</span> ' + esc(d(v.credits.nextExpiry.on)) : '') + '</p>' +
+      '<div class="scroll"><table class="t"><thead><tr><th>Added</th><th>Source</th><th>Credits</th><th>Left</th><th>Ends</th><th>Note</th></tr></thead><tbody>' + v.credits.grants.map(function (g) { return '<tr><td>' + esc(d(g.on)) + '</td><td>' + esc(T(g.source)) + '</td><td>' + g.credits + '</td><td>' + g.left + '</td><td>' + esc(d(g.expiresOn)) + (g.expired ? ' ' + pill(T('ended'), '') : '') + '</td><td>' + esc(g.note) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+      '<h3 style="margin-top:16px">Apply a credit bundle</h3><small>Adds admin credits (they last 90 days). Optionally point them at envelopes so the client spends them where they want, for example more on the color studio and less on the job assistant.</small>' +
+      '<div class="g3"><div><label>Credits</label><input id="bd_n" inputmode="numeric" placeholder="250"></div><div><label>Note</label><input id="bd_note" maxlength="100" placeholder="Holiday bundle"></div><div style="align-self:end"><label class="chk"><input type="checkbox" id="bd_caps"> <span>Also set the envelopes below</span></label></div></div>' +
+      '<div><button class="btn" id="bd_go"' + dis('credits') + '>Apply the bundle</button></div>' +
+      '<h3 style="margin-top:16px">Envelopes and AI model</h3><small>Envelopes are monthly caps on the credits each group of tools may use. A blank box means no cap. The monthly amounts that come with the plan are not affected.</small>' +
+      '<div><label class="chk"><input type="checkbox" id="ev_on"' + (e.enabled ? ' checked' : '') + '> <span>Use envelopes for this client</span></label><label class="chk"><input type="checkbox" id="ev_pt"' + (e.painterCanEdit ? ' checked' : '') + '> <span>Let the painter change them (Pro feature)</span></label></div>' +
+      '<div class="scroll"><table class="t"><thead><tr><th>Group</th><th>Monthly cap (credits)</th><th>Used this month</th></tr></thead><tbody>' + Object.keys(GROUP).map(function (g) {
+        return '<tr><td>' + esc(T(GROUP[g])) + '</td><td><input data-cap="' + g + '" inputmode="numeric" style="max-width:120px" value="' + (e.caps[g] !== undefined ? e.caps[g] : '') + '"></td><td>' + (e.used[g] || 0) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div class="g2"><div><label>Text model for this client\'s everyday tools</label><select id="ev_model">' + opts({ 'default': 'Platform default (Settings tab)', gemini: 'Gemini', haiku: 'Claude Haiku' }, e.textModel) + '</select></div></div>' +
+      (e.setBy ? '<small><span>Last changed by</span> ' + esc(e.setBy) + ' <span>on</span> ' + esc(d(e.setOn)) + '</small>' : '') + '<div><button class="btn" id="ev_save"' + dis('credits') + '>Save envelopes and model</button></div></div>';
+    // Usage
+    h += '<div class="card"><h3>AI use this month</h3>' + (v.usage.length ? '<div class="scroll"><table class="t"><thead><tr><th>Tool</th><th>Used</th><th>Monthly amount</th><th>Paid with credits</th><th>Credits</th><th>Turned away</th></tr></thead><tbody>' + v.usage.map(function (u) { return '<tr><td>' + esc(T(u.label)) + '</td><td>' + u.used + '</td><td>' + u.limit + '</td><td>' + u.creditUses + '</td><td>' + u.credits + '</td><td>' + u.missed + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<small>No AI use this month yet.</small>') + '</div>';
+    // People, domains, feedback
+    h += '<div class="card"><h3>Logins</h3><table class="t"><thead><tr><th>Email</th><th>Role</th><th>Last sign-in</th></tr></thead><tbody>' + v.users.map(function (u) { return '<tr><td>' + esc(u.email) + '</td><td>' + esc(u.role) + '</td><td>' + esc(d(u.lastSignIn)) + '</td></tr>'; }).join('') + '</tbody></table>' +
+      '<h3 style="margin-top:16px">Domains</h3>' + (v.domains.length || v.connected.length ? v.domains.map(function (x) { return '<div><b>' + esc(x.name) + '</b> ' + pill(T(DSTATUS[x.status])) + (x.reason ? pill(T(QUEUE[x.reason]), 'gold') : '') + ' <small><span>expires</span> ' + esc(d(x.expiresOn)) + '</small></div>'; }).join('') + v.connected.map(function (hst) { return '<div><small>Connected to the site:</small> ' + esc(hst) + '</div>'; }).join('') : '<small>No domains for this client.</small>') +
+      (canSee('feedback') ? '<h3 style="margin-top:16px">Feedback</h3>' + (v.feedback.length ? v.feedback.map(function (f) { return '<div>' + pill(T(FBKIND[f.kind])) + pill(T(FBSTATUS[f.status]), f.status === 'new' || f.status === 'waiting' ? 'gold' : '') + ' ' + esc(f.first) + ' <small>' + esc(d(f.updatedAt)) + '</small></div>'; }).join('') + '<p><a class="lk" href="#feedback">Open the feedback inbox</a></p>' : '<small>No feedback from this client.</small>') : '') + '</div>';
+    // Notes, flags and timeline
+    h += '<div class="card"><h3>Notes and flags</h3><div>' + Object.keys(FLAG).map(function (f) { return '<label class="chk"><input type="checkbox" data-flag="' + f + '"' + (v.flags.indexOf(f) >= 0 ? ' checked' : '') + dis('clients') + '> <span>' + esc(T(FLAG[f])) + '</span></label>'; }).join('') + '</div>' +
+      '<label>Add a note (only admins see notes)</label><textarea id="nt_text" rows="2" maxlength="1000"></textarea><div><button class="btn" id="nt_add"' + dis('clients') + '>Add note</button></div>' +
+      v.notes.map(function (n) { return '<div class="msgs"><div><small>' + esc(d(n.at)) + ' &middot; ' + esc(n.by) + '</small>\n' + esc(n.text) + '</div></div>'; }).join('') +
+      '<h3 style="margin-top:16px">What admins changed</h3>' + (v.timeline.length ? auditTable(v.timeline) : '<small>Nothing yet.</small>') + '</div>';
+    $('cp_box').innerHTML = h;
+    var cid = c.id;
+    $('cp_door').onchange = function () { post({ action: 'door_set', companyId: cid, door: this.value }).then(function () { ok('Door changed.'); clientLoad(cid); }).catch(bad); };
+    $('sb_save').onclick = function () {
+      post({ action: 'sub_set', companyId: cid, startedOn: $('sb_start').value, renewsOn: $('sb_renew').value, status: $('sb_status').value, paid: $('sb_paid').value || 0, renewal: $('sb_renewal').value, promoCode: $('sb_code').value, founding: $('sb_found').checked })
+        .then(function () { ok('Subscription saved.'); clientLoad(cid); }).catch(bad);
+    };
+    if ($('sb_renewed')) $('sb_renewed').onclick = function () { if (!confirm(T('Mark the renewal paid? The next renewal moves one year later.'))) return; post({ action: 'sub_renewed', companyId: cid, paid: $('sb_rpaid').value }).then(function () { ok('Renewal recorded.'); clientLoad(cid); }).catch(bad); };
+    if ($('sb_osave')) $('sb_osave').onclick = function () { post({ action: 'sub_outreach', companyId: cid, outreach: $('sb_out').value, note: $('sb_onote').value }).then(function () { ok('Outreach saved.'); clientLoad(cid); }).catch(bad); };
+    var caps = function () { var o = {}; [].forEach.call(document.querySelectorAll('[data-cap]'), function (i) { if (i.value.trim() !== '') o[i.getAttribute('data-cap')] = Number(i.value); }); return o; };
+    $('bd_go').onclick = function () {
+      var b = { action: 'bundle_apply', companyId: cid, credits: Number($('bd_n').value), note: $('bd_note').value };
+      if ($('bd_caps').checked) { b.caps = caps(); b.textModel = $('ev_model').value; }
+      post(b).then(function () { ok('Bundle applied.'); clientLoad(cid); }).catch(bad);
+    };
+    $('ev_save').onclick = function () { post({ action: 'envelopes_set', companyId: cid, enabled: $('ev_on').checked, painterCanEdit: $('ev_pt').checked, caps: caps(), textModel: $('ev_model').value }).then(function () { ok('Envelopes saved.'); clientLoad(cid); }).catch(bad); };
+    [].forEach.call(document.querySelectorAll('[data-flag]'), function (i) {
+      i.onchange = function () { var fl = [].filter.call(document.querySelectorAll('[data-flag]'), function (x) { return x.checked; }).map(function (x) { return x.getAttribute('data-flag'); }); post({ action: 'client_flags', companyId: cid, flags: fl }).then(function () { ok('Flags saved.'); }).catch(bad); };
+    });
+    $('nt_add').onclick = function () { post({ action: 'client_note', companyId: cid, text: $('nt_text').value }).then(function () { ok('Note added.'); clientLoad(cid); }).catch(bad); };
+  }
+
+  // ------------------------------------------------------------- subscriptions
+  function subsLoad() {
+    api('/api/admin?subs=1').then(function (v) {
+      var t = v.totals, rows = v.rows;
+      var paid = rows.filter(function (r) { return r.door !== 'free'; });
+      var list = function (title, rs, extra) {
+        return '<div class="card"><h3>' + esc(T(title)) + ' <small>(' + rs.length + ')</small></h3>' + (rs.length ? '<div class="scroll"><table class="t"><thead><tr><th>Client</th><th>Door</th><th>Renewal due</th><th>Renewal</th>' + (extra ? '<th>Outreach</th>' : '<th>Status</th>') + '</tr></thead><tbody>' + rs.map(function (r) {
+          return '<tr><td><a class="lk" href="#client/' + r.companyId + '">' + esc(r.name) + '</a><br><small>' + esc(r.email) + '</small>' + (r.founding ? ' ' + pill(T('Founding painter'), 'gold') : '') + '</td><td>' + doorName(r.door) + '</td><td>' + esc(d(r.renewsOn)) + (r.daysToRenewal !== null ? '<br><small><b>' + r.daysToRenewal + '</b> <span>days</span></small>' : '') + '</td><td>' + money(r.renewalCents) + '</td>' +
+            (extra ? '<td><select data-out="' + r.companyId + '"' + (canChange('subscriptions') || canChange('research') ? '' : ' disabled') + '>' + opts(OUTREACH, r.outreach) + '</select>' + (r.outreachNote ? '<br><small>' + esc(r.outreachNote) + '</small>' : '') + '</td>' : '<td>' + pill(T(STATE[r.state]), STATE_PILL[r.state]) + (r.refundUntil ? '<br><small><span>Refund window until</span> ' + esc(d(r.refundUntil)) + '</small>' : '') + '</td>') + '</tr>';
+        }).join('') + '</tbody></table></div>' : '<small>None.</small>') + '</div>';
+      };
+      var h = '<div class="tiles"><div class="tile"><b>' + money(t.paidThisMonth) + '</b><span>Paid this month</span></div><div class="tile"><b>' + t.renewals60 + '</b><span>Renewals in the next 60 days</span></div><div class="tile"><b>' + money(t.renewals60Cents) + '</b><span>Renewal money ahead (60 days)</span></div>' +
+        '<div class="tile"><b>' + t.missed + '</b><span>Missed renewals</span></div><div class="tile"><b>' + t.refundWindow + '</b><span>In the 14-day refund window</span></div><div class="tile"><b>' + t.founding + ' / 100</b><span>Founding painters</span></div></div>' +
+        '<div class="tiles">' + Object.keys(DOOR).map(function (k) { return '<div class="tile"><b>' + t.byDoor[k] + '</b><span>' + doorName(k) + '</span></div>'; }).join('') + '</div>' +
+        list('Missed renewals: reach out with help, not a bill', rows.filter(function (r) { return r.state === 'missed'; }), true) +
+        list('Renewals due in 30 days', rows.filter(function (r) { return r.state === 'due_30'; })) +
+        list('Renewals due in 31 to 60 days', rows.filter(function (r) { return r.state === 'due_60'; })) +
+        list('In the refund window', rows.filter(function (r) { return !!r.refundUntil; })) +
+        list('All paid doors', paid) +
+        '<div class="card"><h3>Prices</h3><small>Promotions land on the floor and never under it. The list price is what someone with no promotion pays.</small><table class="t"><thead><tr><th>Door</th><th>Sign-up floor</th><th>Sign-up list</th><th>Renewal floor</th><th>Renewal list</th></tr></thead><tbody>' +
+        Object.keys(v.prices).map(function (k) { var p = v.prices[k]; return '<tr><td>' + doorName(k) + '</td><td>' + money(p.signupFloor) + '</td><td>' + money(p.signupList) + '</td><td>' + money(p.renewalFloor) + '</td><td>' + money(p.renewalList) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+      $('sb_box').innerHTML = h;
+      [].forEach.call(document.querySelectorAll('[data-out]'), function (s) { s.onchange = function () { post({ action: 'sub_outreach', companyId: Number(s.getAttribute('data-out')), outreach: s.value }).then(function () { ok('Outreach saved.'); }).catch(bad); }; });
+    }).catch(function (x) { $('sb_box').textContent = x ? x.message : ''; });
+  }
+
+  // ------------------------------------------------------------- credits
+  function creditsLoad() {
+    var m = (CACHE.month || new Date().toISOString().slice(0, 7));
+    api('/api/admin?credits=1&month=' + m).then(function (v) {
+      CACHE.month = v.month;
+      var used = v.tools.filter(function (t) { return t.uses || t.creditUses || t.missed || t.blocked; });
+      $('cu_box').innerHTML = '<div class="card"><label>Month</label><input id="cu_m" type="month" value="' + esc(v.month) + '" style="max-width:200px">' +
+        '<div class="tiles" style="margin-top:12px">' + v.groups.map(function (g) { return '<div class="tile"><b>' + g.credits + '</b><span>' + esc(T(g.label)) + '</span></div>'; }).join('') + '</div>' +
+        '<h3>Use by tool</h3>' + (used.length ? '<div class="scroll"><table class="t"><thead><tr><th>Tool</th><th>Credits per use</th><th>Uses in the plan amount</th><th>Uses paid with credits</th><th>Credits</th><th>Turned away</th><th>Stopped by an envelope</th><th>Clients</th></tr></thead><tbody>' +
+          used.map(function (t) { return '<tr><td>' + esc(T(t.label)) + '<br><small>' + esc(T(GROUP[t.group])) + '</small></td><td>' + t.cost + '</td><td>' + t.uses + '</td><td>' + t.creditUses + '</td><td>' + t.credits + '</td><td>' + t.missed + '</td><td>' + t.blocked + '</td><td>' + t.clients + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<small>No AI use in this month.</small>') +
+        '<h3>Clients who used the most credits</h3>' + (v.top.length ? '<table class="t"><tbody>' + v.top.map(function (c) { return '<tr><td><a class="lk" href="#client/' + c.companyId + '">' + esc(c.name) + '</a></td><td>' + c.credits + '</td></tr>'; }).join('') + '</tbody></table>' : '<small>None yet.</small>') +
+        '<h3>Credits added this month, by source</h3>' + (Object.keys(v.granted).length ? '<table class="t"><tbody>' + Object.keys(v.granted).map(function (k) { return '<tr><td>' + esc(T(k)) + '</td><td>' + v.granted[k] + '</td></tr>'; }).join('') + '</tbody></table>' : '<small>None.</small>') +
+        '<p><small>Real AI cost per client and per tool needs the provider cost log, which comes in stage 2.</small></p></div>';
+      $('cu_m').onchange = function () { CACHE.month = this.value; creditsLoad(); };
+    }).catch(function (x) { $('cu_box').textContent = x ? x.message : ''; });
+  }
+
+  // ------------------------------------------------------------- promotions
+  var PEDIT = null;
+  function promosLoad() {
+    api('/api/admin?promos=1').then(function (v) {
+      CACHE.promos = v.promos;
+      var lim = ME.limits.maxPromoBonus;
+      $('pr_box').innerHTML = '<div class="card"><h3 id="pf_title">New promotion</h3><small>Every promotion has a name, a reason and an end date. Only one code applies to a sale, and the price never goes under the floor.</small>' +
+        '<div class="g3"><div><label>Code</label><input id="pf_code" maxlength="24" placeholder="BOOKEDBYSPRING" style="text-transform:uppercase"></div><div><label>Name</label><input id="pf_name" maxlength="80" placeholder="Booked by Spring"></div><div><label>Channel</label><select id="pf_ch">' + opts(CHANNEL, 'season') + '</select></div></div>' +
+        '<label>Reason</label><input id="pf_reason" maxlength="200" placeholder="Holiday sign-up offer">' +
+        '<div class="g3"><div><label>Price</label><select id="pf_kind">' + opts(KIND, 'floor') + '</select></div><div><label>Percent or dollars off</label><input id="pf_val" inputmode="decimal" placeholder="0"></div><div><label>For</label><select id="pf_for">' + opts({ signup: 'Sign-ups', renewal: 'Renewals', both: 'Sign-ups and renewals' }, 'signup') + '</select></div>' +
+        '<div><label>Starts</label><input id="pf_start" type="date"></div><div><label>Ends</label><input id="pf_end" type="date"></div><div><label>Most uses (0 = no limit)</label><input id="pf_max" inputmode="numeric" value="0"></div>' +
+        '<div><label>Bonus credits' + (lim ? ' (up to ' + lim + ')' : '') + '</label><input id="pf_bonus" inputmode="numeric" value="0"' + (lim ? '' : ' disabled') + '></div></div>' +
+        '<div><label>Doors</label>' + ['launch', 'grow', 'signature'].map(function (k) { return '<label class="chk"><input type="checkbox" data-pd="' + k + '" checked> <span>' + doorName(k) + '</span></label>'; }).join('') + '<label class="chk"><input type="checkbox" id="pf_found"> <span>Gives the Founding badge</span></label><label class="chk"><input type="checkbox" id="pf_on" checked> <span>On</span></label></div>' +
+        '<div><button class="btn" id="pf_save"' + dis('promos') + '>Save promotion</button> <button class="btn gray" id="pf_new">New</button></div></div>' +
+        '<div class="card"><h3>Promotions</h3>' + (v.promos.length ? '<div class="scroll"><table class="t"><thead><tr><th>Code</th><th>Dates</th><th>Price with the code</th><th>Uses</th><th></th></tr></thead><tbody>' + v.promos.map(function (p) {
+          return '<tr><td><b>' + esc(p.code) + '</b> ' + (p.live ? pill(T('live'), 'green') : p.active ? pill(T('not in its dates'), '') : pill(T('off'), 'red')) + '<br>' + esc(p.name) + '<br><small>' + esc(T(CHANNEL[p.channel])) + ' &middot; ' + esc(p.reason) + '</small></td>' +
+            '<td>' + esc(d(p.startsOn)) + '<br>' + esc(d(p.endsOn)) + '</td><td><small>' + Object.keys(p.prices).filter(function (k) { return p.doors.indexOf(k) >= 0; }).map(function (k) { return doorName(k) + ': ' + (p.appliesTo !== 'renewal' ? money(p.prices[k].signup) : '') + (p.appliesTo === 'both' ? ' / ' : '') + (p.appliesTo !== 'signup' ? money(p.prices[k].renewal) : ''); }).join('<br>') + (p.bonusCredits ? '<br>+ <b>' + p.bonusCredits + '</b> <span>credits</span>' : '') + (p.founding ? '<br>' + esc(T('Founding painter')) : '') + '</small></td>' +
+            '<td>' + p.uses + (p.maxUses ? ' / ' + p.maxUses : '') + '</td><td><button class="btn sm gray" data-pe="' + esc(p.code) + '">Edit</button> <button class="btn sm ' + (p.active ? 'red' : '') + '" data-pa="' + esc(p.code) + '" data-on="' + (p.active ? '0' : '1') + '"' + dis('promos') + '>' + (p.active ? 'Turn off' : 'Turn on') + '</button></td></tr>';
+        }).join('') + '</tbody></table></div>' : '<small>No promotions yet.</small>') + '<p><small>The sign-up and renewal checkout will read these codes when the yearly doors go on sale.</small></p></div>';
+      var fill = function (p) {
+        PEDIT = p ? p.code : null;
+        $('pf_title').textContent = T(p ? 'Edit promotion' : 'New promotion');
+        $('pf_code').value = p ? p.code : ''; $('pf_code').disabled = !!p; $('pf_name').value = p ? p.name : ''; $('pf_reason').value = p ? p.reason : ''; $('pf_ch').value = p ? p.channel : 'season';
+        $('pf_kind').value = p ? p.kind : 'floor'; $('pf_val').value = p ? p.value : ''; $('pf_for').value = p ? p.appliesTo : 'signup'; $('pf_start').value = p ? p.startsOn : ''; $('pf_end').value = p ? p.endsOn : '';
+        $('pf_max').value = p ? p.maxUses : 0; $('pf_bonus').value = p ? p.bonusCredits : 0; $('pf_found').checked = !!(p && p.founding); $('pf_on').checked = p ? p.active : true;
+        [].forEach.call(document.querySelectorAll('[data-pd]'), function (i) { i.checked = !p || p.doors.indexOf(i.getAttribute('data-pd')) >= 0; });
+      };
+      $('pf_new').onclick = function () { fill(null); };
+      $('pf_save').onclick = function () {
+        var doors = [].filter.call(document.querySelectorAll('[data-pd]'), function (i) { return i.checked; }).map(function (i) { return i.getAttribute('data-pd'); });
+        post({ action: 'promo_save', isNew: !PEDIT, promo: { code: $('pf_code').value, name: $('pf_name').value, reason: $('pf_reason').value, channel: $('pf_ch').value, kind: $('pf_kind').value, value: Number($('pf_val').value) || 0, appliesTo: $('pf_for').value, startsOn: $('pf_start').value, endsOn: $('pf_end').value, maxUses: Number($('pf_max').value) || 0, bonusCredits: Number($('pf_bonus').value) || 0, founding: $('pf_found').checked, active: $('pf_on').checked, doors: doors } })
+          .then(function () { ok('Promotion saved.'); PEDIT = null; promosLoad(); }).catch(bad);
+      };
+      [].forEach.call(document.querySelectorAll('[data-pe]'), function (b) { b.onclick = function () { fill(CACHE.promos.filter(function (p) { return p.code === b.getAttribute('data-pe'); })[0]); window.scrollTo(0, 0); }; });
+      [].forEach.call(document.querySelectorAll('[data-pa]'), function (b) { b.onclick = function () { post({ action: 'promo_active', code: b.getAttribute('data-pa'), active: b.getAttribute('data-on') === '1' }).then(function () { ok('Saved.'); promosLoad(); }).catch(bad); }; });
+    }).catch(function (x) { $('pr_box').textContent = x ? x.message : ''; });
+  }
+
+  // ------------------------------------------------------------- research
+  function researchLoad(marketId) {
+    api('/api/admin?research=1').then(function (v) {
+      CACHE.markets = v.markets;
+      var cur = marketId ? v.markets.filter(function (m) { return m.id === marketId; })[0] : null;
+      var h = '<div class="card"><h3>Markets</h3><small>One market per region. Work the contact list in order: claims, paint store counters, builders, trade groups, content, then ads. Write what you learn in the lessons log so the next region goes faster.</small>' +
+        (v.markets.length ? '<div class="scroll"><table class="t"><thead><tr><th>Market</th><th>Status</th><th>Contacts</th><th>Free accounts</th><th>Paid</th><th></th></tr></thead><tbody>' + v.markets.map(function (m) {
+          return '<tr><td><b>' + esc(m.name) + '</b> <small>' + esc(m.state) + '</small><br><small>' + esc(m.cities.slice(0, 8).join(', ')) + (m.cities.length > 8 ? '...' : '') + '</small></td><td>' + esc(T(m.status === 'active' ? 'Active' : m.status === 'done' ? 'Done' : 'Planned')) + '</td><td>' + m.counts.total + '</td><td>' + m.counts.free + '</td><td>' + m.counts.paid + '</td><td><a class="btn sm" href="#research/' + esc(m.id) + '">Open</a></td></tr>';
+        }).join('') + '</tbody></table></div>' : '<p><small>No markets yet. Start with North and East Texas.</small></p>') +
+        '<h3 style="margin-top:14px">' + esc(T(cur ? 'Edit this market' : 'Add a market')) + '</h3><div class="g3"><div><label>Name</label><input id="mk2_name" maxlength="80" value="' + esc(cur ? cur.name : '') + '" placeholder="North and East Texas"></div><div><label>State</label><input id="mk2_state" maxlength="2" value="' + esc(cur ? cur.state : 'TX') + '"></div><div><label>Status</label><select id="mk2_status">' + opts({ planned: 'Planned', active: 'Active', done: 'Done' }, cur ? cur.status : 'planned') + '</select></div></div>' +
+        '<label>Cities (comma separated)</label><textarea id="mk2_cities" rows="2">' + esc(cur ? cur.cities.join(', ') : '') + '</textarea><label>Notes (message, channels, budget, targets)</label><textarea id="mk2_notes" rows="3">' + esc(cur ? cur.notes : '') + '</textarea>' +
+        '<div><button class="btn" id="mk2_save"' + dis('research') + '>Save market</button>' + (cur ? ' <a class="btn gray" href="#research">Back to all markets</a>' : '') + '</div></div>';
+      if (cur) h += '<div id="ct_box" class="card">Loading...</div><div class="card"><h3>Lessons log</h3>' + (cur.lessons.length ? cur.lessons.slice().reverse().map(function (l) { return '<div class="msgs"><div><small>' + esc(d(l.on)) + ' &middot; ' + esc(l.by) + '</small>\n' + esc(l.text) + '</div></div>'; }).join('') : '<small>No lessons yet.</small>') +
+        '<label>Add a lesson</label><textarea id="ls_text" rows="2" maxlength="1000"></textarea><div><button class="btn" id="ls_add"' + dis('research') + '>Add lesson</button></div></div>';
+      $('rs_box').innerHTML = h;
+      $('mk2_save').onclick = function () { post({ action: 'market_save', market: { id: cur ? cur.id : undefined, name: $('mk2_name').value, state: $('mk2_state').value, status: $('mk2_status').value, cities: $('mk2_cities').value, notes: $('mk2_notes').value } }).then(function (r) { ok('Market saved.'); location.hash = '#research/' + r.market.id; researchLoad(r.market.id); }).catch(bad); };
+      if (cur) {
+        $('ls_add').onclick = function () { post({ action: 'market_lesson', marketId: cur.id, text: $('ls_text').value }).then(function () { ok('Lesson added.'); researchLoad(cur.id); }).catch(bad); };
+        contactsLoad(cur.id);
+      }
+    }).catch(function (x) { $('rs_box').textContent = x ? x.message : ''; });
+  }
+  function contactsLoad(mid) {
+    api('/api/admin?contacts=' + encodeURIComponent(mid)).then(function (v) {
+      CACHE.contacts = v.contacts;
+      var c = v.counts;
+      $('ct_box').innerHTML = '<h3>Painting companies in this market</h3><div class="tiles">' + Object.keys(CONTACT).map(function (k) { return '<div class="tile"><b>' + (c[k] || 0) + '</b><span>' + esc(T(CONTACT[k])) + '</span></div>'; }).join('') + '</div>' +
+        '<div class="g3"><div><label>Search</label><input id="ct_q" placeholder="Company, city or phone"></div><div><label>Status</label><select id="ct_st"><option value="">All</option>' + opts(CONTACT) + '</select></div><div style="align-self:end"><a class="btn gray" href="/api/admin?contacts=' + encodeURIComponent(mid) + '&csv=1">Download CSV</a></div></div>' +
+        '<div id="ct_list" class="scroll" style="margin-top:10px"></div>' +
+        '<h3 style="margin-top:14px">Add a company</h3><small>Public business details only: business name, business phone, public email, website and review count.</small><div class="g4"><div><label>Company</label><input id="cn_company"></div><div><label>Contact name</label><input id="cn_person"></div><div><label>Phone</label><input id="cn_phone" inputmode="tel"></div><div><label>Email</label><input id="cn_email" type="email"></div>' +
+        '<div><label>Website</label><input id="cn_web"></div><div><label>City</label><input id="cn_city"></div><div><label>Google reviews</label><input id="cn_rev" inputmode="numeric"></div><div><label>Language</label><select id="cn_lang">' + opts({ '': 'Not known', en: 'English', es: 'Spanish', both: 'Both' }, '') + '</select></div></div>' +
+        '<div><button class="btn" id="cn_add"' + dis('research') + '>Add company</button></div>' +
+        '<h3 style="margin-top:14px">Import a CSV</h3><small>Paste CSV text with a header row. Known columns: company, contact, phone, email, website, city, reviews, language, status, code, note. Companies already on the list (same phone, or same name and city) are skipped.</small><textarea id="ci_csv" rows="4" placeholder="company,phone,city,reviews"></textarea><div><button class="btn" id="ci_go"' + dis('research') + '>Import</button></div>';
+      $('ct_q').oninput = $('ct_st').onchange = contactsDraw;
+      contactsDraw();
+      $('cn_add').onclick = function () { post({ action: 'contact_save', marketId: mid, contact: { company: $('cn_company').value, person: $('cn_person').value, phone: $('cn_phone').value, email: $('cn_email').value, website: $('cn_web').value, city: $('cn_city').value, reviews: $('cn_rev').value, lang: $('cn_lang').value } }).then(function () { ok('Company added.'); contactsLoad(mid); }).catch(bad); };
+      $('ci_go').onclick = function () { post({ action: 'contacts_import', marketId: mid, csv: $('ci_csv').value }).then(function (r) { msg(T('Imported') + ': ' + r.added + ' · ' + T('skipped') + ': ' + r.skipped, true); contactsLoad(mid); }).catch(bad); };
+      CACHE.mid = mid;
+    }).catch(function (x) { $('ct_box').textContent = x ? x.message : ''; });
+  }
+  function contactsDraw() {
+    var q = $('ct_q').value.trim().toLowerCase(), st = $('ct_st').value;
+    var rows = CACHE.contacts.filter(function (c) { return (!st || c.status === st) && (!q || (c.company + ' ' + c.city + ' ' + c.phone + ' ' + c.person).toLowerCase().indexOf(q) >= 0); }).slice(0, 300);
+    $('ct_list').innerHTML = '<table class="t"><thead><tr><th>Company</th><th>Reach</th><th>Suggested door</th><th>Status</th><th>Note</th></tr></thead><tbody>' + rows.map(function (c) {
+      return '<tr><td><b>' + esc(c.company) + '</b>' + (c.person ? '<br>' + esc(c.person) : '') + '<br><small>' + esc(c.city) + (c.reviews !== null ? ' &middot; ' + c.reviews + ' ' + esc(T('reviews')) : '') + (c.lang ? ' &middot; ' + esc(c.lang.toUpperCase()) : '') + '</small></td>' +
+        '<td><small>' + (c.phone ? '<a href="tel:' + esc(c.phone) + '">' + esc(c.phone) + '</a><br>' : '') + (c.email ? esc(c.email) + '<br>' : '') + (c.website ? esc(c.website) : '') + '</small></td><td>' + doorName(c.door) + '</td>' +
+        '<td><select data-cs="' + esc(c.id) + '"' + dis('research') + '>' + opts(CONTACT, c.status) + '</select><br><small>' + esc(c.owner) + (c.lastOn ? ' &middot; ' + esc(d(c.lastOn)) : '') + '</small></td><td><input data-cn="' + esc(c.id) + '" maxlength="500" value="' + esc(c.note) + '"' + dis('research') + '></td></tr>';
+    }).join('') + '</tbody></table>' + (rows.length === 300 ? '<small>Showing the first 300. Search to narrow the list.</small>' : '');
+    var save = function (id, patch) { post({ action: 'contact_save', marketId: CACHE.mid, contact: Object.assign({ id: id }, patch) }).then(function (r) { ok('Saved.'); CACHE.contacts = CACHE.contacts.map(function (c) { return c.id === id ? r.contact : c; }); }).catch(bad); };
+    [].forEach.call(document.querySelectorAll('[data-cs]'), function (s) { s.onchange = function () { save(s.getAttribute('data-cs'), { status: s.value }); }; });
+    [].forEach.call(document.querySelectorAll('[data-cn]'), function (i) { i.onchange = function () { save(i.getAttribute('data-cn'), { note: i.value }); }; });
+  }
+
+  // ------------------------------------------------------------- feedback
+  function feedbackLoad() {
+    var st = CACHE.fbStatus || 'open';
+    api('/api/admin?feedback=1&status=' + st).then(function (v) {
+      var c = v.counts;
+      $('fb_box').innerHTML = '<div class="tiles"><div class="tile"><b>' + c.new + '</b><span>New</span></div><div class="tile"><b>' + c.waiting + '</b><span>Client wrote again</span></div><div class="tile"><b>' + c.answered + '</b><span>Answered</span></div><div class="tile"><b>' + c.closed + '</b><span>Closed</span></div></div>' +
+        '<div class="card"><label>Show</label><select id="fb_st" style="max-width:260px">' + opts({ open: 'Waiting for us', all: 'All', new: 'New', answered: 'Answered', closed: 'Closed' }, st) + '</select>' +
+        (v.threads.length ? v.threads.map(function (t) {
+          return '<div style="border-top:1px solid #eee;margin-top:12px;padding-top:10px"><div>' + pill(T(FBKIND[t.kind])) + pill(T(FBSTATUS[t.status]), t.status === 'new' || t.status === 'waiting' ? 'gold' : '') + ' <a class="lk" href="#client/' + t.companyId + '">' + esc(t.companyName) + '</a> <small>' + esc(d(t.updatedAt)) + (t.page ? ' &middot; ' + esc(t.page) : '') + '</small></div>' +
+            '<div class="msgs">' + t.messages.map(function (m) { return '<div class="' + (m.from === 'admin' ? 'a' : '') + '"><small>' + esc(m.by) + ' &middot; ' + esc(d(m.at)) + '</small>\n' + esc(m.text) + '</div>'; }).join('') + '</div>' +
+            '<textarea rows="2" maxlength="2000" data-fbt="' + esc(t.id) + '" placeholder="' + esc(T('Write a reply. The client gets an email that you answered.')) + '"></textarea>' +
+            '<div><button class="btn sm" data-fbr="' + esc(t.id) + '" data-c="' + t.companyId + '"' + dis('feedback') + '>Send reply</button> <button class="btn sm gray" data-fbc="' + esc(t.id) + '" data-c="' + t.companyId + '" data-s="' + (t.status === 'closed' ? 'answered' : 'closed') + '"' + dis('feedback') + '>' + (t.status === 'closed' ? 'Reopen' : 'Close') + '</button></div></div>';
+        }).join('') : '<p><small>Nothing here.</small></p>') + '</div>';
+      $('fb_st').onchange = function () { CACHE.fbStatus = this.value; feedbackLoad(); };
+      [].forEach.call(document.querySelectorAll('[data-fbr]'), function (b) {
+        b.onclick = function () { var id = b.getAttribute('data-fbr'); var ta = document.querySelector('[data-fbt="' + id + '"]'); post({ action: 'feedback_reply', id: id, companyId: Number(b.getAttribute('data-c')), text: ta.value }).then(function () { ok('Reply sent.'); feedbackLoad(); }).catch(bad); };
+      });
+      [].forEach.call(document.querySelectorAll('[data-fbc]'), function (b) {
+        b.onclick = function () { post({ action: 'feedback_reply', id: b.getAttribute('data-fbc'), companyId: Number(b.getAttribute('data-c')), status: b.getAttribute('data-s') }).then(function () { ok('Saved.'); feedbackLoad(); }).catch(bad); };
+      });
+    }).catch(function (x) { $('fb_box').textContent = x ? x.message : ''; });
+  }
+
+  // ------------------------------------------------------------- held domains
+  function heldLoad() {
+    api('/api/admin?held=1').then(function (v) {
+      CACHE.held = v.domains;
+      var queue = v.domains.filter(function (x) { return x.reason; });
+      var row = function (x) {
+        return '<tr><td><b>' + esc(x.name) + '</b> ' + pill(T(x.kind === 'branded' ? 'Branded' : 'Generic')) + '<br><small>' + esc(x.registrar) + (x.client ? ' &middot; <a class="lk" href="#client/' + x.companyId + '">' + esc(x.client) + '</a>' : '') + '</small></td>' +
+          '<td>' + esc(d(x.expiresOn)) + '<br><small><b>' + x.daysLeft + '</b> <span>days</span>' + (x.autoRenew ? '' : ' &middot; ' + esc(T('auto-renew off'))) + '</small></td><td>' + pill(T(DSTATUS[x.status])) + (x.reason ? pill(T(QUEUE[x.reason]), x.reason === 'expired' || x.reason === 'expires_7' ? 'red' : 'gold') : '') +
+          '<br><small>' + (x.canTransfer ? esc(T('Can transfer')) : esc(T('Transfer lock until')) + ' ' + esc(d(x.transferFrom))) + (x.reuseFrom ? ' &middot; ' + esc(T('Reuse from')) + ' ' + esc(d(x.reuseFrom)) : '') + '</small></td>' +
+          '<td><button class="btn sm" data-hr="' + esc(x.name) + '"' + dis('domains') + '>Renewed</button> <button class="btn sm gray" data-hd="' + esc(x.name) + '" data-dec="release"' + dis('domains') + '>Release</button>' + (x.kind === 'generic' ? ' <button class="btn sm gray" data-hd="' + esc(x.name) + '" data-dec="pool"' + dis('domains') + '>Reuse pool</button>' : '') +
+          ' <button class="btn sm gray" data-hd="' + esc(x.name) + '" data-dec="' + (x.status === 'transfer_requested' ? 'transferred' : 'transfer_requested') + '"' + dis('domains') + '>' + (x.status === 'transfer_requested' ? 'Transferred' : 'Transfer asked') + '</button> <button class="btn sm gray" data-he="' + esc(x.name) + '">Edit</button></td></tr>';
+      };
+      var table = function (rs) { return rs.length ? '<div class="scroll"><table class="t"><thead><tr><th>Domain</th><th>Expires</th><th>Status</th><th>Decide</th></tr></thead><tbody>' + rs.map(row).join('') + '</tbody></table></div>' : '<small>None.</small>'; };
+      $('hd_box').innerHTML = '<div class="card"><h3>Needs a decision</h3><small>Renew, release (let it expire) or reuse. A domain is reusable only if it is generic, the client cancelled or was refunded at least 30 days ago, and they did not ask for a transfer.</small>' + table(queue) + '</div>' +
+        '<div class="card"><h3>All held domains</h3>' + table(v.domains) + '</div>' +
+        '<div class="card"><h3 id="hf_title">Add a domain we bought</h3><div class="g3"><div><label>Domain</label><input id="hf_name" placeholder="longviewpainters.com"></div><div><label>Registrar</label><input id="hf_reg" value="Cloudflare"></div><div><label>Client</label><select id="hf_c"><option value="">None (our own or the reuse pool)</option>' + v.clients.map(function (c) { return '<option value="' + c.id + '">' + esc(c.name) + '</option>'; }).join('') + '</select></div>' +
+        '<div><label>Bought on</label><input id="hf_bought" type="date"></div><div><label>Expires on</label><input id="hf_exp" type="date"></div><div><label>Yearly cost ($)</label><input id="hf_cost" inputmode="decimal" placeholder="12"></div>' +
+        '<div><label>Name type</label><select id="hf_kind">' + opts({ generic: 'Generic (no business name in it)', branded: 'Branded (has the client\'s business name)' }, 'generic') + '</select></div><div><label>Note</label><input id="hf_note" maxlength="300"></div><div style="align-self:end"><label class="chk"><input type="checkbox" id="hf_auto" checked> <span>Auto-renew is on at the registrar</span></label></div></div>' +
+        '<div><button class="btn" id="hf_save"' + dis('domains') + '>Save domain</button> <button class="btn gray" id="hf_new">New</button></div></div>';
+      var HNEW = true;
+      var fill = function (x) {
+        HNEW = !x; $('hf_title').textContent = T(x ? 'Edit domain' : 'Add a domain we bought');
+        $('hf_name').value = x ? x.name : ''; $('hf_name').disabled = !!x; $('hf_reg').value = x ? x.registrar : 'Cloudflare'; $('hf_c').value = x && x.companyId ? String(x.companyId) : '';
+        $('hf_bought').value = x ? x.boughtOn : ''; $('hf_exp').value = x ? x.expiresOn : ''; $('hf_cost').value = x ? x.costCents / 100 : ''; $('hf_kind').value = x ? x.kind : 'generic'; $('hf_note').value = x ? x.note : ''; $('hf_auto').checked = x ? x.autoRenew : true;
+      };
+      $('hf_new').onclick = function () { fill(null); };
+      $('hf_save').onclick = function () { post({ action: 'held_save', domain: { isNew: HNEW, name: $('hf_name').value, registrar: $('hf_reg').value, companyId: $('hf_c').value ? Number($('hf_c').value) : '', boughtOn: $('hf_bought').value, expiresOn: $('hf_exp').value, cost: $('hf_cost').value, kind: $('hf_kind').value, note: $('hf_note').value, autoRenew: $('hf_auto').checked } }).then(function () { ok('Domain saved.'); heldLoad(); }).catch(bad); };
+      [].forEach.call(document.querySelectorAll('[data-he]'), function (b) { b.onclick = function () { fill(CACHE.held.filter(function (x) { return x.name === b.getAttribute('data-he'); })[0]); $('hf_title').scrollIntoView(); }; });
+      [].forEach.call(document.querySelectorAll('[data-hd]'), function (b) { b.onclick = function () { post({ action: 'held_decide', name: b.getAttribute('data-hd'), decision: b.getAttribute('data-dec') }).then(function () { ok('Saved.'); heldLoad(); }).catch(bad); }; });
+      [].forEach.call(document.querySelectorAll('[data-hr]'), function (b) {
+        b.onclick = function () { var exp = prompt(T('New expiry date from the registrar (YYYY-MM-DD)')); if (!exp) return; post({ action: 'held_decide', name: b.getAttribute('data-hr'), decision: 'renew', expiresOn: exp.trim() }).then(function () { ok('Saved.'); heldLoad(); }).catch(bad); };
+      });
+    }).catch(function (x) { $('hd_box').textContent = x ? x.message : ''; });
+    if (typeof dmLoad === 'function') dmLoad();
+  }
+
+  // ------------------------------------------------------------- team and audit
+  function auditTable(entries) {
+    return '<div class="scroll"><table class="t"><thead><tr><th>When</th><th>Who</th><th>What</th><th>Client</th><th>Details</th></tr></thead><tbody>' + entries.map(function (e) {
+      return '<tr><td><small>' + esc(String(e.at).replace('T', ' ').slice(0, 16)) + '</small></td><td><small>' + esc(e.by) + '<br>' + esc(T(e.role)) + '</small></td><td>' + esc(e.action) + '</td><td>' + (e.companyId ? '<a class="lk" href="#client/' + e.companyId + '">#' + e.companyId + '</a>' : '') + '</td><td><small>' + esc(e.detail) + '</small></td></tr>';
+    }).join('') + '</tbody></table></div>';
+  }
+  var ROLES = { owner: 'Owner', support: 'Support', sales: 'Sales', billing: 'Billing', readonly: 'Read only' };
+  function securityLoad() {
+    api('/api/admin?team=1').then(function (v) {
+      $('tm_box').innerHTML = '<div class="card"><small>Owner: everything. Support: clients, sites, credits (up to 200 at a time), feedback and the help guide. Sales: promotions (bonus credits up to 500) and marketing research. Billing: subscriptions, renewals and domains. Read only: sees, changes nothing. Everyone signs in with their own email; a changed role takes effect at their next sign-in.</small>' +
+        '<div class="scroll"><table class="t"><thead><tr><th>Email</th><th>Role</th><th>Added</th><th>Last sign-in</th></tr></thead><tbody>' + v.team.map(function (m) {
+          return '<tr><td>' + esc(m.email) + (m.email === ME.email ? ' <small>(' + esc(T('you')) + ')</small>' : '') + '</td><td>' + (m.email === ME.email ? esc(T(ROLES[m.role] || m.role)) : '<select data-tr="' + esc(m.email) + '">' + opts(Object.assign({}, ROLES, { removed: 'No access' }), m.role) + '</select>') + '</td><td>' + esc(d(m.addedOn)) + '</td><td>' + esc(d(m.lastSignIn)) + '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<h3 style="margin-top:14px">Add a team member</h3><div class="g3"><div><label>Email</label><input id="tm_email" type="email"></div><div><label>Role</label><select id="tm_role">' + opts(ROLES, 'support') + '</select></div><div style="align-self:end"><button class="btn" id="tm_add" style="margin:0">Add and send a sign-in link</button></div></div>' +
+        '<small>Use a work email that is not a painter\'s client login. Two-step sign-in for admins comes in stage 2.</small></div>';
+      $('tm_add').onclick = function () {
+        var email = $('tm_email').value;
+        post({ action: 'team_set', email: email, role: $('tm_role').value }).then(function () { return fetch('/api/auth/request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: email }) }); }).then(function () { ok('Team member added. A sign-in link was sent.'); securityLoad(); }).catch(bad);
+      };
+      [].forEach.call(document.querySelectorAll('[data-tr]'), function (s) {
+        s.onchange = function () { if (s.value === 'removed' && !confirm(T('Remove admin access for this person? They are signed out now.'))) { securityLoad(); return; } post({ action: 'team_set', email: s.getAttribute('data-tr'), role: s.value }).then(function () { ok('Role saved.'); securityLoad(); }).catch(bad); };
+      });
+    }).catch(function (x) { $('tm_box').textContent = x ? x.message : ''; });
+    CACHE.audit = [];
+    $('au_box').innerHTML = '<div class="card"><div class="g3"><div><label>Who (email)</label><input id="au_by"></div><div><label>Client number</label><input id="au_c" inputmode="numeric"></div><div style="align-self:end"><button class="btn" id="au_go" style="margin:0">Filter</button></div></div><div id="au_list" style="margin-top:10px"></div><button class="btn gray" id="au_more">Load more</button><p><small>The audit log cannot be edited or deleted.</small></p></div>';
+    var more = function (reset) {
+      var last = !reset && CACHE.audit.length ? CACHE.audit[CACHE.audit.length - 1].at : '';
+      var u = '/api/admin?audit=1' + ($('au_by').value.trim() ? '&by=' + encodeURIComponent($('au_by').value.trim()) : '') + ($('au_c').value.trim() ? '&company=' + encodeURIComponent($('au_c').value.trim()) : '') + (last ? '&before=' + encodeURIComponent(last) : '');
+      api(u).then(function (v) { CACHE.audit = (reset ? [] : CACHE.audit).concat(v.entries); $('au_list').innerHTML = CACHE.audit.length ? auditTable(CACHE.audit) : '<small>Nothing yet.</small>'; $('au_more').style.display = v.entries.length < 100 ? 'none' : ''; }).catch(bad);
+    };
+    $('au_go').onclick = function () { more(true); };
+    $('au_more').onclick = function () { more(false); };
+    more(true);
+  }
+
+  var LOAD = {
+    clients: function () { clientsLoad(); if (typeof load === 'function') load(); },
+    client: clientLoad,
+    subs: subsLoad,
+    credits: function () { creditsLoad(); if (typeof load === 'function') load(); },
+    promos: promosLoad,
+    research: researchLoad,
+    feedback: feedbackLoad,
+    domains: function () { heldLoad(); if (typeof load === 'function') load(); },
+    content: function () { if (typeof hLoad === 'function') hLoad(); },
+    settings: function () { ['tkLoad', 'mkLoad', 'mLoad', 'ntLoad', 'amLoad'].forEach(function (f) { if (typeof window[f] === 'function') window[f](); }); },
+    security: securityLoad,
+  };
+
+  // The old plan switch and add-client buttons in admin.html refresh the new client views too.
+  document.addEventListener('change', function (e) { if (e.target.dataset && e.target.dataset.id && CACHE.client) setTimeout(function () { clientLoad(CACHE.client.company.id); }, 400); });
+
+  api('/api/admin?me=1').then(function (me) {
+    ME = me;
+    $('me_role').textContent = T(ROLES[me.role] || me.role);
+    window.addEventListener('hashchange', route);
+    route();
+  }).catch(function (x) { document.querySelector('main').innerHTML = '<div class="card">' + esc(x && x.message === 'Not found.' ? T('You do not have access to this page.') : x ? x.message : '') + '</div>'; });
+})();

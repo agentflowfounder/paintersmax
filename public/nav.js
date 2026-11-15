@@ -10,7 +10,7 @@
   ];
   var MORE = [
     ['/pulse', 'Business pulse'], ['/reminders', 'Reminders'], ['/vehicles', 'Vehicles'], ['/colors', 'Color preview'], ['/credits', 'AI use and credits'], ['/app', 'Estimating Setup'], ['/builders', 'Builder rates'], ['/citypages', 'City pages'], ['/import', 'Import customers'],
-    ['/materials', 'Materials'], ['/insurance', 'Insurance'], ['/insurance-guide', 'Insurance guide'], ['/brand', 'Brand kit'], ['/help', 'Help'],
+    ['/materials', 'Materials'], ['/insurance', 'Insurance'], ['/insurance-guide', 'Insurance guide'], ['/brand', 'Brand kit'], ['/help', 'Help'], ['/feedback', 'Feedback'],
   ];
   function go() {
     if (document.getElementById('pm_nav')) return;

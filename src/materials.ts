@@ -1,5 +1,5 @@
-import { ADMIN_COMPANY_SLUG } from "./admin.ts";
-import { getSessionUser, randomToken } from "./auth.ts";
+import { adminActor, can, logAudit } from "./adminroles.ts";
+import { randomToken } from "./auth.ts";
 import { DEFAULT_MATERIALS, type Material, type MaterialLink } from "./materials-default.ts";
 import { escapeHtml } from "./settings.ts";
 import type { Env } from "./types.ts";
@@ -63,9 +63,10 @@ export async function handleMaterials(request: Request, env: Env): Promise<Respo
     const items = await loadMaterials(env);
     return json({ items, affiliate: hasAffiliate(items) }, 200, { "cache-control": "public, max-age=60" });
   }
-  const user = await getSessionUser(env, request);
-  const me = user ? await env.DB.prepare("SELECT slug FROM companies WHERE id = ?").bind(user.companyId).first<{ slug: string }>() : null;
-  if (!user || me?.slug !== ADMIN_COMPANY_SLUG) return json({ error: "Not found." }, 404);
+  // Admins whose role can change the Settings area (adminroles.ts). Everyone else gets "Not found".
+  const actor = await adminActor(env, request);
+  if (!actor) return json({ error: "Not found." }, 404);
+  if (!can(actor.role, "settings", "change")) return json({ error: "Your role cannot make this change. Ask the owner." }, 403);
   if (request.method !== "POST") return json({ error: "Not found." }, 404);
   let b: any;
   try {
@@ -73,6 +74,7 @@ export async function handleMaterials(request: Request, env: Env): Promise<Respo
   } catch {
     return json({ error: "Invalid JSON." }, 400);
   }
+  if (b?.action === "reset" || b?.action === "save" || b?.action === "delete") await logAudit(env, actor, `materials_${b.action}`, { detail: String(b?.item?.name ?? b?.id ?? "").slice(0, 80) });
   const items = await loadMaterials(env);
   if (b?.action === "reset") {
     await env.DB.prepare("DELETE FROM app_settings WHERE key = ?").bind(KEY).run();
