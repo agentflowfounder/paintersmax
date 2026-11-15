@@ -183,10 +183,9 @@ const startFree = `<a class="btn btn-orange arrow" href="/start">Start free</a>`
 // ---------- home ----------
 
 page({
-  file: "home-preview.html",
+  file: "index.html",
   path: "/",
   active: "",
-  noindex: true,
   title: "PaintersMax | The painter's business in a box",
   desc: "PaintersMax gives painting contractors a website that brings leads, estimates your customer signs on their phone, invoices by milestone and job records, in English and Spanish. Built by a painter.",
   ld: `<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"PaintersMax","applicationCategory":"BusinessApplication","operatingSystem":"Web","description":"Website, leads, estimates, e-signed contracts, milestone invoices and job records for painting contractors, in English and Spanish.","offers":[{"@type":"Offer","name":"Free","price":"0","priceCurrency":"USD"},{"@type":"Offer","name":"Launch","price":"399","priceCurrency":"USD"},{"@type":"Offer","name":"Grow","price":"549","priceCurrency":"USD"},{"@type":"Offer","name":"Signature","price":"699","priceCurrency":"USD"}],"publisher":{"@type":"Organization","name":"AgentFlow LLC","email":"support@paintersmax.app"}}</script>`,
