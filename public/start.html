@@ -33,12 +33,13 @@ small{color:#4A5568}
  <div class="plan" data-p="pro"><h3>Pro</h3><div class="price">$349<small>/month</small></div><ul><li>Up to 15 services and 25 cities</li><li>Builder rate cards</li><li>Job assistant: 1,500 questions a month</li></ul></div>
 </div>
 <div class="card"><label for="n">Company name</label><input id="n" autocomplete="organization"><label for="e">Your email</label><input id="e" type="email" autocomplete="email">
+<label style="display:flex;gap:10px;align-items:flex-start;font-weight:400;margin-top:14px"><input id="agree" type="checkbox" style="width:auto;margin-top:3px"><span>I have read and agree to the <a href="/early-access-agreement" target="_blank" rel="noopener">Early Access Agreement</a>, the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
 <button id="go">Continue to secure payment</button><div id="msg"></div><small>You will pay on Stripe's secure page. After payment, a sign-in link is emailed to you. You can cancel anytime.</small></div>
 </main>
 <script>
 let plan='basic';const $=id=>document.getElementById(id);
 document.querySelectorAll('.plan').forEach(el=>el.onclick=()=>{plan=el.dataset.p;document.querySelectorAll('.plan').forEach(x=>x.classList.toggle('on',x===el));});
-$('go').onclick=async()=>{const b=$('go');b.disabled=true;$('msg').textContent='';
- try{const r=await fetch('/api/checkout',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({plan,name:$('n').value,email:$('e').value})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw new Error(j.error||'Something went wrong.');location.href=j.url;}
+$('go').onclick=async()=>{const b=$('go');$('msg').textContent='';if(!$('agree').checked){$('msg').textContent='Please tick the box to agree before you continue.';return;}b.disabled=true;
+ try{const r=await fetch('/api/checkout',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({plan,name:$('n').value,email:$('e').value,agreed:true})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw new Error(j.error||'Something went wrong.');location.href=j.url;}
  catch(e){$('msg').textContent=e.message;b.disabled=false;}};
 </script></body></html>
