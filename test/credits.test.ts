@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { ALLOWANCES, CREDIT_COST, CREDIT_EXPIRY_DAYS, EXPIRY_DAYS, TOPUPS, WELCOME_CREDITS, allowanceByPrice, creditView, grantCredits, ledger, readAllowanceRecord, readGrants, refundCredits, spendCredits } from "../src/credits.ts";
+import { ALLOWANCES, CREDIT_COST, CREDIT_EXPIRY_DAYS, DOOR_CREDITS, EXPIRY_DAYS, FREE_CREDIT_CAP, grantDoorCredits, TOPUPS, WELCOME_CREDITS, allowanceByPrice, creditView, grantCredits, ledger, readAllowanceRecord, readGrants, refundCredits, spendCredits } from "../src/credits.ts";
 import { FEATURES, PLAN_LIMITS, consume, monthKey, refund } from "../src/usage.ts";
 
 /** A real SQLite database shaped like D1 (first/run/all), so the compare-and-swap really runs. */
@@ -38,7 +38,7 @@ test("allowances and top-ups are the approved prices, and bigger top-ups get a s
   assert.deepEqual(TOPUPS.map((t) => [t.priceCents, t.credits]), [[500, 50], [1000, 100], [2000, 220], [5000, 600], [10000, 1300]]);
   const rate = TOPUPS.map((t) => t.credits / (t.priceCents / 100));
   for (let i = 1; i < rate.length; i++) assert.ok(rate[i] >= rate[i - 1], "rate never gets worse");
-  assert.equal(WELCOME_CREDITS, 1000);
+  assert.equal(WELCOME_CREDITS, 250);
   assert.equal(allowanceByPrice(3900)?.id, "a39");
   assert.equal(allowanceByPrice(1234), null);
   // Allowance credits roll over for two months; top-ups do not expire during early access.
@@ -66,7 +66,7 @@ test("ledger: oldest credits are used first, and expired credits are never count
   assert.equal(ledger([], 5, "2026-11-14").balance, 0);
 });
 
-test("readGrants drops bad rows and keeps oldest first", () => {
+test("readGrants drops bad rows and sorts by the day credits run out", () => {
   const out = readGrants({ grants: [{ id: "b", credits: 5, on: "2026-11-02", expiresOn: "2027-01-31", source: "topup" }, { id: "a", credits: "10", on: "2026-11-01", expiresOn: "2027-01-30", source: "admin" }, { id: "", credits: 5, on: "2026-11-01", expiresOn: "2027-01-30" }, { id: "c", credits: 0, on: "2026-11-01", expiresOn: "2027-01-30" }, { id: "d", credits: 5, on: "bad", expiresOn: "2027-01-30" }] });
   assert.deepEqual(out.map((g) => g.id), ["a", "b"]);
   assert.equal(out[0].source, "admin");
@@ -160,4 +160,56 @@ test("refund gives credits back when the failed call was paid for with credits, 
   assert.equal((await creditView(env, 8, todayLocal())).balance, 10);
   assert.equal(await cnt("receipt_read"), PLAN_LIMITS.starter.receipt_read);
   assert.equal(await cnt("receipt_read:credit"), 0);
+});
+
+test("approved rules 2026-11-15: welcome 250 for 60 days, door 500 for 90 days, a promotion replaces door credits", async () => {
+  assert.equal(WELCOME_CREDITS, 250);
+  assert.equal(EXPIRY_DAYS.welcome, 60);
+  assert.equal(DOOR_CREDITS, 500);
+  assert.equal(EXPIRY_DAYS.door, 90);
+  assert.equal(EXPIRY_DAYS.promo, 90);
+  assert.equal(EXPIRY_DAYS.reward, 180);
+  const { env } = realEnv();
+  const t = day(0);
+  await grantCredits(env, 1, { id: "welcome:1", credits: WELCOME_CREDITS, source: "welcome" }, t);
+  await grantDoorCredits(env, 1, { door: "launch", paymentId: "cs_1" }, t);
+  await grantDoorCredits(env, 1, { door: "launch", paymentId: "cs_1" }, t); // reported twice
+  assert.equal((await creditView(env, 1, t)).balance, 750);
+  // Booked by Spring: 250 welcome + 1,000 promotion, never + 500 door.
+  await grantCredits(env, 2, { id: "welcome:2", credits: WELCOME_CREDITS, source: "welcome" }, t);
+  await grantDoorCredits(env, 2, { door: "launch", paymentId: "cs_2", promo: { code: "BOOKED-BY-SPRING", credits: 1000 } }, t);
+  const v = await creditView(env, 2, t);
+  assert.equal(v.balance, 1250);
+  assert.deepEqual(v.grants.map((g) => g.source).sort(), ["promo", "welcome"]);
+});
+
+test("the credits that run out soonest are used first", async () => {
+  const { env } = realEnv();
+  const t = day(0);
+  await grantCredits(env, 3, { id: "top", credits: 50, source: "topup" }, t); // ten years
+  await grantCredits(env, 3, { id: "reward", credits: 50, source: "reward" }, t); // 180 days
+  await grantCredits(env, 3, { id: "welcome:3", credits: 250, source: "welcome" }, t); // 60 days, added last
+  await spendCredits(env, 3, 10, t);
+  const rows = (await creditView(env, 3, t)).grants;
+  assert.deepEqual(rows.map((r) => [r.source, r.left]), [["welcome", 240], ["reward", 50], ["topup", 50]]);
+  // After the welcome credits run out, the unused ones are written off and the next use comes from the reward credits.
+  const later = day(61);
+  assert.equal((await creditView(env, 3, later)).balance, 100);
+  assert.deepEqual(await spendCredits(env, 3, 5, later), { ok: true, balance: 95 });
+  assert.deepEqual((await creditView(env, 3, later)).grants.filter((r) => !r.expired).map((r) => [r.source, r.left]), [["reward", 45], ["topup", 50]]);
+});
+
+test("free credits are capped at 1,500 in the first 90 days; paid and admin credits are not", async () => {
+  const { env } = realEnv();
+  const t = day(0);
+  await grantCredits(env, 4, { id: "welcome:4", credits: 250, source: "welcome" }, t);
+  await grantCredits(env, 4, { id: "promo:x", credits: 1000, source: "promo" }, t);
+  const r = await grantCredits(env, 4, { id: "reward:big", credits: 500, source: "reward" }, day(10));
+  assert.equal(r.added, true);
+  assert.equal((await creditView(env, 4, day(10))).balance, FREE_CREDIT_CAP); // the reward was trimmed to 250
+  assert.equal((await grantCredits(env, 4, { id: "reward:more", credits: 25, source: "reward" }, day(20))).added, false);
+  assert.equal((await grantCredits(env, 4, { id: "top:1", credits: 600, source: "topup" }, day(20))).added, true);
+  assert.equal((await grantCredits(env, 4, { id: "admin:1", credits: 100, source: "admin" }, day(20))).added, true);
+  // After 90 days the cap no longer applies.
+  assert.equal((await grantCredits(env, 4, { id: "reward:late", credits: 250, source: "reward" }, day(91))).added, true);
 });

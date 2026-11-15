@@ -11,10 +11,15 @@ import type { Feature } from "./usage.ts";
  *  - Credits come in grants. How long a grant lasts depends on where it came from (see EXPIRY_DAYS):
  *      allowance  the monthly credits of a $19 / $39 / $79 allowance; unused ones roll over for two months
  *      topup      credits bought one at a time ($5 to $100); they do not expire during early access
- *      welcome    the credits every new company starts with
- *      reward     credits earned (finishing setup, referrals) or added by us
+ *      welcome    the credits every new company starts with (250, 60 days)
+ *      door       the first payment of a paid door (500, 90 days), unless the purchase carried a promotion
+ *      promo      a promotion's credits (Booked by Spring and others, 90 days); they REPLACE door credits, never add to them
+ *      reward     credits earned (finishing setup, referrals, first-lead promise), 180 days
  *      admin      added by hand in /admin
- *  - Oldest credits are used first. Credits that run out of time are written off, never used.
+ *  - The credits that run out soonest are used first (rules approved by Rogelio 2026-11-15). Credits that run out of time
+ *    are written off, never used.
+ *  - Free credits (welcome, door, promo, reward) are capped at 1,500 in an account's first 90 days, so a mistake in a
+ *    promotion can never hand out thousands. Paid credits (allowance, top-up) and admin grants are never capped.
  *
  * Storage needs no database change: the grant list is a small blob in app_settings, and one counter in usage_counters
  * ("credit:spent") holds how many credits have been used in total. Spending is a compare-and-swap on that counter, so two
@@ -23,13 +28,19 @@ import type { Feature } from "./usage.ts";
 
 export const CREDIT_EXPIRY_DAYS = 90;
 
-export type GrantSource = "pack" | "admin" | "allowance" | "topup" | "welcome" | "reward";
-const SOURCES: GrantSource[] = ["pack", "admin", "allowance", "topup", "welcome", "reward"];
+export type GrantSource = "pack" | "admin" | "allowance" | "topup" | "welcome" | "door" | "promo" | "reward";
+const SOURCES: GrantSource[] = ["pack", "admin", "allowance", "topup", "welcome", "door", "promo", "reward"];
 /** How many days a grant can be used, by where it came from. Top-ups are kept for ten years, which is "no expiry" for early access. */
-/** Every new company starts with these credits (Rogelio, 2026-11-14: 1,000 for the first month; review after the first month of real use). */
-export const WELCOME_CREDITS = 1000;
+/** Every new company, free or paid, starts with these credits once (Rogelio, 2026-11-15: 250 for 60 days). */
+export const WELCOME_CREDITS = 250;
 export const WELCOME_EXPIRY_DAYS = 60;
-export const EXPIRY_DAYS: Record<GrantSource, number> = { pack: 90, admin: 90, allowance: 90, topup: 3650, welcome: WELCOME_EXPIRY_DAYS, reward: 180 };
+/** The first payment of a paid door adds these, unless the purchase carried a promotion with credits. */
+export const DOOR_CREDITS = 500;
+/** Free credits an account can receive in its first 90 days, all kinds together. */
+export const FREE_CREDIT_CAP = 1500;
+export const FREE_CAP_DAYS = 90;
+const FREE_SOURCES: GrantSource[] = ["welcome", "door", "promo", "reward"];
+export const EXPIRY_DAYS: Record<GrantSource, number> = { pack: 90, admin: 90, allowance: 90, topup: 3650, welcome: WELCOME_EXPIRY_DAYS, door: 90, promo: 90, reward: 180 };
 
 /** A monthly allowance: a Stripe subscription that adds credits every month. Prices approved 2026-11-14. */
 export interface Allowance { id: string; priceCents: number; credits: number }
@@ -75,7 +86,11 @@ export interface Grant {
 const MAX_GRANTS = 200;
 const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
-/** Clean the stored list so a bad blob never breaks a feature. Oldest first. */
+/**
+ * Clean the stored list so a bad blob never breaks a feature. Sorted by the day the credits run out, soonest first,
+ * which is the order they are used in. Grants that have already run out always sort before live ones, so credits written
+ * off earlier stay written off.
+ */
 export function readGrants(raw: unknown): Grant[] {
   const list = Array.isArray((raw as any)?.grants) ? (raw as any).grants : [];
   const out: Grant[] = [];
@@ -84,11 +99,12 @@ export function readGrants(raw: unknown): Grant[] {
     if (typeof g?.id !== "string" || !g.id || g.id.length > 80 || !Number.isFinite(credits) || credits < 1 || credits > 100000 || !isDate(g.on) || !isDate(g.expiresOn)) continue;
     out.push({ id: g.id, credits, on: g.on, expiresOn: g.expiresOn, source: SOURCES.includes(g.source) ? g.source : "pack", note: typeof g.note === "string" ? g.note.slice(0, 100) : "" });
   }
-  return out.map((g, i) => ({ g, i })).sort((a, b) => (a.g.on < b.g.on ? -1 : a.g.on > b.g.on ? 1 : a.i - b.i)).map((x) => x.g);
+  const cmp = (x: string, y: string) => (x < y ? -1 : x > y ? 1 : 0);
+  return out.map((g, i) => ({ g, i })).sort((a, b) => cmp(a.g.expiresOn, b.g.expiresOn) || cmp(a.g.on, b.g.on) || a.i - b.i).map((x) => x.g);
 }
 
 /**
- * Where the credits stand. `spent` is the total used so far, taken from the oldest grant first.
+ * Where the credits stand. `spent` is the total used so far, taken from the grant that runs out soonest first.
  * `writeOff` is what is left on grants that have run out of time: it has to be added to `spent` before anything new is used,
  * so a new use is never counted against credits that can no longer be used.
  */
@@ -164,6 +180,32 @@ export async function refundCredits(env: Env, c: number, cost: number) {
   await env.DB.prepare("UPDATE usage_counters SET count = MAX(count - ?, 0) WHERE company_id = ? AND feature = 'credit:spent' AND period = 'pack'").bind(cost, c).run();
 }
 
+/**
+ * How many more free credits an account may receive today. The first 90 days start on the day of its first grant
+ * (the welcome credits at sign-up). After those 90 days the cap no longer applies.
+ */
+export function freeRoom(grants: Grant[], today: string): number {
+  if (!grants.length) return FREE_CREDIT_CAP;
+  const first = grants.reduce((m, g) => (g.on < m ? g.on : m), grants[0].on);
+  if (today > addDaysIso(first, FREE_CAP_DAYS)) return Number.MAX_SAFE_INTEGER;
+  const given = grants.filter((g) => FREE_SOURCES.includes(g.source)).reduce((n, g) => n + g.credits, 0);
+  return Math.max(0, FREE_CREDIT_CAP - given);
+}
+
+/**
+ * The credits for a paid door's first payment. A purchase that carried a promotion with credits gets the promotion's
+ * credits INSTEAD of the 500 door credits, never both (one promotion per purchase). `paymentId` keeps a payment that is
+ * reported twice from adding credits twice; the door grant id is per company and door, so a door adds credits only once.
+ */
+export async function grantDoorCredits(env: Env, c: number, i: { door: string; paymentId: string; promo?: { code: string; credits: number } | null }, today: string) {
+  const door = String(i.door).slice(0, 20);
+  const promoCredits = Math.round(Number(i.promo?.credits ?? 0));
+  if (i.promo && promoCredits > 0) {
+    return grantCredits(env, c, { id: `promo:${door}:${c}`, credits: promoCredits, source: "promo", note: `Promotion ${String(i.promo.code).slice(0, 40)}` }, today);
+  }
+  return grantCredits(env, c, { id: `door:${door}:${c}`, credits: DOOR_CREDITS, source: "door", note: `Door credits (${door})` }, today);
+}
+
 /** Adds a grant. The same grant id is never added twice (a payment can be reported more than once). */
 export async function grantCredits(env: Env, c: number, i: { id: string; credits: number; source: GrantSource; note?: string }, today: string): Promise<{ ok: boolean; added: boolean; error?: string }> {
   const credits = Math.round(Number(i.credits));
@@ -171,7 +213,12 @@ export async function grantCredits(env: Env, c: number, i: { id: string; credits
   const grants = await loadGrants(env, c);
   if (grants.some((g) => g.id === i.id)) return { ok: true, added: false };
   if (grants.length >= MAX_GRANTS) return { ok: false, added: false, error: "Too many credit records on this account." };
-  grants.push({ id: i.id.slice(0, 80), credits, on: today, expiresOn: addDaysIso(today, EXPIRY_DAYS[i.source] ?? CREDIT_EXPIRY_DAYS), source: i.source, note: (i.note ?? "").slice(0, 100) });
+  let amount = credits;
+  if (FREE_SOURCES.includes(i.source)) {
+    amount = Math.min(credits, freeRoom(grants, today));
+    if (amount < 1) return { ok: true, added: false, error: "This account already received the most free credits allowed in its first 90 days." };
+  }
+  grants.push({ id: i.id.slice(0, 80), credits: amount, on: today, expiresOn: addDaysIso(today, EXPIRY_DAYS[i.source] ?? CREDIT_EXPIRY_DAYS), source: i.source, note: (i.note ?? "").slice(0, 100) });
   await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')").bind(creditsKey(c), JSON.stringify({ grants })).run();
   return { ok: true, added: true };
 }

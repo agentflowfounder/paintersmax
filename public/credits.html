@@ -34,7 +34,7 @@ a{color:#0F1B2D}
 <div class="card" id="allow"></div>
 <div class="card" id="buy"></div>
 <div class="card scroll"><b id="mt"></b><table style="margin-top:6px"><thead><tr><th>What</th><th class="r">Used</th><th class="r">Monthly amount</th><th class="r">Paid with credits</th><th class="r">Credits per use</th></tr></thead><tbody id="rows"></tbody></table></div>
-<p class="muted">Credits are used only after a monthly amount runs out, or for a tool your plan does not include. A heavier job, like a photo preview, uses more credits than a simple question. The oldest credits are used first. If an AI use fails, the credits come back.</p>
+<p class="muted">Credits are used only after a monthly amount runs out, or for a tool your plan does not include. A heavier job, like a photo preview, uses more credits than a simple question. The credits that run out soonest are used first. If an AI use fails, the credits come back.</p>
 <p class="muted" id="exp"></p>
 </div>
 </main>
@@ -45,7 +45,7 @@ var DT=window.pmDate||function(s){return s};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function usd(c){var n=c/100;return '$'+(n%1===0?n:n.toFixed(2));}
 var D=null;
-var SRC={allowance:'allowance credits',topup:'top-up credits',welcome:'welcome credits',reward:'earned credits',admin:'added credits',pack:'pack credits'};
+var SRC={allowance:'allowance credits',topup:'top-up credits',welcome:'welcome credits',door:'sign-up credits',promo:'promotion credits',reward:'earned credits',admin:'added credits',pack:'pack credits'};
 function draw(d){
  D=d;
  var b='<div class="muted">'+T('Credits left')+'</div><div class="big">'+d.balance+'</div>';
