@@ -158,3 +158,17 @@ test("feedback threads are cleaned and need a message", () => {
   assert.equal(t.messages.length, 1);
   assert.equal(t.messages[0].text, "Broken");
 });
+
+test("market pack fields: real numbers or empty, lists from lines", async () => {
+  const { readMarkets } = await import("../src/research.ts");
+  const [m] = readMarkets([{ id: "abcd1234", name: "DFW", painterCount: "", priority: "0", gatheringPlaces: "Supply house\n\nTrade group", channels: ["Paint store counters"], source: "x".repeat(600) }]);
+  assert.equal(m.painterCount, null);
+  assert.equal(m.priority, null);
+  assert.deepEqual(m.gatheringPlaces, ["Supply house", "Trade group"]);
+  assert.deepEqual(m.channels, ["Paint store counters"]);
+  assert.equal(m.source.length, 500);
+  const [n] = readMarkets([{ id: "abcd1234", name: "DFW", painterCount: "1234", priority: 2 }]);
+  assert.equal(n.painterCount, 1234);
+  assert.equal(n.priority, 2);
+  assert.deepEqual(n.gatheringPlaces, []);
+});

@@ -21,6 +21,12 @@ export interface Market {
   notes: string;
   lessons: { on: string; by: string; text: string }[];
   createdOn: string;
+  /** Market pack fields. Fill only from a named real source; leave empty when unknown (never estimate). */
+  painterCount: number | null; // painting companies in the metro
+  source: string; // where painterCount came from (agency, table, year, link)
+  gatheringPlaces: string[]; // where painters gather: paint store counters, supply houses, trade groups, online groups
+  channels: string[]; // legal lead channels to work in this market
+  priority: number | null; // 1 = work first
 }
 
 export const OUTREACH_STATUSES = ["new", "called", "texted", "emailed", "visited", "no_answer", "free", "paid", "declined"] as const;
@@ -58,6 +64,17 @@ export function suggestDoor(website: string, reviews: number | null): SuggestedD
   return website ? "grow" : "launch";
 }
 
+function wholeOrNull(v: unknown, max: number, min = 0): number | null {
+  if (v === "" || v == null) return null;
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= min ? Math.min(n, max) : null;
+}
+/** A list from an array, or from text with one item per line. */
+function lines(v: unknown): string[] {
+  const list = typeof v === "string" ? v.split(/\n/) : Array.isArray(v) ? v : [];
+  return list.map((x: unknown) => str(x, 160)).filter(Boolean).slice(0, 40);
+}
+
 export function readMarkets(raw: unknown): Market[] {
   const list = Array.isArray(raw) ? raw : [];
   const out: Market[] = [];
@@ -73,6 +90,11 @@ export function readMarkets(raw: unknown): Market[] {
       notes: str(m.notes, 2000),
       lessons: Array.isArray(m.lessons) ? m.lessons.filter((l: any) => isDate(l?.on) && str(l?.text, 1000)).map((l: any) => ({ on: l.on, by: str(l.by, 200), text: str(l.text, 1000) })).slice(-200) : [],
       createdOn: isDate(m.createdOn) ? m.createdOn : "",
+      painterCount: wholeOrNull(m.painterCount, 1000000),
+      source: str(m.source, 500),
+      gatheringPlaces: lines(m.gatheringPlaces),
+      channels: lines(m.channels),
+      priority: wholeOrNull(m.priority, 99, 1),
     });
   }
   return out.slice(0, MAX_MARKETS);
@@ -130,7 +152,7 @@ export async function saveMarket(env: Env, b: any, today: string) {
     if (i < 0 && list.length >= MAX_MARKETS) return { error: "Too many markets." };
     const cities = typeof b?.cities === "string" ? b.cities.split(/[,\n]/) : Array.isArray(b?.cities) ? b.cities : [];
     const base = i >= 0 ? list[i] : { id: newId().slice(0, 12), lessons: [], createdOn: today };
-    const m = readMarkets([{ ...base, name: b.name, state: b.state, cities, status: b.status, notes: b.notes }])[0];
+    const m = readMarkets([{ ...base, name: b.name, state: b.state, cities, status: b.status, notes: b.notes, painterCount: b.painterCount, source: b.source, gatheringPlaces: b.gatheringPlaces, channels: b.channels, priority: b.priority }])[0];
     if (!m) return { error: "Check the market fields." };
     const next = [...list];
     if (i >= 0) next[i] = m;
