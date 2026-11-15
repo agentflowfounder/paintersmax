@@ -1,6 +1,7 @@
 import { getSessionUser, type SessionUser } from "./auth.ts";
 import { ADMIN_COMPANY_SLUG } from "./admin.ts";
 import { completeEx } from "./assistant.ts";
+import { grantDoorCredits } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
 import { coiLink, showsCustomers } from "./insurance.ts";
 import { readSettings } from "./settings.ts";
@@ -293,7 +294,7 @@ export function upgradeCheckoutForm(origin: string, i: { companyId: number; emai
 const PLAN_RANK: Record<Plan, number> = { free: 0, starter: 1, basic: 2, pro: 3 };
 
 /** Called by the Stripe webhook when an upgrade is paid. Raises the door (never lowers it) and the matching AI plan. */
-export async function applyPaidUpgrade(env: Env, companyId: number, to: unknown): Promise<boolean> {
+export async function applyPaidUpgrade(env: Env, companyId: number, to: unknown, paymentId?: string): Promise<boolean> {
   if (!isDoor(to)) return false;
   const co = await companyById(env, companyId);
   if (!co) return false;
@@ -301,6 +302,8 @@ export async function applyPaidUpgrade(env: Env, companyId: number, to: unknown)
   if (DOORS.indexOf(to) > DOORS.indexOf(door)) await saveDoor(env, co.id, { ...rec, door: to });
   const plan = DOOR_PLAN[to];
   if (PLAN_RANK[plan] > PLAN_RANK[normalizePlan(co.plan)]) await env.DB.prepare("UPDATE companies SET plan = ? WHERE id = ?").bind(plan, co.id).run();
+  // The new door's credits, once per company and door (the credit rules decide the amount and the free-credit cap).
+  if (paymentId && to !== "free") await grantDoorCredits(env, co.id, { door: to, paymentId, promo: null }, todayLocal()).catch((err) => console.error("door credits failed", String(err)));
   return true;
 }
 

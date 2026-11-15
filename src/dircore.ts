@@ -111,7 +111,11 @@ export function isDuplicate(a: Pick<Listing, "cityKey" | "phone" | "name">, b: P
   if (a.cityKey !== b.cityKey) return false;
   const d = (p: string) => p.replace(/\D/g, "").slice(-10);
   if (d(a.phone).length === 10 && d(a.phone) === d(b.phone)) return true;
-  const n = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "").replace(/(llc|inc|co|company|painting|painters?)$/g, "");
+  const n = (s: string) => {
+    let x = s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    for (let i = 0; i < 3; i++) x = x.replace(/(llc|inc|co|company|painting|painters?)$/, "");
+    return x;
+  };
   return n(a.name) === n(b.name);
 }
 

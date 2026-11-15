@@ -149,7 +149,7 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
   } else if (event.type === "checkout.session.completed" && obj.mode === "payment" && obj.metadata?.kind === "site_upgrade" && obj.payment_status === "paid") {
     // A one-click website upgrade was paid. The door comes from our own list; it can only go up.
     const cid = Number(obj.metadata?.company_id);
-    if (Number.isInteger(cid)) await applyPaidUpgrade(env, cid, obj.metadata?.door);
+    if (Number.isInteger(cid)) await applyPaidUpgrade(env, cid, obj.metadata?.door, typeof obj.id === "string" ? obj.id : undefined);
     if (Number.isInteger(cid) && typeof obj.customer === "string") await env.DB.prepare("UPDATE companies SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?").bind(obj.customer, cid).run();
   } else if (event.type === "checkout.session.completed" && obj.mode === "subscription" && obj.metadata?.kind === "allowance") {
     // A monthly allowance started. The first month's credits are added now; later months arrive with each paid invoice (below).

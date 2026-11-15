@@ -103,14 +103,14 @@ ${(o.ld ?? []).map((j) => `<script type="application/ld+json">${JSON.stringify(j
 .brand{color:#fff;text-decoration:none;font-family:Newsreader,Georgia,serif;font-size:23px;font-weight:600}.brand span{color:#f2c14e}header nav a{color:#fff;margin-left:14px;font-weight:600;font-size:14px;text-decoration:none}
 h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:36px;line-height:1.15;margin:22px 0 8px}h2{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:25px;margin:30px 0 10px}
 .muted{color:#4b5d56}.card{background:#fff;border:1px solid rgba(16,35,29,.12);border-radius:12px;padding:16px;margin:0 0 12px}
-.mem{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:start}.mem img{width:120px;height:96px;object-fit:cover;border-radius:8px;background:#e6e9e3}.mem h3{margin:0;font-size:19px}
+.mem{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:start}.mem img{width:120px;height:96px;object-fit:cover;border-radius:8px;background:#e6e9e3}.mem .ph{width:120px;height:96px;border-radius:8px;background:#e6e9e3;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:700;color:#5b6b58}.mem h3{margin:0;font-size:19px}
 .badge{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:12px;background:#f2c14e;color:#10231d;margin:0 4px 4px 0}.badge.g{background:#d9efe4;color:#0f6b4f}
 .btn{display:inline-block;background:#f2c14e;color:#10231d;font-weight:700;text-decoration:none;padding:11px 18px;border-radius:8px;border:0;font:inherit;font-weight:700;cursor:pointer}.btn.s{background:#e7ebe5}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}.grid a{display:block;background:#fff;border:1px solid rgba(16,35,29,.12);border-radius:8px;padding:10px 12px;text-decoration:none;font-weight:600}
 label{display:block;font-weight:600;font-size:14px;margin:10px 0 4px}input,select,textarea{width:100%;padding:11px;border:1px solid #c8d0cb;border-radius:8px;font:inherit;background:#fff}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.list li{margin:6px 0}table{border-collapse:collapse;width:100%;background:#fff}td,th{border:1px solid #dfe4e0;padding:8px;text-align:left}
 .hp{position:absolute;left:-5000px}#msg{font-weight:600;margin-top:10px}footer{background:#123a2f;color:#cfe0d8;font-size:14px;margin-top:40px}footer .wrap{padding:22px 16px}footer a{color:#f2c14e}
-@media(max-width:620px){.mem{grid-template-columns:1fr}.mem img{width:100%;height:160px}.two{grid-template-columns:1fr}h1{font-size:29px}}
+@media(max-width:620px){.mem{grid-template-columns:1fr}.mem img,.mem .ph{width:100%;height:160px}.two{grid-template-columns:1fr}h1{font-size:29px}}
 </style></head><body>
 <header><div class="wrap"><a class="brand" href="${e(href(x, "/"))}">Painter<span>Select</span></a><nav><a href="${e(href(x, "/hire-a-painter"))}">${e(t.guide)}</a><a href="${e(href(x, "/cost"))}">${e(t.cost)}</a><a href="${e(other)}" hreflang="${x.lang === "es" ? "en" : "es"}">${e(t.lang)}</a></nav></div></header>
 <main class="wrap">${o.body}</main>
@@ -194,7 +194,7 @@ async function allCityKeys(env: Env): Promise<string[]> {
 
 function memberHtml(x: Ctx, m: Member): string {
   const t = T[x.lang];
-  return `<div class="card mem">${m.photo ? `<img loading="lazy" src="${e(m.photo)}" alt="${e(m.name)}">` : `<img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">`}<div>
+  return `<div class="card mem">${m.photo ? `<img loading="lazy" src="${e(m.photo)}" alt="${e(m.name)}">` : `<div class="ph" aria-hidden="true">${e(m.name.slice(0, 1).toUpperCase())}</div>`}<div>
 <h3>${e(m.name)}</h3><div>${m.founding ? `<span class="badge">${e(t.founding)}</span>` : ""}${m.insured ? `<span class="badge g">&#10003; ${e(t.insured)}</span>` : ""}</div>
 ${m.intro ? `<p class="muted">${e(m.intro)}</p>` : ""}${m.services.length ? `<p class="muted">${e(m.services.slice(0, 6).join(" · "))}</p>` : ""}
 <a class="btn" href="${e(href(x, `/pro/${m.slug}`))}">${e(t.viewProfile)}</a>${m.phone ? ` <a class="btn s" href="tel:${e(m.phone.replace(/[^0-9+]/g, ""))}">${e(t.call)} ${e(m.phone)}</a>` : ""}</div></div>`;
