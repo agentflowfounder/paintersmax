@@ -60,6 +60,11 @@ async function bump(env: Env, companyId: number, feature: string, period: string
   return row ? row.count : null;
 }
 
+/** A daily cap on a public action for one visitor key (lead forms, quotes), so a script cannot flood one client's tools. True while under the cap. */
+export async function dailyCap(env: Env, companyId: number, key: string, limit: number): Promise<boolean> {
+  return (await bump(env, companyId, key, dayKey(), limit)) !== null;
+}
+
 /** Adds 1 to a counter with no limit (used to count the uses paid for with credits). */
 async function bumpAlways(env: Env, companyId: number, feature: string, period: string) {
   await env.DB.prepare(
