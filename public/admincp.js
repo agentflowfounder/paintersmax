@@ -40,7 +40,7 @@
   // ------------------------------------------------------------- tabs and routing
   function drawTabs(cur) {
     $('tabs').innerHTML = TABS.filter(function (t) { return canSee(t[2]); }).map(function (t) {
-      var href = t[0] === 'sites' ? '/admin/sites' : '#' + t[0];
+      var href = t[0] === 'sites' ? '/sites-admin' : '#' + t[0];
       return '<a href="' + href + '"' + (t[0] === cur ? ' class="on" aria-current="page"' : '') + '>' + esc(T(t[1])) + '</a>';
     }).join('');
   }
