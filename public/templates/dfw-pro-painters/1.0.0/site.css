@@ -9,7 +9,7 @@
   --c-brand:#2a1a10;     /* dark bands */
   --c-brand-ink:#fcf4e6;
   --c-accent:#e08a35;    /* sunset amber */
-  --c-accent2:#b8571f;   /* terracotta */
+  --c-accent2:#9c4718;   /* terracotta */
   --c-sun1:#f9cf8f; --c-sun2:#e8923a; --c-sun3:#9a4a1c; --c-sun4:#3a2214;
   --f-display:"Instrument Serif","Times New Roman",Georgia,serif;
   --f-body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -386,7 +386,7 @@ legend{font:600 .68rem/1.2 var(--f-body);letter-spacing:.1em;text-transform:uppe
 .ftr-form .consent input{width:15px;min-height:0;margin-top:.15em;accent-color:var(--c-ink)}
 .ftr-form .ok{display:none;font-size:.8rem}.ftr-form.sent .ok{display:block}
 .ftr-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.ftr h4{font:600 .8rem/1 var(--f-display);font-size:1.25rem;margin-bottom:1rem}
+.ftr h3.ftr-h{font:600 .8rem/1 var(--f-display);font-size:1.25rem;margin-bottom:1rem}
 .ftr ul{list-style:none;padding:0;margin:0;display:grid;gap:.55rem;font-size:.78rem}
 .ftr li a,.ftr li span{display:inline-flex;gap:.5em;align-items:flex-start;text-decoration:none;color:rgba(33,22,15,.8)}
 .ftr li a:hover{color:var(--c-accent2)}

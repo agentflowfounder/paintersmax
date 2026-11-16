@@ -135,6 +135,11 @@ test("render: Sunset draws every page with the required pieces, escaped", () => 
   assert.match(home, /"@type":"HousePainter"/);
   for (const id of ["quote", "color-studio", "cities", "map"]) assert.match(home, new RegExp(`id="${id}"`), id);
   assert.match(home, /Website by PaintersMax/);
+  // Phase 4 audit fixes: absolute hreflang pair, a tab icon, no h4 jump in the footer.
+  assert.match(home, /<link rel="alternate" hreflang="en" href="https:\/\/rivera\.paintersmax\.app\/">/);
+  assert.match(home, /<link rel="alternate" hreflang="es" href="https:\/\/rivera\.paintersmax\.app\/\?lang=es">/);
+  assert.match(home, /<link rel="icon" href="data:image\/svg\+xml,/);
+  assert.ok(!home.includes("<h4"));
   // Visitors never see painter-only cards or the AI prompt labels.
   assert.ok(!home.includes("pm-gate") && !home.includes("pm-ph-label") && !home.includes("Create with AI"));
   // The painter's preview shows them, and noindex.

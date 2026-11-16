@@ -30,7 +30,7 @@ export const config: TemplateConfig = {
     { key: "c-brand", label: { en: "Dark bands", es: "Franjas oscuras" }, type: "color", default: "#2a1a10", editable: true },
     { key: "c-brand-ink", label: { en: "Text on dark", es: "Texto sobre oscuro" }, type: "color", default: "#fcf4e6", editable: true },
     { key: "c-accent", label: { en: "Accent", es: "Acento" }, type: "color", default: "#e08a35", editable: true },
-    { key: "c-accent2", label: { en: "Second accent", es: "Segundo acento" }, type: "color", default: "#b8571f", editable: true },
+    { key: "c-accent2", label: { en: "Second accent", es: "Segundo acento" }, type: "color", default: "#9c4718", editable: true },
     { key: "c-sun1", label: { en: "Sky top", es: "Cielo arriba" }, type: "color", default: "#f9cf8f", editable: true },
     { key: "c-sun2", label: { en: "Sky middle", es: "Cielo medio" }, type: "color", default: "#e8923a", editable: true },
     { key: "c-sun3", label: { en: "Sky low", es: "Cielo bajo" }, type: "color", default: "#9a4a1c", editable: true },

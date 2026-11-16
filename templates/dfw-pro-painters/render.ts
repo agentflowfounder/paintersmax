@@ -146,9 +146,9 @@ function footer(x: X, nav: { label: string; href: string }[]) {
   const words = c.name.split(/\s+/);
   const half = Math.ceil(words.length / 2);
   return `<footer class="ftr"><div class="wrap"><div class="ftr-grid"><div><h2>${e(t(x, "footerTitle"))}</h2>${leadForm(x, "website-footer", { compact: true, cls: "ftr-form" })}</div>
-<div class="ftr-cols"><div><h4>${e(t(x, "pages"))}</h4><ul>${nav.map((n) => `<li><a href="${e(n.href)}">${e(n.label)}</a></li>`).join("")}</ul></div>
-${svc.length ? `<div><h4>${e(t(x, "services"))}</h4><ul>${svc.map((s) => `<li><a href="${e(x.link(pathOf(s)))}">${e(s.nav)}</a></li>`).join("")}</ul></div>` : ""}
-<div><h4>${e(t(x, "contact"))}</h4><ul>${b.phone ? `<li><a href="tel:${e(tel(b.phone))}">${ic("phone")} ${e(b.phone)}</a></li>` : ""}${b.email ? `<li><a href="mailto:${e(b.email)}">${ic("mail")} ${e(b.email)}</a></li>` : ""}
+<div class="ftr-cols"><div><h3 class="ftr-h">${e(t(x, "pages"))}</h3><ul>${nav.map((n) => `<li><a href="${e(n.href)}">${e(n.label)}</a></li>`).join("")}</ul></div>
+${svc.length ? `<div><h3 class="ftr-h">${e(t(x, "services"))}</h3><ul>${svc.map((s) => `<li><a href="${e(x.link(pathOf(s)))}">${e(s.nav)}</a></li>`).join("")}</ul></div>` : ""}
+<div><h3 class="ftr-h">${e(t(x, "contact"))}</h3><ul>${b.phone ? `<li><a href="tel:${e(tel(b.phone))}">${ic("phone")} ${e(b.phone)}</a></li>` : ""}${b.email ? `<li><a href="mailto:${e(b.email)}">${ic("mail")} ${e(b.email)}</a></li>` : ""}
 ${b.address || b.city ? `<li><span>${ic("house")} ${e([b.address, [b.city, b.state].filter(Boolean).join(", "), b.zip].filter(Boolean).join(" "))}</span></li>` : ""}${b.hours ? `<li><span>${ic("clock")} ${e(b.hours)}</span></li>` : ""}
 ${b.license ? `<li><span>${ic("shield")} ${e(t(x, "license"))} ${e(b.license)}</span></li>` : ""}${x.insuredProof ? `<li><a href="${e(x.insuredProof)}" rel="noopener">${ic("shield")} ${e(t(x, "insured"))}: ${e(t(x, "proof"))}</a></li>` : ""}</ul>
 ${social.length ? `<div class="pm-social">${social.map((s) => `<a href="${e(s.url)}" rel="noopener me" target="_blank">${e(s.kind[0].toUpperCase() + s.kind.slice(1))}</a>`).join("")}</div>` : ""}</div></div></div>
@@ -156,6 +156,18 @@ ${social.length ? `<div class="pm-social">${social.map((s) => `<a href="${e(s.ur
 <span class="pm-legal">${legal.privacy ? `<a href="${e(legal.privacy)}">${e(t(x, "privacy"))}</a>` : ""}${legal.terms ? `<a href="${e(legal.terms)}">${e(t(x, "terms"))}</a>` : ""}<a href="${e(x.langHref)}" lang="${e(t(x, "langCode"))}">${e(t(x, "lang"))}</a><a href="https://paintersmax.app/" rel="noopener">${e(t(x, "by"))}</a></span>${x.site.footer ? `<br><span>${e(x.site.footer)}</span>` : ""}</div>
 <div class="ftr-logo">${e(words.slice(0, half).join(" "))}<br>${e(words.slice(half).join(" "))}${b.city ? `<small>${e(b.city.toUpperCase())}</small>` : ""}</div></div></div></footer>
 <nav class="callbar" aria-label="${e(t(x, "contact"))}">${b.phone ? `<a class="call" href="tel:${e(tel(b.phone))}">${ic("phone")} ${e(t(x, "callNow"))}</a>` : ""}<a class="quote" href="${e(x.quoteHref)}">${ic("mail")} ${e(t(x, "quote"))}</a></nav>`;
+}
+
+/** A full address for a link inside the site (hreflang must be absolute). */
+function absUrl(origin: string, href: string): string {
+  return /^https?:\/\//.test(href) ? href : origin.replace(/\/$/, "") + (href.startsWith("/") ? href : "/" + href);
+}
+
+/** A small icon for the browser tab when the painter has no logo: their first letter on the brand color. */
+function favicon(color: string, name: string): string {
+  const c = /^#[0-9a-f]{3,8}$/i.test(color) ? color : "#2a1a10";
+  const l = (name.trim()[0] || "P").toUpperCase().replace(/[^A-Z0-9]/, "P");
+  return "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="${c}"/><text x="16" y="22" font-family="Georgia,serif" font-size="18" fill="#fff" text-anchor="middle">${l}</text></svg>`);
 }
 
 export function render(x: X): string {
@@ -200,7 +212,8 @@ export function render(x: X): string {
   return `<!doctype html><html lang="${x.uiLang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${e(title)}</title><meta name="description" content="${e(desc)}"><link rel="canonical" href="${e(canonical)}">
 ${x.preview ? '<meta name="robots" content="noindex">' : ""}${p.kind === "home" && site.gscToken ? `<meta name="google-site-verification" content="${e(site.gscToken)}">` : ""}
-<link rel="alternate" hreflang="${e(t(x, "langCode"))}" href="${e(x.langHref)}">
+${x.preview ? "" : `<link rel="alternate" hreflang="${x.uiLang}" href="${e(canonical)}"><link rel="alternate" hreflang="${e(t(x, "langCode"))}" href="${e(absUrl(x.origin, x.langHref))}">`}
+<link rel="icon" href="${e((x.theme.logo && site.photos.some((q) => q.id === x.theme.logo) ? x.photoSrc(x.theme.logo) : "") || x.company.logoUrl || favicon(x.theme.tokens["c-brand"] ?? cfg.tokens.find((k) => k.key === "c-brand")?.default ?? "#2a1a10", x.company.name))}">
 <meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${e(canonical)}">${ogPhoto ? `<meta property="og:image" content="${e(x.origin.replace(/\/$/, "") + x.photoSrc(ogPhoto))}">` : ""}
 <meta name="theme-color" content="${e(x.theme.tokens["c-brand"] ?? cfg.tokens.find((k) => k.key === "c-brand")?.default ?? "#2a1a10")}">
 ${fh ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${e(fh)}">` : ""}
