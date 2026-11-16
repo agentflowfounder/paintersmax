@@ -29,6 +29,7 @@ export interface Env {
   GOOGLE_REDIRECT_BASE?: string; // canonical site address, default https://paintersmax.app
   GOOGLE_TOKEN_URL?: string; // local testing only
   DEV_LOG_LINKS?: string; // local development only
+  ADMIN_2FA?: string; // set to "off" in Cloudflare to switch off the admin code step (break-glass)
 }
 
 export type JobType = "interior" | "exterior" | "both" | "commercial" | "multifamily";

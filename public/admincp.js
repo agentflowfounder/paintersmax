@@ -505,7 +505,20 @@
   // The old plan switch and add-client buttons in admin.html refresh the new client views too.
   document.addEventListener('change', function (e) { if (e.target.dataset && e.target.dataset.id && CACHE.client) setTimeout(function () { clientLoad(CACHE.client.company.id); }, 400); });
 
+  // Step two of admin sign-in: the code that was emailed. The page asks for it once a day.
+  function codeScreen(email) {
+    var main = document.querySelector('main');
+    main.innerHTML = '<div class="card" style="max-width:460px;margin:30px auto"><h2>' + esc(T('Admin code')) + '</h2><p>' + esc(T('For safety, admin asks for a code once a day. We email a 6-digit code to')) + ' <b translate="no">' + esc(email) + '</b>.</p>' +
+      '<button class="btn" id="cd_send">' + esc(T('Email me a code')) + '</button><label>' + esc(T('6-digit code')) + '</label><input id="cd_code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="max-width:200px"><div><button class="btn" id="cd_go">' + esc(T('Continue')) + '</button></div><div id="cd_msg" class="muted" style="margin-top:8px"></div></div>';
+    var say = function (t, good) { $('cd_msg').className = good ? 'ok' : 'bad'; $('cd_msg').textContent = T(t); };
+    var send = function () { post({ action: 'code_send' }).then(function () { say('We sent a code. It works for 10 minutes.', true); }).catch(function (x) { say((x && x.message) || 'Something went wrong.'); }); };
+    $('cd_send').onclick = send;
+    $('cd_go').onclick = function () { post({ action: 'code_verify', code: $('cd_code').value }).then(function () { location.reload(); }).catch(function (x) { say((x && x.message) || 'Something went wrong.'); }); };
+    send();
+  }
+
   api('/api/admin?me=1').then(function (me) {
+    if (me.needsCode) { codeScreen(me.email); return; }
     ME = me;
     $('me_role').textContent = T(ROLES[me.role] || me.role);
     window.addEventListener('hashchange', route);

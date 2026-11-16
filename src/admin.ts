@@ -3,7 +3,8 @@ import { listDomains, removeDomain, setDomain } from "./domains.ts";
 import { RESERVED_SLUGS } from "./settings.ts";
 import { adminTickerView, saveConfig } from "./ticker.ts";
 import { requestLoginLink } from "./auth.ts";
-import { adminActor, can, logAudit, ROLE_LIMITS, type Area } from "./adminroles.ts";
+import { sendCode, verifyCode } from "./admin2fa.ts";
+import { adminActor, adminPending, can, logAudit, ROLE_LIMITS, type Area, type AdminActor } from "./adminroles.ts";
 import { ACT_AREAS, adminAct, adminView } from "./admincp.ts";
 import { grantCredits, WELCOME_CREDITS } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
@@ -91,6 +92,8 @@ const OLD_VIEW_AREAS: Record<string, Area> = { markets: "settings", domains: "do
  * goes to the audit log. Anyone who is not an admin gets "Not found".
  */
 export async function handleAdmin(request: Request, env: Env): Promise<Response> {
+  const pending = await adminPending(env, request);
+  if (pending) return codeStep(env, request, pending);
   const actor = await adminActor(env, request);
   if (!actor) return json({ error: "Not found." }, 404);
   const today = todayLocal();
@@ -133,6 +136,34 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
   const old = Object.keys(OLD_VIEW_AREAS).find((k) => url.searchParams.get(k) === "1");
   if (!can(actor.role, old ? OLD_VIEW_AREAS[old] : "clients", "see")) return json({ error: "Your role cannot see this." }, 403);
   return oldView(env, url);
+}
+
+/**
+ * The code step. An admin who signed in but has not entered today's emailed code can only ask for a code and enter it.
+ * GET ?me=1 answers {needsCode: true} so the page shows the code screen. Everything else is refused until the code is right.
+ */
+async function codeStep(env: Env, request: Request, who: AdminActor): Promise<Response> {
+  if (request.method === "POST") {
+    let b: any;
+    try {
+      b = await request.json();
+    } catch {
+      return json({ error: "Invalid JSON." }, 400);
+    }
+    if (b?.action === "code_send") {
+      const r = await sendCode(env, who.userId, who.email);
+      return r.ok ? json({ ok: true }) : json({ error: r.error }, 429);
+    }
+    if (b?.action === "code_verify") {
+      const r = await verifyCode(env, request, who.userId, b.code);
+      if (!r.ok) return json({ error: r.error }, 400);
+      await logAudit(env, who, "admin_code_ok", { detail: "signed in with the emailed code" });
+      return json({ ok: true });
+    }
+    return json({ error: "Enter your admin code first.", needsCode: true }, 403);
+  }
+  if (new URL(request.url).searchParams.get("me") === "1") return json({ needsCode: true, email: who.email });
+  return json({ error: "Enter your admin code first.", needsCode: true }, 403);
 }
 
 /** A short, safe summary of an original action for the audit log (no long text). */

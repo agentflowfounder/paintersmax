@@ -1,3 +1,4 @@
+import { isVerified, twoStepOn } from "./admin2fa.ts";
 import { getSessionUser } from "./auth.ts";
 import { readBlob, str, updateBlob } from "./kv.ts";
 import type { Env } from "./types.ts";
@@ -76,8 +77,8 @@ export function roleFor(login: { email: string; loginRole: string }, team: TeamM
   return login.loginRole === "owner" ? "owner" : null;
 }
 
-/** The signed-in admin, or null for everyone else (who should get a plain 404). */
-export async function adminActor(env: Env, request: Request): Promise<AdminActor | null> {
+/** The signed-in admin before the code step, or null. Everyone else gets a plain 404. */
+async function identify(env: Env, request: Request): Promise<AdminActor | null> {
   const user = await getSessionUser(env, request);
   if (!user) return null;
   const row = await env.DB.prepare("SELECT c.slug AS slug, u.role AS loginRole FROM users u JOIN companies c ON c.id = u.company_id WHERE u.id = ?")
@@ -87,6 +88,19 @@ export async function adminActor(env: Env, request: Request): Promise<AdminActor
   const role = roleFor({ email: user.email, loginRole: row.loginRole }, await loadTeam(env));
   if (!role) return null;
   return { userId: user.userId, email: user.email, role, ip: (request.headers.get("cf-connecting-ip") ?? "").slice(0, 45) };
+}
+
+/** The signed-in admin who has also entered the emailed code today, or null for everyone else (who should get a plain 404). */
+export async function adminActor(env: Env, request: Request): Promise<AdminActor | null> {
+  const a = await identify(env, request);
+  return a && (await isVerified(env, request, a.userId)) ? a : null;
+}
+
+/** An admin who signed in but has not entered the emailed code yet. Only the code screen should use this. */
+export async function adminPending(env: Env, request: Request): Promise<AdminActor | null> {
+  if (!twoStepOn(env)) return null;
+  const a = await identify(env, request);
+  return a && !(await isVerified(env, request, a.userId)) ? a : null;
 }
 
 // ---------------------------------------------------------------- audit log

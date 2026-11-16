@@ -230,3 +230,10 @@ test("painter limits: painters may edit unless admin turned it off", async () =>
   assert.equal(readEnvelopes({ painterCanEdit: false }).painterCanEdit, false);
   assert.deepEqual(readEnvelopes({ caps: { assistant: "40", website: "", marketing: -3, estimates: 1e9 } }).caps, { assistant: 40 });
 });
+
+test("admin code step is on unless the break-glass variable says off", async () => {
+  const { twoStepOn } = await import("../src/admin2fa.ts");
+  assert.equal(twoStepOn({} as any), true);
+  assert.equal(twoStepOn({ ADMIN_2FA: "on" } as any), true);
+  assert.equal(twoStepOn({ ADMIN_2FA: "off" } as any), false);
+});
