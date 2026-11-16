@@ -185,3 +185,32 @@ test("render: config swap (colors, fonts, order, toggles, words, photos) still d
   // Admin "preview as" with another template.
   assert.match(draw({ ...s, template: "classic" }, { tpl: "dfw-pro-painters" }), /dfw-pro-painters\/1\.0\.0/);
 });
+
+test("render: Sunset Sand draws every page, three hero words with the city, hero card and Spanish", () => {
+  const s = draft();
+  s.template = "sunset-sand";
+  for (const p of s.pages) {
+    const html = draw(s, { path: pathOf(p), tpl: "sunset-sand" });
+    assert.match(html, /\/templates\/sunset-sand\/1\.0\.0\/site\.css/, pathOf(p));
+    assert.match(html, /href="tel:9035550100"/, `tap to call on ${pathOf(p)}`);
+    assert.match(html, /data-lead/, `quote form on ${pathOf(p)}`);
+    assert.ok(!html.includes("<h4"));
+  }
+  const home = draw(s, { tpl: "sunset-sand" });
+  assert.match(home, /<span>Fresh Coat<\/span>.*<span>Colors You Love<\/span>.*<span>Tyler<\/span>/s);
+  for (const id of ["story", "services", "cities", "process", "quote", "color-studio", "map"]) assert.match(home, new RegExp(`id="${id}"`), id);
+  assert.match(home, /<details name="steps" open>/);
+  // Visitors see the default hero photo in the card, and never the painter's "Create Video" hint or photo labels.
+  assert.match(home, /class="hero-card"/);
+  assert.ok(!home.includes("Create Video in dashboard") && !home.includes("pm-ph-label") && !home.includes("pm-gate"));
+  assert.match(draw(s, { tpl: "sunset-sand", preview: true }), /Create Video in dashboard/);
+  // A painter's video link (YouTube or Vimeo only) turns the card into a link.
+  s.themes["sunset-sand"] = { ...(s.themes["sunset-sand"] ?? {}), texts: { "en:heroVideoUrl": "https://youtu.be/abc123" } } as any;
+  assert.match(draw(s, { tpl: "sunset-sand" }), /<a class="hero-card" href="https:\/\/youtu\.be\/abc123"/);
+  s.themes["sunset-sand"].texts = { "en:heroVideoUrl": "javascript:alert(1)" };
+  assert.ok(!draw(s, { tpl: "sunset-sand" }).includes("javascript:"));
+  const es = draw(s, { tpl: "sunset-sand", uiLang: "es" });
+  assert.match(es, /<html lang="es">/);
+  assert.match(es, /Pintura Nueva/);
+  assert.match(es, /Cuatro pasos sencillos/);
+});
