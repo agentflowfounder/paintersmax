@@ -22,6 +22,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:8px 4px;border-bottom:1p
 button.ghost{background:#fff;border:1px solid #cfd5dc}
 .bar{height:6px;background:#eceae4;border-radius:3px;margin-top:4px;min-width:60px}.bar i{display:block;height:6px;border-radius:3px;background:#0F1B2D}.bar i.full{background:#b42318}
 a{color:#0F1B2D}
+.grp{border-top:1px solid #eee;margin-top:12px;padding-top:10px}.grp input[type=number]{width:110px;padding:8px;border:1px solid #cfd5dc;border-radius:8px;font:inherit}.warn{color:#b42318;font-size:13px}
 </style></head><body>
 <header><div><b>PaintersMax</b> AI use and credits</div><div></div></header>
 <main>
@@ -33,6 +34,7 @@ a{color:#0F1B2D}
 <div class="card" id="bal"></div>
 <div class="card" id="allow"></div>
 <div class="card" id="buy"></div>
+<div class="card" id="limits"></div>
 <div class="card scroll"><b id="mt"></b><table style="margin-top:6px"><thead><tr><th>What</th><th class="r">Used</th><th class="r">Monthly amount</th><th class="r">Paid with credits</th><th class="r">Credits per use</th></tr></thead><tbody id="rows"></tbody></table></div>
 <p class="muted">Credits are used only after a monthly amount runs out, or for a tool your plan does not include. A heavier job, like a photo preview, uses more credits than a simple question. The credits that run out soonest are used first. If an AI use fails, the credits come back.</p>
 <p class="muted" id="exp"></p>
@@ -63,6 +65,7 @@ function draw(d){
  buy+='<div class="tops">'+d.topUps.map(function(t){return '<button data-buy="'+esc(t.id)+'"'+(d.forSale?'':' disabled')+'><b>'+usd(t.priceCents)+'</b>'+t.credits+' '+T('credits')+'</button>'}).join('')+'</div>';
  if(!d.forSale)buy+='<p class="muted">'+T('Payments are not open yet.')+'</p>';
  $('buy').innerHTML=buy;
+ drawLimits(d);
  $('mt').textContent=T('This month')+' ('+d.period+')';
  $('rows').innerHTML=d.features.map(function(f){
   var pct=f.limit?Math.min(100,Math.round(100*f.used/f.limit)):0;
@@ -71,12 +74,41 @@ function draw(d){
  if(/[?&](bought|allowance)=1/.test(location.search))$('thanks').style.display='';
  $('msg').style.display='none';$('body').style.display='';
 }
+function drawLimits(d){
+ var L=d.limits;if(!L||!L.groups||!L.groups.length){$('limits').style.display='none';return;}
+ var h='<b>'+T('Where my credits go')+'</b><div class="muted">'+T('Choose how many credits each group of tools may use in a month. When a group reaches its limit, its tools wait until next month or until you raise the limit, so one tool cannot use up all your credits. Leave a limit empty for no limit. The page does the math: it shows about how many uses each limit gives you. Limits only count credits. The monthly amount in your plan is not affected.')+'</div>';
+ h+='<label style="display:block;margin:10px 0"><input type="checkbox" id="lim_on"'+(L.enabled?' checked':'')+(L.canEdit?'':' disabled')+'> '+T('Use these limits')+'</label>';
+ if(!L.canEdit)h+='<div class="note">'+T('Your limits are set by PaintersMax support. Ask them to change them.')+'</div>';
+ L.groups.forEach(function(g){
+  h+='<div class="grp"><b>'+esc(T(g.label))+'</b> <span class="muted">'+T('used this month')+': '+g.used+(g.cap!==null?' / '+g.cap:'')+'</span><div style="margin:6px 0"><label class="muted">'+T('Monthly limit (credits)')+' <input type="number" min="0" max="100000" inputmode="numeric" data-cap="'+esc(g.group)+'" value="'+(g.cap===null?'':g.cap)+'"'+(L.canEdit?'':' disabled')+'></label></div>';
+  h+='<table><thead><tr><th>'+T('Tool')+'</th><th class="r">'+T('Credits per use')+'</th><th class="r">'+T('About this many uses')+'</th><th></th></tr></thead><tbody>'+g.tools.map(function(t){
+   return '<tr><td>'+esc(T(t.label))+'<div class="warn" data-low="'+esc(t.feature)+'" style="display:none">'+T('You have fewer credits than one use needs.')+'</div></td><td class="r">'+t.cost+'</td><td class="r" data-uses="'+esc(t.feature)+'" data-g="'+esc(g.group)+'" data-cost="'+t.cost+'"></td><td class="r"><button class="ghost" data-add="1">'+T('Add AI credits')+'</button></td></tr>';
+  }).join('')+'</tbody></table></div>';
+ });
+ h+='<div id="lim_sum" class="note" style="margin-top:12px"></div>';
+ if(L.canEdit)h+='<div style="margin-top:10px"><button id="lim_save">'+T('Save limits')+'</button> <span id="lim_msg" class="muted"></span></div>';
+ $('limits').innerHTML=h;$('limits').style.display='';
+ var recalc=function(){
+  var caps={},total=0,anyCap=false;
+  [].forEach.call(document.querySelectorAll('[data-cap]'),function(i){var v=i.value.trim();if(v!==''&&!isNaN(Number(v))&&Number(v)>=0){caps[i.getAttribute('data-cap')]=Math.floor(Number(v));total+=caps[i.getAttribute('data-cap')];anyCap=true;}});
+  [].forEach.call(document.querySelectorAll('[data-uses]'),function(td){var c=caps[td.getAttribute('data-g')],cost=Number(td.getAttribute('data-cost'));td.textContent=c===undefined?T('No limit'):String(Math.floor(c/cost));var low=document.querySelector('[data-low="'+td.getAttribute('data-uses')+'"]');if(low)low.style.display=(d.balance<cost)?'':'none';});
+  var sum=$('lim_sum');
+  if(!anyCap){sum.textContent=T('No limits set. Every tool can use any of your credits.');return;}
+  var need=total-d.balance;
+  sum.textContent=T('Your limits add up to')+' '+total+' '+T('credits a month. You have')+' '+d.balance+' '+T('credits now.')+(need>0?' '+T('Add at least')+' '+need+' '+T('more credits so every limit can be used.'):' '+T('That covers all your limits.'));
+ };
+ [].forEach.call(document.querySelectorAll('[data-cap]'),function(i){i.oninput=recalc;});
+ recalc();
+ var sv=$('lim_save');
+ if(sv)sv.onclick=function(){var caps={};[].forEach.call(document.querySelectorAll('[data-cap]'),function(i){caps[i.getAttribute('data-cap')]=i.value.trim();});sv.disabled=true;post({action:'limits_set',enabled:$('lim_on').checked,caps:caps}).then(function(){$('lim_msg').className='ok';$('lim_msg').textContent=T('Saved.');sv.disabled=false;}).catch(function(x){$('lim_msg').className='bad';$('lim_msg').textContent=T((x&&x.message)||'Something went wrong.');sv.disabled=false;});};
+}
 function post(body){return fetch('/api/credits',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});});}
 function showErr(x){$('msg').style.display='';$('msg').className='bad';$('msg').textContent=T((x&&x.message)||'Something went wrong.');}
 document.addEventListener('click',function(e){
  var t=e.target.closest?e.target.closest('button'):e.target;if(!t||!t.dataset)return;
  if(t.dataset.buy){t.disabled=true;post({action:'topup',id:t.dataset.buy}).then(function(j){location.href=j.url;}).catch(function(x){t.disabled=false;showErr(x);});}
  else if(t.dataset.allow){t.disabled=true;post({action:'allowance',id:t.dataset.allow}).then(function(j){if(j.url)location.href=j.url;else{$('thanks').textContent=T('Done. Your new allowance starts at your next monthly charge.');$('thanks').style.display='';return load();}}).catch(function(x){t.disabled=false;showErr(x);});}
+ else if(t.dataset.add){var b=$('buy');if(b.scrollIntoView)b.scrollIntoView({behavior:'smooth',block:'start'});b.style.outline='3px solid #E8A33D';setTimeout(function(){b.style.outline='';},1800);}
  else if(t.id==='manage'){t.disabled=true;fetch('/api/billing',{method:'POST'}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Billing is not available yet.');location.href=j.url;});}).catch(function(x){t.disabled=false;showErr(x);});}
 });
 function load(){return fetch('/api/credits').then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});}).then(draw);}

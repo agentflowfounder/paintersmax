@@ -222,3 +222,11 @@ test("AI cost: prices are read safely and cost is tokens times the price", async
   assert.equal(m.costCents(undefined, 1000, 1000), null);
   assert.deepEqual(m.readPrices(null), {});
 });
+
+test("painter limits: painters may edit unless admin turned it off", async () => {
+  const { readEnvelopes } = await import("../src/envelopes.ts");
+  assert.equal(readEnvelopes(null).painterCanEdit, true);
+  assert.equal(readEnvelopes({}).painterCanEdit, true);
+  assert.equal(readEnvelopes({ painterCanEdit: false }).painterCanEdit, false);
+  assert.deepEqual(readEnvelopes({ caps: { assistant: "40", website: "", marketing: -3, estimates: 1e9 } }).caps, { assistant: 40 });
+});

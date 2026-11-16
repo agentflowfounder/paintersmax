@@ -1,8 +1,9 @@
 import { getSessionUser } from "./auth.ts";
 import { ALLOWANCES, CREDIT_COST, TOPUPS, allowanceById, creditView, loadAllowance, topUpById, type Allowance, type TopUp } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
+import { limitsView, savePainterLimits } from "./envelopes.ts";
 import { stripeApi } from "./stripe.ts";
-import { effectivePlan, normalizePlan, trialDaysLeft, usageSummary, type Feature } from "./usage.ts";
+import { effectivePlan, monthKey, normalizePlan, trialDaysLeft, usageSummary, type Feature } from "./usage.ts";
 import type { Env } from "./types.ts";
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -73,6 +74,7 @@ export function allowanceChangeForm(itemId: string, allowance: Allowance): URLSe
  *  GET   plan, credit balance, the allowance, when the next credits run out, this month's AI use for each feature
  *  POST  {action:"topup", id}      starts a Stripe payment page for a top-up (any plan)
  *        {action:"allowance", id}  starts a Stripe subscription page for a monthly allowance, or changes the size of the one running
+ *        {action:"limits_set", enabled, caps:{group: credits}}  the painter's own monthly credit limits for each group of tools
  */
 export async function handleCredits(request: Request, env: Env): Promise<Response> {
   const user = await getSessionUser(env, request);
@@ -86,6 +88,10 @@ export async function handleCredits(request: Request, env: Env): Promise<Respons
       b = await request.json();
     } catch {
       return json({ error: "Invalid JSON." }, 400);
+    }
+    if (b?.action === "limits_set") {
+      const r = await savePainterLimits(env, co.id, b, user.email, todayLocal());
+      return r.ok ? json({ ok: true }) : json({ error: r.error }, 400);
     }
     if (!env.STRIPE_SECRET_KEY) return json({ error: "Payments are not open yet." }, 503);
     const origin = new URL(request.url).origin;
@@ -120,6 +126,7 @@ export async function handleCredits(request: Request, env: Env): Promise<Respons
 
   const today = todayLocal();
   const [view, usage, allowance] = await Promise.all([creditView(env, co.id, today), usageSummary(env, co), loadAllowance(env, co.id)]);
+  const limits = await limitsView(env, co.id, monthKey(), FEATURE_LABELS, CREDIT_COST);
   const eff = effectivePlan(co);
   const a = allowance && allowance.status !== "ended" ? allowanceById(allowance.allowanceId) : null;
   return json({
@@ -136,6 +143,7 @@ export async function handleCredits(request: Request, env: Env): Promise<Respons
     canManageBilling: !!co.customerId,
     grants: view.grants.filter((g) => !g.expired && g.left > 0).map((g) => ({ on: g.on, expiresOn: g.expiresOn, credits: g.credits, left: g.left, source: g.source, note: g.note })),
     period: usage.period,
+    limits,
     features: usage.features
       .filter((f) => f.limit > 0 || f.used > 0 || f.missed > 0 || f.creditUses > 0)
       .map((f) => ({ feature: f.feature, label: FEATURE_LABELS[f.feature as Feature] ?? f.feature, used: f.used, limit: f.limit, creditUses: f.creditUses, missed: f.missed, creditCost: CREDIT_COST[f.feature as Feature] ?? 1 })),

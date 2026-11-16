@@ -8,7 +8,7 @@ import type { Feature } from "./usage.ts";
  * Credits stay one pool (credits.ts). Envelopes steer it: each group of tools can have a monthly cap on the credits it may use.
  * A tool whose envelope is empty waits; nothing is lost, and admin (or the painter, once unlocked) can move credits between
  * envelopes. A group with no cap uses the pool freely. Monthly amounts that come with the plan are never affected: envelopes
- * only count credits.
+ * only count credits. Painters set their own limits on the Credits page (Where my credits go); admin can turn that off per client.
  *
  * Admin also picks which text model answers a client's everyday text tools first (Gemini or Claude Haiku), overriding the
  * platform default set on the Settings tab. Photos keep their own models.
@@ -46,7 +46,7 @@ export interface Envelopes {
 }
 
 export const envKey = (c: number) => `envl:${c}`;
-const EMPTY: Envelopes = { enabled: false, painterCanEdit: false, caps: {}, textModel: "default", setBy: "", setOn: "" };
+const EMPTY: Envelopes = { enabled: false, painterCanEdit: true, caps: {}, textModel: "default", setBy: "", setOn: "" };
 
 export function readEnvelopes(raw: unknown): Envelopes {
   const r = raw as any;
@@ -60,7 +60,7 @@ export function readEnvelopes(raw: unknown): Envelopes {
   }
   return {
     enabled: r.enabled === true,
-    painterCanEdit: r.painterCanEdit === true,
+    painterCanEdit: r.painterCanEdit !== false, // painters can set their own limits unless admin turns it off for them
     caps,
     textModel: r.textModel === "gemini" || r.textModel === "haiku" ? r.textModel : "default",
     setBy: str(r.setBy, 200),
@@ -137,4 +137,36 @@ export async function envelopeUse(env: Env, c: number, month: string): Promise<R
     if (GROUPS.includes(g)) out[g] = r.count;
   }
   return out;
+}
+
+/** A painter sets their own limits. Allowed unless admin turned it off for this client. Keeps the text model admin chose. */
+export async function savePainterLimits(env: Env, c: number, b: any, by: string, today: string) {
+  return updateBlob(env, envKey(c), readEnvelopes, (cur) => {
+    if (!cur.painterCanEdit) return { error: "Your limits are set by PaintersMax support. Ask them to change them." };
+    const caps: Record<string, unknown> = {};
+    for (const g of GROUPS) {
+      const v = b?.caps?.[g];
+      if (v === null || v === undefined || v === "") continue;
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 0 || n > 100000) return { error: "Enter a whole number of credits, or leave it empty for no limit." };
+      caps[g] = Math.round(n);
+    }
+    return { value: readEnvelopes({ ...cur, enabled: b?.enabled === true, caps, setBy: by, setOn: today }) };
+  });
+}
+
+/** What the painter's limits screen shows: each group, its tools and credits per use, the limit, and the credits used this month. */
+export async function limitsView(env: Env, c: number, month: string, labels: Record<Feature, string>, cost: Record<Feature, number>) {
+  const [e, used] = await Promise.all([loadEnvelopes(env, c), envelopeUse(env, c, month)]);
+  return {
+    enabled: e.enabled,
+    canEdit: e.painterCanEdit,
+    groups: GROUPS.map((g) => ({
+      group: g,
+      label: GROUP_LABELS[g],
+      cap: e.caps[g] ?? null,
+      used: used[g],
+      tools: (Object.keys(FEATURE_GROUP) as Feature[]).filter((f) => FEATURE_GROUP[f] === g).map((f) => ({ feature: f, label: labels[f] ?? f, cost: cost[f] ?? 1 })),
+    })).filter((g) => g.tools.length),
+  };
 }
