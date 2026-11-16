@@ -15,7 +15,7 @@ import type { Env } from "./types.ts";
  *  - Clients flagged "do not contact", clients who unsubscribed, and cancelled or refunded clients never get an email.
  *  - Sending runs in small batches and records who was handled, so a second click never sends twice.
  *
- * Every email ends with the footer Rogelio wrote (2026-11-16). {business} becomes the client's business name and
+ * Every email ends with the footer Rogelio approved (2026-11-16), which includes the mailing address. {business} becomes the client's business name and
  * {unsubscribe} becomes that client's own one-click unsubscribe link.
  *
  * Stored in app_settings: bc:<id> (the broadcast), bcs:<id> (who was handled), bcsettings (footer and the email switch),
@@ -23,7 +23,8 @@ import type { Env } from "./types.ts";
  */
 
 export const SITE = "https://paintersmax.app";
-export const DEFAULT_FOOTER = "You are receiving this message {business}. Click here to unsubscribe: {unsubscribe}";
+/** Rogelio's wording (approved 2026-11-16) plus the mailing address he gave. He will replace the address once the LLC is registered. */
+export const DEFAULT_FOOTER = "You are receiving this message because {business} has a PaintersMax account. Click here to unsubscribe: {unsubscribe}\n\nPaintersMax, Dallas, TX 75201";
 
 export const WHO = ["all", "free", "paid", "due", "missed"] as const;
 export type Who = (typeof WHO)[number];

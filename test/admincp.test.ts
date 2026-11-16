@@ -198,7 +198,7 @@ test("broadcasts: audiences, footer and the email guard", async () => {
   assert.equal(b.inAudience({ who: "due", doors: [] }, "grow", "paid"), false);
   assert.equal(b.inAudience({ who: "missed", doors: [] }, "grow", "missed"), true);
   const footer = b.fillFooter(b.DEFAULT_FOOTER, "Tyler Pro Painting", "https://paintersmax.app/unsubscribe?c=5&t=abc");
-  assert.equal(footer, "You are receiving this message Tyler Pro Painting. Click here to unsubscribe: https://paintersmax.app/unsubscribe?c=5&t=abc");
+  assert.equal(footer, "You are receiving this message because Tyler Pro Painting has a PaintersMax account. Click here to unsubscribe: https://paintersmax.app/unsubscribe?c=5&t=abc\n\nPaintersMax, Dallas, TX 75201");
   assert.equal(b.emailText({ body: "Hello", bodyEs: "Hola" }, "F"), "Hello\n\nHola\n\n--\nF");
   assert.equal(b.emailText({ body: "Hello", bodyEs: "" }, "F"), "Hello\n\n--\nF");
   assert.match(b.emailBlocker({ footer: b.DEFAULT_FOOTER, emailsOn: false, setBy: "", setOn: "" }), /switched off/);
