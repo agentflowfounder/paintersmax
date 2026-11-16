@@ -1980,5 +1980,21 @@
     "Billing is not available yet.": "Los pagos todavía no están disponibles.", "No billing account is linked to this company yet.": "Todavía no hay una cuenta de pagos vinculada a esta empresa.",
   });
 
+  /* ---- Part 23: public site version 2 (hero, header, style guide) ---- */
+  pmI18n.add({
+    "Skip to content": "Saltar al contenido", "Features": "Funciones", "How it works": "Cómo funciona", "Pricing": "Precios", "FAQ": "Preguntas", "Log in": "Iniciar sesión",
+    "Start free": "Empiece gratis", "Start free →": "Empiece gratis →", "Book a walkthrough": "Agende una demostración", "Open menu": "Abrir menú", "Close menu": "Cerrar menú", "Menu": "Menú",
+    "The painter's business in a box": "El negocio del pintor en una caja",
+    "Bid it. Book it.": "Cotícelo. Agéndelo.", "Bank it.": "Cóbrelo.",
+    "Quotes from a photo, a schedule your crew can follow, and invoices that get paid. Built by a painter, in English and Spanish.": "Cotizaciones desde una foto, un calendario que su equipo puede seguir y facturas que se pagan. Hecho por un pintor, en inglés y español.",
+    "Free account, no card": "Cuenta gratis, sin tarjeta", "Website included on paid plans": "Sitio web incluido en los planes de pago", "Booked by Spring: Launch for $299": "Booked by Spring: Launch por $299",
+    "Ask BP": "Pregúntele a Maistro", "Sample chat": "Chat de ejemplo", "Prices come from your own rates.": "Los precios salen de sus propias tarifas.", "Try BP live →": "Pruebe a Maistro en vivo →",
+    "Sample conversation with BP, the PaintersMax helper": "Conversación de ejemplo con Maistro, el ayudante de PaintersMax",
+    "Preview": "Vista previa", "The rest of the home page comes in": "El resto de la página de inicio llega en la", "Phase 2.": "Fase 2.",
+    "Product window, what it replaces, how it works, tools, Color Studio, your website, Spanish, pricing, built by a painter, FAQ and the walkthrough form.": "Vista del producto, lo que reemplaza, cómo funciona, herramientas, Color Studio, su sitio web, español, precios, hecho por un pintor, preguntas y el formulario de demostración.",
+    "The painter's business in a box. A product of AgentFlow LLC.": "El negocio del pintor en una caja. Un producto de AgentFlow LLC.",
+    "PaintersMax | The painter's business in a box": "PaintersMax | El negocio del pintor en una caja",
+  });
+
   pmI18n.start();
 })();

@@ -1,0 +1,59 @@
+{
+  "updated": "2026-11-16",
+  "slots": [
+    {
+      "id": "VIDEO-1",
+      "page": "/",
+      "section": "Hero",
+      "kind": "video loop, 8 s",
+      "size": "1920x1080 and 1080x1350 phone crop",
+      "status": "placeholder (photo poster)",
+      "prompt": "Slow dolly past a painter cutting a clean line along white trim in a bright Texas living room, late morning sun, natural colors, no faces in focus, no logos, calm and steady, seamless loop."
+    },
+    {
+      "id": "SHORT-1",
+      "page": "/",
+      "section": "Product window",
+      "kind": "screen clip, 6 s",
+      "size": "1600x1000",
+      "status": "waiting for Rogelio",
+      "prompt": "Screen recording: a new estimate is built from a room photo, the total appears, then 'Send to customer' is tapped. Sample data only."
+    },
+    {
+      "id": "SHORT-2",
+      "page": "/",
+      "section": "Color Studio preview",
+      "kind": "screen clip, 6 s",
+      "size": "1200x900",
+      "status": "waiting for Rogelio",
+      "prompt": "A house exterior photo changes from beige to a deep navy body with white trim, slider moves left to right."
+    },
+    {
+      "id": "SHORT-3",
+      "page": "/",
+      "section": "Tools grid",
+      "kind": "screen clip, 6 s",
+      "size": "1200x900",
+      "status": "waiting for Rogelio",
+      "prompt": "A job card moves from Booked to In progress to Paid on the schedule board."
+    },
+    {
+      "id": "PHOTO-1",
+      "page": "/",
+      "section": "Built by a painter",
+      "kind": "photo",
+      "size": "1200x1500",
+      "status": "waiting for Rogelio",
+      "prompt": "Rogelio on a job site or with his truck, natural light, no customer property details visible."
+    },
+    {
+      "id": "OG-1",
+      "page": "all",
+      "section": "Social share image",
+      "kind": "image",
+      "size": "1200x630",
+      "status": "waiting",
+      "prompt": "PaintersMax wordmark and 'Bid it. Book it. Bank it.' on navy with one job photo."
+    }
+  ]
+}
