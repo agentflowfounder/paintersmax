@@ -54,6 +54,7 @@ function draw(d){
  if(d.balance>0&&d.nextExpiry)b+='<div class="muted">'+d.nextExpiry.credits+' '+T('can be used until')+' '+esc(DT(d.nextExpiry.on))+'</div>';
  else if(d.balance<=0)b+='<div class="muted">'+T('You have no credits right now.')+'</div>';
  if(d.grants&&d.grants.length>1)b+='<div class="muted" style="margin-top:6px">'+d.grants.map(function(g){return g.left+' '+T(SRC[g.source]||'credits')+(g.source==='topup'?'':' ('+T('until')+' '+esc(DT(g.expiresOn))+')')}).join(' &middot; ')+'</div>';
+ if(d.low&&d.balance>0)b+='<div class="note" style="margin-top:8px">'+T('Your credits are running low.')+' <button data-add="1">'+T('Add AI credits')+'</button></div>';
  if(d.canManageBilling)b+='<div style="margin-top:10px"><button class="ghost" id="manage">'+T('Manage billing')+'</button></div>';
  $('bal').innerHTML=b;
  var al='<b>'+T('Monthly allowance')+'</b><div class="muted">'+T('Credits every month, charged to your card. Unused credits roll over for two months. Change or cancel any time.')+'</div>';
@@ -82,7 +83,7 @@ function drawLimits(d){
  L.groups.forEach(function(g){
   h+='<div class="grp"><b>'+esc(T(g.label))+'</b> <span class="muted">'+T('used this month')+': '+g.used+(g.cap!==null?' / '+g.cap:'')+'</span><div style="margin:6px 0"><label class="muted">'+T('Monthly limit (credits)')+' <input type="number" min="0" max="100000" inputmode="numeric" data-cap="'+esc(g.group)+'" value="'+(g.cap===null?'':g.cap)+'"'+(L.canEdit?'':' disabled')+'></label></div>';
   h+='<table><thead><tr><th>'+T('Tool')+'</th><th class="r">'+T('Credits per use')+'</th><th class="r">'+T('About this many uses')+'</th><th></th></tr></thead><tbody>'+g.tools.map(function(t){
-   return '<tr><td>'+esc(T(t.label))+'<div class="warn" data-low="'+esc(t.feature)+'" style="display:none">'+T('You have fewer credits than one use needs.')+'</div></td><td class="r">'+t.cost+'</td><td class="r" data-uses="'+esc(t.feature)+'" data-g="'+esc(g.group)+'" data-cost="'+t.cost+'"></td><td class="r"><button class="ghost" data-add="1">'+T('Add AI credits')+'</button></td></tr>';
+   return '<tr><td>'+esc(T(t.label))+'<div class="warn" data-low="'+esc(t.feature)+'" style="display:none">'+T('You have fewer credits than one use needs.')+'</div></td><td class="r">'+t.cost+'</td><td class="r" data-uses="'+esc(t.feature)+'" data-g="'+esc(g.group)+'" data-cost="'+t.cost+'"></td><td class="r">'+(d.low?'<button class="ghost" data-add="1">'+T('Add AI credits')+'</button>':'')+'</td></tr>';
   }).join('')+'</tbody></table></div>';
  });
  h+='<div id="lim_sum" class="note" style="margin-top:12px"></div>';

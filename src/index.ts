@@ -85,14 +85,14 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   if (!(await dailyCap(env, company.id, `quote:v:${visitor}`, 10))) return json({ error: "That is a lot of quotes for one day. Please call or email us and we will help you directly." }, 429);
 
   const { lowCents, highCents } = priceRange(q.jobType, q.sqft, readSettings(company.settings).rates);
-  const { provider, summary } = await writeSummary(env, q, lowCents, highCents);
+  const { provider, summary } = await writeSummary(env, q, lowCents, highCents, company.id);
 
   // Photo brief: metered under ai_estimate. If the plan is used up or the AI fails, the normal quote still goes out.
   let brief: Awaited<ReturnType<typeof writeBrief>> = null;
   if (q.photos?.length) {
     const use = await consume(env, company, "ai_estimate", visitor);
     if (use.allowed) {
-      brief = await writeBrief(env, q, lowCents, highCents);
+      brief = await writeBrief(env, q, lowCents, highCents, company.id);
       if (!brief) await refund(env, company, "ai_estimate", visitor);
     }
   }
@@ -312,7 +312,7 @@ async function handleBrief(request: Request, env: Env): Promise<Response> {
     details: `${service}. ${str(body?.details, 1500)}`,
     photos,
     companySlug: str(body?.companySlug, 60),
-  });
+  }, undefined, undefined, company.id);
   if (!out) {
     await refund(env, company, "ai_estimate", visitor);
     return json({ error: "ai_unavailable" }, 502);

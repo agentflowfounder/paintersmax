@@ -272,7 +272,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
       const full = await env.DB.prepare("SELECT COALESCE(SUM(count), 0) AS n FROM usage_counters WHERE company_id = ? AND period = ? AND feature LIKE '%:full'").bind(c, monthKey()).first<{ n: number }>();
       const n = full?.n ?? 0;
       if (n > 0 && view.balance === 0) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `${n} AI request${n === 1 ? "" : "s"} could not run this month because a monthly amount ran out. Add AI credits so they keep working.` });
-      else if (view.balance > 0 && view.balance <= 5) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `Your AI credits are almost gone: ${view.balance} left.` });
+      else if (view.balance > 0 && view.low) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `Your AI credits are running low: ${view.balance} left. Tap to add AI credits.` });
     }
   } catch {
     /* credits are optional */

@@ -125,6 +125,20 @@ export function ledger(grants: Grant[], spent: number, today: string) {
   return { balance, writeOff, rows, nextExpiry: next ? { on: next.expiresOn, credits: next.left } : null };
 }
 
+/** The "Add AI credits" button and the Home notice show when what is left falls to this share of what came in recently. */
+export const LOW_BALANCE_SHARE = 0.2;
+export const LOW_BALANCE_DAYS = 90;
+/**
+ * Low balance: the credits left are 20% or less of the credits received in the last 90 days (grants that are still
+ * usable count too, however old). With nothing ever received, only an empty balance counts as low.
+ */
+export function lowBalance(grants: Grant[], balance: number, today: string) {
+  const since = addDaysIso(today, -LOW_BALANCE_DAYS);
+  const reference = grants.filter((g) => g.on >= since || g.expiresOn >= today).reduce((a, g) => a + g.credits, 0);
+  const threshold = Math.floor(reference * LOW_BALANCE_SHARE);
+  return { low: balance <= threshold, reference, threshold };
+}
+
 export const creditsKey = (c: number) => `aicred:${c}`;
 
 async function loadGrants(env: Env, c: number): Promise<Grant[]> {
@@ -153,9 +167,9 @@ async function casSpent(env: Env, c: number, from: number, to: number): Promise<
 /** Credits that can be used today, and when the next ones run out. Read only. */
 export async function creditView(env: Env, c: number, today: string) {
   const grants = await loadGrants(env, c);
-  if (!grants.length) return { balance: 0, nextExpiry: null as { on: string; credits: number } | null, grants: [] as ReturnType<typeof ledger>["rows"] };
+  if (!grants.length) return { balance: 0, nextExpiry: null as { on: string; credits: number } | null, grants: [] as ReturnType<typeof ledger>["rows"], ...lowBalance([], 0, today) };
   const l = ledger(grants, await readSpent(env, c), today);
-  return { balance: l.balance, nextExpiry: l.nextExpiry, grants: l.rows };
+  return { balance: l.balance, nextExpiry: l.nextExpiry, grants: l.rows, ...lowBalance(grants, l.balance, today) };
 }
 
 /** Uses `cost` credits if there are enough. Never goes below zero, even if two requests arrive together. */

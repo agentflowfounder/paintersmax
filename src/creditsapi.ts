@@ -136,6 +136,8 @@ export async function handleCredits(request: Request, env: Env): Promise<Respons
     canUseCredits: true,
     balance: view.balance,
     nextExpiry: view.nextExpiry,
+    low: view.low,
+    lowAt: view.threshold,
     allowance: a && allowance ? { id: a.id, credits: a.credits, priceCents: a.priceCents, status: allowance.status, since: allowance.since, lastGrantOn: allowance.lastGrantOn } : null,
     allowances: ALLOWANCES.map((x) => ({ id: x.id, credits: x.credits, priceCents: x.priceCents })),
     topUps: TOPUPS.map((x) => ({ id: x.id, credits: x.credits, priceCents: x.priceCents })),
