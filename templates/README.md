@@ -41,3 +41,7 @@ Add `templates/<slug>/` changes under a new version (keep the old config and ass
 ## A new feature on sites
 
 Add a block in `src/siteblocks.ts` (lowest door, credit cost, `ready: false` until its endpoint exists), add its section to the templates that should show it, and if the Site document needs a new field, add an upgrade step in `src/sitetheme.ts` and raise `SITE_SCHEMA`. Old sites keep working.
+
+## Testing a template on a branch preview
+
+Cloudflare builds a test copy of a pull request's branch (separate test database and photo bucket, no cron). In the Cloudflare dashboard open paintersmax-site, Deployments, switch Production to the branch, and open the newest build. "Builds for Preview branches" must be on under Settings, Builds, Previews Base.
