@@ -78,6 +78,25 @@
     b[1].addEventListener('click', function () { go(i + 1); });
   });
 
+  // Selected work: filter by service, pick a project from the strip
+  D.querySelectorAll('[data-work]').forEach(function (w) {
+    var thumbs = [].slice.call(w.querySelectorAll('.wthumb')), panels = [].slice.call(w.querySelectorAll('[data-panel-p]')), tabs = [].slice.call(w.querySelectorAll('.wt'));
+    if (!panels.length) return;
+    function pick(n) {
+      thumbs.forEach(function (b, k) { b.setAttribute('aria-pressed', k === n); });
+      panels.forEach(function (p, k) { p.hidden = k !== n; });
+    }
+    thumbs.forEach(function (b, k) { b.addEventListener('click', function () { pick(k); }); });
+    tabs.forEach(function (tb) {
+      tb.addEventListener('click', function () {
+        var f = tb.dataset.f, first = -1;
+        tabs.forEach(function (x) { x.setAttribute('aria-pressed', x === tb); });
+        thumbs.forEach(function (b, k) { var show = !f || b.dataset.service === f; b.hidden = !show; if (show && first < 0) first = k; });
+        if (first >= 0) pick(first);
+      });
+    });
+  });
+
   // Scroll reveal
   var els = D.querySelectorAll('.reveal');
   if ('IntersectionObserver' in window && !reduce) {

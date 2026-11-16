@@ -102,17 +102,22 @@ export function colorStudioAi(x: ThemeRenderCtx): string {
 
 // ------------------------------------------------------------------ before and after
 
+/** One draggable before and after slider. */
+export function baFigure(x: ThemeRenderCtx, before: string | null, after: string | null, caption: string): string {
+  return `<figure class="pm-ba reveal" style="--pos:50%"><div class="pm-ba-frame">
+<div class="pm-ba-after">${photo(x, after, slotDef(x, "BA-AFTER"))}</div>
+<div class="pm-ba-before">${photo(x, before, slotDef(x, "BA-BEFORE"))}</div>
+<span class="pm-ba-line" aria-hidden="true"><span>${ic("arrow-left")}${ic("arrow-right")}</span></span>
+<span class="pm-ba-tag b">${e(t(x, "before"))}</span><span class="pm-ba-tag a">${e(t(x, "after"))}</span>
+<input type="range" min="0" max="100" value="50" aria-label="${e(`${t(x, "before")} / ${t(x, "after")}`)}"></div>${caption ? `<figcaption>${e(caption)}</figcaption>` : ""}</figure>`;
+}
+
 export function beforeAfter(x: ThemeRenderCtx): string {
   const g = gate(x, "gallery_ba");
   if (!g.show) return g.card;
   const pairs = x.theme.pairs;
   if (!pairs.length && !x.preview) return "";
-  const one = (b: string | null, a: string | null, cap: string, i: number) => `<figure class="pm-ba reveal" style="--pos:50%"><div class="pm-ba-frame">
-<div class="pm-ba-after">${photo(x, a, slotDef(x, "BA-AFTER"))}</div>
-<div class="pm-ba-before">${photo(x, b, slotDef(x, "BA-BEFORE"))}</div>
-<span class="pm-ba-line" aria-hidden="true"><span>${ic("arrow-left")}${ic("arrow-right")}</span></span>
-<span class="pm-ba-tag b">${e(t(x, "before"))}</span><span class="pm-ba-tag a">${e(t(x, "after"))}</span>
-<input type="range" min="0" max="100" value="50" aria-label="${e(`${t(x, "before")} / ${t(x, "after")}`)}"></div>${cap ? `<figcaption>${e(cap)}</figcaption>` : ""}</figure>`;
+  const one = (b: string | null, a: string | null, cap: string, _i: number) => baFigure(x, b, a, cap);
   const list = pairs.length ? pairs.slice(0, 6).map((p, i) => one(p.before, p.after, p.caption, i)) : [one(null, null, "", 0)];
   return `<section id="before-after"><div class="wrap">${sectionHead(t(x, "baEyebrow"), t(x, "baTitle"), t(x, "baHint"))}<div class="pm-ba-grid">${list.join("")}</div></div></section>`;
 }

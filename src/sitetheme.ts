@@ -112,7 +112,8 @@ export function fontsHref(families: string[]): string {
 
 export interface ThemeSection { key: string; on: boolean; order: number }
 export interface MenuItem { label: string; path: string }
-export interface BeforeAfter { before: string; after: string; caption: string }
+/** One before and after pair. service, city, year and size are optional details shown by templates that have a project row (Sunset Sand). */
+export interface BeforeAfter { before: string; after: string; caption: string; service: string; city: string; year: string; size: string }
 
 export interface Theme {
   tokens: Record<string, string>; // token key -> #rrggbb (only the ones changed from the template default)
@@ -172,7 +173,7 @@ export function cleanTheme(raw: any, cfg: TemplateConfig | null, photoIds: Set<s
   for (const [k, v] of Object.entries(raw.slots ?? {})) if (slotKeys.has(k) && typeof v === "string" && photoIds.has(v)) t.slots[k] = v;
   for (const p of Array.isArray(raw.pairs) ? raw.pairs.slice(0, 24) : []) {
     if (typeof p?.before === "string" && typeof p?.after === "string" && photoIds.has(p.before) && photoIds.has(p.after) && p.before !== p.after) {
-      t.pairs.push({ before: p.before, after: p.after, caption: str(p?.caption, 120) });
+      t.pairs.push({ before: p.before, after: p.after, caption: str(p?.caption, 120), service: str(p?.service, 40), city: str(p?.city, 40), year: /^\d{4}$/.test(str(p?.year, 4)) ? str(p.year, 4) : "", size: str(p?.size, 30) });
     }
   }
   t.legal = { privacy: httpsUrl(raw.legal?.privacy) || (/^\/info\/[a-z0-9-]{1,60}$/.test(str(raw.legal?.privacy, 80)) ? str(raw.legal.privacy, 80) : ""), terms: httpsUrl(raw.legal?.terms) || (/^\/info\/[a-z0-9-]{1,60}$/.test(str(raw.legal?.terms, 80)) ? str(raw.legal.terms, 80) : "") };
@@ -237,11 +238,19 @@ export function tokenCss(cfg: TemplateConfig, theme: Theme): string {
  * Site document versions. Each step upgrades a saved site one version, so a site saved long ago still opens.
  *  1: the first website builder (one template field, no theme).
  *  2: per-template themes, social links.
+ *  3: before and after pairs gain service, city, year and size (all optional).
  * To add a feature later: add a step here, raise SITE_SCHEMA, and give new fields a safe default.
  */
-export const SITE_SCHEMA = 2;
+export const SITE_SCHEMA = 3;
 const STEPS: Record<number, (s: any) => any> = {
   1: (s) => ({ ...s, sv: 2, themes: s.themes && typeof s.themes === "object" ? s.themes : {}, social: Array.isArray(s.social) ? s.social : [] }),
+  2: (s) => {
+    const themes: Record<string, any> = {};
+    for (const [k, th] of Object.entries(s.themes && typeof s.themes === "object" ? s.themes : {}) as [string, any][]) {
+      themes[k] = th && Array.isArray(th.pairs) ? { ...th, pairs: th.pairs.map((p: any) => ({ service: "", city: "", year: "", size: "", ...p })) } : th;
+    }
+    return { ...s, sv: 3, themes };
+  },
 };
 export function upgradeSite(raw: any): any {
   if (!raw || typeof raw !== "object") return raw;

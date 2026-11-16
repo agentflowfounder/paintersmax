@@ -214,3 +214,31 @@ test("render: Sunset Sand draws every page, three hero words with the city, hero
   assert.match(es, /Pintura Nueva/);
   assert.match(es, /Cuatro pasos sencillos/);
 });
+
+test("pairs: service, city, year and size are cleaned, old pairs get empty details, and Sunset Sand shows the project row", () => {
+  const s = draft();
+  const th = cleanTheme({ pairs: [
+    { before: "bbbbbbbbbbbb", after: "aaaaaaaaaaaa", caption: "Oak Street kitchen", service: "Cabinet painting", city: "Tyler", year: "2026", size: "2,400 sq ft" },
+    { before: "aaaaaaaaaaaa", after: "bbbbbbbbbbbb", caption: "Hall", service: "Interior painting", year: "26<script>" },
+  ] }, configOf("sunset-sand")!, new Set(["aaaaaaaaaaaa", "bbbbbbbbbbbb"]));
+  assert.equal(th.pairs[0].year, "2026");
+  assert.equal(th.pairs[1].year, "");
+  assert.equal(th.pairs[1].city, "");
+  // A schema 2 site upgrades with empty details on every saved pair.
+  const old = { v: 1, sv: 2, template: "sunset-sand", lang: "en", pages: [], photos: [], business: {}, themes: { "sunset-sand": { pairs: [{ before: "a", after: "b", caption: "c" }] } } };
+  const up = upgradeSite(old);
+  assert.equal(up.sv, SITE_SCHEMA);
+  assert.deepEqual(up.themes["sunset-sand"].pairs[0], { service: "", city: "", year: "", size: "", before: "a", after: "b", caption: "c" });
+  // The work band: tabs by service, a strip, and the details row, all escaped.
+  s.template = "sunset-sand";
+  s.themes["sunset-sand"] = { ...th, pairs: th.pairs.map((p, i) => (i === 0 ? { ...p, caption: "Oak <b>Street</b>" } : p)) } as any;
+  const html = draw(s, { tpl: "sunset-sand" });
+  assert.match(html, /<dl class="work-meta">.*Cabinet painting.*Tyler.*2026.*2,400 sq ft/s);
+  assert.match(html, /class="wt" data-f="Interior painting"/);
+  assert.match(html, /class="wthumb"/);
+  assert.ok(!html.includes("<b>Street</b>"));
+  // Sunset (template 1) still draws the same pairs as plain sliders.
+  s.template = "dfw-pro-painters";
+  s.themes["dfw-pro-painters"] = th as any;
+  assert.match(draw(s, { tpl: "dfw-pro-painters" }), /class="pm-ba/);
+});

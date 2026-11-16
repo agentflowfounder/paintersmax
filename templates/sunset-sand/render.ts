@@ -4,7 +4,7 @@ import { pathOf, type Block, type Page } from "../../src/sitecore.ts";
 import { richText, structuredData } from "../../src/siterender.ts";
 import { fontsHref, resolveFonts, resolveSections, tokenCss } from "../../src/sitetheme.ts";
 import {
-  beforeAfter, businessInfo, chatHelper, cityList, colorStudio, colorStudioAi, estimateRequest, ic, instantQuote, leadForm, map, pagePhoto, photo,
+  baFigure, businessInfo, gate, chatHelper, cityList, colorStudio, colorStudioAi, estimateRequest, ic, instantQuote, leadForm, map, pagePhoto, photo,
   reviewsBlock, sectionHead, slotDef, soonOnly, t, tel,
 } from "../_shared/blocks.ts";
 import type { ThemeRenderCtx } from "../_shared/ctx.ts";
@@ -104,9 +104,21 @@ function citiesRows(x: X) {
 }
 
 function work(x: X) {
-  const inner = beforeAfter(x);
-  if (!inner) return "";
-  return `<div class="work dark" id="work"><div class="work-feat">${photo(x, x.theme.slots["WORK-FEATURE"], slotDef(x, "WORK-FEATURE"))}</div>${inner}</div>`;
+  const g = gate(x, "gallery_ba");
+  if (!g.show) return g.card;
+  const pairs = x.theme.pairs.slice(0, 12);
+  if (!pairs.length && !x.preview) return "";
+  const list = pairs.length ? pairs : [{ before: "", after: "", caption: "", service: "", city: "", year: "", size: "" }];
+  const services = [...new Set(list.map((p) => p.service).filter(Boolean))];
+  const tabs = services.length > 1 ? `<div class="work-tabs" role="group" aria-label="${e(t(x, "metaService"))}"><button type="button" class="wt" data-f="" aria-pressed="true">${e(t(x, "allWork"))}</button>${services.map((v) => `<button type="button" class="wt" data-f="${e(v)}" aria-pressed="false">${e(v)}</button>`).join("")}</div>` : "";
+  const thumbs = list.length > 1 ? `<div class="work-strip">${list.map((p, i) => `<button type="button" class="wthumb" data-p="${i}" data-service="${e(p.service)}" aria-pressed="${i === 0}" aria-label="${e(p.caption || `${t(x, "baTitle")} ${i + 1}`)}">${photo(x, p.after || null, slotDef(x, "BA-AFTER"))}</button>`).join("")}</div>` : "";
+  const meta = (p: (typeof list)[number]) => {
+    const rows = [[t(x, "metaService"), p.service], [t(x, "metaCity"), p.city], [t(x, "metaYear"), p.year], [t(x, "metaSize"), p.size]].filter(([, v]) => v);
+    return rows.length ? `<dl class="work-meta">${rows.map(([k, v]) => `<div><dt>${e(k)}</dt><dd>${e(v)}</dd></div>`).join("")}</dl>` : "";
+  };
+  const panels = list.map((p, i) => `<div class="work-panel" data-panel-p="${i}" data-service="${e(p.service)}"${i ? " hidden" : ""}>${p.caption ? `<h3 class="work-name">${e(p.caption)}</h3>` : ""}${meta(p)}${baFigure(x, p.before || null, p.after || null, "")}</div>`).join("");
+  return `<div class="work dark" id="work" data-work><div class="work-feat">${photo(x, x.theme.slots["WORK-FEATURE"], slotDef(x, "WORK-FEATURE"))}</div>
+<section><div class="wrap">${sectionHead(t(x, "baEyebrow"), t(x, "baTitle"), t(x, "baHint"))}${tabs}${thumbs}<div class="work-panels">${panels}</div></div></section></div>`;
 }
 
 function process(x: X) {

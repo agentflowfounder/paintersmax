@@ -231,3 +231,18 @@ body{padding-bottom:0}@media(max-width:899px){.ftr{padding-bottom:84px}}
 
 /* Small text on dark bands uses the light text color (contrast) */
 .dark .pm-form label,.ftr .pm-form label,.ftr .pm-form .consent,.dark .muted,.dark small{color:color-mix(in srgb,var(--c-brand-ink) 80%,transparent)}
+
+/* Selected work: filter tabs, thumbnail strip, project details */
+.work-tabs{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 1.2rem}
+.wt{background:none;border:1px solid rgba(255,255,255,.35);color:inherit;padding:.7em 1.1em;font:500 .72rem/1 var(--f-body);letter-spacing:.18em;text-transform:uppercase;cursor:pointer}
+.wt[aria-pressed=true]{background:var(--c-brand-ink);color:var(--c-brand);border-color:var(--c-brand-ink)}
+.work-strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin:0 0 1.6rem;scrollbar-width:thin}
+.wthumb{flex:0 0 112px;aspect-ratio:4/3;padding:0;border:2px solid transparent;background:none;cursor:pointer;overflow:hidden;opacity:.7}
+.wthumb[aria-pressed=true]{border-color:var(--c-accent2);opacity:1}
+.wthumb img,.wthumb .pm-ph{width:100%;height:100%;object-fit:cover;display:block}
+.wthumb[hidden],.work-panel[hidden]{display:none}
+.work-name{font-size:clamp(1.3rem,3vw,2rem);margin:0 0 .6rem}
+.work-meta{display:flex;flex-wrap:wrap;gap:.6rem 2.2rem;margin:0 0 1.4rem;padding:0 0 1rem;border-bottom:1px solid rgba(255,255,255,.2)}
+.work-meta div{display:grid;gap:.2rem}
+.work-meta dt{font:500 .66rem/1 var(--f-body);letter-spacing:.2em;text-transform:uppercase;color:var(--c-accent2)}
+.work-meta dd{margin:0}
