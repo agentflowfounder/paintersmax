@@ -416,8 +416,24 @@
   }
   function broadcastsLoad_keep() { /* leaves the error message on screen */ }
 
+  // ------------------------------------------------------------- domain emails (day 1 and day 25 after a cancel)
+  function dmLoad() {
+    api('/api/admin?dmails=1').then(function (v) {
+      var st = v.settings, isOwner = ME && ME.role === 'owner', pv = v.preview;
+      var mail = function (m) { return '<div class="msgs"><div><small>' + esc(T('Subject')) + '</small>\n' + esc(m.subject) + '\n\n' + esc(m.text) + '</div></div>'; };
+      $('dm_box').innerHTML = '<div class="card"><h3>' + esc(T('Emails to clients who cancelled')) + '</h3><small>' + esc(T('Day 1 after a client cancels, and day 25, we email them about the domain we are holding. The website stays online until the domain expires. Emails go out at 8 AM Central, once each, and only for a held domain that is still active.')) + '</small>' +
+        '<label class="chk"><input type="checkbox" id="dm_on"' + (st.emailsOn ? ' checked' : '') + (isOwner ? '' : ' disabled') + '> <span>' + esc(T('These emails are switched on')) + '</span></label>' +
+        '<div class="g3"><div><label>' + esc(T('Signed by (employee name, optional)')) + '</label><input id="dm_signer" maxlength="60" value="' + esc(st.signer) + '"></div><div><label>' + esc(T('Sign-in link')) + '</label><input id="dm_link" maxlength="200" value="' + esc(st.loginLink) + '"></div><div><label>' + esc(T('Support email')) + '</label><input id="dm_sup" maxlength="120" value="' + esc(st.supportEmail) + '"></div></div>' +
+        '<div><button class="btn sm" id="dm_save"' + dis('domains') + '>Save</button> <button class="btn sm gray" id="dm_test"' + dis('domains') + '>' + esc(T('Send both test emails to me')) + '</button></div>' +
+        '<h3 style="margin-top:14px">' + esc(T('Day 1 email (sample client)')) + '</h3>' + mail(pv.first) + '<h3>' + esc(T('Day 25 email (sample client)')) + '</h3>' + mail(pv.reminder) + '</div>';
+      $('dm_save').onclick = function () { var b = { action: 'dm_settings', signer: $('dm_signer').value, loginLink: $('dm_link').value, supportEmail: $('dm_sup').value }; if (isOwner) b.emailsOn = $('dm_on').checked; post(b).then(function () { ok('Saved.'); dmLoad(); }).catch(bad); };
+      $('dm_test').onclick = function () { post({ action: 'dm_test' }).then(function () { ok('Test emails sent to you.'); }).catch(bad); };
+    }).catch(function (x) { $('dm_box').textContent = x ? x.message : ''; });
+  }
+
   // ------------------------------------------------------------- held domains
   function heldLoad() {
+    dmLoad();
     api('/api/admin?held=1').then(function (v) {
       CACHE.held = v.domains;
       var queue = v.domains.filter(function (x) { return x.reason; });

@@ -17,6 +17,7 @@ import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import { readSettings, renderQuotePage, sanitize, tenantFromHost } from "./settings.ts";
 import { handleImport } from "./import.ts";
+import { sendDomainEmails } from "./domainemails.ts";
 import { handleSchedule, scheduledJobs } from "./schedule.ts";
 import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
@@ -419,6 +420,7 @@ export default {
     ctx.waitUntil(sendStartNotices(env).catch((err) => console.error("start notices failed", String(err))));
     ctx.waitUntil(sendOwnerDigests(env).catch((err) => console.error("owner digest failed", String(err))));
     ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
+    ctx.waitUntil(sendDomainEmails(env).catch((err) => console.error("domain emails failed", String(err))));
     ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

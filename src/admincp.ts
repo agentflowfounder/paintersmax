@@ -6,6 +6,7 @@ import { envelopeUse, forgetClientModel, FEATURE_GROUP, GROUP_LABELS, GROUPS, lo
 import { aiCostView, setPrice } from "./aimeter.ts";
 import { audienceRows, deleteBroadcast, loadBroadcasts, loadSettings, progressView, saveBroadcast, saveSettings, sendBatch, sendTest, WHO, WHO_LABELS } from "./broadcasts.ts";
 import { adminFeedbackAct, adminFeedbackList, feedbackForCompany, saveQuick } from "./feedback.ts";
+import { loadDmSettings, previewFor, saveDmSettings, sendDmTest } from "./domainemails.ts";
 import { decideHeld, domainQueue, loadHeld, saveHeld } from "./helddomains.ts";
 import { blobsWithPrefix, readBlob, str, updateBlob } from "./kv.ts";
 import { CHANNELS, loadPromos, normCode, promoPrice, promoUses, savePromo, setPromoActive, validatePromo } from "./promos.ts";
@@ -187,6 +188,10 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
     }
     return { area: "broadcasts", data: { broadcasts: out, settings, who: WHO, whoLabels: WHO_LABELS, doors: DOORS } };
   }
+  if (q.get("dmails") === "1") {
+    const st = await loadDmSettings(env);
+    return { area: "domains", data: { settings: st, preview: previewFor(st, today) } };
+  }
   if (q.get("held") === "1") {
     const [held, subs] = await Promise.all([loadHeld(env), allSubs(env, today)]);
     const ended = new Map<number, string>();
@@ -219,7 +224,7 @@ export const ACT_AREAS: Record<string, Area> = {
   market_save: "research", market_lesson: "research", contact_save: "research", contacts_import: "research",
   feedback_reply: "feedback",
   quickreply_save: "feedback",
-  held_save: "domains", held_decide: "domains",
+  held_save: "domains", held_decide: "domains", dm_settings: "domains", dm_test: "domains",
   broadcast_save: "broadcasts", broadcast_delete: "broadcasts", broadcast_test: "broadcasts", broadcast_send: "broadcasts", broadcast_settings: "broadcasts",
   team_set: "security",
 };
@@ -353,6 +358,15 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
       if (actor.role !== "owner") return fail("Only the owner can change broadcast settings.", 403);
       const r = await saveSettings(env, b, actor.email, today);
       return r.ok ? { ok: true, data: { settings: r.settings }, detail: `emails ${r.settings.emailsOn ? "on" : "off"}, footer ${r.settings.footer.length} characters` } : fail(r.error);
+    }
+    case "dm_settings": {
+      if (actor.role !== "owner" && (b.emailsOn !== undefined)) return fail("Only the owner can switch these emails on or off.", 403);
+      const r = await saveDmSettings(env, b, actor.email, today);
+      return r.ok ? { ok: true, data: { settings: r.settings }, detail: `domain emails ${r.settings.emailsOn ? "on" : "off"}, signer "${r.settings.signer}"` } : fail(r.error);
+    }
+    case "dm_test": {
+      const r = await sendDmTest(env, actor.email, today);
+      return r.ok ? { ok: true, detail: `test of both domain emails to ${actor.email}` } : fail(r.error);
     }
     case "held_save": {
       const r = await saveHeld(env, b.domain ?? {});
