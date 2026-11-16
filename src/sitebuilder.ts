@@ -9,11 +9,16 @@ import { stripeApi } from "./stripe.ts";
 import { consume, normalizePlan, refund, type Plan } from "./usage.ts";
 import {
   blankPage, canPublish, cleanSite, DOOR_FLOOR_CENTS, DOOR_LIMITS, DOOR_LIST_CENTS, DOOR_NAMES, DOOR_PLAN, doorFor, DOORS, firstDraft, healthFlags, isDoor,
-  limitsFor, nextDoor, pageForPath, publishBlockers, readDoorRecord, seoChecks, TEMPLATES, upgradeCents, usageOf,
+  limitsFor, nextDoor, pageForPath, publishBlockers, readDoorRecord, seoChecks, upgradeCents, usageOf,
   type Door, type DoorRecord, type Site,
 } from "./sitecore.ts";
 import { handleReviewsApi, shownReviews } from "./reviews.ts";
-import { renderSitePage, siteRobots, siteSitemap } from "./siterender.ts";
+import { siteRobots, siteSitemap } from "./siterender.ts";
+import { configOf } from "../templates/configs.ts";
+import { BLOCKS, blockState, type BlockKey } from "./siteblocks.ts";
+import { FONT_CHOICES, SOCIAL_KINDS } from "./sitetheme.ts";
+import { canPublishWith, entries, entryOf, mayChoose, pickerList, readRegistry, REGISTRY_KEY, renderWithTemplate, uiLangOf, type Registry } from "./sitetemplates.ts";
+import { creditView } from "./credits.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -127,13 +132,32 @@ export async function siteOrigin(env: Env, slug: string): Promise<string> {
   return dom ? `https://${dom.key.slice(7)}` : `https://${slug}.paintersmax.app`;
 }
 
-function doorInfo(door: Door, rec: DoorRecord) {
+export async function loadRegistry(env: Env): Promise<Registry> {
+  return readRegistry(await getKv(env, REGISTRY_KEY));
+}
+
+/** What the editor needs to show the painter's template controls: the template's own fields, fonts and blocks. */
+export function themeInfo(id: string, reg: Registry, door: Door, balance: number | null) {
+  const e = entryOf(reg, id);
+  const cfg = configOf(id, e?.version);
+  if (!cfg) return null;
+  return {
+    id: cfg.id, name: e?.name ?? cfg.name, version: cfg.version, legacy: !!cfg.legacy,
+    tokens: cfg.tokens, fonts: cfg.fonts, fontChoices: FONT_CHOICES.map((f) => ({ family: f.family, kind: f.kind })),
+    sections: cfg.sections.map((x) => ({ ...x, block: x.key in BLOCKS ? { ...BLOCKS[x.key as BlockKey], state: blockState(x.key as BlockKey, door, balance) } : null })),
+    imageSlots: cfg.imageSlots, imageProvider: cfg.imageProvider,
+    texts: Object.keys(cfg.i18n.en).filter((k) => /Title|Text|Eyebrow|heroWord|Sub$/.test(k)).map((k) => ({ key: k, en: cfg.i18n.en[k], es: cfg.i18n.es[k] ?? "" })),
+    socialKinds: SOCIAL_KINDS,
+  };
+}
+
+function doorInfo(door: Door, rec: DoorRecord, reg: Registry = {}, current = "") {
   const nd = nextDoor(door);
   return {
     door, name: DOOR_NAMES[door], limits: limitsFor(door, rec), canPublish: canPublish(door), override: rec.override ?? null,
     next: nd ? { door: nd, name: DOOR_NAMES[nd], limits: DOOR_LIMITS[nd], priceCents: upgradeCents(door, nd), floorCents: DOOR_FLOOR_CENTS[nd], listCents: DOOR_LIST_CENTS[nd] } : null,
     doors: DOORS.filter((d) => d !== "free").map((d) => ({ door: d, name: DOOR_NAMES[d], limits: DOOR_LIMITS[d], floorCents: DOOR_FLOOR_CENTS[d], listCents: DOOR_LIST_CENTS[d], upgradeCents: upgradeCents(door, d), current: d === door })),
-    templates: TEMPLATES.map((t) => ({ id: t.id, name: t.name, allowed: t.doors.includes(door) })),
+    templates: pickerList(reg, door, current),
   };
 }
 
@@ -169,15 +193,19 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
   const { door, rec, limits } = await loadDoor(env, co.id, co.plan);
   const by = a.viewAs ? `admin ${a.user.email}` : a.user.email;
 
+  const reg = await loadRegistry(env);
   if (request.method === "GET") {
     const { site, fresh } = await loadDraft(env, co, lang);
+    const balance = (await creditView(env, co.id, todayLocal()).catch(() => null))?.balance ?? null;
     const live = await loadLive(env, co.id);
     const origin = await siteOrigin(env, co.slug);
     const cityPages = (await env.DB.prepare("SELECT slug, published FROM city_pages WHERE company_id = ?").bind(co.id).all<{ slug: string; published: number }>().catch(() => ({ results: [] as any[] }))).results ?? [];
     return json({
       company: { id: co.id, name: co.name, slug: co.slug, brandColor: readSettings(co.settings).brandColor ?? null },
       viewAs: a.viewAs,
-      ...doorInfo(door, rec),
+      ...doorInfo(door, rec, reg, site.template),
+      themeInfo: themeInfo(site.template, reg, door, balance),
+      canPublishTemplate: canPublishWith(reg, site.template, door),
       usage: usageOf(site),
       site,
       fresh,
@@ -199,12 +227,19 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
     const cur = (await loadDraft(env, co, lang)).site;
     const alts = new Map<string, string>((Array.isArray(b?.site?.photos) ? b.site.photos : []).map((p: any) => [String(p?.id), String(p?.alt ?? "")]));
     const merged = { ...(b?.site ?? cur), photos: cur.photos.map((p) => ({ ...p, alt: alts.has(p.id) ? alts.get(p.id) : p.alt })) };
+    // A template the painter may not choose (turned off, or a higher door) keeps the one they had.
+    if (!mayChoose(reg, String(merged.template ?? ""), door, cur.template)) merged.template = cur.template;
     const r = cleanSite(merged, limits, door);
     if (!r.ok) return json({ error: r.error, over: r.over, upgrade: doorInfo(door, rec).next }, 402);
     await setKv(env, draftKey(co.id), JSON.stringify(r.site));
     if (a.viewAs) await audit(env, co.id, by, action === "publish" ? "save and publish" : "save");
-    if (action === "save") return json({ ok: true, site: r.site, usage: usageOf(r.site), checks: Object.fromEntries(r.site.pages.map((p) => [p.id, seoChecks(r.site, p)])), blockers: publishBlockers(r.site) });
+    if (action === "save") return json({ ok: true, site: r.site, usage: usageOf(r.site), checks: Object.fromEntries(r.site.pages.map((p) => [p.id, seoChecks(r.site, p)])), blockers: publishBlockers(r.site), themeInfo: themeInfo(r.site.template, reg, door, null), canPublishTemplate: canPublishWith(reg, r.site.template, door) });
     if (!canPublish(door)) return json({ error: "Publishing comes with the Launch door. Your draft is saved.", over: "publish", upgrade: doorInfo(door, rec).next }, 402);
+    if (!canPublishWith(reg, r.site.template, door)) {
+      const t = entryOf(reg, r.site.template);
+      const need = t?.doors[0];
+      return json({ error: `The ${t?.name ?? "chosen"} template comes with the ${need ? DOOR_NAMES[need] : "next"} door. Pick another template or upgrade. Your draft is saved.`, over: "template", upgrade: doorInfo(door, rec).next }, 402);
+    }
     const blockers = publishBlockers(r.site);
     if (blockers.length) return json({ error: "Fix these first:", blockers }, 400);
     const publishedAt = new Date().toISOString();
@@ -380,11 +415,22 @@ export async function handleSitePreview(request: Request, env: Env): Promise<Res
   const page = pageForPath(site, url.searchParams.get("path") ?? "/") ?? site.pages[0];
   const asQ = a.viewAs ? `&as=${co.id}` : "";
   const base = await renderContext(env, co, site, await siteOrigin(env, co.slug));
-  const html = renderSitePage({
+  const reg = await loadRegistry(env);
+  const { door } = await loadDoor(env, co.id, co.plan);
+  // ?tpl= shows the draft in another template without changing it (the picker's "Preview" and admin "preview as").
+  const tplRaw = url.searchParams.get("tpl") ?? "";
+  const tpl = tplRaw && entryOf(reg, tplRaw) && (entryOf(reg, tplRaw)!.enabled || a.viewAs) ? tplRaw : "";
+  const tplQ = tpl ? `&tpl=${encodeURIComponent(tpl)}` : "";
+  const uiLang = uiLangOf(url, site.lang);
+  const langQ = url.searchParams.get("lang") ? `&lang=${uiLang}` : "";
+  const html = renderWithTemplate({
     ...base, page, preview: true,
-    link: (p) => `/api/site/preview?path=${encodeURIComponent(p)}${asQ}`,
+    link: (p) => `/api/site/preview?path=${encodeURIComponent(p)}${asQ}${tplQ}${langQ}`,
     quoteHref: `/q/${encodeURIComponent(co.slug)}`,
     cityPages: base.cityPages.map((c) => ({ ...c, href: `/areas/${co.slug}${c.href.slice(6)}` })),
+  }, {
+    reg, door, balance: (await creditView(env, co.id, todayLocal()).catch(() => null))?.balance ?? null, uiLang, mapsKey: env.GOOGLE_MAPS_BROWSER_KEY ?? "", templateOverride: tpl || undefined,
+    langHref: `/api/site/preview?path=${encodeURIComponent(page.kind === "home" ? "/" : url.searchParams.get("path") ?? "/")}${asQ}${tplQ}&lang=${uiLang === "es" ? "en" : "es"}`,
   });
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-robots-tag": "noindex" } });
 }
@@ -393,7 +439,7 @@ export async function handleSitePreview(request: Request, env: Env): Promise<Res
  * The public site on a painter's own address. Returns null when the site is not published or the address
  * is not one of its pages, so the old behavior (quote page at "/") keeps working.
  */
-export async function serveTenantSite(env: Env, slug: string, pathname: string, origin: string): Promise<Response | null> {
+export async function serveTenantSite(env: Env, slug: string, pathname: string, origin: string, search = ""): Promise<Response | null> {
   const co = await env.DB.prepare("SELECT id, slug, name, plan, settings, notify_email, created_at FROM companies WHERE slug = ?").bind(slug).first<CompanyRow>();
   if (!co) return null;
   const live = await loadLive(env, co.id);
@@ -406,7 +452,13 @@ export async function serveTenantSite(env: Env, slug: string, pathname: string, 
   const page = pageForPath(live.site, pathname);
   if (!page) return null;
   const base = await renderContext(env, co, live.site, origin);
-  const html = renderSitePage({ ...base, page, link: (p) => p, quoteHref: "/quote" });
+  const { door } = await loadDoor(env, co.id, co.plan);
+  const uiLang = uiLangOf(new URL(`https://x${search}`), live.site.lang);
+  const keepLang = (p: string) => (uiLang !== live.site.lang ? `${p}?lang=${uiLang}` : p);
+  const html = renderWithTemplate({ ...base, page, link: keepLang, quoteHref: "/quote" }, {
+    reg: await loadRegistry(env), door, balance: null, uiLang, mapsKey: env.GOOGLE_MAPS_BROWSER_KEY ?? "",
+    langHref: uiLang === live.site.lang ? `${pathname}?lang=${uiLang === "es" ? "en" : "es"}` : pathname,
+  });
   return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=120" } });
 }
 
@@ -474,7 +526,7 @@ export async function handleSiteAdmin(request: Request, env: Env): Promise<Respo
       health: healthFlags(site, live?.publishedAt ?? null, today),
     };
   });
-  return json({ clients: rows, doors: DOORS.map((d) => ({ door: d, name: DOOR_NAMES[d], limits: DOOR_LIMITS[d] })), templates: TEMPLATES });
+  return json({ clients: rows, doors: DOORS.map((d) => ({ door: d, name: DOOR_NAMES[d], limits: DOOR_LIMITS[d] })), templates: entries(await loadRegistry(env)) });
 }
 
 /** /api/reviews: the painter's reviews and review links. Admin can work on a client's with "as" (logged like the editor). */

@@ -42,6 +42,11 @@ canvas{max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none}
 .icons label{display:inline-flex;align-items:center;gap:4px;margin:0 12px 0 0;font-weight:400}.icons input{width:auto}
 .switch{display:flex;gap:8px;align-items:center;font-weight:600}.switch input{width:auto}
 @media(max-width:820px){.cols{grid-template-columns:1fr}}
+.tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.tpl{border:1px solid #cfd5dc;border-radius:10px;padding:10px;background:#fff}.tpl.on{border:2px solid #0F1B2D}.tpl img,.tpl-ph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;display:grid;place-items:center;background:linear-gradient(160deg,#f6e8cf,#e08a35);color:#fff;font-family:Newsreader,Georgia,serif;font-size:22px;margin-bottom:8px}.tpl p{font-size:13px;margin:6px 0}
+.sws{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}.sw{display:flex;align-items:center;gap:8px;font-weight:500}.sw input{width:42px;height:34px;padding:2px}
+.srow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;border-bottom:1px solid #eceae4;padding:6px 0}.srow .btns{margin-left:auto}
+.mrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}.mrow input{flex:1;min-width:140px}.mrow select{width:auto}
+.pslot{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:start;border-bottom:1px solid #eceae4;padding:10px 0}.pslot img,.pslot-ph{width:120px;height:90px;object-fit:cover;border-radius:8px}.pslot-ph{display:grid;place-content:center;text-align:center;border:2px dashed #cfd5dc;font-size:12px;background:#faf8f4}
 </style></head><body>
 <header><div><b>PaintersMax</b> Website</div><div><a href="/dashboard">Home</a></div></header>
 <main>
@@ -109,6 +114,7 @@ async function load(){
   try{S=await api('/api/site'+asQ);}catch(e){if(e)msg(e.message);return;}
   if(S.viewAs){$('va').hidden=false;$('va').textContent=T('Admin view: you are editing the site of')+' '+S.company.name+'. '+T('Every change is written to the audit log.');}
   if(!cur||!S.site.pages.some(p=>p.id===cur))cur=S.site.pages[0].id;
+  if(new URLSearchParams(location.search).get('upgrade'))setTimeout(()=>openUp(null),0);
   if(new URLSearchParams(location.search).get('upgraded'))msg('Thank you. Your upgrade is being applied; refresh in a minute if the new limits do not show yet.',true);
   render();
 }
@@ -227,8 +233,8 @@ async function aiWrite(field,el,set){
 function openUp(why){
   if(!S.next){msg('You have the biggest door. Ask us if you need more.');return;}
   const u=usage(),L=S.limits;
-  $('upT').textContent=why?(why==='pages'?`${u.pages} ${T('of')} ${L.pages} ${T('pages')}`:why==='services'?`${u.services} ${T('of')} ${L.services} ${T('service pages')}`:why==='photos'?`${u.photos} ${T('of')} ${L.photos} ${T('photos')}`:T('Publish your site')):T('Compare the doors');
-  $('upWhy').textContent=why==='publish'?T('Publishing your website comes with the Launch door. Your draft is saved and nothing is lost.'):why?T('Your door is full. The next door gives you more room right away.'):T('Here is what each door gives. Nothing is hidden.');
+  $('upT').textContent=why?(why==='pages'?`${u.pages} ${T('of')} ${L.pages} ${T('pages')}`:why==='services'?`${u.services} ${T('of')} ${L.services} ${T('service pages')}`:why==='photos'?`${u.photos} ${T('of')} ${L.photos} ${T('photos')}`:why==='template'?T('More templates'):T('Publish your site')):T('Compare the doors');
+  $('upWhy').textContent=why==='template'?T('This template comes with a higher door. Your content moves with you.'):why==='publish'?T('Publishing your website comes with the Launch door. Your draft is saved and nothing is lost.'):why?T('Your door is full. The next door gives you more room right away.'):T('Here is what each door gives. Nothing is hidden.');
   const rows=S.doors.map(d=>`<tr class="${d.current?'cur':''}"><td><b>${esc(T(d.name))}</b>${d.current?' <span class="pill">'+T('Yours')+'</span>':''}</td><td>${d.limits.pages} ${T('pages')}</td><td>${d.limits.services} ${T('service pages')}</td><td>${d.limits.photos} ${T('photos')}</td><td>${d.upgradeCents&&!d.current?T('Upgrade')+' '+money(d.upgradeCents):''}</td></tr>`).join('');
   $('upTable').innerHTML=`<tr><th>${T('Door')}</th><th>${T('Pages')}</th><th>${T('Services')}</th><th>${T('Photos')}</th><th></th></tr>`+rows;
   $('upGo').textContent=T('Upgrade to')+' '+T(S.next.name)+' '+T('for')+' '+money(S.next.priceCents);
@@ -278,16 +284,93 @@ ${f('gbpUrl','Link to your Google Business Profile reviews (optional)',300,'http
   ['phone','email','address','city','state','zip','serviceArea','hours','license','gbpUrl'].forEach(k=>$('b_'+k).oninput=e=>{b[k]=e.target.value;touch();});
   $('b_footer').oninput=e=>{S.site.footer=e.target.value;touch();};
 }
-// ---------- Look and Google
+// ---------- Look: template, colors, fonts, sections, menu, logo, photo spaces, words, links
+function themeOf(){const id=S.site.template;S.site.themes=S.site.themes||{};const t=S.site.themes[id]||(S.site.themes[id]={});
+  t.tokens=t.tokens||{};t.fonts=t.fonts||{};t.sections=t.sections||[];t.menu=t.menu||[];t.slots=t.slots||{};t.pairs=t.pairs||[];t.legal=t.legal||{privacy:'',terms:''};t.texts=t.texts||{};t.logo=t.logo||'';t.heroWord=t.heroWord||'';return t;}
+const DOORN={launch:'Launch',grow:'Grow',signature:'Signature'};
+const photoUrl=id=>`/site-photo/${S.company.id}/${id}`;
+function photoChoice(cur,onPick,allowNone){
+  const d=document.createElement('dialog');
+  d.innerHTML=`<h3>${T('Choose a photo')}</h3>${S.site.photos.length?`<div class="slots">${S.site.photos.map(x=>`<button type="button" class="slot" data-pick="${x.id}"${x.id===cur?' style="border-color:#0F1B2D"':''}><img alt="${esc(x.alt)}" src="${photoUrl(x.id)}"></button>`).join('')}</div>`:`<p class="muted">${T('Upload photos on the Pages tab first. They show here.')}</p>`}<div class="btns">${allowNone?`<button class="btn sec" type="button" data-none>${T('No photo')}</button>`:''}<button class="btn sec" type="button" data-c>${T('Cancel')}</button></div>`;
+  document.body.appendChild(d);d.showModal();
+  const close=()=>{d.close();d.remove();};
+  d.querySelector('[data-c]').onclick=close;
+  if(allowNone)d.querySelector('[data-none]').onclick=()=>{close();onPick('');};
+  [].forEach.call(d.querySelectorAll('[data-pick]'),x=>x.onclick=()=>{close();onPick(x.dataset.pick);});
+}
 function rLook(){
-  $('body').innerHTML=`<div class="card"><h3>${T('Template')}</h3>${S.templates.map(t=>`<label class="switch"><input type="radio" name="tpl" value="${t.id}"${S.site.template===t.id?' checked':''}${t.allowed?'':' disabled'}> ${esc(T(t.name))}${t.allowed?'':' <span class="pill warn">'+T('Signature door')+'</span>'}</label>`).join('')}
-<p class="muted">${T('Your brand color and logo come from Settings.')}</p></div>
-<div class="card"><h3>${T('Google Search Console')}</h3><p class="muted">${T('Search Console shows which of your pages Google has found and what people searched to find you. It is free.')}</p>
+  const I=S.themeInfo,th=themeOf(),es=(document.documentElement.lang||'en').startsWith('es');
+  const L=o=>o?(es?o.es:o.en):'';
+  const badge=t=>t.current?`<span class="pill live">${T('Your template')}</span>`:t.state==='locked'?`<span class="pill warn">${T('Comes with')} ${esc(T(DOORN[t.lowestDoor]||t.lowestDoor))}</span>`:t.state==='preview'?`<span class="pill">${T('Preview on Free')}</span>`:'';
+  const pick=`<div class="card"><h3>${T('Template')}</h3><p class="muted">${T('Your words, pages and photos stay the same when you switch. Each template keeps its own colors and settings.')}</p>
+<div class="tpls">${S.templates.map(t=>`<div class="tpl${t.current?' on':''}">${t.thumb?`<img src="${esc(t.thumb)}" alt="" loading="lazy">`:`<div class="tpl-ph">${esc(t.name)}</div>`}<b>${esc(T(t.name))}</b> ${badge(t)}<p class="muted">${esc(L(t.description))}</p>
+<div class="btns"><a class="btn sec sm" target="_blank" rel="noopener" href="/api/site/preview?path=/&tpl=${encodeURIComponent(t.id)}${AS?'&as='+encodeURIComponent(AS):''}">${T('Preview')}</a>${t.current?'':t.state==='locked'?`<button class="btn sm" type="button" data-upg>${T('See upgrades')}</button>`:`<button class="btn sm" type="button" data-use="${t.id}">${T('Use this template')}</button>`}</div></div>`).join('')}</div></div>`;
+  let look='';
+  if(I&&!I.legacy){
+    const tokens=I.tokens.map(k=>`<label class="sw"><input type="color" data-tok="${k.key}" value="${esc(th.tokens[k.key]||k.default)}"> ${esc(L(k.label))}</label>`).join('');
+    const fontSel=f=>`<label for="font_${f.key}">${esc(L(f.label))}</label><select id="font_${f.key}" data-font="${f.key}">${I.fontChoices.map(c=>`<option${(th.fonts[f.key]||f.default)===c.family?' selected':''}>${esc(c.family)}</option>`).join('')}</select>`;
+    const mine=new Map(th.sections.map(s=>[s.key,s]));
+    const secs=I.sections.map(d=>({d,on:d.required?true:mine.has(d.key)?mine.get(d.key).on:d.enabled,order:mine.has(d.key)?mine.get(d.key).order:d.order})).sort((a,b)=>a.order-b.order);
+    const st=b=>!b?'':b.state.state==='upgrade'?`<span class="pill warn">${T(DOORN[b.state.door])} ${T('door')}</span>`:b.state.state==='soon'?`<span class="pill">${T('Coming soon')}</span>`:b.state.state==='topup'?`<span class="pill warn">${T('Needs credits')}</span>`:b.creditCost?`<span class="pill">${T('Uses credits')}: ${b.creditCost}</span>`:'';
+    const secRows=secs.map((s,i)=>`<div class="srow"><label class="switch"><input type="checkbox" data-sec="${s.d.key}"${s.on?' checked':''}${s.d.required?' disabled':''}> ${esc(L(s.d.label))}</label> ${st(s.d.block)} <small class="muted">${s.d.pages.map(p=>T(KIND[p]||p)).join(', ')}</small><span class="btns" style="margin:0"><button class="btn sec sm" type="button" data-smv="${i}" data-dir="-1" aria-label="${T('Move up')}">&uarr;</button><button class="btn sec sm" type="button" data-smv="${i}" data-dir="1" aria-label="${T('Move down')}">&darr;</button></span></div>`).join('');
+    const menuRows=th.menu.map((m,i)=>`<div class="mrow"><input data-ml="${i}" maxlength="30" value="${esc(m.label)}" aria-label="${T('Menu name')}"><select data-mp="${i}" aria-label="${T('Page')}">${S.site.pages.map(p=>{const pa=p.kind==='home'?'/':p.kind==='service'?'/services/'+p.slug:p.kind==='custom'?'/info/'+p.slug:'/'+p.slug;return `<option value="${esc(pa)}"${pa===m.path?' selected':''}>${esc(p.nav)}</option>`;}).join('')}</select><button class="btn sec sm" type="button" data-mrm="${i}">${T('Remove')}</button></div>`).join('');
+    const slot=s=>{const id=th.slots[s.slot];const ph=id&&S.site.photos.find(x=>x.id===id);return `<div class="pslot">${ph?`<img src="${photoUrl(ph.id)}" alt="${esc(ph.alt)}">`:`<div class="pslot-ph"><b>${esc(s.slot)}</b><small>${s.w} × ${s.h} &middot; ${esc(s.ratio)}</small></div>`}<div><b>${esc(L(s.alt))}</b><br><small class="muted">${esc(s.slot)}</small>
+<div class="btns"><button class="btn sec sm" type="button" data-slot="${s.slot}">${T(ph?'Change photo':'Choose photo')}</button><button class="btn sec sm" type="button" disabled title="${T('Coming soon: make this photo with AI credits')}">&#10024; ${T('Create with AI')}</button></div>
+<details><summary class="muted">${T('AI prompt for this space')}</summary><p class="muted" style="font-size:13px">${esc(s.prompt)}</p></details></div></div>`;};
+    const logo=th.logo&&S.site.photos.find(x=>x.id===th.logo);
+    const pairs=th.pairs.map((p,i)=>`<div class="mrow"><button class="btn sec sm" type="button" data-pb="${i}">${T('Before')}: ${p.before?'&#10003;':'-'}</button><button class="btn sec sm" type="button" data-pa="${i}">${T('After')}: ${p.after?'&#10003;':'-'}</button><input data-pc="${i}" maxlength="120" placeholder="${T('Caption (optional)')}" value="${esc(p.caption||'')}"><button class="btn sec sm" type="button" data-prm="${i}">${T('Remove')}</button></div>`).join('');
+    const lang=S.site.lang;
+    const texts=I.texts.map(x=>`<label for="tx_${x.key}">${esc(x[lang]||x.en)}</label><input id="tx_${x.key}" data-tx="${lang}:${x.key}" maxlength="${x.key==='heroWord'?12:200}" placeholder="${esc(x[lang]||x.en)}" value="${esc(x.key==='heroWord'?th.heroWord:(th.texts[lang+':'+x.key]||''))}">`).join('');
+    const social=(S.site.social||[]);
+    look=`<div class="card"><h3>${T('Colors')}</h3><div class="sws">${tokens}</div><div class="btns"><button class="btn sec sm" type="button" id="tokReset">${T('Back to the template colors')}</button></div></div>
+<div class="card"><h3>${T('Fonts')}</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>${fontSel(I.fonts.find(f=>f.key==='display')||{key:'display',label:{en:'Headlines',es:'Títulos'},default:''})}</div><div>${fontSel(I.fonts.find(f=>f.key==='body')||{key:'body',label:{en:'Text',es:'Texto'},default:''})}</div></div></div>
+<div class="card"><h3>${T('Sections')}</h3><p class="muted">${T('Turn sections on or off and change their order. Sections marked with a door come with that door; visitors never see a locked section.')}</p>${secRows}</div>
+<div class="card"><h3>${T('Logo')}</h3>${logo?`<img src="${photoUrl(logo.id)}" alt="" style="max-height:60px;border-radius:8px">`:`<p class="muted">${T('No logo here yet. Your logo from Settings is used if you have one.')}</p>`}<div class="btns"><button class="btn sec sm" type="button" id="logoPick">${T('Choose logo photo')}</button></div></div>
+<div class="card"><h3>${T('Menu')}</h3><label class="switch"><input type="checkbox" id="menuAuto"${th.menu.length?'':' checked'}> ${T('Menu follows my pages')}</label>${th.menu.length?menuRows+`<div class="btns"><button class="btn sec sm" type="button" id="menuAdd"${th.menu.length>=10?' disabled':''}>+ ${T('Add menu item')}</button></div>`:''}</div>
+<div class="card"><h3>${T('Photo spaces')}</h3><p class="muted">${T('Your own job photos look best. Until you add one, visitors see a soft color block in that space.')}</p>${I.imageSlots.map(slot).join('')}</div>
+<div class="card"><h3>${T('Before and after')}</h3><p class="muted">${T('Pick a before photo and an after photo of the same spot. Visitors drag a slider to compare.')}</p>${pairs}<div class="btns"><button class="btn sec sm" type="button" id="pairAdd"${th.pairs.length>=24?' disabled':''}>+ ${T('Add a pair')}</button></div></div>
+<div class="card"><h3>${T('Words in this template')}</h3><p class="muted">${T('Leave a box empty to use the template wording.')}</p>${texts}</div>
+<div class="card"><h3>${T('Social links')}</h3>${social.map((s,i)=>`<div class="mrow"><select data-sk="${i}">${I.socialKinds.map(k=>`<option${k===s.kind?' selected':''}>${k}</option>`).join('')}</select><input data-su="${i}" maxlength="300" placeholder="https://" value="${esc(s.url)}"><button class="btn sec sm" type="button" data-srm="${i}">${T('Remove')}</button></div>`).join('')}<div class="btns"><button class="btn sec sm" type="button" id="socAdd"${social.length>=9?' disabled':''}>+ ${T('Add a link')}</button></div>
+<h3 style="margin-top:14px">${T('Your policy pages (optional)')}</h3><p class="muted">${T('Link your own privacy policy and terms if you have them. We do not write legal text for you.')}</p>
+<label for="lg_p">${T('Privacy policy link')}</label><input id="lg_p" maxlength="300" placeholder="https://" value="${esc(th.legal.privacy)}"><label for="lg_t">${T('Terms link')}</label><input id="lg_t" maxlength="300" placeholder="https://" value="${esc(th.legal.terms)}"></div>`;
+  }else if(I&&I.legacy){look=`<div class="card"><p class="muted">${T('Your brand color and logo come from Settings.')}</p></div>`;}
+  $('body').innerHTML=pick+look+`<div class="card"><h3>${T('Google Search Console')}</h3><p class="muted">${T('Search Console shows which of your pages Google has found and what people searched to find you. It is free.')}</p>
 <ol class="muted"><li>${T('Open search.google.com/search-console and add your site address as a URL prefix property:')} <b>${esc(S.origin)}</b></li><li>${T('Pick the HTML tag method and copy the tag.')}</li><li>${T('Paste it below, save and publish, then tap Verify in Search Console.')}</li><li>${T('In Search Console, open Sitemaps and add sitemap.xml.')}</li></ol>
 <label for="gsc">${T('Search Console code or the whole tag')}</label><input id="gsc" maxlength="120" value="${esc(S.site.gscToken)}">
 <p class="muted">${T('Your sitemap:')} <a href="${esc(S.origin)}/sitemap.xml" target="_blank" rel="noopener">${esc(S.origin)}/sitemap.xml</a> &middot; ${T('City pages published:')} ${S.cityPages} <a href="/citypages">${T('Edit city pages')}</a></p></div>
 <div class="card"><h3>${T('Start over')}</h3><p class="muted">${T('Throw away the draft and go back to the published site (or to a fresh first draft written from your business profile).')}</p><button class="btn sec" type="button" id="discard">${T('Discard draft')}</button></div>`;
-  [].forEach.call(document.querySelectorAll('input[name=tpl]'),r=>r.onchange=()=>{S.site.template=r.value;touch();});
+  const all=(sel,fn)=>[].forEach.call(document.querySelectorAll(sel),fn);
+  const re=()=>{touch();rLook();};
+  all('[data-use]',b=>b.onclick=async()=>{S.site.template=b.dataset.use;touch();if(await save(true).catch(()=>false)){msg('Template changed. Your content is the same; check the preview.',true);rLook();}});
+  all('[data-upg]',b=>b.onclick=()=>openUp('template'));
+  if(I&&!I.legacy){
+    all('[data-tok]',x=>x.oninput=()=>{th.tokens[x.dataset.tok]=x.value;touch();});
+    $('tokReset').onclick=()=>{th.tokens={};re();};
+    all('[data-font]',x=>x.onchange=()=>{th.fonts[x.dataset.font]=x.value;touch();});
+    const secList=()=>{const mine=new Map(th.sections.map(s=>[s.key,s]));return I.sections.map(d=>({key:d.key,on:d.required?true:mine.has(d.key)?mine.get(d.key).on:d.enabled,order:mine.has(d.key)?mine.get(d.key).order:d.order})).sort((a,b)=>a.order-b.order);};
+    all('[data-sec]',x=>x.onchange=()=>{const l=secList();l.forEach((s,i)=>s.order=i*10);const s=l.find(q=>q.key===x.dataset.sec);s.on=x.checked;th.sections=l;touch();});
+    all('[data-smv]',x=>x.onclick=()=>{const l=secList(),i=+x.dataset.smv,j=i+(+x.dataset.dir);if(j<0||j>=l.length)return;[l[i],l[j]]=[l[j],l[i]];l.forEach((s,k)=>s.order=k*10);th.sections=l;re();});
+    $('logoPick').onclick=()=>photoChoice(th.logo,id=>{th.logo=id;re();},true);
+    $('menuAuto').onchange=e=>{th.menu=e.target.checked?[]:S.site.pages.filter(p=>p.kind!=='service').map(p=>({label:p.nav,path:p.kind==='home'?'/':p.kind==='custom'?'/info/'+p.slug:'/'+p.slug}));re();};
+    if($('menuAdd'))$('menuAdd').onclick=()=>{th.menu.push({label:T('New item'),path:'/'});re();};
+    all('[data-ml]',x=>x.oninput=()=>{th.menu[+x.dataset.ml].label=x.value;touch();});
+    all('[data-mp]',x=>x.onchange=()=>{th.menu[+x.dataset.mp].path=x.value;touch();});
+    all('[data-mrm]',x=>x.onclick=()=>{th.menu.splice(+x.dataset.mrm,1);re();});
+    all('[data-slot]',x=>x.onclick=()=>photoChoice(th.slots[x.dataset.slot],id=>{if(id)th.slots[x.dataset.slot]=id;else delete th.slots[x.dataset.slot];re();},true));
+    $('pairAdd').onclick=()=>{th.pairs.push({before:'',after:'',caption:''});re();};
+    all('[data-pb]',x=>x.onclick=()=>photoChoice(th.pairs[+x.dataset.pb].before,id=>{th.pairs[+x.dataset.pb].before=id;re();}));
+    all('[data-pa]',x=>x.onclick=()=>photoChoice(th.pairs[+x.dataset.pa].after,id=>{th.pairs[+x.dataset.pa].after=id;re();}));
+    all('[data-pc]',x=>x.oninput=()=>{th.pairs[+x.dataset.pc].caption=x.value;touch();});
+    all('[data-prm]',x=>x.onclick=()=>{th.pairs.splice(+x.dataset.prm,1);re();});
+    all('[data-tx]',x=>x.oninput=()=>{const k=x.dataset.tx;if(k.endsWith(':heroWord'))th.heroWord=x.value;else if(x.value.trim())th.texts[k]=x.value;else delete th.texts[k];touch();});
+    S.site.social=S.site.social||[];
+    $('socAdd').onclick=()=>{const used=S.site.social.map(s=>s.kind);S.site.social.push({kind:I.socialKinds.find(k=>!used.includes(k))||'facebook',url:''});re();};
+    all('[data-sk]',x=>x.onchange=()=>{S.site.social[+x.dataset.sk].kind=x.value;touch();});
+    all('[data-su]',x=>x.oninput=()=>{S.site.social[+x.dataset.su].url=x.value;touch();});
+    all('[data-srm]',x=>x.onclick=()=>{S.site.social.splice(+x.dataset.srm,1);re();});
+    $('lg_p').oninput=e=>{th.legal.privacy=e.target.value;touch();};
+    $('lg_t').oninput=e=>{th.legal.terms=e.target.value;touch();};
+  }
   $('gsc').oninput=e=>{S.site.gscToken=e.target.value;touch();};
   $('discard').onclick=async()=>{if(!confirm('Discard every change since the last publish?'))return;try{await api('/api/site',{action:'discard'});dirty=false;await load();msg('Draft discarded.',true);}catch(e){if(e)msg(e.message);}};
 }
@@ -341,7 +424,7 @@ function rPreview(){
 }
 // ---------- Save and publish
 async function save(quiet){
-  try{const j=await api('/api/site',{action:'save',site:S.site});S.site=j.site;S.checks=j.checks;S.blockers=j.blockers;dirty=false;S.changed=true;if(!quiet){msg('Draft saved.',true);render();}return true;}
+  try{const j=await api('/api/site',{action:'save',site:S.site});S.site=j.site;S.checks=j.checks;S.blockers=j.blockers;if(j.themeInfo!==undefined){S.themeInfo=j.themeInfo;S.canPublishTemplate=j.canPublishTemplate;S.templates=S.templates.map(t=>({...t,current:t.id===j.site.template}));}dirty=false;S.changed=true;if(!quiet){msg('Draft saved.',true);render();}return true;}
   catch(e){if(e&&e.j&&e.j.over)openUp(e.j.over);else if(e)msg(e.message);if(quiet)throw e;return false;}
 }
 $('saveBtn').onclick=()=>save(false);
