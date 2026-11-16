@@ -71,7 +71,7 @@ export const topUpById = (id: unknown) => TOPUPS.find((t) => t.id === id) ?? nul
 export const CREDIT_COST: Record<Feature, number> = {
   ai_quote: 1, ai_estimate: 1, ai_invoice: 1, photo_tag: 1, smart_select: 1, hd_render: 5, ai_assistant: 1, insurance_scan: 2,
   ai_detailed: 2, photo_analysis: 2, ai_deep: 3, receipt_read: 1, bank_read: 2, quote_helper: 1, estimate_draft: 1, help_chat: 1, vehicle_read: 1,
-  color_repaint: 3,
+  color_repaint: 3, site_write: 1,
 };
 
 export interface Grant {

@@ -12,7 +12,7 @@
     // Any address that is not a page shows public/404.html (our own friendly "page not found").
     "not_found_handling": "404-page",
     "binding": "ASSETS",
-    "run_worker_first": ["/", "/api/*", "/q/*", "/quote", "/sign/*", "/coi/*", "/portal/*", "/wo/*", "/cert/*", "/areas/*", "/check-project", "/sitemap.xml", "/sitemap-areas.xml", "/rates/*", "/cal/*", "/login", "/dashboard", "/app", "/jobs", "/insurance", "/materials", "/painting-materials", "/admin", "/start"]
+    "run_worker_first": ["/", "/api/*", "/q/*", "/quote", "/sign/*", "/coi/*", "/portal/*", "/wo/*", "/cert/*", "/areas/*", "/check-project", "/sitemap.xml", "/sitemap-areas.xml", "/rates/*", "/cal/*", "/login", "/dashboard", "/app", "/jobs", "/insurance", "/materials", "/painting-materials", "/admin", "/start", "/services", "/services/*", "/gallery", "/about", "/contact", "/info/*", "/site-photo/*", "/robots.txt", "/find", "/find/*", "/review/*", "/painters/*", "/pro/*", "/claim/*", "/hire-a-painter", "/cost", "/es", "/es/*", "/join"]
   },
   "d1_databases": [
     {
@@ -34,5 +34,24 @@
   "keep_vars": true,
   // Every 5 minutes: email one chat summary per conversation that has gone quiet.
   "triggers": { "crons": ["*/5 * * * *"] },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Branch previews (every pull request) use their own test database and photo bucket, never the live ones.
+  // No cron in previews, so they never send real summary emails.
+  "previews": {
+    "vars": {
+      "MODEL_ANTHROPIC": "claude-sonnet-5-5",
+      "MODEL_OPENAI": "gpt-4.1-mini",
+      "MODEL_GEMINI": "gemini-3.8-flash"
+    },
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "paintersmax-db-preview",
+        "database_id": "546c5a7a-a536-43e7-9494-fbf342cf4174",
+        "migrations_dir": "migrations"
+      }
+    ],
+    "r2_buckets": [{ "binding": "FILES", "bucket_name": "paintersmax-files-preview" }],
+    "browser": { "binding": "BROWSER" }
+  }
 }
