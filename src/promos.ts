@@ -1,4 +1,4 @@
-import { isDate, readBlob, str, updateBlob } from "./kv.ts";
+import { isDate, masterCompanyId, readBlob, str, updateBlob } from "./kv.ts";
 import { DOOR_PRICES, isPaidDoor, PAID_DOORS, type PaidDoor } from "./subscriptions.ts";
 import type { Env } from "./types.ts";
 
@@ -9,7 +9,7 @@ import type { Env } from "./types.ts";
  *    set up by mistake (or a 100% discount) still cannot take a sale under $299.
  *  - Uses are counted atomically, so a code with 50 uses cannot be used 51 times even if two people pay at the same moment.
  *
- * Stored as one list in app_settings ("promos"); use counts in usage_counters (company 0, feature promo:<CODE>).
+ * Stored as one list in app_settings ("promos"); use counts in usage_counters (the PaintersMax company, feature promo:<CODE>; company 0 would break the foreign key).
  */
 
 export type PromoKind = "floor" | "percent" | "amount";
@@ -113,7 +113,7 @@ export function promoPrice(door: PaidDoor, kind: "signup" | "renewal", promo: Pr
 const useFeature = (code: string) => `promo:${code}`;
 
 export async function promoUses(env: Env): Promise<Map<string, number>> {
-  const rows = await env.DB.prepare("SELECT feature, count FROM usage_counters WHERE company_id = 0 AND period = 'all' AND feature LIKE 'promo:%'").all<{ feature: string; count: number }>();
+  const rows = await env.DB.prepare("SELECT feature, count FROM usage_counters WHERE company_id = ? AND period = 'all' AND feature LIKE 'promo:%'").bind(await masterCompanyId(env)).all<{ feature: string; count: number }>();
   return new Map((rows.results ?? []).map((r) => [r.feature.slice(6), r.count]));
 }
 
@@ -128,11 +128,13 @@ export async function redeemPromo(env: Env, rawCode: unknown, door: PaidDoor, ki
   const price = promoPrice(door, kind, promo, today);
   if (!price.applied) return { ok: false, error: price.why ?? "That code does not apply." };
   const limit = promo.maxUses || 1_000_000_000;
+  const home = await masterCompanyId(env);
+  if (!home) return { ok: false, error: "The PaintersMax company is missing." };
   const r = await env.DB.prepare(
-    `INSERT INTO usage_counters (company_id, feature, period, count) VALUES (0, ?, 'all', 1)
+    `INSERT INTO usage_counters (company_id, feature, period, count) VALUES (?, ?, 'all', 1)
      ON CONFLICT(company_id, feature, period) DO UPDATE SET count = count + 1 WHERE count + 1 <= ? RETURNING count`,
   )
-    .bind(useFeature(code), limit)
+    .bind(home, useFeature(code), limit)
     .first<{ count: number }>();
   if (!r) return { ok: false, error: "This code has been used the most times allowed." };
   return { ok: true, promo, cents: price.cents };

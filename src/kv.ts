@@ -69,3 +69,15 @@ export async function blobsWithPrefix(env: Env, prefix: string, limit = 2000): P
 export const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
 export const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 export const newId = () => `${Date.now().toString(36)}${crypto.randomUUID().replace(/-/g, "").slice(0, 6)}`;
+
+let masterId: number | null = null;
+/**
+ * The PaintersMax company, which owns counters that belong to no client (promo use counts, AI calls from the public demo).
+ * usage_counters has a foreign key to companies, so these counters cannot use company 0. Returns 0 if the company is missing.
+ */
+export async function masterCompanyId(env: Env): Promise<number> {
+  if (masterId) return masterId;
+  const r = await env.DB.prepare("SELECT id FROM companies WHERE slug = 'paintersmax-master'").first<{ id: number }>();
+  masterId = r?.id ?? null;
+  return masterId ?? 0;
+}

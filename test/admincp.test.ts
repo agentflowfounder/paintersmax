@@ -212,3 +212,13 @@ test("broadcasts: audiences, footer and the email guard", async () => {
   assert.equal(r?.status, "draft");
   assert.equal(b.readBroadcast({ id: "!" }), null);
 });
+
+test("AI cost: prices are read safely and cost is tokens times the price", async () => {
+  const m = await import("../src/aimeter.ts");
+  const prices = m.readPrices({ "gemini-x": { inPerM: "0.5", outPerM: 2 }, "bad model!": { inPerM: 1, outPerM: 1 }, neg: { inPerM: -1, outPerM: 1 }, nan: { inPerM: "x", outPerM: 1 } });
+  assert.deepEqual(Object.keys(prices), ["gemini-x"]);
+  // 1,000,000 in at $0.50 plus 500,000 out at $2.00 = $1.50 = 150 cents
+  assert.equal(m.costCents(prices["gemini-x"], 1_000_000, 500_000), 150);
+  assert.equal(m.costCents(undefined, 1000, 1000), null);
+  assert.deepEqual(m.readPrices(null), {});
+});

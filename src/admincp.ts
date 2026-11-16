@@ -3,6 +3,7 @@ import { CREDIT_COST, creditView, grantCredits } from "./credits.ts";
 import { FEATURE_LABELS } from "./creditsapi.ts";
 import { listDomains } from "./domains.ts";
 import { envelopeUse, forgetClientModel, FEATURE_GROUP, GROUP_LABELS, GROUPS, loadEnvelopes, saveEnvelopes } from "./envelopes.ts";
+import { aiCostView, setPrice } from "./aimeter.ts";
 import { audienceRows, deleteBroadcast, loadBroadcasts, loadSettings, progressView, saveBroadcast, saveSettings, sendBatch, sendTest, WHO, WHO_LABELS } from "./broadcasts.ts";
 import { adminFeedbackAct, adminFeedbackList, feedbackForCompany, saveQuick } from "./feedback.ts";
 import { decideHeld, domainQueue, loadHeld, saveHeld } from "./helddomains.ts";
@@ -164,6 +165,7 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
     };
   }
   if (q.get("credits") === "1") return { area: "credits", data: await creditsOverview(env, q.get("month") ?? "") };
+  if (q.get("aicost") === "1") return { area: "credits", data: await aiCostView(env, q.get("month") ?? "") };
   if (q.get("research") === "1") {
     const markets = await loadMarkets(env);
     const withCounts = await Promise.all(markets.map(async (m) => ({ ...m, counts: contactCounts(await loadContacts(env, m.id)) })));
@@ -213,7 +215,7 @@ export const ACT_AREAS: Record<string, Area> = {
   client_note: "clients", client_flags: "clients",
   door_set: "subscriptions", sub_set: "subscriptions", sub_renewed: "subscriptions", sub_outreach: "subscriptions",
   promo_save: "promos", promo_active: "promos",
-  envelopes_set: "credits", bundle_apply: "credits",
+  envelopes_set: "credits", bundle_apply: "credits", aiprice_set: "credits",
   market_save: "research", market_lesson: "research", contact_save: "research", contacts_import: "research",
   feedback_reply: "feedback",
   quickreply_save: "feedback",
@@ -324,6 +326,11 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
     case "quickreply_save": {
       const r = await saveQuick(env, b);
       return r.ok ? { ok: true, detail: b.remove === true ? `deleted quick reply ${str(b.id, 20)}` : `quick reply ${r.result?.title}` } : fail(r.error);
+    }
+    case "aiprice_set": {
+      if (actor.role !== "owner") return fail("Only the owner can change AI prices.", 403);
+      const r = await setPrice(env, b);
+      return r.ok ? { ok: true, detail: r.removed ? `removed price for ${r.model}` : `price for ${r.model}: in ${Number(b.inPerM)} out ${Number(b.outPerM)} per million tokens` } : fail(r.error);
     }
     case "broadcast_save": {
       const r = await saveBroadcast(env, b.broadcast ?? {}, actor.email, today);

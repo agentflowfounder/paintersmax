@@ -194,9 +194,29 @@
           used.map(function (t) { return '<tr><td>' + esc(T(t.label)) + '<br><small>' + esc(T(GROUP[t.group])) + '</small></td><td>' + t.cost + '</td><td>' + t.uses + '</td><td>' + t.creditUses + '</td><td>' + t.credits + '</td><td>' + t.missed + '</td><td>' + t.blocked + '</td><td>' + t.clients + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<small>No AI use in this month.</small>') +
         '<h3>Clients who used the most credits</h3>' + (v.top.length ? '<table class="t"><tbody>' + v.top.map(function (c) { return '<tr><td><a class="lk" href="#client/' + c.companyId + '">' + esc(c.name) + '</a></td><td>' + c.credits + '</td></tr>'; }).join('') + '</tbody></table>' : '<small>None yet.</small>') +
         '<h3>Credits added this month, by source</h3>' + (Object.keys(v.granted).length ? '<table class="t"><tbody>' + Object.keys(v.granted).map(function (k) { return '<tr><td>' + esc(T(k)) + '</td><td>' + v.granted[k] + '</td></tr>'; }).join('') + '</tbody></table>' : '<small>None.</small>') +
-        '<p><small>Real AI cost per client and per tool needs the provider cost log, which comes in stage 2.</small></p></div>';
+        '</div><div id="ac_box" class="card">Loading...</div>';
       $('cu_m').onchange = function () { CACHE.month = this.value; creditsLoad(); };
+      aiCostLoad(v.month);
     }).catch(function (x) { $('cu_box').textContent = x ? x.message : ''; });
+  }
+
+  function aiCostLoad(month) {
+    api('/api/admin?aicost=1&month=' + month).then(function (v) {
+      var usd = function (c) { return c === null ? esc(T('Add a price')) : '$' + (c / 100).toFixed(c < 100 ? 4 : 2); };
+      var tk = function (n) { return Number(n).toLocaleString('en-US'); };
+      var owner = ME && ME.role === 'owner';
+      $('ac_box').innerHTML = '<h3>' + esc(T('Real AI cost by client')) + '</h3><small>' + esc(T('Tokens are counted from what the AI provider reports for each call. Cost is tokens times the price you enter below. Nothing here is estimated: a model with no price shows tokens only. Photo analysis, document reads and image tools are not counted yet.')) + '</small>' +
+        '<div class="tiles" style="margin-top:10px"><div class="tile"><b>' + tk(v.totals.tokensIn) + '</b><span>' + esc(T('Tokens in')) + '</span></div><div class="tile"><b>' + tk(v.totals.tokensOut) + '</b><span>' + esc(T('Tokens out')) + '</span></div><div class="tile"><b>' + usd(v.totals.costCents) + '</b><span>' + esc(T('Cost this month')) + '</span></div></div>' +
+        (v.clients.length ? '<div class="scroll"><table class="t"><thead><tr><th>Client</th><th>Tokens in</th><th>Tokens out</th><th>Cost</th></tr></thead><tbody>' + v.clients.map(function (c) { return '<tr><td>' + (c.companyId ? '<a class="lk" href="#client/' + c.companyId + '">' + esc(c.name) + '</a>' : esc(T(c.name))) + '<br><small translate="no">' + c.models.map(function (m) { return esc(m.model); }).join(', ') + '</small></td><td>' + tk(c.tokensIn) + '</td><td>' + tk(c.tokensOut) + '</td><td>' + usd(c.costCents) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p><small>' + esc(T('No AI calls counted this month yet.')) + '</small></p>') +
+        '<h3 style="margin-top:14px">' + esc(T('Price per million tokens (US dollars)')) + '</h3>' +
+        (v.models.length ? '<table class="t"><thead><tr><th>Model</th><th>Input</th><th>Output</th><th></th></tr></thead><tbody>' + v.models.map(function (m) { return '<tr><td translate="no">' + esc(m.model) + '</td><td><input data-pin="' + esc(m.model) + '" inputmode="decimal" style="max-width:90px" value="' + (m.price ? m.price.inPerM : '') + '"' + (owner ? '' : ' disabled') + '></td><td><input data-pout="' + esc(m.model) + '" inputmode="decimal" style="max-width:90px" value="' + (m.price ? m.price.outPerM : '') + '"' + (owner ? '' : ' disabled') + '></td><td><button class="btn sm" data-psave="' + esc(m.model) + '"' + (owner ? '' : ' disabled') + '>Save price</button></td></tr>'; }).join('') + '</tbody></table><small>' + esc(T('Copy the prices from your provider\'s pricing page. Only the owner can change them.')) + '</small>' : '');
+      [].forEach.call(document.querySelectorAll('[data-psave]'), function (b) {
+        b.onclick = function () {
+          var m = b.getAttribute('data-psave');
+          post({ action: 'aiprice_set', model: m, inPerM: document.querySelector('[data-pin="' + m + '"]').value, outPerM: document.querySelector('[data-pout="' + m + '"]').value }).then(function () { ok('Saved.'); aiCostLoad(month); }).catch(bad);
+        };
+      });
+    }).catch(function (x) { $('ac_box').textContent = x ? x.message : ''; });
   }
 
   // ------------------------------------------------------------- promotions
