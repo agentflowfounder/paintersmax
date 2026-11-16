@@ -1,3 +1,4 @@
+import { clientTextModel } from "./envelopes.ts";
 import { briefText, cleanBrief } from "./jobbrief.ts";
 import type { Env } from "./types.ts";
 import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
@@ -190,17 +191,19 @@ async function viaAnthropicModel(env: Env, model: string, system: string, turns:
 const CALLERS = { gemini: viaGemini, openai: viaOpenAI, anthropic: viaAnthropic, haiku: viaHaiku } as const;
 
 /** Tries each provider with a key, cheapest first. Returns null when none works. */
-export async function ask(env: Env, jobContext: string | null, history: Turn[], question: string, language: "en" | "es" = "en"): Promise<string | null> {
+export async function ask(env: Env, jobContext: string | null, history: Turn[], question: string, language: "en" | "es" = "en", companyId?: number): Promise<string | null> {
   const base = language === "es" ? `${SYSTEM_PROMPT}\n\nAlways answer in Spanish, even if the question is in English.` : SYSTEM_PROMPT;
   const system = jobContext ? `${base}\n\n<job_data>\n${jobContext}\n</job_data>` : base;
-  return complete(env, system, [...history, { role: "user", content: question }]);
+  return complete(env, system, [...history, { role: "user", content: question }], companyId);
 }
 
 export type Provider = "gemini" | "openai" | "anthropic" | "haiku";
 
 /** Runs a prompt through providers that have a key, in the order given (default: the text default chosen in /admin, then the rest). Returns the text and which provider answered. */
-export async function completeEx(env: Env, system: string, turns: Turn[], opts: { prefer?: Provider[]; maxTokens?: number } = {}): Promise<{ text: string; provider: Provider } | null> {
-  for (const p of opts.prefer ?? TEXT_ORDERS[await textDefault(env)]) {
+export async function completeEx(env: Env, system: string, turns: Turn[], opts: { prefer?: Provider[]; maxTokens?: number; companyId?: number } = {}): Promise<{ text: string; provider: Provider } | null> {
+  // A client can have its own text model, chosen by admin (envelopes.ts); otherwise the platform default applies.
+  const own = !opts.prefer && opts.companyId ? await clientTextModel(env, opts.companyId).catch(() => null) : null;
+  for (const p of opts.prefer ?? TEXT_ORDERS[own ?? (await textDefault(env))]) {
     if (!keyFor(env, p)) continue;
     try {
       const out = (await CALLERS[p](env, system, turns, opts.maxTokens)).trim();
@@ -213,8 +216,8 @@ export async function completeEx(env: Env, system: string, turns: Turn[], opts: 
 }
 
 /** Runs a prompt through each provider that has a key, cheapest first. Returns null when none works. */
-export async function complete(env: Env, system: string, turns: Turn[]): Promise<string | null> {
-  return (await completeEx(env, system, turns))?.text ?? null;
+export async function complete(env: Env, system: string, turns: Turn[], companyId?: number): Promise<string | null> {
+  return (await completeEx(env, system, turns, { companyId }))?.text ?? null;
 }
 
 export const COVER_PROMPT = [

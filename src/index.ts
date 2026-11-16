@@ -50,6 +50,7 @@ import { bookedVisits, handleVisit, sendVisitReminders } from "./visit.ts";
 import { sendStartNotices } from "./startnotice.ts";
 import { handlePulse } from "./pulse.ts";
 import { handleCredits } from "./creditsapi.ts";
+import { handleFeedback } from "./feedback.ts";
 import { handleNotices, sendOwnerDigests } from "./notices.ts";
 import { handleColors } from "./colors.ts";
 import { handleVehicles } from "./vehicles.ts";
@@ -1020,6 +1021,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleBilling(request, env);
       } catch (err) {
         console.error("handleBilling failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/feedback") {
+      try {
+        return await handleFeedback(request, env);
+      } catch (err) {
+        console.error("handleFeedback failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
