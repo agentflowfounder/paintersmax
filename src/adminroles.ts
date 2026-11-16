@@ -19,16 +19,16 @@ export type AdminRole = "owner" | "support" | "sales" | "billing" | "readonly";
 export const ADMIN_ROLES: AdminRole[] = ["owner", "support", "sales", "billing", "readonly"];
 export const isAdminRole = (v: unknown): v is AdminRole => typeof v === "string" && (ADMIN_ROLES as string[]).includes(v);
 
-export type Area = "clients" | "subscriptions" | "credits" | "promos" | "research" | "feedback" | "domains" | "sites" | "content" | "settings" | "security";
-export const AREAS: Area[] = ["clients", "subscriptions", "credits", "promos", "research", "feedback", "domains", "sites", "content", "settings", "security"];
+export type Area = "clients" | "subscriptions" | "credits" | "promos" | "research" | "feedback" | "domains" | "sites" | "content" | "broadcasts" | "settings" | "security";
+export const AREAS: Area[] = ["clients", "subscriptions", "credits", "promos", "research", "feedback", "domains", "sites", "content", "broadcasts", "settings", "security"];
 
 /** What each role sees and changes (the blueprint approved 2026-11-14). */
 export const PERMS: Record<AdminRole, { see: Area[]; change: Area[] }> = {
   owner: { see: AREAS, change: AREAS },
   support: { see: ["clients", "credits", "feedback", "domains", "sites", "content"], change: ["clients", "credits", "feedback", "sites", "content"] },
-  sales: { see: ["clients", "subscriptions", "promos", "research"], change: ["promos", "research"] },
+  sales: { see: ["clients", "subscriptions", "promos", "research", "broadcasts"], change: ["promos", "research"] },
   billing: { see: ["clients", "subscriptions", "credits", "promos", "domains"], change: ["subscriptions", "domains"] },
-  readonly: { see: ["clients", "subscriptions", "credits", "promos", "research", "feedback", "domains", "sites", "content"], change: [] },
+  readonly: { see: ["clients", "subscriptions", "credits", "promos", "research", "feedback", "domains", "sites", "content", "broadcasts"], change: [] },
 };
 
 /** Limits a role works inside. The owner has none beyond the hard caps in each tool. */

@@ -3,6 +3,7 @@ import { CREDIT_COST, creditView, grantCredits } from "./credits.ts";
 import { FEATURE_LABELS } from "./creditsapi.ts";
 import { listDomains } from "./domains.ts";
 import { envelopeUse, forgetClientModel, FEATURE_GROUP, GROUP_LABELS, GROUPS, loadEnvelopes, saveEnvelopes } from "./envelopes.ts";
+import { audienceRows, deleteBroadcast, loadBroadcasts, loadSettings, progressView, saveBroadcast, saveSettings, sendBatch, sendTest, WHO, WHO_LABELS } from "./broadcasts.ts";
 import { adminFeedbackAct, adminFeedbackList, feedbackForCompany, saveQuick } from "./feedback.ts";
 import { decideHeld, domainQueue, loadHeld, saveHeld } from "./helddomains.ts";
 import { blobsWithPrefix, readBlob, str, updateBlob } from "./kv.ts";
@@ -175,6 +176,15 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
     return { area: "research", data: { contacts: list, counts: contactCounts(list) } };
   }
   if (q.get("feedback") === "1") return { area: "feedback", data: await adminFeedbackList(env, q.get("status"), { assignee: q.get("assignee") ?? "", kind: q.get("kind") ?? "" }) };
+  if (q.get("broadcasts") === "1") {
+    const [list, settings] = await Promise.all([loadBroadcasts(env), loadSettings(env)]);
+    const out = [];
+    for (const b of list.slice(0, 60)) {
+      const a = b.status === "draft" ? await audienceRows(env, b, today) : null;
+      out.push({ ...b, reach: a ? a.rows.length : b.audienceAtSend, skipped: a ? { noContact: a.skippedNoContact, unsubscribed: a.skippedUnsubscribed, noEmail: a.skippedNoEmail } : null, progress: b.status === "draft" ? null : await progressView(env, b.id) });
+    }
+    return { area: "broadcasts", data: { broadcasts: out, settings, who: WHO, whoLabels: WHO_LABELS, doors: DOORS } };
+  }
   if (q.get("held") === "1") {
     const [held, subs] = await Promise.all([loadHeld(env), allSubs(env, today)]);
     const ended = new Map<number, string>();
@@ -208,6 +218,7 @@ export const ACT_AREAS: Record<string, Area> = {
   feedback_reply: "feedback",
   quickreply_save: "feedback",
   held_save: "domains", held_decide: "domains",
+  broadcast_save: "broadcasts", broadcast_delete: "broadcasts", broadcast_test: "broadcasts", broadcast_send: "broadcasts", broadcast_settings: "broadcasts",
   team_set: "security",
 };
 
@@ -313,6 +324,28 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
     case "quickreply_save": {
       const r = await saveQuick(env, b);
       return r.ok ? { ok: true, detail: b.remove === true ? `deleted quick reply ${str(b.id, 20)}` : `quick reply ${r.result?.title}` } : fail(r.error);
+    }
+    case "broadcast_save": {
+      const r = await saveBroadcast(env, b.broadcast ?? {}, actor.email, today);
+      return r.ok ? { ok: true, data: { broadcast: r.broadcast }, detail: `saved "${r.broadcast.title}" (${r.broadcast.who})` } : fail(r.error);
+    }
+    case "broadcast_delete": {
+      const r = await deleteBroadcast(env, b.id);
+      return r.ok ? { ok: true, detail: `deleted draft "${r.broadcast.title}"` } : fail(r.error);
+    }
+    case "broadcast_test": {
+      const r = await sendTest(env, b, actor.email);
+      return r.ok ? { ok: true, detail: `test of ${str(b.id, 24)} to ${actor.email}` } : fail(r.error);
+    }
+    case "broadcast_send": {
+      if (actor.role !== "owner") return fail("Only the owner can send a broadcast.", 403);
+      const r = await sendBatch(env, b, actor.email, today);
+      return r.ok ? { ok: true, data: { broadcast: r.broadcast, remaining: r.remaining, sentNow: r.sentNow }, detail: `${r.broadcast.title}: ${r.sentNow} emailed now, ${r.remaining} left, ${r.broadcast.status}` } : fail(r.error);
+    }
+    case "broadcast_settings": {
+      if (actor.role !== "owner") return fail("Only the owner can change broadcast settings.", 403);
+      const r = await saveSettings(env, b, actor.email, today);
+      return r.ok ? { ok: true, data: { settings: r.settings }, detail: `emails ${r.settings.emailsOn ? "on" : "off"}, footer ${r.settings.footer.length} characters` } : fail(r.error);
     }
     case "held_save": {
       const r = await saveHeld(env, b.domain ?? {});

@@ -185,3 +185,30 @@ test("support inbox: tickets keep an assignee and staff notes, quick replies are
   const q = readQuick([{ id: "abcd1", title: "Reset", text: "Use the link" }, { id: "abcd1", title: "Dup", text: "x" }, { id: "!", title: "Bad", text: "x" }, { id: "abcd2", title: "", text: "x" }]);
   assert.deepEqual(q.map((x) => x.id), ["abcd1"]);
 });
+
+test("broadcasts: audiences, footer and the email guard", async () => {
+  const b = await import("../src/broadcasts.ts");
+  assert.equal(b.inAudience({ who: "all", doors: [] }, "free", "free"), true);
+  assert.equal(b.inAudience({ who: "all", doors: [] }, "grow", "cancelled"), false);
+  assert.equal(b.inAudience({ who: "all", doors: [] }, "grow", "refunded"), false);
+  assert.equal(b.inAudience({ who: "paid", doors: [] }, "free", "free"), false);
+  assert.equal(b.inAudience({ who: "paid", doors: ["grow"] }, "launch", "paid"), false);
+  assert.equal(b.inAudience({ who: "paid", doors: ["grow"] }, "grow", "paid"), true);
+  assert.equal(b.inAudience({ who: "due", doors: [] }, "grow", "due_30"), true);
+  assert.equal(b.inAudience({ who: "due", doors: [] }, "grow", "paid"), false);
+  assert.equal(b.inAudience({ who: "missed", doors: [] }, "grow", "missed"), true);
+  const footer = b.fillFooter(b.DEFAULT_FOOTER, "Tyler Pro Painting", "https://paintersmax.app/unsubscribe?c=5&t=abc");
+  assert.equal(footer, "You are receiving this message Tyler Pro Painting. Click here to unsubscribe: https://paintersmax.app/unsubscribe?c=5&t=abc");
+  assert.equal(b.emailText({ body: "Hello", bodyEs: "Hola" }, "F"), "Hello\n\nHola\n\n--\nF");
+  assert.equal(b.emailText({ body: "Hello", bodyEs: "" }, "F"), "Hello\n\n--\nF");
+  assert.match(b.emailBlocker({ footer: b.DEFAULT_FOOTER, emailsOn: false, setBy: "", setOn: "" }), /switched off/);
+  assert.match(b.emailBlocker({ footer: "No link here", emailsOn: true, setBy: "", setOn: "" }), /unsubscribe/);
+  assert.equal(b.emailBlocker({ footer: b.DEFAULT_FOOTER, emailsOn: true, setBy: "", setOn: "" }), "");
+  assert.equal(b.readSettings(null).emailsOn, false);
+  assert.equal(b.readSettings(null).footer, b.DEFAULT_FOOTER);
+  const r = b.readBroadcast({ id: "abc123x", title: "T", subject: "S", body: "B", who: "nonsense", doors: ["grow", "bad"], email: true, status: "weird" });
+  assert.equal(r?.who, "all");
+  assert.deepEqual(r?.doors, ["grow"]);
+  assert.equal(r?.status, "draft");
+  assert.equal(b.readBroadcast({ id: "!" }), null);
+});

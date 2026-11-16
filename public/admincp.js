@@ -7,7 +7,7 @@
   var ME = null, CACHE = {};
   var TABS = [
     ['clients', 'Clients', 'clients'], ['subs', 'Subscriptions', 'subscriptions'], ['credits', 'Credits', 'credits'], ['promos', 'Promotions', 'promos'],
-    ['research', 'Research', 'research'], ['feedback', 'Feedback', 'feedback'], ['domains', 'Domains', 'domains'], ['sites', 'Websites', 'sites'],
+    ['research', 'Research', 'research'], ['feedback', 'Feedback', 'feedback'], ['broadcasts', 'Broadcasts', 'broadcasts'], ['domains', 'Domains', 'domains'], ['sites', 'Websites', 'sites'],
     ['content', 'Help guide', 'content'], ['settings', 'Settings', 'settings'], ['security', 'Team and audit log', 'security'],
   ];
   var DOOR = { free: 'Free', launch: 'Launch', grow: 'Grow', signature: 'Signature' };
@@ -342,6 +342,60 @@
     }).catch(function (x) { $('fb_box').textContent = x ? x.message : ''; });
   }
 
+  // ------------------------------------------------------------- broadcasts
+  function broadcastsLoad() {
+    api('/api/admin?broadcasts=1').then(function (v) {
+      var edit = v.broadcasts.filter(function (b) { return b.id === CACHE.bcEdit && b.status === 'draft'; })[0] || null;
+      var st = v.settings, isOwner = ME && ME.role === 'owner';
+      var ch = function (id, on, label) { return '<label style="display:inline-block;margin-right:14px"><input type="checkbox" style="width:auto;margin-right:6px" id="' + id + '"' + (on ? ' checked' : '') + '> ' + esc(T(label)) + '</label>'; };
+      var h = '<div class="card"><h3>Email settings</h3><small>Every broadcast email ends with this footer. {business} becomes the client\'s business name and {unsubscribe} becomes that client\'s own unsubscribe link. Clients who unsubscribe, clients marked Do not contact, and cancelled clients are never emailed.</small>' +
+        '<label>Footer</label><textarea id="bs_footer" rows="3" maxlength="1500"' + (isOwner ? '' : ' disabled') + '>' + esc(st.footer) + '</textarea>' +
+        '<label><input type="checkbox" style="width:auto;margin-right:6px" id="bs_on"' + (st.emailsOn ? ' checked' : '') + (isOwner ? '' : ' disabled') + '> ' + esc(T('Broadcast emails are switched on')) + '</label>' +
+        '<small>' + esc(T('Off: a broadcast can still be saved, tested and shown on dashboards, but no client is emailed.')) + '</small><div><button class="btn sm" id="bs_save"' + (isOwner ? '' : ' disabled') + '>Save settings</button></div></div>';
+      h += '<div class="card"><h3>' + esc(T(edit ? 'Edit this draft' : 'New broadcast')) + '</h3>' +
+        '<label>Name (the team sees this, clients do not)</label><input id="bc_title" maxlength="100" value="' + esc(edit ? edit.title : '') + '">' +
+        '<div class="g3"><div><label>Subject (English)</label><input id="bc_subj" maxlength="120" value="' + esc(edit ? edit.subject : '') + '"></div><div><label>Subject (Spanish, optional)</label><input id="bc_subjes" maxlength="120" value="' + esc(edit ? edit.subjectEs : '') + '"></div></div>' +
+        '<label>Message (English)</label><textarea id="bc_body" rows="5" maxlength="4000">' + esc(edit ? edit.body : '') + '</textarea>' +
+        '<label>Message (Spanish, optional)</label><textarea id="bc_bodyes" rows="5" maxlength="4000">' + esc(edit ? edit.bodyEs : '') + '</textarea>' +
+        '<div class="g3"><div><label>Who gets it</label><select id="bc_who">' + v.who.map(function (k) { return '<option value="' + k + '"' + (edit && edit.who === k ? ' selected' : '') + '>' + esc(T(v.whoLabels[k])) + '</option>'; }).join('') + '</select></div>' +
+        '<div><label>Only these doors (none ticked = all)</label>' + v.doors.map(function (k) { return '<label style="display:inline-block;margin-right:10px;font-weight:400"><input type="checkbox" style="width:auto;margin-right:4px" name="bc_door" value="' + k + '"' + (edit && edit.doors.indexOf(k) >= 0 ? ' checked' : '') + '> ' + doorName(k) + '</label>'; }).join('') + '</div></div>' +
+        '<div style="margin-top:8px">' + ch('bc_email', edit ? edit.email : true, 'Send by email') + ch('bc_banner', edit ? edit.banner : false, 'Show on the dashboard') + '</div>' +
+        '<label>Dashboard notice: last day it shows (YYYY-MM-DD)</label><input id="bc_until" maxlength="10" style="max-width:200px" value="' + esc(edit ? edit.bannerUntil : '') + '">' +
+        '<div><button class="btn" id="bc_save"' + dis('broadcasts') + '>Save draft</button>' + (edit ? ' <a class="btn gray" href="#broadcasts" id="bc_cancel">Cancel</a>' : '') + '</div></div>';
+      h += '<div class="card"><h3>Broadcasts</h3>' + (v.broadcasts.length ? v.broadcasts.map(function (b) {
+        var draft = b.status === 'draft';
+        return '<div style="border-top:1px solid #eee;margin-top:12px;padding-top:10px"><div>' + pill(T(draft ? 'Draft' : b.status === 'sending' ? 'Sending' : 'Sent'), draft ? '' : b.status === 'sending' ? 'gold' : 'green') + ' <b>' + esc(b.title) + '</b> ' + (b.email ? pill(T('Email')) : '') + (b.banner ? pill(T('Dashboard')) : '') + '<br><small>' + esc(T(v.whoLabels[b.who])) + (b.doors.length ? ' &middot; ' + b.doors.map(function (k) { return doorName(k); }).join(', ') : '') + '</small></div>' +
+          '<div class="msgs"><div><small>' + esc(T('Subject')) + '</small>\n' + esc(b.subject) + '\n\n' + esc(b.body) + '</div></div>' +
+          (draft ? '<small>' + esc(T('Reaches')) + ': <b>' + b.reach + '</b> ' + esc(T('clients by email')) + (b.skipped && (b.skipped.noContact || b.skipped.unsubscribed || b.skipped.noEmail) ? ' &middot; ' + esc(T('left out')) + ': ' + b.skipped.unsubscribed + ' ' + esc(T('unsubscribed')) + ', ' + b.skipped.noContact + ' ' + esc(T('do not contact')) + ', ' + b.skipped.noEmail + ' ' + esc(T('no email')) : '') + '</small><br>' +
+            '<button class="btn sm gray" data-bce="' + esc(b.id) + '"' + dis('broadcasts') + '>Edit</button> <button class="btn sm gray" data-bct="' + esc(b.id) + '"' + dis('broadcasts') + '>Send test to me</button> <button class="btn sm gray" data-bcd="' + esc(b.id) + '"' + dis('broadcasts') + '>Delete draft</button>' +
+            (isOwner ? '<div style="margin-top:8px"><label>' + esc(T('To send, type how many clients it reaches')) + ' (' + b.reach + ')</label><input data-bcn="' + esc(b.id) + '" style="max-width:120px"> <button class="btn sm" data-bcs="' + esc(b.id) + '">Send now</button></div>' : '')
+          : '<small>' + esc(T('Started')) + ' ' + esc(d(b.sentOn)) + ' &middot; ' + esc(b.sentBy) + ' &middot; ' + b.audienceAtSend + ' ' + esc(T('clients')) + (b.progress ? ' &middot; ' + b.progress.emailed + ' ' + esc(T('emailed')) + ', ' + b.progress.failed + ' ' + esc(T('failed')) : '') + '</small>' +
+            (b.status === 'sending' && isOwner ? '<br><button class="btn sm" data-bcs="' + esc(b.id) + '">Continue sending</button>' : '')) + '</div>';
+      }).join('') : '<small>No broadcasts yet.</small>') + '</div>';
+      $('bc_box').innerHTML = h;
+      var form = function () { return { id: edit ? edit.id : undefined, title: $('bc_title').value, subject: $('bc_subj').value, subjectEs: $('bc_subjes').value, body: $('bc_body').value, bodyEs: $('bc_bodyes').value, who: $('bc_who').value, doors: [].map.call(document.querySelectorAll('input[name=bc_door]:checked'), function (x) { return x.value; }), email: $('bc_email').checked, banner: $('bc_banner').checked, bannerUntil: $('bc_until').value }; };
+      $('bs_save').onclick = function () { post({ action: 'broadcast_settings', footer: $('bs_footer').value, emailsOn: $('bs_on').checked }).then(function () { ok('Saved.'); broadcastsLoad(); }).catch(bad); };
+      $('bc_save').onclick = function () { post({ action: 'broadcast_save', broadcast: form() }).then(function () { CACHE.bcEdit = null; ok('Draft saved.'); broadcastsLoad(); }).catch(bad); };
+      if ($('bc_cancel')) $('bc_cancel').onclick = function () { CACHE.bcEdit = null; };
+      [].forEach.call(document.querySelectorAll('[data-bce]'), function (b) { b.onclick = function () { CACHE.bcEdit = b.getAttribute('data-bce'); broadcastsLoad(); window.scrollTo(0, 0); }; });
+      [].forEach.call(document.querySelectorAll('[data-bct]'), function (b) { b.onclick = function () { post({ action: 'broadcast_test', id: b.getAttribute('data-bct') }).then(function () { ok('Test email sent to you.'); }).catch(bad); }; });
+      [].forEach.call(document.querySelectorAll('[data-bcd]'), function (b) { b.onclick = function () { post({ action: 'broadcast_delete', id: b.getAttribute('data-bcd') }).then(function () { ok('Deleted.'); broadcastsLoad(); }).catch(bad); }; });
+      [].forEach.call(document.querySelectorAll('[data-bcs]'), function (b) {
+        b.onclick = function () {
+          var id = b.getAttribute('data-bcs'), n = document.querySelector('[data-bcn="' + id + '"]');
+          b.disabled = true;
+          var step = function (confirm) {
+            post({ action: 'broadcast_send', id: id, confirm: confirm }).then(function (r) {
+              if (r.remaining > 0) { msg(T('Sending...') + ' ' + r.remaining + ' ' + T('left'), true); step(undefined); } else { ok('Done.'); broadcastsLoad(); }
+            }).catch(function (x) { b.disabled = false; bad(x); broadcastsLoad_keep(); });
+          };
+          step(n ? Number(n.value) : undefined);
+        };
+      });
+    }).catch(function (x) { $('bc_box').textContent = x ? x.message : ''; });
+  }
+  function broadcastsLoad_keep() { /* leaves the error message on screen */ }
+
   // ------------------------------------------------------------- held domains
   function heldLoad() {
     api('/api/admin?held=1').then(function (v) {
@@ -421,6 +475,7 @@
     promos: promosLoad,
     research: researchLoad,
     feedback: feedbackLoad,
+    broadcasts: broadcastsLoad,
     domains: function () { heldLoad(); if (typeof load === 'function') load(); },
     content: function () { if (typeof hLoad === 'function') hLoad(); },
     settings: function () { ['tkLoad', 'mkLoad', 'mLoad', 'ntLoad', 'amLoad'].forEach(function (f) { if (typeof window[f] === 'function') window[f](); }); },
