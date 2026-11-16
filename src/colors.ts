@@ -1,6 +1,7 @@
 import { getSessionUser } from "./auth.ts";
 import { consume, refund, usageSummary } from "./usage.ts";
 import type { Env } from "./types.ts";
+import { recordUse } from "./aimeter.ts";
 
 /**
  * Color preview (painter side): the painter picks a photo of the customer's room or house, a color and what to paint,
@@ -73,7 +74,7 @@ export const IMAGE_MODELS = ["gemini-2.5-flash-image", "gemini-3-pro-image-previ
 
 export type Repaint = { ok: true; mime: string; data: string; model: string } | { ok: false; why: string };
 
-export async function repaint(env: Env, i: ColorIn): Promise<Repaint> {
+export async function repaint(env: Env, i: ColorIn, companyId?: number): Promise<Repaint> {
   if (!env.GEMINI_API_KEY) return { ok: false, why: "no gemini key" };
   const models = [...new Set([env.MODEL_GEMINI_IMAGE, ...IMAGE_MODELS].filter(Boolean) as string[])];
   const tried: string[] = [];
@@ -103,6 +104,7 @@ export async function repaint(env: Env, i: ColorIn): Promise<Repaint> {
       continue; // a retired or unknown model, a quota problem: try the next one
     }
     const j = (await r.json().catch(() => null)) as any;
+    await recordUse(env, companyId, model, j?.usageMetadata?.promptTokenCount, (j?.usageMetadata?.candidatesTokenCount ?? 0) + (j?.usageMetadata?.thoughtsTokenCount ?? 0));
     for (const p of j?.candidates?.[0]?.content?.parts ?? []) {
       const d = p?.inlineData ?? p?.inline_data;
       const mime = d?.mimeType ?? d?.mime_type;
@@ -142,7 +144,7 @@ export async function handleColors(request: Request, env: Env): Promise<Response
     const msg = u.reason === "not_in_plan" ? "Color previews on a photo are not in your plan. You can still show the color next to the photo, or upgrade for previews." : u.reason === "kill_switch" ? "Color previews are paused right now. You can still show the color next to the photo." : "You have used this month's color previews. You can still show the color next to the photo, or add AI credits for more.";
     return json({ error: msg, reason: u.reason }, 429);
   }
-  const out = await repaint(env, i);
+  const out = await repaint(env, i, co.id);
   if (!out.ok) {
     await refund(env, co, "color_repaint");
     return json({ error: "The preview could not be made right now, and it did not count. Try again, or show the color next to the photo." }, 502);

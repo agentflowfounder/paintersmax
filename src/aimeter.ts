@@ -11,8 +11,8 @@ import type { Env } from "./types.ts";
  * (the public demo, help articles) are kept under the PaintersMax company. Which calls are metered: see METERED below.
  */
 
-/** Calls that report tokens today. Photo analysis, document reads, color and image tools are not metered yet. */
-export const METERED = ["Help chat, job assistant, quick job questions, insurance Q&A, lessons, wizard assistant and the demo chat (text tools through assistant.ts)"];
+/** Calls that report tokens today. Not yet counted: the quote-request photo brief and summary (brief.ts, ai.ts). */
+export const METERED = ["Help chat, job assistant, quick job questions, insurance Q&A, lessons, wizard assistant and the demo chat (text tools through assistant.ts)", "Photo analysis, receipt and statement reads, vehicle documents, insurance policy reads, color previews"];
 
 export interface Price {
   inPerM: number; // US dollars per million input tokens
