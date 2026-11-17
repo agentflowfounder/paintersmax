@@ -52,7 +52,7 @@ canvas{max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none}
 .pslot{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:start;border-bottom:1px solid #eceae4;padding:10px 0}.pslot img,.pslot-ph{width:120px;height:90px;object-fit:cover;border-radius:8px}.pslot-ph{display:grid;place-content:center;text-align:center;border:2px dashed #cfd5dc;font-size:12px;background:#faf8f4}
 </style></head><body>
 <header><div><b>PaintersMax</b> Website</div><div><a href="/dashboard">Home</a></div></header>
-<main>
+<main><div data-help="site-start" style="margin:6px 0"></div>
 <div id="va" class="va" hidden></div>
 <h2>Your website</h2>
 <p class="lead">Edit your pages, add your own photos, and publish when it looks right. Changes stay a draft until you tap Publish. Typing is free; the AI writing help uses credits.</p>
@@ -581,4 +581,4 @@ window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.return
 load();
 </script>
 <script src="/nav.js"></script>
-</body></html>
+<script src="/helpvideo.js" defer></script></body></html>

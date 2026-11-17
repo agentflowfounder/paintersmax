@@ -220,3 +220,24 @@ export async function handleLandingAdmin(request: Request, env: Env): Promise<Re
   }
   return json({ error: "Nothing to do." }, 400);
 }
+
+/* ---------- logo studio settings (admin keeps its last logo design) ---------- */
+const LOGO_KEY = "brand:pmlogo";
+const cleanLogo = (raw: any) => ({
+  concept: ["box", "cycle", "paint", "pm"].includes(raw?.concept) ? raw.concept : "box",
+  shape: ["round", "square", "triangle"].includes(raw?.shape) ? raw.shape : "square",
+  ...Object.fromEntries(["primary", "accent", "ink", "text"].map((k) => [k, /^#[0-9a-fA-F]{6}$/.test(raw?.[k] ?? "") ? raw[k] : ""])),
+  slogan: raw?.slogan !== false,
+});
+export async function handleLogoSettings(request: Request, env: Env): Promise<Response> {
+  const actor = await adminActor(env, request);
+  if (!actor || !can(actor.role, "content", "see")) return json({ error: "Not found." }, 404);
+  if (request.method === "GET") return json({ logo: await readBlob(env, LOGO_KEY, (r) => (r ? cleanLogo(r) : null)), canChange: can(actor.role, "content", "change") });
+  if (request.method !== "POST") return json({ error: "Not found." }, 404);
+  if (!can(actor.role, "content", "change")) return json({ error: "Your role can look but not change the logo." }, 403);
+  const b: any = await request.json().catch(() => null);
+  const v = cleanLogo(b);
+  await writeBlob(env, LOGO_KEY, v);
+  await logAudit(env, actor, "logo.save", { detail: v });
+  return json({ ok: true, logo: v });
+}

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Marketing studio - Admin</title>
+<style>
+*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:14px}
+main{max-width:1200px;margin:0 auto;padding:16px 16px 60px}h3{margin:0 0 6px;font-family:Newsreader,Georgia,serif;font-weight:500;font-size:22px}h4{margin:14px 0 6px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}.tabs button{padding:9px 14px;border-radius:20px;border:1px solid #cfd5dc;background:#fff;font:inherit;font-weight:600;cursor:pointer}.tabs button[aria-selected=true]{background:#0F1B2D;color:#fff;border-color:#0F1B2D}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
+input,select,textarea{padding:8px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff;max-width:100%}textarea{width:100%;min-height:60px}label{font-size:13px;font-weight:600;display:block;margin:8px 0 4px}
+.btn{padding:8px 12px;border-radius:8px;border:0;font:inherit;font-weight:700;cursor:pointer;background:#E8A33D;color:#0F1B2D;text-decoration:none;display:inline-block;font-size:13px}.btn.sec{background:#eceae4}.btn[disabled]{opacity:.5}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.muted{color:#4A5568;font-size:14px}#msg{min-height:20px;font-size:14px;margin:6px 0}.ok{color:#0a7a3d}.bad{color:#b42318}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #eceae4;padding:6px;text-align:left;vertical-align:top}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:12px;background:#eceae4}.pill.live{background:#d9f3e3;color:#0a7a3d}.pill.paused{background:#fde2e1;color:#b42318}
+.concepts{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}.cc{border:2px solid #dcd6cc;border-radius:10px;padding:8px;background:#fff;cursor:pointer;text-align:center}.cc[aria-pressed=true]{border-color:#E8A33D;background:#fff8ec}.cc svg{max-width:100%;height:auto}
+#big{background:#fff;border:1px dashed #cfd5dc;border-radius:10px;padding:18px;text-align:center}#big.dark{background:#0F1B2D}#big svg{max-width:100%;height:auto}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:800px){.cols{grid-template-columns:1fr}}
+.hits{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}.hit{border:1px solid #dcd6cc;border-radius:8px;padding:8px;background:#fff;font-size:13px}.hit img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px}
+.bar{height:8px;background:#eceae4;border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:#E8A33D}
+code{background:#eceae4;padding:1px 5px;border-radius:4px;font-size:13px;word-break:break-all}
+</style></head><body>
+<header><div><b>PaintersMax</b> Marketing studio</div><div><a href="/templates-admin">Website templates</a><a href="/sites-admin">Client websites</a><a href="/admin">Admin</a></div></header>
+<main>
+<div class="tabs" role="tablist" id="tabs">
+<button role="tab" data-t="logo" aria-selected="true">Logo studio</button>
+<button role="tab" data-t="help" aria-selected="false">Help videos</button>
+<button role="tab" data-t="find" aria-selected="false">Video finder</button>
+<button role="tab" data-t="lp" aria-selected="false">Landing pages and campaigns</button>
+<button role="tab" data-t="sandbox" aria-selected="false">AI sandbox</button>
+</div>
+<div id="msg" role="status"></div>
+<div id="pane"></div>
+</main>
+<script src="/pmlogo.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function msg(t,ok){$('msg').textContent=t||'';$('msg').className=ok?'ok':'bad';}
+async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}if(r.status===404){throw new Error('This page needs an admin sign-in.');}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
+const pane=$('pane');let tab='logo';
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;document.querySelectorAll('#tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));msg('');show();});
+const show=()=>({logo:logoTab,help:helpTab,find:findTab,lp:lpTab,sandbox:sandboxTab})[tab]().catch(e=>{if(e)msg(e.message);});
+
+/* ---------------- Logo studio ---------------- */
+const CN={box:'Box with phone (business in a box)',cycle:'Bid it, Book it, Bank it cycle',paint:'Paint roller',pm:'PM letters'};
+let LG={concept:'box',shape:'square',primary:'#1f3a5f',accent:'#e8833a',ink:'#ffffff',text:'#1f3a5f',slogan:true,dark:false};
+async function logoTab(){
+  try{const j=await api('/api/admin/pm-logo');if(j.logo)for(const k of Object.keys(j.logo))if(j.logo[k]!==''&&j.logo[k]!=null)LG[k]=j.logo[k];}catch(e){msg(e.message);}
+  drawLogo();
+}
+function drawLogo(){
+  pane.innerHTML=`<div class="card"><h3>PaintersMax logo studio</h3><p class="muted">Pick a concept, a shape and your colors. Everything is drawn as clean vector art, so it stays sharp on a business card or a truck. Slogan: <b>Bid it. Book it. Bank it.</b></p>
+<h4>1. Concept</h4><div class="concepts">${PMLOGO.CONCEPTS.map(c=>`<button type="button" class="cc" data-c="${c}" aria-pressed="${LG.concept===c}">${PMLOGO.icon({...LG,concept:c},96)}<div>${esc(CN[c])}</div></button>`).join('')}</div>
+<h4>2. Shape</h4><div class="row">${PMLOGO.SHAPES.map(s=>`<button type="button" class="btn ${LG.shape===s?'':'sec'}" data-s="${s}">${s[0].toUpperCase()+s.slice(1)}</button>`).join('')}</div>
+<h4>3. Colors</h4><div class="row"><label>Shape <input type="color" data-k="primary" value="${LG.primary}"></label><label>Accent <input type="color" data-k="accent" value="${LG.accent}"></label><label>Symbol <input type="color" data-k="ink" value="${LG.ink}"></label><label>Name <input type="color" data-k="text" value="${LG.text}"></label><label><input type="checkbox" id="sl"${LG.slogan?' checked':''}> Show slogan</label><label><input type="checkbox" id="dk"${LG.dark?' checked':''}> Preview on dark</label></div>
+<h4>Preview</h4><div id="big"${LG.dark?' class="dark"':''}>${PMLOGO.lockup(LG)}</div>
+<h4>4. Files</h4><div class="row"><button class="btn" id="dSvg">Full logo (SVG)</button><button class="btn" id="dPng">Full logo (PNG, 2000 px)</button><button class="btn" id="dIcon">Icon only (PNG 512, app and social)</button><button class="btn" id="dFav">Browser tab icon (PNG 64)</button><button class="btn sec" id="dMono">One color for print (SVG)</button></div>
+<p class="muted">SVG is for websites and printers. PNG is for email, social media and slides. The icon files are for the browser tab, your phone's home screen and profile pictures. The one-color file is for stamps, engraving and single-color print. The name uses a standard bold font; send the SVG to a printer as outlines if they ask.</p>
+<div class="row"><button class="btn" id="lgSave">Save this design</button></div></div>`;
+  pane.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{LG.concept=b.dataset.c;drawLogo();});
+  pane.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{LG.shape=b.dataset.s;drawLogo();});
+  pane.querySelectorAll('input[type=color]').forEach(i=>i.oninput=()=>{LG[i.dataset.k]=i.value;$('big').innerHTML=PMLOGO.lockup(LG);});
+  $('sl').onchange=e=>{LG.slogan=e.target.checked;$('big').innerHTML=PMLOGO.lockup(LG);};
+  $('dk').onchange=e=>{LG.dark=e.target.checked;$('big').className=LG.dark?'dark':'';};
+  const dl=(name,blob)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);};
+  const png=(svg,w,h,name)=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);c.toBlob(b=>dl(name,b),'image/png');};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);};
+  $('dSvg').onclick=()=>dl('paintersmax-logo.svg',new Blob([PMLOGO.lockup(LG)],{type:'image/svg+xml'}));
+  $('dMono').onclick=()=>dl('paintersmax-logo-one-color.svg',new Blob([PMLOGO.lockup({...LG,mono:true})],{type:'image/svg+xml'}));
+  $('dPng').onclick=()=>{const w=LG.slogan?470:400;png(PMLOGO.lockup(LG),2000,Math.round(2000*120/w),'paintersmax-logo.png');};
+  $('dIcon').onclick=()=>png(PMLOGO.icon(LG,512),512,512,'paintersmax-icon-512.png');
+  $('dFav').onclick=()=>png(PMLOGO.icon(LG,64),64,64,'paintersmax-favicon-64.png');
+  $('lgSave').onclick=async()=>{try{await api('/api/admin/pm-logo',LG);msg('Logo design saved.',true);}catch(e){msg(e.message);}};
+}
+
+/* ---------------- Help videos ---------------- */
+async function helpTab(){
+  const j=await api('/api/admin/help-videos');
+  pane.innerHTML=`<div class="card"><h3>Help videos</h3><p class="muted">Upload your 1 to 3 minute how-to videos to YouTube (Unlisted is fine), then paste each link next to the spot where clients need it. Clients see a small "Watch a 2-minute help video" button in that spot. A spot with no link shows nothing. Short vertical videos (Shorts) work too.</p>
+<table><tr><th>Where it shows</th><th>YouTube link</th><th>Title (English / Spanish)</th><th></th></tr>${j.slots.map(s=>{const v=j.videos[s.slot]||{};return `<tr data-slot="${s.slot}"><td>${esc(s.where)}<br><code>${s.slot}</code></td><td><input class="u" size="30" placeholder="https://youtu.be/..." value="${v.yt?'https://youtu.be/'+v.yt:''}"><br><select class="o"><option value="wide">Wide</option><option value="tall"${v.orient==='tall'?' selected':''}>Tall (phone)</option></select></td><td><input class="te" placeholder="English title" maxlength="80" value="${esc(v.title?.en||'')}"><br><input class="ts" placeholder="Título en español" maxlength="80" value="${esc(v.title?.es||'')}"></td><td><button class="btn sv"${j.canChange?'':' disabled'}>Save</button> <button class="btn sec rm"${j.canChange?'':' disabled'}>Clear</button></td></tr>`;}).join('')}</table></div>`;
+  pane.querySelectorAll('tr[data-slot]').forEach(tr=>{const slot=tr.dataset.slot;
+    tr.querySelector('.sv').onclick=async()=>{try{await api('/api/admin/help-videos',{slot,url:tr.querySelector('.u').value,orient:tr.querySelector('.o').value,titleEn:tr.querySelector('.te').value,titleEs:tr.querySelector('.ts').value});msg('Saved.',true);}catch(e){msg(e.message);}};
+    tr.querySelector('.rm').onclick=async()=>{try{await api('/api/admin/help-videos',{slot,remove:true});tr.querySelector('.u').value='';msg('Cleared.',true);}catch(e){msg(e.message);}};});
+}
+
+/* ---------------- Video finder ---------------- */
+async function findTab(){
+  const j=await api('/api/admin/help-videos');
+  pane.innerHTML=`<div class="card"><h3>Video finder</h3><p class="muted">Search YouTube for tutorials and ideas (painting, business, marketing). Results are saved for 7 days to protect the free daily limit. ${j.searchOn?'':'<b class="bad">Search is off until the YOUTUBE_API_KEY secret is set.</b>'}</p>
+<div class="row"><input id="q" size="40" placeholder="how to paint kitchen cabinets" maxlength="80"><button class="btn" id="go">Search</button></div><div id="hits" class="hits" style="margin-top:12px"></div></div>`;
+  const go=async()=>{try{const r=await api('/api/youtube/search?q='+encodeURIComponent($('q').value));$('hits').innerHTML=r.hits.map(h=>`<div class="hit"><a href="https://www.youtube.com/watch?v=${h.id}" target="_blank" rel="noopener"><img src="${esc(h.thumb)}" alt=""></a><b>${esc(h.title)}</b><div class="muted">${esc(h.channel)}</div><code>https://youtu.be/${h.id}</code></div>`).join('')||'<p class="muted">No results.</p>';msg(r.cached?'Saved results (free).':'Fresh results.',true);}catch(e){msg(e.message);}};
+  $('go').onclick=go;$('q').onkeydown=e=>{if(e.key==='Enter')go();};
+}
+
+/* ---------------- Landing pages and campaigns ---------------- */
+const pct=(n,of)=>of>0?(Math.round(n/of*1000)/10)+'%':'-';
+const BLANK={slug:'',name:'',campaign:'',status:'draft',goal:'free',plan:'',headline:{en:'',es:''},sub:{en:'',es:''},bullets:[{en:'',es:''},{en:'',es:''},{en:'',es:''}],cta:{en:'',es:''},note:{en:'',es:''},yt:'',orient:'wide'};
+let LP=[];
+async function lpTab(){
+  const j=await api('/api/admin/landing');LP=j.pages;
+  const camps={};LP.forEach(p=>{const k=p.campaign||'(no campaign)';const c=camps[k]=camps[k]||{view:0,play:0,cta:0,checkout:0,n:0};c.n++;for(const e of ['view','play','cta','checkout'])c[e]+=p.stats.totals[e];});
+  pane.innerHTML=`<div class="card"><h3>Campaigns</h3><p class="muted">Each landing page belongs to a campaign. Compare campaigns by what matters: visits, how many pressed Get started, and how many reached the sign-up form. Counts are for the last 30 days. Sign-ups are counted when someone who came from a page submits the sign-up form.</p>
+${Object.keys(camps).length?`<table><tr><th>Campaign</th><th>Pages</th><th>Visits</th><th>Video plays</th><th>Button taps</th><th>Tap rate</th><th>Sign-up form</th><th>Visit to sign-up</th></tr>${Object.entries(camps).map(([k,c])=>`<tr><td><b>${esc(k)}</b></td><td>${c.n}</td><td>${c.view}</td><td>${c.play}</td><td>${c.cta}</td><td>${pct(c.cta,c.view)}</td><td>${c.checkout}</td><td>${pct(c.checkout,c.view)}</td></tr>`).join('')}</table>`:'<p class="muted">No landing pages yet. Create the first one below.</p>'}</div>
+<div class="card"><h3>Landing pages</h3>${LP.length?`<table><tr><th>Page</th><th>Status</th><th>Visits</th><th>Taps</th><th>Sources (visits)</th><th></th></tr>${LP.map((p,i)=>`<tr><td><b>${esc(p.name)}</b><br><code>/l/${esc(p.slug)}</code></td><td><span class="pill ${p.status}">${p.status}</span></td><td>${p.stats.totals.view}</td><td>${p.stats.totals.cta} (${pct(p.stats.totals.cta,p.stats.totals.view)})</td><td>${Object.entries(p.stats.bySource).map(([s,v])=>`${esc(s)}: ${v.view}`).join('<br>')||'-'}</td><td><button class="btn sec" data-e="${i}">Edit</button> <a class="btn sec" href="/l/${esc(p.slug)}" target="_blank" rel="noopener">Open</a></td></tr>`).join('')}</table>`:''}<div class="row" style="margin-top:10px"><button class="btn" id="newLp"${j.canChange?'':' disabled'}>+ New landing page</button></div></div>
+<div id="ed"></div>
+<div class="card"><h3>Campaign tracking links</h3><p class="muted">Add a source to every link you share, so the numbers show where visitors came from.</p>
+<div class="row"><select id="ulp">${LP.map(p=>`<option value="${esc(p.slug)}">${esc(p.name)}</option>`).join('')}</select><select id="usrc"><option>facebook</option><option>instagram</option><option>google</option><option>youtube</option><option>email</option><option>text</option><option>flyer</option><option>truck</option><option>partner</option></select><input id="uex" placeholder="extra label (optional)" size="18" maxlength="20"><button class="btn" id="ubuild">Make link</button></div><p><code id="ulink">-</code></p></div>
+<div class="card"><h3>Campaign playbook</h3><ol class="muted"><li><b>One goal.</b> Free sign-ups or paid tier? Pick one per page.</li><li><b>One audience.</b> Example: painters in Tyler, TX with no website.</li><li><b>One promise</b> in the headline, three proof points as bullets, one button.</li><li><b>Show, do not tell.</b> A 60-second video of the product beats a paragraph.</li><li><b>Tag every link</b> with a source above, then compare sources after 7 days.</li><li><b>Judge by rates, not totals:</b> tap rate under 5% means change the headline; many taps but no sign-ups means change the offer or the sign-up page.</li><li><b>Change one thing at a time</b> (copy the page, change the headline, run both, keep the winner).</li><li><b>Write the offer end date</b> in the small print so urgency is real.</li></ol></div>`;
+  $('newLp').onclick=()=>editLp(structuredClone(BLANK));
+  pane.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>editLp(structuredClone(LP[+b.dataset.e])));
+  $('ubuild').onclick=()=>{if(!$('ulp').value)return msg('Create a landing page first.');const x=$('uex').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');$('ulink').textContent=location.origin+'/l/'+$('ulp').value+'?utm_source='+$('usrc').value+(x?'&utm_campaign='+x:'');};
+}
+function editLp(p){
+  const f=(label,id,val,ph,len)=>`<label>${label}</label><input id="${id}" value="${esc(val)}" placeholder="${esc(ph||'')}" maxlength="${len||120}" style="width:100%">`;
+  $('ed').innerHTML=`<div class="card"><h3>${p.slug?'Edit':'New'} landing page</h3><div class="cols"><div>
+${f('Internal name','lpName',p.name,'Spring painters promo',80)}${f('Web address ends with /l/ ...','lpSlug',p.slug,'spring-painters',50)}${f('Campaign group (for comparing)','lpCamp',p.campaign,'spring-2027',30)}
+<label>Status</label><select id="lpStatus"><option value="draft">Draft (only you see it)</option><option value="live">Live</option><option value="paused">Paused</option></select>
+<label>Goal</label><select id="lpGoal"><option value="free">Start free</option><option value="paid">Pick a tier</option></select>
+<label>Preselected tier (optional)</label><select id="lpPlan"><option value="">None</option><option value="starter">Starter</option><option value="basic">Basic</option><option value="pro">Pro</option></select>
+<label>YouTube video link (optional)</label><input id="lpYt" value="${p.yt?'https://youtu.be/'+p.yt:''}" placeholder="https://youtu.be/..." style="width:100%"><select id="lpOr"><option value="wide">Wide video</option><option value="tall">Tall (phone) video</option></select></div>
+<div><b>English</b>${f('Headline','h_en',p.headline.en,'',120)}<label>Sub-headline</label><textarea id="s_en" maxlength="300">${esc(p.sub.en)}</textarea>${p.bullets.concat([{en:'',es:''},{en:'',es:''}]).slice(0,5).map((b,i)=>f('Bullet '+(i+1),'b'+i+'_en',b.en,'',120)).join('')}${f('Button text','c_en',p.cta.en,'Start free',40)}${f('Small print','n_en',p.note.en,'',200)}
+<b style="display:block;margin-top:12px">Español</b>${f('Titular','h_es',p.headline.es,'',120)}<label>Subtítulo</label><textarea id="s_es" maxlength="300">${esc(p.sub.es)}</textarea>${p.bullets.concat([{en:'',es:''},{en:'',es:''}]).slice(0,5).map((b,i)=>f('Punto '+(i+1),'b'+i+'_es',b.es,'',120)).join('')}${f('Texto del botón','c_es',p.cta.es,'Empezar gratis',40)}${f('Letra pequeña','n_es',p.note.es,'',200)}</div></div>
+<div class="row" style="margin-top:12px"><button class="btn" id="lpSave">Save</button><button class="btn sec" id="lpCancel">Close</button><span class="muted">English and Spanish both needed for live pages? English is required; Spanish falls back to English.</span></div></div>`;
+  $('lpStatus').value=p.status;$('lpGoal').value=p.goal;$('lpPlan').value=p.plan;$('lpOr').value=p.orient;
+  $('lpCancel').onclick=()=>{$('ed').innerHTML='';};
+  $('lpSave').onclick=async()=>{const v=id=>$(id).value;const page={slug:v('lpSlug'),name:v('lpName'),campaign:v('lpCamp'),status:v('lpStatus'),goal:v('lpGoal'),plan:v('lpPlan'),yt:v('lpYt'),orient:v('lpOr'),headline:{en:v('h_en'),es:v('h_es')},sub:{en:v('s_en'),es:v('s_es')},cta:{en:v('c_en'),es:v('c_es')},note:{en:v('n_en'),es:v('n_es')},bullets:[0,1,2,3,4].map(i=>({en:v('b'+i+'_en'),es:v('b'+i+'_es')}))};
+    try{const r=await api('/api/admin/landing',{page});msg('Saved. Address: '+location.origin+r.url,true);lpTab();}catch(e){msg(e.message);}};
+  $('ed').scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------------- AI sandbox ---------------- */
+async function sandboxTab(){
+  pane.innerHTML=`<div class="card"><h3>AI sandbox (images and videos for PaintersMax marketing)</h3><p class="muted">This will be a private workshop for you: write a prompt, pick any fal.ai model, see the price before you run it, and save results to a library you can use in landing pages and videos. It spends your fal.ai balance (separate from client credits), so it has a daily spending limit you set.</p><p class="muted">Status: planned as its own build thread. The hand-off brief is in the project files: <code>/mnt/project-files/paintersmax/template-library/SANDBOX-BUILD-BRIEF.md</code>.</p></div>`;
+}
+show();
+</script></body></html>

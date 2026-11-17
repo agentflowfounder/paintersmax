@@ -269,3 +269,22 @@ test("crop focus: only real photo spaces, clamped, centre is not stored; drawn a
   s.themes["sunset-sand"] = cleanTheme({ slots: { "HOME-HERO": "aaaaaaaaaaaa" }, focus: { "HOME-HERO": { x: 20, y: 70 } } }, cfg, new Set(["aaaaaaaaaaaa"])) as any;
   assert.match(draw(s), /style="object-position:20% 70%"/);
 });
+
+test("library: videos and weather draw on Sunset Sand; videos obey the switch; hero video plays in the card", () => {
+  const site = draft();
+  const home = site.pages.find((p) => p.kind === "home")!;
+  home.blocks.push({ id: "v1", type: "video", heading: "", yt: "dQw4w9WgXcQ", orient: "tall", kind: "message", caption: "Hello" } as any, { id: "w1", type: "weather", heading: "", place: "Tyler, TX" } as any);
+  site.media = { on: false, heroYt: "dQw4w9WgXcQ", heroOrient: "wide" };
+  const off = draw(site, { door: "grow", tpl: "sunset-sand" });
+  assert.doesNotMatch(off, /data-yt="dQw4w9WgXcQ"/);
+  assert.doesNotMatch(off, /data-yt-hero/);
+  assert.match(off, /data-weather="Tyler, TX"/);
+  site.media.on = true;
+  const on = draw(site, { door: "grow", tpl: "sunset-sand" });
+  assert.match(on, /pm-video-tall" data-yt="dQw4w9WgXcQ"/);
+  assert.match(on, /hero-card has-video hv-wide/);
+  assert.match(on, /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?[^"]*mute=1/);
+  assert.equal((on.match(/data-weather=/g) ?? []).length, 1); // the template spot yields to the painter's own weather block
+  const noBlock = draft();
+  assert.equal((draw(noBlock, { door: "grow", tpl: "sunset-sand" }).match(/data-weather=/g) ?? []).length, 1); // the template's own spot uses the painter's city
+});
