@@ -1,4 +1,4 @@
-import type { TemplateConfig } from "../../src/sitetheme.ts";
+import type { ImageSlotDef, TemplateConfig } from "../../src/sitetheme.ts";
 
 /**
  * Template 2: "Sunset Sand" (design brief 2026-11-16, Phase 2 draft).
@@ -9,6 +9,87 @@ import type { TemplateConfig } from "../../src/sitetheme.ts";
  * Drawn by templates/sunset-sand/render.ts; the platform blocks are shared with the other templates.
  */
 const STYLE = "Photorealistic interior photography, soft diffused daylight, calm and uncluttered, warm neutral palette of cream, sand, oak and espresso, natural textures, shot on a full-frame camera with a 35mm lens, no text, no logos, no watermarks, no recognizable faces.";
+
+/** Three more scene ideas per photo space (the first prompt is the one in imageSlots). The editor rotates through the four so new users do not all start from the same prompt. Same size and subject for the space. */
+const ALTS: Record<string, string[]> = {
+  "HOME-HERO": [
+    "Wide shot of an open dining area with freshly painted warm cream walls, a round oak table, linen chairs and tall windows with soft side light.",
+    "Wide shot of a quiet bedroom with freshly painted soft sand walls, a low linen bed, a wood bench and morning light from a large window.",
+    "Wide shot of a bright entry hall with freshly painted warm white walls, an arched doorway, an oak console table and a ceramic bowl in soft daylight.",
+  ],
+  "HERO-CARD": [
+    "Painter in white overalls seen from behind cutting in a ceiling edge with a small brush on a stepladder, drop cloths below.",
+    "Close view of a painter's hands rolling warm cream paint onto a wall, taped trim, soft window light.",
+    "Painter in a cap seen from the side painting a door frame with a brush, canvas drop cloth on the floor.",
+  ],
+  "PAGE-HERO": [
+    "Quiet living room corner with freshly painted warm white walls, a floor lamp and an oak shelf, soft daylight.",
+    "Quiet stairway with freshly painted cream walls and a sand colored railing, soft daylight from a side window.",
+    "Quiet kitchen nook with freshly painted warm walls, a small oak table and a linen runner, soft morning light.",
+  ],
+  "STORY-1": [
+    "Close detail of crisp white painted baseboard meeting a warm cream wall, soft light.",
+    "Close detail of a freshly painted door edge with a clean sand colored line, soft light.",
+    "Close detail of crisp painted crown molding against a warm white ceiling, soft light.",
+  ],
+  "STORY-2": [
+    "Overhead view of a paint roller and tray with warm sand colored paint on a drop cloth.",
+    "A row of closed paint cans with hand-lettered sand and cream swatches beside a brush on a drop cloth.",
+    "A hand holding a color swatch card against a freshly painted warm wall, soft light.",
+  ],
+  "STORY-3": [
+    "Living room wall painted a soft clay color behind a linen sofa and an oak side table.",
+    "Hallway painted a calm greige with an oak bench and a woven basket.",
+    "Dining room wall painted a warm cream with a simple oak sideboard and a ceramic vase.",
+  ],
+  "STORY-4": [
+    "Bathroom with freshly painted warm white walls, an oak vanity and brass fixtures.",
+    "Home office with freshly painted soft sage walls, an oak desk and a linen chair.",
+    "Front door freshly painted a deep walnut tone beside crisp white trim, soft light.",
+  ],
+  "SERVICE-PHOTO": [
+    "Freshly painted dining room in a warm neutral tone, one oak table, soft light.",
+    "Freshly painted hallway in a soft cream tone with a runner rug and an oak console, soft light.",
+    "Freshly painted bedroom in a calm sand tone with a linen bed, soft light.",
+  ],
+  "CITIES-PHOTO": [
+    "Front of a two-story home with freshly painted warm cream siding, white trim and a wide porch, soft morning light.",
+    "Front of a brick home with freshly painted sand colored trim and a deep green door, soft light.",
+    "Side view of a single-story home with freshly painted warm gray siding and a wooden fence, soft light.",
+  ],
+  "WORK-FEATURE": [
+    "Dim, moody dining room with deep warm painted walls and a single pendant light, evening.",
+    "Dim, moody bedroom with deep clay colored walls and a bedside lamp glowing, evening.",
+    "Dim, moody hallway with deep espresso colored walls and a warm wall light, evening.",
+  ],
+  "BA-BEFORE": [
+    "Bedroom before painting: dull beige walls with scuffs and nail holes, bed covered with a sheet, flat daylight.",
+    "Kitchen before painting: faded cabinets with chipped edges and worn paint, flat daylight.",
+    "Hallway before painting: yellowed walls with scratches and a patched corner, flat daylight.",
+  ],
+  "BA-AFTER": [
+    "The same bedroom after painting: smooth soft sand walls, crisp white trim, bed made, soft light.",
+    "The same kitchen after painting: smooth greige cabinets, brass pulls, soft light.",
+    "The same hallway after painting: smooth warm cream walls, crisp white trim, soft light.",
+  ],
+  "PROCESS-PHOTO": [
+    "Room prepared for painting: furniture moved to the center under plastic, taped window trim, soft light.",
+    "Close view of masking tape lines on baseboards with a putty knife and sanding block on a drop cloth, soft light.",
+    "Paint cans, brushes and rollers neatly lined up on a canvas drop cloth in a prepared room, soft light.",
+  ],
+  "REVIEW-PHOTO": [
+    "Cozy living room with a freshly painted warm wall, a linen sofa and a throw blanket, soft evening light.",
+    "Sunlit kitchen with freshly painted warm walls and a bowl of lemons on an oak counter.",
+    "Quiet bedroom with a freshly painted sand wall, a linen bed and a small plant, morning light.",
+  ],
+  "CTA-BAND": [
+    "Wide, dark and calm living room with deep painted walls and a single lamp, evening.",
+    "Wide, dark and calm dining room with deep clay walls and soft window light, dusk.",
+    "Wide, dark and calm entry hall with deep espresso walls and a warm wall light, dusk.",
+  ],
+};
+const withAlts = (list: ImageSlotDef[]): ImageSlotDef[] =>
+  list.map((sl) => ({ ...sl, prompts: [sl.prompt, ...(ALTS[sl.slot] ?? []).map((sc) => `${sc} ${STYLE} Aspect ratio ${sl.ratio}, ${sl.w}x${sl.h} pixels.`)] }));
 
 export const config: TemplateConfig = {
   configVersion: 1,
@@ -105,14 +186,14 @@ export const config: TemplateConfig = {
       lang: "English", langCode: "en", prev: "Anterior", next: "Siguiente", photoSoon: "Foto muy pronto",
     },
   },
-  imageSlots: [
+  imageSlots: withAlts([
     { slot: "HOME-HERO", section: "hero", w: 1920, h: 1200, ratio: "16:10", alt: { en: "Calm living room with freshly painted warm walls", es: "Sala tranquila con paredes recién pintadas en tono cálido" }, prompt: `Wide shot of a calm, minimal living room with freshly painted warm cream walls, oak floor, low linen sofa, a single ceramic vase, soft side light from tall windows. ${STYLE} Aspect ratio 16:10, 1920x1200 pixels.` },
     { slot: "HERO-CARD", section: "hero", w: 640, h: 400, ratio: "16:10", alt: { en: "Painter at work", es: "Pintor trabajando" }, prompt: `Painter in white overalls seen from behind rolling a soft sand color onto a wall, drop cloths, taped trim. ${STYLE} Aspect ratio 16:10, 640x400 pixels.` },
     { slot: "PAGE-HERO", section: "hero", w: 1920, h: 900, ratio: "2:1", alt: { en: "Quiet hallway with fresh paint", es: "Pasillo tranquilo con pintura nueva" }, prompt: `Quiet hallway with freshly painted warm white walls and a sand colored accent door, oak bench, soft daylight. ${STYLE} Aspect ratio 2:1, 1920x900 pixels.` },
     { slot: "STORY-1", section: "statement", w: 600, h: 750, ratio: "4:5", alt: { en: "Freshly painted trim detail", es: "Detalle de moldura recién pintada" }, prompt: `Close detail of crisp white painted window trim against a warm cream wall, soft light. ${STYLE} Aspect ratio 4:5, 600x750 pixels.` },
-    { slot: "STORY-2", section: "statement", w: 600, h: 600, ratio: "1:1", alt: { en: "Paint brush and open can", es: "Brocha y lata de pintura abierta" }, prompt: `Angled brush resting on an open can of warm sand colored paint on a drop cloth. ${STYLE} Aspect ratio 1:1, 600x600 pixels.` },
+    { slot: "STORY-2", section: "statement", w: 600, h: 750, ratio: "4:5", alt: { en: "Paint brush and open can", es: "Brocha y lata de pintura abierta" }, prompt: `Angled brush resting on an open can of warm sand colored paint on a drop cloth. ${STYLE} Aspect ratio 4:5, 600x750 pixels.` },
     { slot: "STORY-3", section: "statement", w: 600, h: 750, ratio: "4:5", alt: { en: "Bedroom with a soft clay wall", es: "Recámara con pared color arcilla" }, prompt: `Bedroom with a soft clay painted wall behind a linen bed, wood nightstand. ${STYLE} Aspect ratio 4:5, 600x750 pixels.` },
-    { slot: "STORY-4", section: "statement", w: 600, h: 450, ratio: "4:3", alt: { en: "Kitchen cabinets freshly painted", es: "Gabinetes de cocina recién pintados" }, prompt: `Kitchen with freshly painted greige cabinets, brass pulls, stone counter. ${STYLE} Aspect ratio 4:3, 600x450 pixels.` },
+    { slot: "STORY-4", section: "statement", w: 600, h: 750, ratio: "4:5", alt: { en: "Kitchen cabinets freshly painted", es: "Gabinetes de cocina recién pintados" }, prompt: `Kitchen with freshly painted greige cabinets, brass pulls, stone counter. ${STYLE} Aspect ratio 4:5, 600x750 pixels.` },
     { slot: "SERVICE-PHOTO", section: "services", w: 1200, h: 1500, ratio: "4:5", alt: { en: "Freshly painted room", es: "Cuarto recién pintado" }, prompt: `Freshly painted room in a warm neutral tone, one piece of oak furniture, soft light. ${STYLE} Aspect ratio 4:5, 1200x1500 pixels.` },
     { slot: "CITIES-PHOTO", section: "cities", w: 900, h: 1350, ratio: "2:3", alt: { en: "Front of a freshly painted home", es: "Fachada de una casa recién pintada" }, prompt: `Front porch of a single-story home with freshly painted warm white siding and a walnut stained door, mature trees, soft morning light. ${STYLE} Aspect ratio 2:3, 900x1350 pixels.` },
     { slot: "WORK-FEATURE", section: "gallery_ba", w: 1920, h: 1080, ratio: "16:9", alt: { en: "Finished painting project", es: "Proyecto de pintura terminado" }, prompt: `Dim, moody living space with deep warm painted walls and a single lamp glowing, evening. ${STYLE} Aspect ratio 16:9, 1920x1080 pixels.` },
@@ -121,7 +202,7 @@ export const config: TemplateConfig = {
     { slot: "PROCESS-PHOTO", section: "process", w: 900, h: 1350, ratio: "2:3", alt: { en: "Taped trim and drop cloths ready for paint", es: "Molduras encintadas y lonas listas para pintar" }, prompt: `Room prepared for painting: taped baseboards, floor covered with canvas drop cloths, ladder, soft window light. ${STYLE} Aspect ratio 2:3, 900x1350 pixels.` },
     { slot: "REVIEW-PHOTO", section: "review_request", w: 900, h: 1125, ratio: "4:5", alt: { en: "Finished room", es: "Cuarto terminado" }, prompt: `Reading corner with a freshly painted warm wall, linen armchair and a floor lamp. ${STYLE} Aspect ratio 4:5, 900x1125 pixels.` },
     { slot: "CTA-BAND", section: "cta", w: 1920, h: 800, ratio: "12:5", alt: { en: "Painted room at dusk", es: "Cuarto pintado al anochecer" }, prompt: `Wide, dark and calm room with deep painted walls at dusk, a soft window glow. ${STYLE} Aspect ratio 12:5, 1920x800 pixels.` },
-  ],
+  ]),
   imageProvider: { kind: "inhouse", endpoint: "/api/site/image-ai", ready: false, creditFeature: null },
   seo: { schemaType: "HousePainter", ogImageSlot: "HOME-HERO" },
   contact: { name: "Sand Creek Painting", phone: "(903) 555-0163", email: "hello@sandcreekpainting.example", address: "200 Sample Lane", city: "Tyler", state: "TX", hours: "Mon to Fri 8 AM to 5 PM" },
