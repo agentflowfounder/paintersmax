@@ -30,6 +30,8 @@ export interface Landing {
   cta: Txt;
   yt: string;
   orient: Orient;
+  media: string; // an AI sandbox image or video (shown when there is no YouTube video), labeled as made with AI
+  mediaType: "image" | "video" | "";
   note: Txt; // small print under the button (offer end date etc.)
   updatedAt: string;
 }
@@ -56,6 +58,8 @@ export function cleanLanding(raw: any, now = new Date().toISOString()): Landing 
     cta: t2(raw?.cta, 40),
     yt: yt?.id ?? "",
     orient: yt?.short ? "tall" : cleanOrient(raw?.orient),
+    media: /^[a-z0-9]{6,40}$/.test(raw?.media ?? "") && ["image", "video"].includes(raw?.mediaType) ? raw.media : "",
+    mediaType: /^[a-z0-9]{6,40}$/.test(raw?.media ?? "") && ["image", "video"].includes(raw?.mediaType) ? raw.mediaType : "",
     note: t2(raw?.note, 200),
     updatedAt: now,
   };
@@ -119,8 +123,8 @@ export const rate = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 1
 /* ---------- the public page ---------- */
 
 const TXT = {
-  en: { play: "Play video", start: "Get started", by: "PaintersMax", lang: "Español", hint: "Free to start. No card needed." },
-  es: { play: "Ver video", start: "Empezar", by: "PaintersMax", lang: "English", hint: "Gratis para empezar. Sin tarjeta." },
+  en: { play: "Play video", start: "Get started", by: "PaintersMax", lang: "Español", hint: "Free to start. No card needed.", aiImage: "Image made with AI", aiVideo: "Video made with AI" },
+  es: { play: "Ver video", start: "Empezar", by: "PaintersMax", lang: "English", hint: "Gratis para empezar. Sin tarjeta.", aiImage: "Imagen hecha con IA", aiVideo: "Video hecho con IA" },
 };
 
 export function renderLanding(l: Landing, lang: "en" | "es", o: { origin: string; preview: boolean }): string {
@@ -133,7 +137,11 @@ export function renderLanding(l: Landing, lang: "en" | "es", o: { origin: string
   const note = pick(l.note) || (l.goal === "free" ? T.hint : "");
   const video = l.yt
     ? `<div class="vid ${l.orient}" data-yt="${l.yt}"><button type="button" id="play" aria-label="${e(T.play)}" style="background-image:url(${thumbUrl(l.yt)})"><span></span></button></div>`
-    : "";
+    : l.media && l.mediaType === "video"
+      ? `<figure class="ai"><video src="/media/ai/${l.media}" autoplay muted loop playsinline preload="metadata"></video><figcaption>${e(T.aiVideo)}</figcaption></figure>`
+      : l.media
+        ? `<figure class="ai"><img src="/media/ai/${l.media}" alt="" loading="lazy"><figcaption>${e(T.aiImage)}</figcaption></figure>`
+        : "";
   const bullets = l.bullets.map((b) => pick(b)).filter(Boolean);
   const other = lang === "en" ? "es" : "en";
   const canonical = `${o.origin.replace(/\/$/, "")}/l/${l.slug}`;
@@ -148,6 +156,7 @@ ul{padding:0;margin:0 0 22px;list-style:none;display:grid;gap:10px}li{padding-le
 .btn{display:inline-block;background:#e8833a;color:#fff;font-weight:700;text-decoration:none;padding:16px 28px;border-radius:10px;font-size:1.1rem;min-height:52px}.btn:hover{background:#d4722b}.note{font-size:.88rem;color:#5b6674;margin:12px 0 0}
 .vid{position:relative;background:#111;border-radius:14px;overflow:hidden;aspect-ratio:16/9;width:100%}.vid.tall{aspect-ratio:9/16;max-width:340px;margin:0 auto}.vid button,.vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0;padding:0;cursor:pointer;background:#111 center/cover no-repeat}
 .vid button span{position:absolute;left:50%;top:50%;width:72px;height:72px;margin:-36px 0 0 -36px;border-radius:50%;background:rgba(0,0,0,.65);box-shadow:0 0 0 2px #fff inset}.vid button span:after{content:"";position:absolute;left:29px;top:21px;border-left:23px solid #fff;border-top:15px solid transparent;border-bottom:15px solid transparent}
+.ai{margin:0}.ai img,.ai video{display:block;width:100%;height:auto;border-radius:14px;background:#111}.ai figcaption{font-size:12px;color:#5b6674;margin-top:6px;text-align:right}
 .prev{background:#fff3cd;color:#664d03;text-align:center;padding:6px;font-size:13px}footer{text-align:center;font-size:13px;color:#5b6674;padding:20px}</style></head><body>
 ${o.preview ? `<div class="prev">Preview. This page is ${e(l.status)}; visitors cannot see it.</div>` : ""}
 <div class="top"><b>PAINTERSMAX</b><a href="?lang=${other}">${T.lang}</a></div>
@@ -185,6 +194,15 @@ export async function handleLpEvent(request: Request, env: Env): Promise<Respons
 export async function creditCheckout(env: Env, request: Request): Promise<void> {
   const slug = readCookie(request.headers.get("cookie"), "pm_lp");
   if (slug && /^[a-z0-9-]{2,50}$/.test(slug)) await recordLp(env, slug, "checkout").catch(() => {});
+}
+
+/** Puts an AI sandbox image or video on a landing page (the person pressed "Use in landing page"). */
+export async function setLandingMedia(env: Env, slug: string, item: { id: string; type: string } | null): Promise<boolean> {
+  const l = await readLanding(env, cleanSlug(slug));
+  if (!l) return false;
+  const media = item && (item.type === "image" || item.type === "video") ? item.id : "";
+  await writeBlob(env, key(l.slug), { ...l, media, mediaType: media ? item!.type : "", updatedAt: new Date().toISOString() });
+  return true;
 }
 
 /* ---------- admin ---------- */

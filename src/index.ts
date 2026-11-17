@@ -35,6 +35,7 @@ import { handleHelp } from "./helplib.ts";
 import { handleHelpVideos, handleHelpVideosAdmin, handleYoutubeSearch } from "./youtube.ts";
 import { handleWeather } from "./weather.ts";
 import { handleLogoSettings, handleLandingAdmin, handleLandingPage, handleLpEvent } from "./landing.ts";
+import { handlePublicMedia, handleSandbox, handleSandboxFile, handleSandboxItem, handleSandboxJob, handleSandboxLibrary, handleSandboxModel, handleSandboxModels, handleSandboxRun, sandboxCleanup } from "./sandbox.ts";
 import { handleImageAi, handleImageAiSettings, handleTemplateSlotImage, handleTemplateSlotImageGet, handleTemplateThumb, handleTemplateThumbGet, handleTemplatesAdmin } from "./sitetemplatesapi.ts";
 import { handleDemo } from "./demo.ts";
 import { requireAgreement } from "./agreement.ts";
@@ -437,6 +438,9 @@ export default {
     ctx.waitUntil(sendOwnerDigests(env).catch((err) => console.error("owner digest failed", String(err))));
     ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
     ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
+    // Once a day (the 09:00 UTC run): AI sandbox items past their keep window.
+    const at = new Date(_event.scheduledTime);
+    if (at.getUTCHours() === 9 && at.getUTCMinutes() < 5) ctx.waitUntil(sandboxCleanup(env).catch((err) => console.error("sandbox cleanup failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     return withSecurityHeaders(await friendly404(request, env, await handle(request, env, ctx)));
@@ -481,6 +485,7 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     if (pathname.startsWith("/site-photo/") && request.method === "GET") return handleSitePhoto(env, pathname);
     if (pathname.startsWith("/site-template-thumb/") && request.method === "GET") return handleTemplateThumbGet(env, pathname);
     if (pathname.startsWith("/l/") && request.method === "GET") return handleLandingPage(request, env);
+    if (pathname.startsWith("/media/ai/") && request.method === "GET") return handlePublicMedia(request, env);
     if (pathname.startsWith("/site-template-image/") && request.method === "GET") return handleTemplateSlotImageGet(env, pathname);
     // PainterSelect, the homeowner directory, lives on its own domain. Its form posts go to the /api/dir routes below.
     if (isDirHost(hostname) && !pathname.startsWith("/api/")) {
@@ -683,6 +688,8 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
       "/api/site": handleSiteApi, "/api/site/photo": handleSitePhotoUpload, "/api/site/preview": handleSitePreview, "/api/site/admin": handleSiteAdmin,
       "/api/site/templates/admin": handleTemplatesAdmin, "/api/site/templates/thumb": handleTemplateThumb, "/api/site/templates/slot-image": handleTemplateSlotImage, "/api/site/image-ai": handleImageAi, "/api/site/image-ai/settings": handleImageAiSettings,
       "/api/weather": handleWeather, "/api/lp/event": handleLpEvent, "/api/admin/landing": handleLandingAdmin, "/api/admin/pm-logo": handleLogoSettings, "/api/help-videos": handleHelpVideos, "/api/admin/help-videos": handleHelpVideosAdmin, "/api/youtube/search": handleYoutubeSearch,
+      "/api/admin/sandbox": handleSandbox, "/api/admin/sandbox/models": handleSandboxModels, "/api/admin/sandbox/model": handleSandboxModel, "/api/admin/sandbox/run": (r, e) => handleSandboxRun(r, e),
+      "/api/admin/sandbox/job": (r, e) => handleSandboxJob(r, e), "/api/admin/sandbox/library": handleSandboxLibrary, "/api/admin/sandbox/item": handleSandboxItem, "/api/admin/sandbox/file": handleSandboxFile,
       "/api/reviews": handleSiteReviews, "/api/review/submit": handleReviewSubmit,
       "/api/dir/lead": handleDirLead, "/api/dir/claim": handleDirClaim, "/api/dir/me": handleDirMe, "/api/dir/admin": handleDirAdmin,
     };
