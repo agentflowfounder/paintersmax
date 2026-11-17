@@ -1,6 +1,7 @@
 import { configOf, TEMPLATE_IDS } from "../templates/configs.ts";
 import { cleanSocial, cleanTheme, SITE_SCHEMA, upgradeSite, type SocialLink, type Theme } from "./sitetheme.ts";
 import type { Plan } from "./usage.ts";
+import { cleanOrient, parseYouTube, type Orient } from "./ytcore.ts";
 
 /**
  * Website builder: the rules and the data shape, with no database or network code (so it is easy to test).
@@ -93,7 +94,19 @@ export type Block =
   | { id: string; type: "photos"; heading: string; photos: string[] }
   | { id: string; type: "tabs"; heading: string; tabs: Tab[] }
   | { id: string; type: "cta"; heading: string; body: string; action: "quote" | "call" }
-  | { id: string; type: "reviews"; heading: string };
+  | { id: string; type: "reviews"; heading: string }
+  | { id: string; type: "video"; heading: string; yt: string; orient: Orient; kind: VideoKind; caption: string }
+  | { id: string; type: "weather"; heading: string; place: string };
+
+/** What a video is for. Only changes the label the editor and the page use; any kind can be wide or tall. */
+export type VideoKind = "intro" | "testimonial" | "message" | "how";
+export const VIDEO_KINDS: VideoKind[] = ["intro", "testimonial", "message", "how"];
+/** The painter's video switch. Off hides every video on the public site (the videos stay saved). */
+export interface Media { on: boolean; heroYt: string; heroOrient: Orient }
+export const cleanMedia = (raw: any): Media => {
+  const p = parseYouTube(raw?.heroYt);
+  return { on: raw?.on === true, heroYt: p?.id ?? "", heroOrient: p?.short ? "tall" : cleanOrient(raw?.heroOrient) };
+};
 
 export interface Page {
   id: string;
@@ -119,6 +132,7 @@ export interface Site {
   lang: "en" | "es";
   pages: Page[];
   photos: PhotoMeta[]; // every uploaded photo (the site total)
+  media?: Media; // videos on or off, and the hero video
   business: { phone: string; email: string; address: string; city: string; state: string; zip: string; hours: string; serviceArea: string; license: string; gbpUrl: string };
   gscToken: string; // Google Search Console verification code
   footer: string;
@@ -135,6 +149,8 @@ const idOf = (v: unknown, fallback: string) => (typeof v === "string" && /^[a-z0
 export const newId = () => crypto.randomUUID().replace(/-/g, "").slice(0, 12);
 
 export const BLOCK_CAP = 12;
+/** A site shows weather for at most this many places. */
+export const MAX_WEATHER_PLACES = 2;
 export const TAB_CAP = 8;
 export const TEXT_MAX = 6000;
 
@@ -156,6 +172,13 @@ function cleanBlock(b: any, photoIds: Set<string>): Block | null {
       return { id, type: "cta", heading, body: s(b?.body, 400), action: b?.action === "call" ? "call" : "quote" };
     case "reviews":
       return { id, type: "reviews", heading };
+    case "video": {
+      const p = parseYouTube(b?.yt);
+      if (!p) return null;
+      return { id, type: "video", heading, yt: p.id, orient: p.short ? "tall" : cleanOrient(b?.orient), kind: VIDEO_KINDS.includes(b?.kind) ? b.kind : "intro", caption: s(b?.caption, 200) };
+    }
+    case "weather":
+      return { id, type: "weather", heading, place: s(b?.place, 80) };
     default:
       return null;
   }
@@ -208,6 +231,9 @@ export function cleanSite(rawInput: any, limits: Limits, door: Door, now = new D
   for (const k of CORE_KINDS) {
     if (!seenCore.has(k)) pages.push({ id: newId(), kind: k, slug: CORE_SLUGS[k], nav: CORE_NAV[k], seoTitle: "", seoDesc: "", headline: "", intro: "", blocks: [] });
   }
+  // A site shows weather for at most 2 places. Later ones are dropped, so the limit holds however the page was edited.
+  let weatherLeft = door === "grow" || door === "signature" ? MAX_WEATHER_PLACES : 0; // weather comes with the Grow door and up
+  for (const pg of pages) pg.blocks = pg.blocks.filter((bl) => bl.type !== "weather" || (bl.place && weatherLeft-- > 0));
   // Home first, then the order the painter chose.
   pages.sort((a, b) => (a.kind === "home" ? -1 : b.kind === "home" ? 1 : 0));
 
@@ -235,6 +261,7 @@ export function cleanSite(rawInput: any, limits: Limits, door: Door, now = new D
       lang: input?.lang === "es" ? "es" : "en",
       pages,
       photos,
+      media: cleanMedia(input?.media),
       business: {
         phone: s(b.phone, 30), email: /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(s(b.email, 200)) ? s(b.email, 200) : "",
         address: s(b.address, 160), city: s(b.city, 60), state: s(b.state, 2).toUpperCase(), zip: s(b.zip, 10), hours: s(b.hours, 120),

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Marketing studio - Admin</title>
+<style>
+*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:14px}
+main{max-width:1200px;margin:0 auto;padding:16px 16px 60px}h3{margin:0 0 6px;font-family:Newsreader,Georgia,serif;font-weight:500;font-size:22px}h4{margin:14px 0 6px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}.tabs button{padding:9px 14px;border-radius:20px;border:1px solid #cfd5dc;background:#fff;font:inherit;font-weight:600;cursor:pointer}.tabs button[aria-selected=true]{background:#0F1B2D;color:#fff;border-color:#0F1B2D}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
+input,select,textarea{padding:8px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff;max-width:100%}textarea{width:100%;min-height:60px}label{font-size:13px;font-weight:600;display:block;margin:8px 0 4px}
+.btn{padding:8px 12px;border-radius:8px;border:0;font:inherit;font-weight:700;cursor:pointer;background:#E8A33D;color:#0F1B2D;text-decoration:none;display:inline-block;font-size:13px}.btn.sec{background:#eceae4}.btn[disabled]{opacity:.5}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.muted{color:#4A5568;font-size:14px}#msg{min-height:20px;font-size:14px;margin:6px 0}.ok{color:#0a7a3d}.bad{color:#b42318}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #eceae4;padding:6px;text-align:left;vertical-align:top}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:12px;background:#eceae4}.pill.live{background:#d9f3e3;color:#0a7a3d}.pill.paused{background:#fde2e1;color:#b42318}
+.concepts{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}.cc{border:2px solid #dcd6cc;border-radius:10px;padding:8px;background:#fff;cursor:pointer;text-align:center}.cc[aria-pressed=true]{border-color:#E8A33D;background:#fff8ec}.cc svg{max-width:100%;height:auto}
+#big{background:#fff;border:1px dashed #cfd5dc;border-radius:10px;padding:18px;text-align:center}#big.dark{background:#0F1B2D}#big svg{max-width:100%;height:auto}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:800px){.cols{grid-template-columns:1fr}}
+.hits{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}.hit{border:1px solid #dcd6cc;border-radius:8px;padding:8px;background:#fff;font-size:13px}.hit img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:6px}
+.bar{height:8px;background:#eceae4;border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:#E8A33D}
+.lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}.it{border:1px solid #dcd6cc;border-radius:10px;padding:8px;background:#fff;min-width:0}.it img,.it video{width:100%;max-height:320px;object-fit:contain;background:#111;border-radius:6px;display:block}.it audio{width:100%}.it .btn{padding:6px 9px;font-size:12px}
+code{background:#eceae4;padding:1px 5px;border-radius:4px;font-size:13px;word-break:break-all}
+</style></head><body>
+<header><div><b>PaintersMax</b> Marketing studio</div><div><a href="/templates-admin">Website templates</a><a href="/sites-admin">Client websites</a><a href="/admin">Admin</a></div></header>
+<main>
+<div class="tabs" role="tablist" id="tabs">
+<button role="tab" data-t="logo" aria-selected="true">Logo studio</button>
+<button role="tab" data-t="help" aria-selected="false">Help videos</button>
+<button role="tab" data-t="find" aria-selected="false">Video finder</button>
+<button role="tab" data-t="lp" aria-selected="false">Landing pages and campaigns</button>
+<button role="tab" data-t="sandbox" aria-selected="false">AI sandbox</button>
+</div>
+<div id="msg" role="status"></div>
+<div id="pane"></div>
+</main>
+<script src="/pmlogo.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function msg(t,ok){$('msg').textContent=t||'';$('msg').className=ok?'ok':'bad';}
+async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}if(r.status===404){throw new Error('This page needs an admin sign-in.');}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
+const pane=$('pane');let tab='logo';
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;document.querySelectorAll('#tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));msg('');show();});
+const show=()=>({logo:logoTab,help:helpTab,find:findTab,lp:lpTab,sandbox:sandboxTab})[tab]().catch(e=>{if(e)msg(e.message);});
+
+/* ---------------- Logo studio ---------------- */
+const CN={box:'Box with phone (business in a box)',cycle:'Bid it, Book it, Bank it cycle',paint:'Paint roller',pm:'PM letters'};
+let LG={concept:'box',shape:'square',primary:'#1f3a5f',accent:'#e8833a',ink:'#ffffff',text:'#1f3a5f',slogan:true,dark:false};
+async function logoTab(){
+  try{const j=await api('/api/admin/pm-logo');if(j.logo)for(const k of Object.keys(j.logo))if(j.logo[k]!==''&&j.logo[k]!=null)LG[k]=j.logo[k];}catch(e){msg(e.message);}
+  drawLogo();
+}
+function drawLogo(){
+  pane.innerHTML=`<div class="card"><h3>PaintersMax logo studio</h3><p class="muted">Pick a concept, a shape and your colors. Everything is drawn as clean vector art, so it stays sharp on a business card or a truck. Slogan: <b>Bid it. Book it. Bank it.</b></p>
+<h4>1. Concept</h4><div class="concepts">${PMLOGO.CONCEPTS.map(c=>`<button type="button" class="cc" data-c="${c}" aria-pressed="${LG.concept===c}">${PMLOGO.icon({...LG,concept:c},96)}<div>${esc(CN[c])}</div></button>`).join('')}</div>
+<h4>2. Shape</h4><div class="row">${PMLOGO.SHAPES.map(s=>`<button type="button" class="btn ${LG.shape===s?'':'sec'}" data-s="${s}">${s[0].toUpperCase()+s.slice(1)}</button>`).join('')}</div>
+<h4>3. Colors</h4><div class="row"><label>Shape <input type="color" data-k="primary" value="${LG.primary}"></label><label>Accent <input type="color" data-k="accent" value="${LG.accent}"></label><label>Symbol <input type="color" data-k="ink" value="${LG.ink}"></label><label>Name <input type="color" data-k="text" value="${LG.text}"></label><label><input type="checkbox" id="sl"${LG.slogan?' checked':''}> Show slogan</label><label><input type="checkbox" id="dk"${LG.dark?' checked':''}> Preview on dark</label></div>
+<h4>Preview</h4><div id="big"${LG.dark?' class="dark"':''}>${PMLOGO.lockup(LG)}</div>
+<h4>4. Files</h4><div class="row"><button class="btn" id="dSvg">Full logo (SVG)</button><button class="btn" id="dPng">Full logo (PNG, 2000 px)</button><button class="btn" id="dIcon">Icon only (PNG 512, app and social)</button><button class="btn" id="dFav">Browser tab icon (PNG 64)</button><button class="btn sec" id="dMono">One color for print (SVG)</button></div>
+<p class="muted">SVG is for websites and printers. PNG is for email, social media and slides. The icon files are for the browser tab, your phone's home screen and profile pictures. The one-color file is for stamps, engraving and single-color print. The name uses a standard bold font; send the SVG to a printer as outlines if they ask.</p>
+<div class="row"><button class="btn" id="lgSave">Save this design</button></div></div>`;
+  pane.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{LG.concept=b.dataset.c;drawLogo();});
+  pane.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{LG.shape=b.dataset.s;drawLogo();});
+  pane.querySelectorAll('input[type=color]').forEach(i=>i.oninput=()=>{LG[i.dataset.k]=i.value;$('big').innerHTML=PMLOGO.lockup(LG);});
+  $('sl').onchange=e=>{LG.slogan=e.target.checked;$('big').innerHTML=PMLOGO.lockup(LG);};
+  $('dk').onchange=e=>{LG.dark=e.target.checked;$('big').className=LG.dark?'dark':'';};
+  const dl=(name,blob)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);};
+  const png=(svg,w,h,name)=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);c.toBlob(b=>dl(name,b),'image/png');};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);};
+  $('dSvg').onclick=()=>dl('paintersmax-logo.svg',new Blob([PMLOGO.lockup(LG)],{type:'image/svg+xml'}));
+  $('dMono').onclick=()=>dl('paintersmax-logo-one-color.svg',new Blob([PMLOGO.lockup({...LG,mono:true})],{type:'image/svg+xml'}));
+  $('dPng').onclick=()=>{const w=LG.slogan?470:400;png(PMLOGO.lockup(LG),2000,Math.round(2000*120/w),'paintersmax-logo.png');};
+  $('dIcon').onclick=()=>png(PMLOGO.icon(LG,512),512,512,'paintersmax-icon-512.png');
+  $('dFav').onclick=()=>png(PMLOGO.icon(LG,64),64,64,'paintersmax-favicon-64.png');
+  $('lgSave').onclick=async()=>{try{await api('/api/admin/pm-logo',LG);msg('Logo design saved.',true);}catch(e){msg(e.message);}};
+}
+
+/* ---------------- Help videos ---------------- */
+async function helpTab(){
+  const j=await api('/api/admin/help-videos');
+  pane.innerHTML=`<div class="card"><h3>Help videos</h3><p class="muted">Upload your 1 to 3 minute how-to videos to YouTube (Unlisted is fine), then paste each link next to the spot where clients need it. Clients see a small "Watch a 2-minute help video" button in that spot. A spot with no link shows nothing. Short vertical videos (Shorts) work too.</p>
+<table><tr><th>Where it shows</th><th>YouTube link</th><th>Title (English / Spanish)</th><th></th></tr>${j.slots.map(s=>{const v=j.videos[s.slot]||{};return `<tr data-slot="${s.slot}"><td>${esc(s.where)}<br><code>${s.slot}</code></td><td><input class="u" size="30" placeholder="https://youtu.be/..." value="${v.yt?'https://youtu.be/'+v.yt:''}"><br><select class="o"><option value="wide">Wide</option><option value="tall"${v.orient==='tall'?' selected':''}>Tall (phone)</option></select></td><td><input class="te" placeholder="English title" maxlength="80" value="${esc(v.title?.en||'')}"><br><input class="ts" placeholder="Título en español" maxlength="80" value="${esc(v.title?.es||'')}"></td><td><button class="btn sv"${j.canChange?'':' disabled'}>Save</button> <button class="btn sec rm"${j.canChange?'':' disabled'}>Clear</button></td></tr>`;}).join('')}</table></div>`;
+  pane.querySelectorAll('tr[data-slot]').forEach(tr=>{const slot=tr.dataset.slot;
+    tr.querySelector('.sv').onclick=async()=>{try{await api('/api/admin/help-videos',{slot,url:tr.querySelector('.u').value,orient:tr.querySelector('.o').value,titleEn:tr.querySelector('.te').value,titleEs:tr.querySelector('.ts').value});msg('Saved.',true);}catch(e){msg(e.message);}};
+    tr.querySelector('.rm').onclick=async()=>{try{await api('/api/admin/help-videos',{slot,remove:true});tr.querySelector('.u').value='';msg('Cleared.',true);}catch(e){msg(e.message);}};});
+}
+
+/* ---------------- Video finder ---------------- */
+async function findTab(){
+  const j=await api('/api/admin/help-videos');
+  pane.innerHTML=`<div class="card"><h3>Video finder</h3><p class="muted">Search YouTube for tutorials and ideas (painting, business, marketing). Results are saved for 7 days to protect the free daily limit. ${j.searchOn?'':'<b class="bad">Search is off until the YOUTUBE_API_KEY secret is set.</b>'}</p>
+<div class="row"><input id="q" size="40" placeholder="how to paint kitchen cabinets" maxlength="80"><button class="btn" id="go">Search</button></div><div id="hits" class="hits" style="margin-top:12px"></div></div>`;
+  const go=async()=>{try{const r=await api('/api/youtube/search?q='+encodeURIComponent($('q').value));$('hits').innerHTML=r.hits.map(h=>`<div class="hit"><a href="https://www.youtube.com/watch?v=${h.id}" target="_blank" rel="noopener"><img src="${esc(h.thumb)}" alt=""></a><b>${esc(h.title)}</b><div class="muted">${esc(h.channel)}</div><code>https://youtu.be/${h.id}</code></div>`).join('')||'<p class="muted">No results.</p>';msg(r.cached?'Saved results (free).':'Fresh results.',true);}catch(e){msg(e.message);}};
+  $('go').onclick=go;$('q').onkeydown=e=>{if(e.key==='Enter')go();};
+}
+
+/* ---------------- Landing pages and campaigns ---------------- */
+const pct=(n,of)=>of>0?(Math.round(n/of*1000)/10)+'%':'-';
+const BLANK={media:'',mediaType:'',slug:'',name:'',campaign:'',status:'draft',goal:'free',plan:'',headline:{en:'',es:''},sub:{en:'',es:''},bullets:[{en:'',es:''},{en:'',es:''},{en:'',es:''}],cta:{en:'',es:''},note:{en:'',es:''},yt:'',orient:'wide'};
+let LP=[];
+async function lpTab(){
+  const j=await api('/api/admin/landing');LP=j.pages;
+  const camps={};LP.forEach(p=>{const k=p.campaign||'(no campaign)';const c=camps[k]=camps[k]||{view:0,play:0,cta:0,checkout:0,n:0};c.n++;for(const e of ['view','play','cta','checkout'])c[e]+=p.stats.totals[e];});
+  pane.innerHTML=`<div class="card"><h3>Campaigns</h3><p class="muted">Each landing page belongs to a campaign. Compare campaigns by what matters: visits, how many pressed Get started, and how many reached the sign-up form. Counts are for the last 30 days. Sign-ups are counted when someone who came from a page submits the sign-up form.</p>
+${Object.keys(camps).length?`<table><tr><th>Campaign</th><th>Pages</th><th>Visits</th><th>Video plays</th><th>Button taps</th><th>Tap rate</th><th>Sign-up form</th><th>Visit to sign-up</th></tr>${Object.entries(camps).map(([k,c])=>`<tr><td><b>${esc(k)}</b></td><td>${c.n}</td><td>${c.view}</td><td>${c.play}</td><td>${c.cta}</td><td>${pct(c.cta,c.view)}</td><td>${c.checkout}</td><td>${pct(c.checkout,c.view)}</td></tr>`).join('')}</table>`:'<p class="muted">No landing pages yet. Create the first one below.</p>'}</div>
+<div class="card"><h3>Landing pages</h3>${LP.length?`<table><tr><th>Page</th><th>Status</th><th>Visits</th><th>Taps</th><th>Sources (visits)</th><th></th></tr>${LP.map((p,i)=>`<tr><td><b>${esc(p.name)}</b><br><code>/l/${esc(p.slug)}</code></td><td><span class="pill ${p.status}">${p.status}</span></td><td>${p.stats.totals.view}</td><td>${p.stats.totals.cta} (${pct(p.stats.totals.cta,p.stats.totals.view)})</td><td>${Object.entries(p.stats.bySource).map(([s,v])=>`${esc(s)}: ${v.view}`).join('<br>')||'-'}</td><td><button class="btn sec" data-e="${i}">Edit</button> <a class="btn sec" href="/l/${esc(p.slug)}" target="_blank" rel="noopener">Open</a></td></tr>`).join('')}</table>`:''}<div class="row" style="margin-top:10px"><button class="btn" id="newLp"${j.canChange?'':' disabled'}>+ New landing page</button></div></div>
+<div id="ed"></div>
+<div class="card"><h3>Campaign tracking links</h3><p class="muted">Add a source to every link you share, so the numbers show where visitors came from.</p>
+<div class="row"><select id="ulp">${LP.map(p=>`<option value="${esc(p.slug)}">${esc(p.name)}</option>`).join('')}</select><select id="usrc"><option>facebook</option><option>instagram</option><option>google</option><option>youtube</option><option>email</option><option>text</option><option>flyer</option><option>truck</option><option>partner</option></select><input id="uex" placeholder="extra label (optional)" size="18" maxlength="20"><button class="btn" id="ubuild">Make link</button></div><p><code id="ulink">-</code></p></div>
+<div class="card"><h3>Campaign playbook</h3><ol class="muted"><li><b>One goal.</b> Free sign-ups or paid tier? Pick one per page.</li><li><b>One audience.</b> Example: painters in Tyler, TX with no website.</li><li><b>One promise</b> in the headline, three proof points as bullets, one button.</li><li><b>Show, do not tell.</b> A 60-second video of the product beats a paragraph.</li><li><b>Tag every link</b> with a source above, then compare sources after 7 days.</li><li><b>Judge by rates, not totals:</b> tap rate under 5% means change the headline; many taps but no sign-ups means change the offer or the sign-up page.</li><li><b>Change one thing at a time</b> (copy the page, change the headline, run both, keep the winner).</li><li><b>Write the offer end date</b> in the small print so urgency is real.</li></ol></div>`;
+  $('newLp').onclick=()=>editLp(structuredClone(BLANK));
+  pane.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>editLp(structuredClone(LP[+b.dataset.e])));
+  $('ubuild').onclick=()=>{if(!$('ulp').value)return msg('Create a landing page first.');const x=$('uex').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');$('ulink').textContent=location.origin+'/l/'+$('ulp').value+'?utm_source='+$('usrc').value+(x?'&utm_campaign='+x:'');};
+}
+function editLp(p){
+  const f=(label,id,val,ph,len)=>`<label>${label}</label><input id="${id}" value="${esc(val)}" placeholder="${esc(ph||'')}" maxlength="${len||120}" style="width:100%">`;
+  $('ed').innerHTML=`<div class="card"><h3>${p.slug?'Edit':'New'} landing page</h3><div class="cols"><div>
+${f('Internal name','lpName',p.name,'Spring painters promo',80)}${f('Web address ends with /l/ ...','lpSlug',p.slug,'spring-painters',50)}${f('Campaign group (for comparing)','lpCamp',p.campaign,'spring-2027',30)}
+<label>Status</label><select id="lpStatus"><option value="draft">Draft (only you see it)</option><option value="live">Live</option><option value="paused">Paused</option></select>
+<label>Goal</label><select id="lpGoal"><option value="free">Start free</option><option value="paid">Pick a tier</option></select>
+<label>Preselected tier (optional)</label><select id="lpPlan"><option value="">None</option><option value="starter">Starter</option><option value="basic">Basic</option><option value="pro">Pro</option></select>
+${p.media?`<label>AI ${p.mediaType} from the sandbox</label><div class="row"><code>${esc(p.media)}</code><label><input type="checkbox" id="lpNoMedia"> Remove it from this page</label></div>`:''}<label>YouTube video link (optional; shown instead of the AI media)</label><input id="lpYt" value="${p.yt?'https://youtu.be/'+p.yt:''}" placeholder="https://youtu.be/..." style="width:100%"><select id="lpOr"><option value="wide">Wide video</option><option value="tall">Tall (phone) video</option></select></div>
+<div><b>English</b>${f('Headline','h_en',p.headline.en,'',120)}<label>Sub-headline</label><textarea id="s_en" maxlength="300">${esc(p.sub.en)}</textarea>${p.bullets.concat([{en:'',es:''},{en:'',es:''}]).slice(0,5).map((b,i)=>f('Bullet '+(i+1),'b'+i+'_en',b.en,'',120)).join('')}${f('Button text','c_en',p.cta.en,'Start free',40)}${f('Small print','n_en',p.note.en,'',200)}
+<b style="display:block;margin-top:12px">Español</b>${f('Titular','h_es',p.headline.es,'',120)}<label>Subtítulo</label><textarea id="s_es" maxlength="300">${esc(p.sub.es)}</textarea>${p.bullets.concat([{en:'',es:''},{en:'',es:''}]).slice(0,5).map((b,i)=>f('Punto '+(i+1),'b'+i+'_es',b.es,'',120)).join('')}${f('Texto del botón','c_es',p.cta.es,'Empezar gratis',40)}${f('Letra pequeña','n_es',p.note.es,'',200)}</div></div>
+<div class="row" style="margin-top:12px"><button class="btn" id="lpSave">Save</button><button class="btn sec" id="lpCancel">Close</button><span class="muted">English and Spanish both needed for live pages? English is required; Spanish falls back to English.</span></div></div>`;
+  $('lpStatus').value=p.status;$('lpGoal').value=p.goal;$('lpPlan').value=p.plan;$('lpOr').value=p.orient;
+  $('lpCancel').onclick=()=>{$('ed').innerHTML='';};
+  $('lpSave').onclick=async()=>{const v=id=>$(id).value;const page={slug:v('lpSlug'),name:v('lpName'),campaign:v('lpCamp'),status:v('lpStatus'),goal:v('lpGoal'),plan:v('lpPlan'),yt:v('lpYt'),orient:v('lpOr'),headline:{en:v('h_en'),es:v('h_es')},sub:{en:v('s_en'),es:v('s_es')},cta:{en:v('c_en'),es:v('c_es')},note:{en:v('n_en'),es:v('n_es')},bullets:[0,1,2,3,4].map(i=>({en:v('b'+i+'_en'),es:v('b'+i+'_es')})),media:$('lpNoMedia')&&$('lpNoMedia').checked?'':p.media||'',mediaType:$('lpNoMedia')&&$('lpNoMedia').checked?'':p.mediaType||''};
+    try{const r=await api('/api/admin/landing',{page});msg('Saved. Address: '+location.origin+r.url,true);lpTab();}catch(e){msg(e.message);}};
+  $('ed').scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------------- AI sandbox ---------------- */
+const KN={image:'Image',video:'Video',i2v:'Image to video',audio:'Music or voice'};
+let SB={kind:'image',model:'',info:null,quoteKey:'',filter:'all',prefill:null,polling:{}};
+const money=n=>'$'+(Number(n)||0).toFixed(n<1?3:2);
+async function sandboxTab(){
+  const j=await api('/api/admin/sandbox');SB.st=j;
+  const s=j.settings,sp=j.spent;
+  pane.innerHTML=`<div class="card"><h3>AI sandbox</h3><p class="muted">Make images, videos and music for PaintersMax marketing with fal.ai models. This spends the PaintersMax fal.ai balance, never client credits. Nothing you make is shown to the public until you press <b>Use in landing page</b> or <b>Make public</b>, and public pages label it as made with AI.</p>
+<div class="row"><span class="pill ${j.falOn?'live':'paused'}">fal.ai key ${j.falOn?'connected':'missing'}</span><span class="pill ${s.enabled?'live':'paused'}">Sandbox ${s.enabled?'on':'off'}</span><span>Spent today <b>${money(sp.todayUsd)}</b> of ${money(s.dailyUsd)}</span><div class="bar" style="width:120px"><i style="width:${Math.min(100,s.dailyUsd?sp.todayUsd/s.dailyUsd*100:100)}%"></i></div><span>This month <b>${money(sp.monthUsd)}</b> of ${money(s.monthlyUsd)}</span><div class="bar" style="width:120px"><i style="width:${Math.min(100,s.monthlyUsd?sp.monthUsd/s.monthlyUsd*100:100)}%"></i></div></div>
+${j.isOwner?`<details style="margin-top:10px"${s.enabled?'':' open'}><summary><b>Limits</b> (owner only)</summary><div class="row" style="margin-top:8px"><label><input type="checkbox" id="sbOn"${s.enabled?' checked':''}> Sandbox on</label><label>Most per run $ <input id="sbRun" type="number" step="0.01" min="0.01" value="${s.perRunUsd}" style="width:90px"></label><label>Daily limit $ <input id="sbDay" type="number" step="0.5" min="0" value="${s.dailyUsd}" style="width:90px"></label><label>Monthly limit $ <input id="sbMon" type="number" step="1" min="0" value="${s.monthlyUsd}" style="width:90px"></label><label>Keep items (days) <input id="sbKeep" type="number" min="7" value="${s.keepDays}" style="width:80px"></label><button class="btn" id="sbSave">Save limits</button></div><p class="muted">Favorites and items used on public pages are kept forever. Prices come from fal at run time and are estimates; check real spend in your fal.ai dashboard.</p></details>`:''}</div>
+<div class="card"><h3>Make something</h3>
+<div class="tabs" id="sbKinds">${Object.entries(KN).map(([k,v])=>`<button data-k="${k}" aria-selected="${SB.kind===k}">${v}</button>`).join('')}</div>
+<label>Starter prompts</label><div class="row" id="sbTpl">${j.templates.filter(t=>t.kind===SB.kind||(SB.kind==='i2v'&&t.kind==='video')).map(t=>`<button class="btn sec" data-t="${t.id}">${esc(t.title)}</button>`).join('')||'<span class="muted">None for this kind.</span>'}</div>
+<div class="cols"><div><label>Model</label><div class="row"><input id="sbQ" placeholder="search fal models (kling, veo, flux...)" maxlength="60" style="flex:1"><button class="btn sec" id="sbFind">Search</button></div><select id="sbModel" style="width:100%;margin-top:6px"><option value="">Loading models...</option></select><label>Or type an exact model id</label><div class="row"><input id="sbId" placeholder="fal-ai/flux/schnell" style="flex:1"><button class="btn sec" id="sbUse">Use</button></div><div id="sbInfo" class="muted" style="margin-top:6px"></div><div id="sbFields"></div></div>
+<div><label>Prompt</label><textarea id="sbPrompt" maxlength="2000" style="min-height:140px" placeholder="Describe the picture or clip. Keep real people's faces and other brands out."></textarea><label><input type="checkbox" id="sbHelp" checked> Add "${esc(j.safetyTail)}"</label>
+<div class="row" style="margin-top:10px"><button class="btn sec" id="sbQuote">Check price</button><button class="btn" id="sbGo" disabled>Run</button></div><div id="sbPrice" style="margin-top:8px"></div></div></div></div>
+<div class="card"><h3>Running</h3><div id="sbJobs" class="muted">Nothing running.</div></div>
+<div class="card"><h3>Library</h3><div class="tabs" id="sbFil">${[['all','All'],['image','Images'],['video','Videos'],['audio','Sound'],['fav','Favorites'],['public','Public']].map(([k,v])=>`<button data-f="${k}" aria-selected="${SB.filter===k}">${v}</button>`).join('')}</div><div id="sbLib" class="lib"></div></div>`;
+  if($('sbSave'))$('sbSave').onclick=async()=>{try{await api('/api/admin/sandbox',{settings:{enabled:$('sbOn').checked,perRunUsd:+$('sbRun').value,dailyUsd:+$('sbDay').value,monthlyUsd:+$('sbMon').value,keepDays:+$('sbKeep').value}});msg('Limits saved.',true);sandboxTab();}catch(e){msg(e.message);}};
+  pane.querySelectorAll('#sbKinds button').forEach(b=>b.onclick=()=>{SB.kind=b.dataset.k;SB.model='';SB.info=null;sandboxTab();});
+  pane.querySelectorAll('#sbTpl [data-t]').forEach(b=>b.onclick=()=>{const t=j.templates.find(x=>x.id===b.dataset.t);$('sbPrompt').value=t.prompt;SB.prefill={aspect_ratio:t.ratio,duration:t.duration};applyPrefill();stale();});
+  $('sbFind').onclick=()=>loadModels($('sbQ').value);$('sbQ').onkeydown=e=>{if(e.key==='Enter')loadModels($('sbQ').value);};
+  $('sbModel').onchange=()=>pickModel($('sbModel').value);
+  $('sbUse').onclick=()=>pickModel($('sbId').value.trim());
+  $('sbPrompt').oninput=stale;$('sbHelp').onchange=stale;
+  $('sbQuote').onclick=()=>quote();
+  $('sbGo').onclick=()=>run();
+  pane.querySelectorAll('#sbFil button').forEach(b=>b.onclick=()=>{SB.filter=b.dataset.f;pane.querySelectorAll('#sbFil button').forEach(x=>x.setAttribute('aria-selected',x===b));library();});
+  if(SB.pendingPrompt){$('sbPrompt').value=SB.pendingPrompt;SB.pendingPrompt='';}
+  loadModels('');library();j.jobs.forEach(watch);drawJobs();
+}
+function stale(){SB.quoteKey='';$('sbGo').disabled=true;$('sbPrice').innerHTML='';}
+async function loadModels(q){
+  const sel=$('sbModel');sel.innerHTML='<option value="">Loading models...</option>';
+  try{const r=await api('/api/admin/sandbox/models?kind='+SB.kind+'&q='+encodeURIComponent(q||''));
+    sel.innerHTML='<option value="">Pick a model</option>'+r.models.map(m=>`<option value="${esc(m.id)}">${esc(m.name)}${m.price?' · $'+m.price.unitPrice+' per '+esc(m.price.unit.replace(/s$/,'')):''}</option>`).join('');
+    if(!r.models.length)sel.innerHTML='<option value="">No models found. Type an exact id below.</option>';
+    if(SB.model)sel.value=SB.model;}catch(e){sel.innerHTML='<option value="">Could not load models</option>';msg(e.message);}
+}
+async function pickModel(id){
+  if(!id)return;stale();$('sbInfo').textContent='Reading the model settings from fal...';$('sbFields').innerHTML='';
+  try{const r=await api('/api/admin/sandbox/model?id='+encodeURIComponent(id));SB.model=id;SB.info=r.model;$('sbId').value=id;drawFields();}catch(e){$('sbInfo').textContent='';msg(e.message);}
+}
+function drawFields(){
+  const m=SB.info,p=m.price;
+  $('sbInfo').innerHTML=`<b>${esc(m.name)}</b> <code>${esc(m.id)}</code><br>${p?`Rate: <b>$${p.unitPrice}</b> per ${esc(p.unit.replace(/s$/,''))}`:'<span class="bad">fal gave no price for this model.</span>'} · <a href="https://fal.ai/models/${esc(m.id)}" target="_blank" rel="noopener">model page</a>`;
+  const imgs=(SB.lib||[]).filter(i=>i.type==='image');
+  $('sbFields').innerHTML=m.fields.map(f=>{const id='f_'+f.name,lab=`<label for="${id}" title="${esc(f.hint)}">${esc(f.label)}${m.required.includes(f.name)?' *':''}</label>`;
+    if(f.type==='enum')return lab+`<select id="${id}" data-f="${f.name}"><option value="">Default${f.def!=null?' ('+esc(f.def)+')':''}</option>${f.options.map(o=>`<option>${esc(o)}</option>`).join('')}</select>`;
+    if(f.type==='boolean')return `<label><input type="checkbox" id="${id}" data-f="${f.name}" data-b="1"${f.def?' checked':''}> ${esc(f.label)}</label>`;
+    if(f.type==='number'||f.type==='integer')return lab+`<input id="${id}" data-f="${f.name}" type="number"${f.min!=null?' min="'+f.min+'"':''}${f.max!=null?' max="'+f.max+'"':''} step="${f.type==='integer'?1:'any'}" placeholder="${f.def!=null?esc(f.def):''}">`;
+    if(f.type==='image')return lab+`<select data-img="${id}"><option value="">Pick from library</option>${imgs.map(i=>`<option value="${esc(location.origin+i.privateLink)}">${esc(i.prompt.slice(0,50))} (${i.at.slice(0,10)})</option>`).join('')}</select><input id="${id}" data-f="${f.name}" placeholder="or paste an https image link" style="width:100%;margin-top:4px">`;
+    return lab+`<input id="${id}" data-f="${f.name}" maxlength="500" style="width:100%">`;}).join('')||'<p class="muted">This model takes only a prompt.</p>';
+  $('sbFields').querySelectorAll('[data-f]').forEach(x=>x.oninput=x.onchange=stale);
+  $('sbFields').querySelectorAll('[data-img]').forEach(x=>x.onchange=()=>{$(x.dataset.img).value=x.value;stale();});
+  applyPrefill();
+}
+function applyPrefill(){
+  if(!SB.prefill||!SB.info)return;
+  for(const [k,v] of Object.entries(SB.prefill)){if(v==null)continue;const el=$('f_'+k);if(!el)continue;if(el.tagName==='SELECT'){const o=[...el.options].find(o=>o.value===String(v)||o.value===v+'s');if(o)el.value=o.value;}else el.value=v;}
+  if(SB.prefill.image){const el=pane.querySelector('#sbFields [data-f$="image_url"],#sbFields [data-f="image_urls"]');if(el)el.value=SB.prefill.image;}
+}
+function values(){const v={};$('sbFields').querySelectorAll('[data-f]').forEach(x=>{if(x.dataset.b)v[x.dataset.f]=x.checked;else if(x.value!=='')v[x.dataset.f]=x.type==='number'?Number(x.value):x.value;});return v;}
+const body=()=>({model:SB.model,kind:SB.kind,prompt:$('sbPrompt').value,helper:$('sbHelp').checked,values:values()});
+async function quote(){
+  if(!SB.info)return msg('Pick a model first.');
+  try{const r=await api('/api/admin/sandbox/run',{...body(),quote:true});const e=r.estimate;
+    $('sbPrice').innerHTML=`<div class="card" style="margin:0;background:#fff8ec"><b>About ${money(e.usd)}</b> for this run (${esc(e.rate)}${e.qty!==1?' × '+e.qty:''}).${e.note?'<br><span class="muted">'+esc(e.note)+'</span>':''}<br><span class="muted">Spent today ${money(r.spent.todayUsd)} of ${money(r.settings.dailyUsd)}. Per-run limit ${money(r.settings.perRunUsd)}.</span>${r.blocked?'<br><b class="bad">'+esc(r.blocked)+'</b>':''}${e.rough&&!r.blocked?'<br><label><input type="checkbox" id="sbRough"> I understand the price is a rough guess</label>':''}</div>`;
+    SB.quoteKey=JSON.stringify(body());$('sbGo').disabled=!!r.blocked;SB.rough=e.rough;}catch(e){msg(e.message);}
+}
+async function run(){
+  if(SB.quoteKey!==JSON.stringify(body()))return msg('Check the price again; something changed.');
+  if(SB.rough&&!($('sbRough')&&$('sbRough').checked))return msg('Tick "I understand the price is a rough guess" first.');
+  $('sbGo').disabled=true;
+  try{const r=await api('/api/admin/sandbox/run',{...body(),confirmRough:SB.rough?true:undefined});msg('Sent to fal. You can keep working; it shows below when ready.',true);watch(r.job);stale();}catch(e){msg(e.message);$('sbGo').disabled=false;}
+}
+const JOBS={};
+function watch(job){JOBS[job.id]=job;drawJobs();if(SB.polling[job.id])return;SB.polling[job.id]=1;
+  const tick=async()=>{try{const r=await api('/api/admin/sandbox/job?id='+job.id);JOBS[job.id]=r.job;drawJobs();if(r.job.state==='done'){delete SB.polling[job.id];msg('Ready: added to the library.',true);library();return;}if(r.job.state==='failed'){delete SB.polling[job.id];return;}}catch(e){}
+    setTimeout(tick,job.kind==='image'?3000:6000);};setTimeout(tick,2500);}
+function drawJobs(){const el=$('sbJobs');if(!el)return;const list=Object.values(JOBS).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,8);
+  el.innerHTML=list.length?`<table>${list.map(j=>`<tr><td>${esc(KN[j.kind])}<br><code>${esc(j.model)}</code></td><td>${esc(j.prompt.slice(0,90))}</td><td>${j.state==='queued'?'In line'+(j.position!=null?' (#'+(j.position+1)+')':''):j.state==='running'?'Making it...':j.state==='saving'?'Saving to the library...':j.state==='done'?'<span class="ok">Done</span>':'<span class="bad">Failed: '+esc(j.error||'')+'</span>'}</td><td>${money(j.usd)}</td></tr>`).join('')}</table>`:'Nothing running.';}
+async function library(){
+  try{const r=await api('/api/admin/sandbox/library');SB.lib=r.items;SB.libOwner=r.isOwner;SB.libChange=r.canChange;if(!LP.length){try{LP=(await api('/api/admin/landing')).pages;}catch(e){}}drawLib();if(SB.info)drawFields();}catch(e){msg(e.message);}
+}
+function drawLib(){
+  const f=SB.filter,list=SB.lib.filter(i=>f==='all'||i.type===f||(f==='fav'&&i.fav)||(f==='public'&&i.public));
+  $('sbLib').innerHTML=list.length?list.map(i=>`<div class="it" data-id="${i.id}">${i.type==='image'?`<img src="${i.src}" alt="" loading="lazy">`:i.type==='video'?`<video src="${i.src}" controls preload="metadata" playsinline></video>`:`<audio src="${i.src}" controls preload="none"></audio>`}
+<div class="muted" style="font-size:12px">${esc(i.prompt.slice(0,110))}</div><div style="font-size:12px"><code>${esc(i.model)}</code> · ${money(i.usd)}${i.rough?' (rough)':''} · ${esc(i.by.split('@')[0])} · ${i.at.slice(0,10)}${i.public?' · <span class="pill live">public</span>':''}</div>
+<div class="row" style="margin-top:6px"><button class="btn sec" data-a="fav" title="Favorites are kept forever">${i.fav?'★':'☆'}</button><a class="btn sec" href="${i.src}&dl=1">Download</a><button class="btn sec" data-a="copy">Copy link</button>${i.type!=='audio'?'<button class="btn sec" data-a="lp">Use in landing page</button>':''}${i.type==='image'?'<button class="btn sec" data-a="anim">Animate</button>':''}<button class="btn sec" data-a="pub">${i.public?'Make private':'Make public'}</button><button class="btn sec" data-a="again">Reuse prompt</button>${SB.libOwner?'<button class="btn sec" data-a="del">Delete</button>':''}</div><div class="lpPick"></div></div>`).join(''):'<p class="muted">Nothing here yet.</p>';
+  $('sbLib').querySelectorAll('.it').forEach(card=>{const i=SB.lib.find(x=>x.id===card.dataset.id);
+    card.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{const a=b.dataset.a;try{
+      if(a==='fav'){await api('/api/admin/sandbox/item',{id:i.id,fav:!i.fav});i.fav=!i.fav;drawLib();}
+      if(a==='copy'){const link=location.origin+(i.public?i.publicLink:i.privateLink);await navigator.clipboard.writeText(link);msg(i.public?'Public link copied.':'Private link copied. Anyone with this link can open the file.',true);}
+      if(a==='pub'){const r=await api('/api/admin/sandbox/item',{id:i.id,public:!i.public});Object.assign(i,r.item);drawLib();msg(i.public?'Public. Pages that use it say it was made with AI.':'Private again.',true);}
+      if(a==='del'){if(!confirmBox(card,'Delete this for good?',async()=>{await api('/api/admin/sandbox/item',{id:i.id,remove:true});msg('Deleted.',true);library();}))return;}
+      if(a==='again'){SB.kind=i.kind;SB.pendingPrompt=i.prompt;SB.model=i.model;await sandboxTab();pickModel(i.model);}
+      if(a==='anim'){SB.kind='i2v';SB.model='';SB.info=null;SB.pendingPrompt='Slow, smooth camera move. Keep the scene as it is.';SB.prefill={image:location.origin+i.privateLink};await sandboxTab();msg('Pick an image-to-video model; this image is filled in.',true);}
+      if(a==='lp'){const box=card.querySelector('.lpPick');box.innerHTML=LP.length?`<div class="row" style="margin-top:6px"><select>${LP.map(p=>`<option value="${esc(p.slug)}">${esc(p.name)} (${p.status})</option>`).join('')}</select><button class="btn">Put it on this page</button></div><p class="muted" style="font-size:12px">It shows when the page has no YouTube video, with a "made with AI" label. This makes the file public.</p>`:'<p class="muted">Create a landing page first.</p>';
+        const go=box.querySelector('.btn');if(go)go.onclick=async()=>{try{const r=await api('/api/admin/sandbox/item',{id:i.id,useIn:box.querySelector('select').value});Object.assign(i,r.item);msg('Added to the landing page.',true);drawLib();}catch(e){msg(e.message);}};}
+    }catch(e){msg(e.message);}});});
+}
+function confirmBox(card,text,yes){const box=card.querySelector('.lpPick');box.innerHTML=`<div class="row" style="margin-top:6px"><b class="bad">${esc(text)}</b><button class="btn">Yes, delete</button><button class="btn sec">Cancel</button></div>`;const [y,n]=box.querySelectorAll('button');y.onclick=async()=>{try{await yes();}catch(e){msg(e.message);}};n.onclick=()=>{box.innerHTML='';};return false;}
+show();
+</script></body></html>

@@ -52,7 +52,7 @@ canvas{max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none}
 .pslot{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:start;border-bottom:1px solid #eceae4;padding:10px 0}.pslot img,.pslot-ph{width:120px;height:90px;object-fit:cover;border-radius:8px}.pslot-ph{display:grid;place-content:center;text-align:center;border:2px dashed #cfd5dc;font-size:12px;background:#faf8f4}
 </style></head><body>
 <header><div><b>PaintersMax</b> Website</div><div><a href="/dashboard">Home</a></div></header>
-<main>
+<main><div data-help="site-start" style="margin:6px 0"></div>
 <div id="va" class="va" hidden></div>
 <h2>Your website</h2>
 <p class="lead">Edit your pages, add your own photos, and publish when it looks right. Changes stay a draft until you tap Publish. Typing is free; the AI writing help uses credits.</p>
@@ -114,7 +114,7 @@ const money=c=>'$'+Math.round(c/100).toLocaleString('en-US');
 let S=null,cur=null,tab='pages',dirty=false;
 const KIND={home:'Home',services:'Services',gallery:'Gallery',about:'About',contact:'Contact',service:'Service page',custom:'Extra page'};
 const PHOTOS={home:6,gallery:6,service:3,services:3,about:3,contact:1,custom:3};
-const BT={text:'Text',photos:'Photos',tabs:'Tabs',cta:'Button',reviews:'Customer reviews'};
+const BT={text:'Text',photos:'Photos',tabs:'Tabs',cta:'Button',reviews:'Customer reviews',video:'Video',weather:'Painting weather'};
 const nid=()=>Math.random().toString(36).slice(2,12);
 
 async function load(){
@@ -173,7 +173,7 @@ function rPages(){
   [].forEach.call(document.querySelectorAll('[data-mv]'),b=>b.onclick=()=>{const i=ps.indexOf(p),j=i+Number(b.dataset.mv);if(j<1||j>=ps.length)return;ps.splice(i,1);ps.splice(j,0,p);touch();render();});
   if($('delPage'))$('delPage').onclick=()=>{if(!confirm('Remove this page? Its words are deleted when you save.'))return;S.site.pages=ps.filter(x=>x.id!==p.id);cur=S.site.pages[0].id;touch();render();};
   $('addPage').onclick=()=>addPage('custom');$('addSvc').onclick=()=>addPage('service');
-  $('addBlock').onclick=()=>{if(p.blocks.length>=12)return msg('A page can have 12 sections.');const t=$('newBlock').value;const b={id:nid(),type:t,heading:''};if(t==='text')b.body='';if(t==='photos')b.photos=[];if(t==='tabs')b.tabs=[{id:nid(),label:T('Tab 1'),body:''}];if(t==='cta'){b.body='';b.action='quote';}p.blocks.push(b);touch();rBlocks(p);};
+  $('addBlock').onclick=()=>{if(p.blocks.length>=12)return msg('A page can have 12 sections.');const t=$('newBlock').value;const b={id:nid(),type:t,heading:''};if(t==='text')b.body='';if(t==='photos')b.photos=[];if(t==='tabs')b.tabs=[{id:nid(),label:T('Tab 1'),body:''}];if(t==='cta'){b.body='';b.action='quote';}if(t==='video'){b.yt='';b.orient='wide';b.kind='intro';b.caption='';}if(t==='weather'){if(!['grow','signature'].includes(S.door))return msg(T('Painting weather comes with the Grow door and up.'));if(S.site.pages.reduce((n,q)=>n+q.blocks.filter(x=>x.type==='weather').length,0)>=2)return msg(T('A site can show weather for 2 places.'));b.place=[S.site.business.city,S.site.business.state].filter(Boolean).join(', ');}p.blocks.push(b);touch();rBlocks(p);};
   rBlocks(p);
 }
 function rBlocks(p){
@@ -182,6 +182,8 @@ function rBlocks(p){
 <label>${T('Heading')}</label><input data-k="heading" maxlength="120" value="${esc(b.heading)}">
 ${b.type==='text'?`<label>${T('Text')} <small>${T('(start a line with - for a list)')}</small> <button class="btn sec sm" type="button" data-bai>${T('AI help')}</button></label><textarea data-k="body" maxlength="6000">${esc(b.body)}</textarea>`:''}
 ${b.type==='cta'?`<label>${T('Short line')}</label><input data-k="body" maxlength="400" value="${esc(b.body)}"><label>${T('Button')}</label><select data-k="action"><option value="quote"${b.action==='quote'?' selected':''}>${T('Free estimate')}</option><option value="call"${b.action==='call'?' selected':''}>${T('Call')}</option></select>`:''}
+${b.type==='video'?`<label>${T('YouTube link')}</label><input data-k="yt" maxlength="200" placeholder="https://youtu.be/..." value="${esc(b.yt)}"><div class="mrow"><select data-k="kind"><option value="intro"${b.kind==='intro'?' selected':''}>${T('Meet us')}</option><option value="testimonial"${b.kind==='testimonial'?' selected':''}>${T('Customer testimonial')}</option><option value="message"${b.kind==='message'?' selected':''}>${T('A personal message')}</option><option value="how"${b.kind==='how'?' selected':''}>${T('How we work')}</option></select><select data-k="orient"><option value="wide"${b.orient==='wide'?' selected':''}>${T('Wide (horizontal)')}</option><option value="tall"${b.orient==='tall'?' selected':''}>${T('Tall (phone video)')}</option></select></div><label>${T('Caption')}</label><input data-k="caption" maxlength="200" value="${esc(b.caption)}"><p class="muted">${S.site.media&&S.site.media.on?T('Videos are on.'):T('Videos are off. Turn them on in the Look tab to show this one.')}</p>`:''}
+${b.type==='weather'?`<label>${T('City for the weather')}</label><input data-k="place" maxlength="80" placeholder="Tyler, TX" value="${esc(b.place)}"><p class="muted">${T('Shows the next 5 days and marks good days to paint outside. Weather is limited to 2 places on a site.')}</p>`:''}
 ${b.type==='reviews'?`<p class="muted">${T('Shows the reviews you chose to show on the Reviews tab.')}</p>`:''}
 ${b.type==='photos'?photoSlots(p,b):''}
 ${b.type==='tabs'?b.tabs.map((t,ti)=>`<div style="border-top:1px solid #eceae4;margin-top:8px;padding-top:6px"><label>${T('Tab name')} <button class="btn sec sm" type="button" data-td="${ti}">${T('Remove tab')}</button></label><input data-tk="label" data-ti="${ti}" maxlength="40" value="${esc(t.label)}"><label>${T('Tab text')}</label><textarea data-tk="body" data-ti="${ti}" maxlength="6000">${esc(t.body)}</textarea></div>`).join('')+`<button class="btn sec sm" type="button" data-ta>+ ${T('Add tab')}</button>`:''}
@@ -457,6 +459,7 @@ function rLook(){
 <div class="card"><h3>${T('Logo')}</h3>${logo?`<img src="${photoUrl(logo.id)}" alt="" style="max-height:60px;border-radius:8px">`:`<p class="muted">${T('No logo here yet. Your logo from Settings is used if you have one.')}</p>`}<div class="btns"><button class="btn sec sm" type="button" id="logoPick">${T('Choose logo photo')}</button><button class="btn sec sm" type="button" id="logoMake">${T('Make a simple logo')}</button></div></div>
 <div class="card"><h3>${T('Menu')}</h3><label class="switch"><input type="checkbox" id="menuAuto"${th.menu.length?'':' checked'}> ${T('Menu follows my pages')}</label>${th.menu.length?menuRows+`<div class="btns"><button class="btn sec sm" type="button" id="menuAdd"${th.menu.length>=10?' disabled':''}>+ ${T('Add menu item')}</button></div>`:''}</div>
 ${(()=>{const w=settingWarnings(I,th,secs);return w.length?`<div class="card warnbox"><h3>&#9888; ${T('Heads-up')}</h3><ul>${w.map(x=>`<li>${x}</li>`).join('')}</ul></div>`:'';})()}<div class="card"><h3>${T('Photo spaces')}</h3><p class="muted">${T('Your own job photos look best. Until you add one, visitors see a soft color block in that space.')}</p>${I.imageSlots.map(slot).join('')}</div>
+<div class="card"><h3>${T('Your videos')}</h3><p class="muted">${T('Show your own YouTube videos on your site: a hero video, a welcome video on the About page, or customer testimonials. Add them as Video sections on any page. Videos load only when a visitor taps play.')}</p><label class="chk"><input type="checkbox" id="vidOn"${(S.site.media&&S.site.media.on)?' checked':''}> ${T('Show videos on my site')}</label><label>${T('Hero video link (optional)')}</label><input id="vidHero" maxlength="200" placeholder="https://youtu.be/..." value="${esc((S.site.media&&S.site.media.heroYt)||'')}"><label>${T('Hero video shape')}</label><select id="vidOrient"><option value="wide"${!(S.site.media&&S.site.media.heroOrient==='tall')?' selected':''}>${T('Wide (horizontal)')}</option><option value="tall"${(S.site.media&&S.site.media.heroOrient==='tall')?' selected':''}>${T('Tall (phone video)')}</option></select></div>
 <div class="card"><h3>${T('Before and after')}</h3><p class="muted">${T('Pick a before photo and an after photo of the same spot. Visitors drag a slider to compare. Service, city, year and size appear in templates that show a project row (Sunset Sand).')}</p>${pairs}<div class="btns"><button class="btn sec sm" type="button" id="pairAdd"${th.pairs.length>=24?' disabled':''}>+ ${T('Add a pair')}</button></div></div>
 <div class="card"><h3>${T('Words in this template')}</h3><p class="muted">${T('Leave a box empty to use the template wording. Choose a language to edit the words visitors see in that language. Fix any spelling here; it is saved with your site.')}</p><div class="btns"><button class="btn${lang==='en'?'':' sec'} sm" type="button" data-wl="en" aria-pressed="${lang==='en'}">English</button><button class="btn${lang==='es'?'':' sec'} sm" type="button" data-wl="es" aria-pressed="${lang==='es'}">Español</button></div>${texts}</div>
 <div class="card"><h3>${T('Social links')}</h3>${social.map((s,i)=>`<div class="mrow"><select data-sk="${i}">${I.socialKinds.map(k=>`<option${k===s.kind?' selected':''}>${k}</option>`).join('')}</select><input data-su="${i}" maxlength="300" placeholder="https://" value="${esc(s.url)}"><button class="btn sec sm" type="button" data-srm="${i}">${T('Remove')}</button></div>`).join('')}<div class="btns"><button class="btn sec sm" type="button" id="socAdd"${social.length>=9?' disabled':''}>+ ${T('Add a link')}</button></div>
@@ -491,6 +494,10 @@ ${(()=>{const w=settingWarnings(I,th,secs);return w.length?`<div class="card war
     all('[data-crop]',x=>x.onclick=()=>{const sd=I.imageSlots.find(q=>q.slot===x.dataset.crop),id=th.slots[x.dataset.crop];if(sd&&id)cropFlow(id,sd,()=>re());});
     all('[data-ai]',x=>x.onclick=()=>{const sd=I.imageSlots.find(q=>q.slot===x.dataset.ai);if(sd)aiMake(sd,+x.dataset.vi);});
     if($('logoMake'))$('logoMake').onclick=()=>logoMaker();
+    const mediaOf=()=>(S.site.media=S.site.media||{on:false,heroYt:'',heroOrient:'wide'});
+    $('vidOn').onchange=e=>{mediaOf().on=e.target.checked;touch();};
+    $('vidHero').onchange=e=>{mediaOf().heroYt=e.target.value.trim();touch();};
+    $('vidOrient').onchange=e=>{mediaOf().heroOrient=e.target.value;touch();};
     $('pairAdd').onclick=()=>{th.pairs.push({before:'',after:'',caption:'',service:'',city:'',year:'',size:''});re();};
     all('[data-pb]',x=>x.onclick=()=>photoChoice(th.pairs[+x.dataset.pb].before,id=>{th.pairs[+x.dataset.pb].before=id;re();}));
     all('[data-pa]',x=>x.onclick=()=>photoChoice(th.pairs[+x.dataset.pa].after,id=>{th.pairs[+x.dataset.pa].after=id;re();}));
@@ -574,4 +581,4 @@ window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.return
 load();
 </script>
 <script src="/nav.js"></script>
-</body></html>
+<script src="/helpvideo.js" defer></script></body></html>

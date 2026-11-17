@@ -34,7 +34,7 @@ details.acc .in{padding:0 12px 12px}
 </style></head><body>
 <header><div><b>PaintersMax</b> <span id="co"></span> &nbsp; <a href="/app" style="color:#E8A33D">Estimating Setup &rarr;</a> &nbsp; <a href="/jobs" style="color:#E8A33D">Jobs &rarr;</a> &nbsp; <a href="/materials" style="color:#E8A33D">Materials &rarr;</a> &nbsp; <a href="/records" style="color:#E8A33D">Records &rarr;</a> &nbsp; <a href="/crew" style="color:#E8A33D">Crew &rarr;</a> &nbsp; <a href="/analysis" style="color:#E8A33D">Analysis &rarr;</a> &nbsp; <a href="/insurance" style="color:#E8A33D">Insurance &rarr;</a> &nbsp; <a href="/insurance-guide" style="color:#E8A33D">Insurance guide &rarr;</a></div><div><span id="me"></span> <button id="out">Sign out</button></div></header>
 <main>
-<h2 style="margin-top:0">Home</h2>
+<h2 style="margin-top:0">Home</h2><div data-help="welcome" style="margin:6px 0"></div>
 <div id="hm"><div class="empty">Loading...</div></div>
 <div class="card" id="fbcard" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><b>Feedback</b> <span id="fbnew"></span><div class="hint">Found a bug or have an idea? Tell us. We answer every message.</div></div><a href="/feedback" style="color:#0F1B2D;font-weight:700">Send feedback &rarr;</a></div>
 <script>fetch('/api/feedback?unread=1').then(r=>r.ok?r.json():null).then(j=>{if(j&&j.unread){const e=document.getElementById('fbnew');e.className='pilltag';e.textContent=(window.pmT||(s=>s))('New reply');}}).catch(()=>{});</script>
@@ -149,4 +149,4 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
     j.leads.map(l=>`<tr><td>${esc(l.createdAt)}</td><td>${esc(l.name)}</td><td>${esc(l.email)}<br>${esc(l.phone)} ${esc(l.zip)}</td><td>${esc(l.jobType)} ${l.sqft?esc(l.sqft)+' sq ft':''}</td><td>${l.lowCents==null?'':usd(l.lowCents)+' - '+usd(l.highCents)}</td><td>${esc(l.notes)}</td><td>${esc(l.status)}</td></tr>`).join('')+'</tbody></table>';
 })();
 document.getElementById('out').onclick=async()=>{await fetch('/api/auth/logout',{method:'POST'});location.href='/login';};
-</script><script src="/nav.js"></script></body></html>
+</script><script src="/nav.js"></script><script src="/helpvideo.js" defer></script></body></html>

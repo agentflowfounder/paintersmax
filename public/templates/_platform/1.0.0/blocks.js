@@ -48,3 +48,42 @@
     });
   });
 })();
+/* Videos (tap to play, loads YouTube only on tap) and painting weather (loads when seen). */
+(function () {
+  var D = document;
+  D.querySelectorAll('.pm-video[data-yt]').forEach(function (v) {
+    var b = v.querySelector('.pm-video-play');
+    if (!b) return;
+    b.addEventListener('click', function () {
+      var f = D.createElement('iframe');
+      f.src = 'https://www.youtube-nocookie.com/embed/' + v.dataset.yt + '?rel=0&modestbranding=1&playsinline=1&autoplay=1';
+      f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'; f.allowFullscreen = true; f.title = b.getAttribute('aria-label') || 'Video';
+      f.referrerPolicy = 'strict-origin-when-cross-origin';
+      v.innerHTML = ''; v.appendChild(f);
+    });
+  });
+  function dayName(iso, lang) { var d = new Date(iso + 'T12:00:00'); return d.toLocaleDateString(lang === 'es' ? 'es-US' : 'en-US', { weekday: 'short' }); }
+  function draw(box, f) {
+    var lang = box.dataset.lang || 'en', out = box.querySelector('.pm-wx-days');
+    out.innerHTML = '';
+    f.days.forEach(function (d) {
+      var li = D.createElement('div'); li.className = 'pm-wx-day ' + (d.good ? 'good' : 'poor');
+      var why = d.good ? box.dataset.good : (lang === 'es' ? d.whyEs : d.why) || box.dataset.poor;
+      li.innerHTML = '<b></b><span class="t"></span><span class="s"></span><em></em>';
+      li.children[0].textContent = dayName(d.date, lang);
+      li.children[1].textContent = d.hiF + '° / ' + d.loF + '°';
+      li.children[2].textContent = d.rain + '% ' + box.dataset.rain + ' · ' + d.windMph + ' mph ' + box.dataset.wind;
+      li.children[3].textContent = why;
+      out.appendChild(li);
+    });
+  }
+  function load(box) {
+    fetch('/api/weather?place=' + encodeURIComponent(box.dataset.weather)).then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (f) { draw(box, f); }).catch(function () { box.hidden = true; });
+  }
+  var boxes = [].slice.call(D.querySelectorAll('.pm-wx[data-weather]'));
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { io.unobserve(e.target); load(e.target); } }); }, { rootMargin: '200px' });
+    boxes.forEach(function (b) { io.observe(b); });
+  } else boxes.forEach(load);
+})();
