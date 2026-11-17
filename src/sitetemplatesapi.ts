@@ -72,7 +72,7 @@ export async function handleTemplatesAdmin(request: Request, env: Env): Promise<
   const next: any = { ...before, updatedOn: todayLocal(), updatedBy: actor.email };
   if (b.action === "set") {
     if (typeof b.enabled === "boolean") next.enabled = b.enabled;
-    if (Array.isArray(b.doors)) next.doors = (["launch", "grow", "signature"] as Door[]).filter((d) => b.doors.includes(d));
+    if (Array.isArray(b.doors)) next.doors = (["free", "launch", "grow", "signature"] as Door[]).filter((d) => b.doors.includes(d));
     if (typeof b.name === "string") next.name = b.name.trim().slice(0, 40) || undefined;
     if (b.sort != null && Number.isInteger(Number(b.sort))) next.sort = Number(b.sort);
     if (typeof b.note === "string") next.note = b.note.trim().slice(0, 200) || undefined;

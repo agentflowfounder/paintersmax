@@ -438,7 +438,7 @@ function rLook(){
 <div class="btns"><a class="btn sec sm" target="_blank" rel="noopener" href="/api/site/preview?path=/&tpl=${encodeURIComponent(t.id)}${AS?'&as='+encodeURIComponent(AS):''}">${T('Preview')}</a>${t.current?'':t.state==='locked'?`<button class="btn sm" type="button" data-upg>${T('See upgrades')}</button>`:`<button class="btn sm" type="button" data-use="${t.id}">${T('Use this template')}</button>`}</div></div>`).join('')}</div></div>`;
   let look='';
   if(I&&!I.legacy){
-    const tokens=I.tokens.map(k=>`<label class="sw"><input type="color" data-tok="${k.key}" value="${esc(th.tokens[k.key]||k.default)}"> ${esc(L(k.label))}</label>`).join('');
+    const tokens=I.tokens.map(k=>`<label class="sw"><input type="color" data-tok="${k.key}" value="${esc(th.tokens[k.key]||k.default)}"> ${esc(L(k.label))}</label>`).join('')+`<div class="mrow" style="margin-top:10px"><input id="aiStyleAsk" maxlength="200" placeholder="${T('Describe the look you want, for example warm and friendly')}" aria-label="${T('Describe the look you want, for example warm and friendly')}"><button class="btn sec sm" type="button" data-aistyle>&#10024; ${T('Suggest colors and fonts')}</button></div><p class="muted" style="font-size:13px">${T('The AI only suggests. You can undo it by changing the colors back. Uses AI credits.')}</p>`;
     const fontSel=f=>`<label for="font_${f.key}">${esc(L(f.label))}</label><select id="font_${f.key}" data-font="${f.key}">${I.fontChoices.map(c=>`<option${(th.fonts[f.key]||f.default)===c.family?' selected':''}>${esc(c.family)}</option>`).join('')}</select>`;
     const mine=new Map(th.sections.map(s=>[s.key,s]));
     const secs=I.sections.map(d=>({d,on:d.required?true:mine.has(d.key)?mine.get(d.key).on:d.enabled,order:mine.has(d.key)?mine.get(d.key).order:d.order})).sort((a,b)=>a.order-b.order);
@@ -478,6 +478,7 @@ ${(()=>{const w=settingWarnings(I,th,secs);return w.length?`<div class="card war
   if(I&&!I.legacy){
     let eyeBefore=false;const paintCol=()=>{$('colWarn').innerHTML=warnHtml(colorWarnings(I,th));$('colPrev').innerHTML=colorPreview(I,th,eyeBefore);$('colEye').setAttribute('aria-pressed',eyeBefore);$('colEye').innerHTML='&#128065; '+T('Preview')+': '+T(eyeBefore?'before':'after');};
     all('[data-tok]',x=>x.oninput=()=>{th.tokens[x.dataset.tok]=x.value;touch();paintCol();});
+    all('[data-aistyle]',b=>b.onclick=async()=>{const ask=($('aiStyleAsk').value||'').trim();if(!ask)return msg(T('Describe the look you want, for example warm and friendly'));b.disabled=true;try{const j=await api('/api/site',{action:'restyle',ask});Object.assign(th.tokens,j.tokens||{});Object.assign(th.fonts,j.fonts||{});touch();render();msg(T('Suggested look applied to your draft. Change any color to adjust it.'),true);}catch(e){if(e)msg(e.message);}b.disabled=false;});
     if($('colEye'))$('colEye').onclick=()=>{eyeBefore=!eyeBefore;paintCol();};
     $('tokReset').onclick=()=>{th.tokens={};re();};
     all('[data-font]',x=>x.onchange=()=>{th.fonts[x.dataset.font]=x.value;touch();});

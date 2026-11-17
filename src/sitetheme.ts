@@ -14,9 +14,10 @@ export type PageKind = "home" | "services" | "gallery" | "about" | "contact" | "
 export type Lang = "en" | "es";
 export type Txt = { en: string; es: string };
 
-/** basic: Launch and up. standard: Grow and up. premium: Signature. Free previews every one (it never publishes). */
-export type TemplateClass = "basic" | "standard" | "premium";
+/** free: every door, one page with tabs on Free. basic: Launch and up. standard: Grow and up. premium: Signature. Free may preview every template but publishes only the free ones. */
+export type TemplateClass = "free" | "basic" | "standard" | "premium";
 export const CLASS_DOORS: Record<TemplateClass, Door[]> = {
+  free: ["free", "launch", "grow", "signature"],
   basic: ["launch", "grow", "signature"],
   standard: ["grow", "signature"],
   premium: ["signature"],
@@ -85,6 +86,8 @@ export interface TemplateConfig {
   /** Placeholder contact info used only in the template's own sample preview. */
   contact: { name: string; phone: string; email: string; address: string; city: string; state: string; hours: string };
   mapsMode: "worker-key" | "drawn-only";
+  /** Set for an uploaded template pack: the built-in layout it re-skins, and its colors for the classic and bold layouts. */
+  pack?: { base: string; palette: { dark?: string; bg?: string; accent?: string } };
 }
 
 /** Fonts a painter may pick: Google Fonts families we have checked look right and load fast. */
