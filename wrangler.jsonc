@@ -30,6 +30,7 @@
     "MODEL_OPENAI": "gpt-4.1-mini",
     "MODEL_GEMINI": "gemini-3.8-flash"
   },
+  // Deploys run from the main branch on every merge (Settings > Builds > Production, "Disable builds" must stay off).
   // Keep variables and secrets added in the Cloudflare dashboard (like NOTIFY_EMAIL) when we deploy from GitHub.
   "keep_vars": true,
   // Every 5 minutes: email one chat summary per conversation that has gone quiet.
