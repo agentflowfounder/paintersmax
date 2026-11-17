@@ -2,8 +2,8 @@ import { adminActor, can, logAudit } from "./adminroles.ts";
 import { getSessionUser } from "./auth.ts";
 import { todayLocal } from "./dates.ts";
 import { loadRegistry } from "./sitebuilder.ts";
-import { entries, readRegistry, REGISTRY_KEY, type Registry, type TemplateOverride } from "./sitetemplates.ts";
-import { TEMPLATE_IDS, TEMPLATE_VERSIONS } from "../templates/configs.ts";
+import { entries, NO_DEFAULT_SLOTS, readRegistry, REGISTRY_KEY, type Registry, type TemplateOverride } from "./sitetemplates.ts";
+import { configOf, latestVersion, TEMPLATE_IDS, TEMPLATE_VERSIONS } from "../templates/configs.ts";
 import type { Door } from "./sitetheme.ts";
 import type { Env } from "./types.ts";
 
@@ -54,7 +54,7 @@ export async function handleTemplatesAdmin(request: Request, env: Env): Promise<
   if (request.method === "GET") {
     const reg = await loadRegistry(env);
     const used = await usage(env);
-    return json({ templates: entries(reg).map((t) => ({ ...t, thumbUrl: t.thumb ? `/site-template-thumb/${t.id}` : null, clients: used[t.id] ?? [] })), canChange: can(actor.role, "sites", "change") });
+    return json({ templates: entries(reg).map((t) => ({ ...t, thumbUrl: t.thumb ? `/site-template-thumb/${t.id}` : null, slots: (configOf(t.id, latestVersion(t.id) ?? "")?.imageSlots ?? []).filter((q) => !NO_DEFAULT_SLOTS.includes(q.slot)).map((q) => ({ slot: q.slot, w: q.w, h: q.h, ratio: q.ratio, section: q.section, has: !!reg[t.id]?.slotImages?.[q.slot], url: reg[t.id]?.slotImages?.[q.slot] ? `/site-template-image/${t.id}/${q.slot}` : null })), clients: used[t.id] ?? [] })), canChange: can(actor.role, "sites", "change") });
   }
   if (request.method !== "POST") return json({ error: "Not found." }, 404);
   if (!can(actor.role, "sites", "change")) return json({ error: "Your role can look but not change templates." }, 403);
@@ -84,6 +84,50 @@ export async function handleTemplatesAdmin(request: Request, env: Env): Promise<
   await saveRegistry(env, clean);
   await logAudit(env, actor, b.action === "version" ? "template_version" : "template_set", { detail: { id, before, after: clean[id] } });
   return json({ ok: true, template: entries(clean).find((t) => t.id === id) });
+}
+
+const SLOT_MAX_BYTES = 3 * 1024 * 1024;
+
+/** POST (admin, multipart): set or remove one default photo of a template. Fields: id, slot, file (or remove=1). */
+export async function handleTemplateSlotImage(request: Request, env: Env): Promise<Response> {
+  const actor = await adminActor(env, request);
+  if (!actor || !can(actor.role, "sites", "change")) return json({ error: "Not found." }, 404);
+  if (request.method !== "POST") return json({ error: "Not found." }, 404);
+  if (!env.FILES) return json({ error: "Photo storage is not turned on yet." }, 503);
+  const form = await request.formData().catch(() => null);
+  const id = String(form?.get("id") ?? "");
+  const slot = String(form?.get("slot") ?? "");
+  if (!TEMPLATE_IDS.includes(id)) return json({ error: "Template not found." }, 404);
+  const cfg = configOf(id, latestVersion(id) ?? "");
+  if (!cfg?.imageSlots.some((q) => q.slot === slot)) return json({ error: "That photo space does not exist in this template." }, 404);
+  if (NO_DEFAULT_SLOTS.includes(slot)) return json({ error: "Before and after photos must be the painter's own work, so they have no default." }, 400);
+  const reg = await loadRegistry(env);
+  const slots: Record<string, string> = { ...(reg[id]?.slotImages ?? {}) };
+  const old = slots[slot];
+  const file = form?.get("file");
+  if (String(form?.get("remove") ?? "") === "1") delete slots[slot];
+  else {
+    if (!(file instanceof File) || !THUMB_TYPES[file.type]) return json({ error: "Use a WebP, PNG or JPG image." }, 400);
+    if (file.size > SLOT_MAX_BYTES) return json({ error: "Keep each default photo under 3 MB." }, 400);
+    const key = `site-templates/${id}/slots/${slot}-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}.${THUMB_TYPES[file.type]}`;
+    await env.FILES.put(key, file.stream(), { httpMetadata: { contentType: file.type, cacheControl: "public, max-age=3600" } });
+    slots[slot] = key;
+  }
+  const clean = readRegistry({ ...reg, [id]: { ...(reg[id] ?? {}), slotImages: slots, updatedOn: todayLocal(), updatedBy: actor.email } });
+  await saveRegistry(env, clean);
+  if (old && old !== clean[id]?.slotImages?.[slot]) await env.FILES.delete(old).catch(() => {});
+  await logAudit(env, actor, "template_slot_image", { detail: { id, slot, removed: !clean[id]?.slotImages?.[slot] } });
+  return json({ ok: true, slotImages: Object.keys(clean[id]?.slotImages ?? {}) });
+}
+
+/** GET /site-template-image/<id>/<slot>: a template's default photo (public; it is shown on live sites). */
+export async function handleTemplateSlotImageGet(env: Env, pathname: string): Promise<Response> {
+  const m = pathname.match(/^\/site-template-image\/([a-z0-9-]{1,40})\/([A-Z0-9-]{2,30})$/);
+  if (!m || !TEMPLATE_IDS.includes(m[1]) || !env.FILES) return new Response("Not found.", { status: 404 });
+  const key = (await loadRegistry(env))[m[1]]?.slotImages?.[m[2]];
+  const obj = key ? await env.FILES.get(key) : null;
+  if (!obj) return new Response("Not found.", { status: 404 });
+  return new Response(obj.body, { headers: { "content-type": obj.httpMetadata?.contentType ?? "image/webp", "cache-control": "public, max-age=3600", "x-content-type-options": "nosniff" } });
 }
 
 const THUMB_TYPES: Record<string, string> = { "image/webp": "webp", "image/png": "png", "image/jpeg": "jpg" };

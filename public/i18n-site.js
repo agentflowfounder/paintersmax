@@ -50,6 +50,8 @@
 "Terms link": "Enlace a los términos",
 "New item": "Opción nueva",
 "Picker image (WebP, PNG or JPG, under 1 MB)": "Imagen para elegir (WebP, PNG o JPG, menos de 1 MB)",
+"Default photos": "Fotos predeterminadas",
+"Visitors see these until the painter adds their own photo for that space. Use only images you may use on client sites. WebP, PNG or JPG, under 3 MB each. Before and after photos have no default.": "Los visitantes ven estas fotos hasta que el pintor agregue la suya en ese espacio. Use solo imágenes que pueda usar en sitios de clientes. WebP, PNG o JPG, menos de 3 MB cada una. Las fotos de antes y después no tienen foto predeterminada.",
 "First builder look": "Diseño del primer editor",
 "Slug": "Identificador",
 "Version in use": "Versión en uso",

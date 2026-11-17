@@ -17,6 +17,9 @@ import { CLASS_DOORS, cleanTheme, emptyTheme, type Door, type Lang, type Templat
 
 export const REGISTRY_KEY = "sitetpl:registry";
 const DOORS: Door[] = ["free", "launch", "grow", "signature"];
+/** Slots that never get a stock default: the painter's own before and after work must be real. */
+export const NO_DEFAULT_SLOTS = ["BA-BEFORE", "BA-AFTER"];
+
 const PAID: Door[] = ["launch", "grow", "signature"];
 
 export interface TemplateOverride {
@@ -24,6 +27,8 @@ export interface TemplateOverride {
   doors?: Door[];
   name?: string;
   thumb?: string;
+  /** Admin's default photos: slot name -> R2 key. Shown to visitors until the painter adds their own. */
+  slotImages?: Record<string, string>;
   sort?: number;
   version?: string;
   note?: string;
@@ -51,6 +56,13 @@ export function readRegistry(raw: unknown): Registry {
     if (Array.isArray(o.doors)) r.doors = PAID.filter((d) => o.doors.includes(d));
     if (s(o.name, 40)) r.name = s(o.name, 40);
     if (/^site-templates\/[a-z0-9-]{1,40}\/[a-z0-9]{6,40}\.(webp|png|jpg)$/.test(s(o.thumb, 120))) r.thumb = s(o.thumb, 120);
+    if (o.slotImages && typeof o.slotImages === "object") {
+      const m: Record<string, string> = {};
+      for (const [slot, key] of Object.entries(o.slotImages)) {
+        if (/^[A-Z0-9-]{2,30}$/.test(slot) && typeof key === "string" && new RegExp(`^site-templates/${id}/slots/${slot}-[a-z0-9]{6,20}\\.(webp|png|jpg)$`).test(key) && !NO_DEFAULT_SLOTS.includes(slot)) m[slot] = key;
+      }
+      if (Object.keys(m).length) r.slotImages = m;
+    }
     if (Number.isInteger(o.sort)) r.sort = Math.max(0, Math.min(999, o.sort));
     if (typeof o.version === "string" && TEMPLATE_VERSIONS[id][o.version]) r.version = o.version;
     if (s(o.note, 200)) r.note = s(o.note, 200);
@@ -164,6 +176,7 @@ export function renderWithTemplate(base: RenderCtx, o: ThemeOpts): string {
     assetBase: `/templates/${cfg.id}/${cfg.version}/`,
     platformBase: "/templates/_platform/1.0.0/",
     leadEndpoint: "/api/lead",
+    defaults: Object.fromEntries(Object.keys(o.reg[id]?.slotImages ?? {}).map((slot) => [slot, `/site-template-image/${id}/${slot}`])),
   };
   return draw(ctx);
 }

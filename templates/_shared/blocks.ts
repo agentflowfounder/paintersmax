@@ -32,6 +32,10 @@ export function photo(x: ThemeRenderCtx, id: string | null | undefined, slot: Im
     return `<img class="${o.cls ?? ""}" src="${e(x.photoSrc(p.id))}" alt="${e(p.alt || `${x.company.name} painting project`)}"${p.w && p.h ? ` width="${p.w}" height="${p.h}"` : ""}${o.eager ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async"${o.sizes ? ` sizes="${e(o.sizes)}"` : ""}>`;
   }
   const alt = slot ? slot.alt[x.uiLang] : "";
+  const dflt = slot ? x.defaults?.[slot.slot] : undefined;
+  if (dflt && slot) {
+    return `<img class="${o.cls ?? ""}" src="${e(dflt)}" alt="${e(alt)}" width="${slot.w}" height="${slot.h}"${o.eager ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async" data-template-photo="${e(slot.slot)}">`;
+  }
   if (!x.preview || !slot) return `<div class="pm-ph ${o.cls ?? ""}" role="img" aria-label="${e(alt || t(x, "photoSoon"))}"></div>`;
   const ai = x.cfg.imageProvider;
   return `<div class="pm-ph pm-ph-label ${o.cls ?? ""}" role="img" aria-label="${e(`Photo space ${slot.slot}: ${alt}`)}" data-slot="${e(slot.slot)}">`

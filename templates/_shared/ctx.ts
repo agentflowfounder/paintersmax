@@ -20,4 +20,6 @@ export interface ThemeRenderCtx extends RenderCtx {
   platformBase: string;
   /** Where forms post leads. */
   leadEndpoint: string;
+  /** Admin's default photos for this template: slot name -> address. Used only when the painter has no photo for the slot. */
+  defaults?: Record<string, string>;
 }

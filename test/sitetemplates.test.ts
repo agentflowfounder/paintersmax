@@ -241,3 +241,20 @@ test("pairs: service, city, year and size are cleaned, old pairs get empty detai
   s.themes["sunset-sand"] = th as any;
   assert.match(draw(s, { tpl: "sunset-sand" }), /class="pm-ba/);
 });
+
+test("default photos: admin defaults show until the painter adds their own; before and after never get one", () => {
+  const good = "site-templates/sunset-sand/slots/HOME-HERO-abc123def456.webp";
+  const reg = readRegistry({ "sunset-sand": { slotImages: {
+    "HOME-HERO": good,
+    "BA-BEFORE": "site-templates/sunset-sand/slots/BA-BEFORE-abc123def456.webp",
+    "STORY-1": "site-templates/other/slots/STORY-1-abc123def456.webp",
+    "bad slot": good,
+  } } });
+  assert.deepEqual(reg["sunset-sand"].slotImages, { "HOME-HERO": good });
+  const s = firstDraft({ name: "Rivera Painting", trades: ["interior"], cities: ["Tyler, TX"], lang: "en" }, DOOR_LIMITS.launch);
+  s.template = "sunset-sand";
+  const live = draw(s, { reg });
+  assert.match(live, /src="\/site-template-image\/sunset-sand\/HOME-HERO"/);
+  assert.ok(!live.includes("data-slot=\"HOME-HERO\""), "no placeholder label when a default exists");
+  assert.ok(!draw(s, { reg: {} }).includes("/site-template-image/"));
+});

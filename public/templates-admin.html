@@ -9,6 +9,7 @@ header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-cont
 main{max-width:1200px;margin:0 auto;padding:16px 16px 60px}h3{margin:0 0 6px;font-family:Newsreader,Georgia,serif;font-weight:500;font-size:22px}
 .card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
 .grid{display:grid;grid-template-columns:200px 1fr;gap:16px}@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.dslots{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:8px}.dslot{border:1px solid #dcd6cc;border-radius:8px;padding:8px;display:grid;gap:4px}.dslot img,.dph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;background:#efe9df}
 .thumb{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:linear-gradient(160deg,#f6e8cf,#e08a35);display:grid;place-items:center;color:#fff;font-family:Newsreader,Georgia,serif;font-size:20px}
 input,select{padding:8px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}input[type=file]{max-width:100%;width:100%;font-size:12px}label{font-size:13px;font-weight:600;display:block;margin:8px 0 4px}
 .btn{padding:7px 11px;border-radius:8px;border:0;font:inherit;font-weight:700;cursor:pointer;background:#E8A33D;color:#0F1B2D;text-decoration:none;display:inline-block;font-size:13px}.btn.sec{background:#eceae4}
@@ -46,6 +47,7 @@ ${ro?'':`<label for="th_${esc(t.id)}">${T('Picker image (WebP, PNG or JPG, under
 ${ro?'':`<div class="row" style="margin-top:10px"><button class="btn" type="button" data-save>${T('Save')}</button></div>`}
 <div class="row" style="margin-top:10px"><label style="margin:0" for="pv_${esc(t.id)}">${T('Preview with client')}</label><select id="pv_${esc(t.id)}" data-pvc><option value="">${T('Your own sample company')}</option>${allClients().map(c=>`<option value="${c.companyId}">${esc(c.name)}</option>`).join('')}</select><input data-pvid placeholder="${T('or client id')}" style="width:110px" inputmode="numeric"><button class="btn sec" type="button" data-pv>${T('Open preview')}</button></div>
 <details><summary>${T('Clients using it')} (${t.clients.length})</summary>${t.clients.length?`<table><tr><th>${T('Client')}</th><th>${T('Draft')}</th><th>${T('Live')}</th><th></th></tr>${t.clients.map(c=>`<tr><td>${esc(c.name)} <small class="muted">#${c.companyId}</small></td><td>${c.draft?'&#10003;':''}</td><td>${c.live?'&#10003;':''}</td><td><a href="/site?as=${c.companyId}">${T('Open editor')}</a></td></tr>`).join('')}</table>`:`<p class="muted">${T('No client uses it yet.')}</p>`}</details>
+<details><summary>${T('Default photos')} (${(t.slots||[]).filter(x=>x.has).length}/${(t.slots||[]).length})</summary><p class="muted">${T('Visitors see these until the painter adds their own photo for that space. Use only images you may use on client sites. WebP, PNG or JPG, under 3 MB each. Before and after photos have no default.')}</p><div class="dslots">${(t.slots||[]).map(x=>`<div class="dslot" data-slot="${esc(x.slot)}">${x.has?`<img src="${esc(x.url)}?v=${esc(t.updatedOn||'')}" alt="">`:`<div class="dph"></div>`}<b>${esc(x.slot)}</b><small class="muted">${x.w} &times; ${x.h} (${esc(x.ratio)})</small>${ro?'':`<input type="file" accept="image/webp,image/png,image/jpeg" data-dfile aria-label="${esc(x.slot)}">${x.has?`<button class="btn sec sm" type="button" data-drm>${T('Remove')}</button>`:''}`}</div>`).join('')}</div></details>
 <details><summary>${T('Inspiration and license')}</summary><p class="muted"><b>${T('Inspiration')}:</b> ${esc(t.inspiration)}</p><p class="muted"><b>${T('License')}:</b> ${esc(t.license)}</p></details>
 </div></div></div>`).join('');
   [].forEach.call(document.querySelectorAll('.card[data-id]'),c=>{
@@ -60,6 +62,10 @@ ${ro?'':`<div class="row" style="margin-top:10px"><button class="btn" type="butt
     };
     if(q('[data-thumb]'))q('[data-thumb]').onchange=async e=>{const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append('id',id);fd.append('file',f);
       try{const r=await fetch('/api/site/templates/thumb',{method:'POST',body:fd});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Upload failed.');msg('Picker image saved.',true);await load();}catch(err){msg(err.message);}};
+    [].forEach.call(c.querySelectorAll('.dslot'),d=>{const slot=d.dataset.slot,f=d.querySelector('[data-dfile]'),rm=d.querySelector('[data-drm]');
+      const send=async fd=>{fd.append('id',id);fd.append('slot',slot);try{const r=await fetch('/api/site/templates/slot-image',{method:'POST',body:fd});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Upload failed.');msg('Saved.',true);await load();}catch(err){msg(err.message);}};
+      if(f)f.onchange=()=>{if(f.files[0]){const fd=new FormData();fd.append('file',f.files[0]);send(fd);}};
+      if(rm)rm.onclick=()=>{const fd=new FormData();fd.append('remove','1');send(fd);};});
     q('[data-pv]').onclick=()=>{const as=(q('[data-pvid]').value||q('[data-pvc]').value).trim();window.open('/api/site/preview?path=/&tpl='+encodeURIComponent(id)+(as?'&as='+encodeURIComponent(as):''),'_blank','noopener');};
   });
 }
