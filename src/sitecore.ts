@@ -108,7 +108,7 @@ export interface Page {
   blocks: Block[];
 }
 
-export interface PhotoMeta { id: string; alt: string; w: number; h: number; bytes: number; at: string }
+export interface PhotoMeta { id: string; alt: string; w: number; h: number; bytes: number; at: string; /** Made by the AI image tool (never shown as the painter's own work). */ ai?: boolean }
 
 export interface Site {
   v: 1;
@@ -171,7 +171,7 @@ export function cleanSite(rawInput: any, limits: Limits, door: Door, now = new D
   const input = upgradeSite(rawInput);
   const photos: PhotoMeta[] = (Array.isArray(input?.photos) ? input.photos : [])
     .filter((p: any) => typeof p?.id === "string" && /^[a-f0-9]{12,32}$/.test(p.id))
-    .map((p: any) => ({ id: p.id, alt: s(p.alt, 160), w: Math.max(0, Math.round(Number(p.w) || 0)), h: Math.max(0, Math.round(Number(p.h) || 0)), bytes: Math.max(0, Math.round(Number(p.bytes) || 0)), at: s(p.at, 30) }));
+    .map((p: any) => ({ id: p.id, alt: s(p.alt, 160), w: Math.max(0, Math.round(Number(p.w) || 0)), h: Math.max(0, Math.round(Number(p.h) || 0)), bytes: Math.max(0, Math.round(Number(p.bytes) || 0)), at: s(p.at, 30), ...(p.ai === true ? { ai: true } : {}) }));
   const photoIds = new Set(photos.map((p) => p.id));
 
   const seenSlugs = new Set<string>();

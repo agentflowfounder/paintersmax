@@ -49,6 +49,8 @@ export interface ImageSlotDef {
   alt: Txt;
   /** The prompt for an AI-made placeholder (the in-house image tool will use it; nothing calls it yet). */
   prompt: string;
+  /** Four scene prompts for the same space (the first is `prompt`). The editor rotates through them. */
+  prompts?: string[];
 }
 
 /** Where AI images will come from. Rogelio's in-house fal.ai tool plugs in here when it is built. */
@@ -127,10 +129,12 @@ export interface Theme {
   texts: Record<string, string>; // "<lang>:<i18n key>" -> the painter's wording for a template phrase
   /** Where each photo space is cropped: the centre of the visible part, in percent (50,50 is the middle). */
   focus: Record<string, { x: number; y: number }>;
+  /** Counts template picks; the editor uses it to rotate the AI prompt examples. */
+  pv: number;
   heroWord: string; // the big soft word in the hero (templates that have one)
 }
 
-export const emptyTheme = (): Theme => ({ tokens: {}, fonts: {}, sections: [], menu: [], logo: "", slots: {}, pairs: [], legal: { privacy: "", terms: "" }, texts: {}, focus: {}, heroWord: "" });
+export const emptyTheme = (): Theme => ({ tokens: {}, fonts: {}, sections: [], menu: [], logo: "", slots: {}, pairs: [], legal: { privacy: "", terms: "" }, texts: {}, focus: {}, pv: 0, heroWord: "" });
 
 export const SOCIAL_KINDS = ["facebook", "instagram", "google", "yelp", "nextdoor", "youtube", "tiktok", "linkedin", "x"] as const;
 export type SocialKind = (typeof SOCIAL_KINDS)[number];
@@ -192,6 +196,7 @@ export function cleanTheme(raw: any, cfg: TemplateConfig | null, photoIds: Set<s
     const val = str(v, 200);
     if (m && keys.has(m[2]) && val) t.texts[k] = val;
   }
+  t.pv = Number.isInteger(raw.pv) ? Math.max(0, Math.min(9999, raw.pv)) : 0;
   t.heroWord = str(raw.heroWord, 12).replace(/[^\p{L}\p{N} &'-]/gu, "");
   return t;
 }

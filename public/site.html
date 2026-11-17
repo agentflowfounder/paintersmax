@@ -30,7 +30,8 @@ small,.muted{color:#4A5568}
 .blk{border:1px solid #e3e0d8;border-radius:10px;padding:12px;margin:10px 0;background:#fcfbf8}.blk .bh{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
 .pill{display:inline-block;font-size:12px;padding:2px 9px;border-radius:12px;background:#eceae4}.pill.live{background:#d9f3e3;color:#0a7a3d}.pill.warn{background:#fff3cd;color:#5c4400}
 .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:8px}.slot{position:relative;border:2px dashed #cfd5dc;border-radius:8px;height:90px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#4A5568;background:#fff;overflow:hidden}
-#phCanvas{position:sticky;top:0;z-index:2;max-height:42vh;width:auto;max-width:100%;background:#fff}.cropd{max-width:min(96vw,720px)}.crop{position:relative;display:inline-block;max-width:100%;line-height:0;touch-action:none}.crop img{max-width:100%;max-height:60vh;display:block;opacity:1}.crop-dim{position:absolute;inset:0;background:rgba(15,27,45,.68)}.crop-box{position:absolute;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.4);cursor:grab;background-repeat:no-repeat}.crop-box:focus-visible{outline:3px solid #f5a623}
+#phCanvas{position:sticky;top:0;z-index:2;max-height:42vh;width:auto;max-width:100%;background:#fff}.warnbox{background:#fff6e5;border:1px solid #f0c36d;border-radius:10px;padding:10px 12px;margin:8px 0}.warnbox ul{margin:6px 0 6px 18px;padding:0}.cprev{border:1px solid #dcd6cc;border-radius:10px;padding:14px;margin-top:8px}.cbtn{display:inline-block;margin-top:10px;padding:8px 14px;border-radius:6px;font-weight:600}
+.cropd{max-width:min(96vw,720px)}.crop{position:relative;display:inline-block;max-width:100%;line-height:0;touch-action:none}.crop img{max-width:100%;max-height:60vh;display:block;opacity:1}.crop-dim{position:absolute;inset:0;background:rgba(15,27,45,.68)}.crop-box{position:absolute;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.4);cursor:grab;background-repeat:no-repeat}.crop-box:focus-visible{outline:3px solid #f5a623}
 .adjs{display:grid;gap:6px;margin:8px 0}.adj{display:grid;grid-template-columns:150px 1fr 36px;gap:8px;align-items:center;font-size:14px;margin:0}.adj input{width:100%}.adj output{text-align:right;color:#5b6573}
 .slot img{width:100%;height:100%;object-fit:cover}.slot .x{position:absolute;top:3px;right:3px;background:#fff;border:0;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700}
 .checks li{margin:3px 0;font-size:14px}.checks .y{color:#0a7a3d}.checks .n{color:#b42318}
@@ -92,7 +93,7 @@ canvas{max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none}
 <div class="btns"><button class="btn sec sm" type="button" id="phUndo">Undo blur</button></div>
 <p class="muted" style="margin:4px 0">Drag a box over any face, house number or license plate to blur it.</p>
 <label class="switch"><input type="checkbox" id="phFaces"> Blur faces in this photo</label><small class="muted" id="phFaceNote" aria-live="polite"></small>
-<details open><summary><b>Adjust the photo</b></summary><div id="phAdj" class="adjs"></div><div class="btns"><button class="btn sec sm" type="button" id="phAdjReset">Reset all adjustments</button></div></details>
+<details open><summary><b>Adjust the photo</b></summary><div id="phAdj" class="adjs"></div><div class="btns"><button class="btn sec sm" type="button" id="phAdjReset">Reset all adjustments</button><button class="btn sec sm" type="button" id="phCmp" aria-pressed="false">&#128065; Preview: after</button></div></details>
 <label class="switch"><input type="checkbox" id="phAiBlur" checked disabled> When AI improves a photo, blur the faces first (your original stays as it is)</label><small class="muted">AI photo improvement is coming soon; this choice will apply when it arrives.</small>
 <label for="phAlt">Describe the photo (what was painted, and where)</label>
 <input id="phAlt" maxlength="160" placeholder="Living room walls and trim, painted in Tyler, TX">
@@ -255,7 +256,7 @@ let ph={img:null,boxes:[],p:null,b:null,drag:null,adj:adj0(),raf:0};
 function openPhoto(p,b){
   if(!S.photoStorage)return msg('Photo storage is not turned on yet.');
   if(usage().photos>=S.limits.photos)return openUp('photos');
-  ph={img:null,boxes:[],p,b,drag:null,adj:adj0(),raf:0};$('phFile').value='';$('phWork').hidden=true;$('phGo').disabled=true;$('phMsg').textContent='';$('phAlt').value='';$('phFaces').checked=false;$('phFaceNote').textContent='';syncSliders();$('ph').showModal();
+  ph={img:null,boxes:[],p,b,drag:null,adj:adj0(),raf:0};ph.cmp=false;$('phCmp').setAttribute('aria-pressed','false');$('phFile').value='';$('phWork').hidden=true;$('phGo').disabled=true;$('phMsg').textContent='';$('phAlt').value='';$('phFaces').checked=false;$('phFaceNote').textContent='';syncSliders();$('ph').showModal();
 }
 $('phFile').onchange=()=>{const f=$('phFile').files[0];if(!f)return;const img=new Image();img.onload=()=>{ph.img=img;ph.boxes=[];ph.adj=adj0();syncSliders();$('phWork').hidden=false;$('phGo').disabled=false;draw(1000);};img.onerror=()=>{$('phMsg').textContent=T('This photo type cannot be opened here. Use a JPG or PNG.');};img.src=URL.createObjectURL(f);};
 function syncSliders(){ADJ.forEach(a=>{const r=$('adj_'+a[0]);if(r){r.value=ph.adj[a[0]];$('adjv_'+a[0]).textContent=ph.adj[a[0]];}});}
@@ -287,7 +288,7 @@ function draw(max){
   for(const bx of ph.boxes){const l0=Math.min(bx.x,bx.x+bx.w)*c.width,t0=Math.min(bx.y,bx.y+bx.h)*c.height,w=Math.round(Math.abs(bx.w)*c.width),h=Math.round(Math.abs(bx.h)*c.height),l=Math.round(l0),t=Math.round(t0);if(w<4||h<4)continue;const px=Math.max(8,Math.round(Math.max(w,h)/10));const dd=x.getImageData(l,t,w,h);
     for(let yy=0;yy<h;yy+=px)for(let xx=0;xx<w;xx+=px){const i=((yy*w)+xx)*4;x.fillStyle=`rgb(${dd.data[i]},${dd.data[i+1]},${dd.data[i+2]})`;x.fillRect(l+xx,t+yy,px,px);}}
 }
-const redraw=()=>{if(!ph.img||ph.raf)return;ph.raf=requestAnimationFrame(()=>{ph.raf=0;draw(1000);});};
+const redraw=()=>{if(!ph.img||ph.raf||ph.cmp)return;ph.raf=requestAnimationFrame(()=>{ph.raf=0;draw(1000);});};
 (function(){const c=$('phCanvas');const pos=e=>{const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height};};
   c.onpointerdown=e=>{if(!ph.img)return;const p=pos(e);ph.drag={x:p.x,y:p.y,w:0,h:0};ph.boxes.push(ph.drag);c.setPointerCapture(e.pointerId);};
   c.onpointermove=e=>{if(!ph.drag)return;const p=pos(e);ph.drag.w=p.x-ph.drag.x;ph.drag.h=p.y-ph.drag.y;redraw();};
@@ -296,6 +297,7 @@ const redraw=()=>{if(!ph.img||ph.raf)return;ph.raf=requestAnimationFrame(()=>{ph
   $('phAdj').innerHTML=ADJ.map(a=>`<label class="adj" for="adj_${a[0]}"><span>${T(a[1])}</span><input type="range" id="adj_${a[0]}" min="${a[2]}" max="${a[3]}" step="1" value="0"><output id="adjv_${a[0]}">0</output></label>`).join('');
   ADJ.forEach(a=>{$('adj_'+a[0]).oninput=e=>{ph.adj[a[0]]=+e.target.value;$('adjv_'+a[0]).textContent=e.target.value;redraw();};});
   $('phAdjReset').onclick=()=>{ph.adj=adj0();syncSliders();draw(1000);};
+  $('phCmp').onclick=()=>{ph.cmp=!ph.cmp;const keep=ph.adj;if(ph.cmp){ph.adj=adj0();draw(1000);ph.adj=keep;}else draw(1000);$('phCmp').setAttribute('aria-pressed',ph.cmp);$('phCmp').innerHTML='&#128065; '+T('Preview')+': '+T(ph.cmp?'before':'after');};
   $('phFaces').onchange=async()=>{
     $('phFaceNote').textContent='';if(!ph.img)return;
     ph.boxes=ph.boxes.filter(b=>!b.face);
@@ -315,6 +317,22 @@ $('phGo').onclick=async()=>{
     $('ph').close();render();msg('Photo added.',true);}catch(e){$('phMsg').textContent=T(e.message);}finally{$('phGo').disabled=false;}
 };
 
+// ---------- Heads-up warnings and the before/after color preview
+const hexRgb=h=>{const n=parseInt(String(h).slice(1),16);return[n>>16&255,n>>8&255,n&255];};
+const relLum=h=>{const c=hexRgb(h).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});return .2126*c[0]+.7152*c[1]+.0722*c[2];};
+const contrast=(a,b)=>{const x=relLum(a),y=relLum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+const COLPAIRS=[['c-ink','c-bg',4.5,'Main text on the page color'],['c-ink-soft','c-bg',4.5,'Small gray text on the page color'],['c-ink','c-surface',4.5,'Text on cards'],['c-brand-ink','c-brand',4.5,'Button text on the button color'],['c-accent','c-bg',4.5,'Small colored labels on the page color'],['c-fade','c-bg',3,'Large faded words on the page color']];
+function tokVal(I,th,k,before){const d=I.tokens.find(t=>t.key===k);return d?(before?d.default:(th.tokens[k]||d.default)):null;}
+function colorWarnings(I,th){return COLPAIRS.map(([a,b,min,l])=>{const x=tokVal(I,th,a),y=tokVal(I,th,b);if(!x||!y)return null;const r=contrast(x,y);return r<min?`${T(l)}: ${r.toFixed(1)}:1 (${T('needs')} ${min}:1)`:null;}).filter(Boolean);}
+function warnHtml(list){return list.length?`<div class="warnbox" role="status"><b>&#9888; ${T('Hard to read')}</b><ul>${list.map(x=>`<li>${x}</li>`).join('')}</ul><small>${T('Visitors with weak eyesight or bright sun may not be able to read this. Pick a darker or lighter color.')}</small></div>`:'';}
+function colorPreview(I,th,before){const v=k=>tokVal(I,th,k,before)||'#888';return `<div class="cprev" style="background:${v('c-bg')};color:${v('c-ink')}"><small style="color:${v('c-accent')};letter-spacing:.12em">${T('SAMPLE LABEL')}</small><b style="display:block;font-size:20px;margin:4px 0">${T('Fresh coat, clean finish')}</b><span style="color:${v('c-ink-soft')}">${T('A short line of regular text on your page.')}</span><div><span class="cbtn" style="background:${v('c-brand')};color:${v('c-brand-ink')}">${T('Free estimate')}</span></div></div>`;}
+function settingWarnings(I,th,secs){const w=[];
+  I.imageSlots.forEach(sd=>{const ph=S.site.photos.find(x=>x.id===th.slots[sd.slot]);if(!ph)return;if(ph.w&&ph.w<sd.w*.7)w.push(`${esc(sd.slot)}: ${T('this photo is small for this space and may look blurry')} (${ph.w} px, ${T('best')} ${sd.w} px)`);if((ph.alt||'').trim().length<5)w.push(`${esc(sd.slot)}: ${T('add a short description of the photo')}`);if(ph.ai)w.push(`${esc(sd.slot)}: ${T('AI-made picture. Do not present it as your own work.')}`);});
+  if(th.menu.length>7)w.push(T('The menu has many items; on a phone a long menu is hard to use.'));
+  const on=k=>{const x=secs.find(q=>q.d.key===k);return !x||x.on;};
+  if(!on('instant_quote')&&!on('estimate_request'))w.push(T('Quote sections are off, so visitors only have the phone and the form at the bottom.'));
+  if(!th.logo&&!(S.company&&S.company.logoUrl))w.push(T('No logo yet: the header shows your business name as text. You can make a simple logo below.'));
+  return w;}
 // ---------- Crop window: the whole photo dimmed, a bright box shows what visitors will see in that photo space
 function cropFlow(photoId,sd,done){
   const th=themeOf();th.focus=th.focus||{};const f0=th.focus[sd.slot]||{x:50,y:50};let fx=f0.x,fy=f0.y;
@@ -336,6 +354,20 @@ function cropFlow(photoId,sd,done){
   d.querySelector('[data-mid]').onclick=()=>{fx=50;fy=50;place();};
   d.querySelector('[data-c]').onclick=()=>{close();done(false);};
   d.querySelector('[data-ok]').onclick=()=>{fx=Math.round(fx);fy=Math.round(fy);if(fx===50&&fy===50)delete th.focus[sd.slot];else th.focus[sd.slot]={x:fx,y:fy};close();touch();done(true);};
+}
+// ---------- Create with AI: one picture for one photo space (credits; the server enforces every rule)
+function aiMake(sd,vi){
+  const th=themeOf(),c=S.imageAi||{draftCredits:1,qualityCredits:3};
+  const d=document.createElement('dialog');
+  d.innerHTML=`<h3>${T('Create a picture with AI')} (${esc(sd.slot)})</h3><p class="muted">${T('AI makes a picture for this space from the template idea. If it fails you are not charged. The picture is marked AI-made. It is not a photo of your work, so do not present it as your work.')}</p>
+<label class="switch"><input type="radio" name="aiq" value="draft" checked> ${T('Draft')} (${c.draftCredits} ${T('credit')})</label><label class="switch"><input type="radio" name="aiq" value="quality"> ${T('Quality')} (${c.qualityCredits} ${T('credits')})</label>
+<label for="aiNote">${T('Extra detail (optional)')}</label><input id="aiNote" maxlength="100" placeholder="${T('For example: warmer light')}">
+<div class="btns"><button class="btn" type="button" data-ok>${T('Create picture')}</button><button class="btn sec" type="button" data-c>${T('Cancel')}</button></div><div class="bad" id="aiM" aria-live="polite"></div>`;
+  document.body.appendChild(d);d.showModal();const q=x=>d.querySelector(x),close=()=>{d.close();d.remove();};q('[data-c]').onclick=close;
+  q('[data-ok]').onclick=async()=>{q('[data-ok]').disabled=true;q('#aiM').textContent=T('Making your picture. This can take about half a minute.');
+    try{if(dirty)await save(true);const j=await api('/api/site',{action:'image',slot:sd.slot,quality:d.querySelector('[name=aiq]:checked').value,variant:vi,note:q('#aiNote').value});
+      S.site.photos.push(j.photo);th.slots[sd.slot]=j.photo.id;if(th.focus)delete th.focus[sd.slot];close();touch();re();msg('Picture added. Check how it looks in the preview.',true);}
+    catch(e){q('#aiM').textContent=e?T(e.message):'';q('[data-ok]').disabled=false;}};
 }
 // ---------- Simple logo maker (no AI, no credits): initials or the name, a shape and a color
 function logoMaker(){
@@ -411,22 +443,22 @@ function rLook(){
     const st=b=>!b?'':b.state.state==='upgrade'?`<span class="pill warn">${T(DOORN[b.state.door])} ${T('door')}</span>`:b.state.state==='soon'?`<span class="pill">${T('Coming soon')}</span>`:b.state.state==='topup'?`<span class="pill warn">${T('Needs credits')}</span>`:b.creditCost?`<span class="pill">${T('Uses credits')}: ${b.creditCost}</span>`:'';
     const secRows=secs.map((s,i)=>`<div class="srow"><label class="switch"><input type="checkbox" data-sec="${s.d.key}"${s.on?' checked':''}${s.d.required?' disabled':''}> ${esc(L(s.d.label))}</label> ${st(s.d.block)} <small class="muted">${s.d.pages.map(p=>T(KIND[p]||p)).join(', ')}</small><span class="btns" style="margin:0"><button class="btn sec sm" type="button" data-smv="${i}" data-dir="-1" aria-label="${T('Move up')}">&uarr;</button><button class="btn sec sm" type="button" data-smv="${i}" data-dir="1" aria-label="${T('Move down')}">&darr;</button></span></div>`).join('');
     const menuRows=th.menu.map((m,i)=>`<div class="mrow"><input data-ml="${i}" maxlength="30" value="${esc(m.label)}" aria-label="${T('Menu name')}"><select data-mp="${i}" aria-label="${T('Page')}">${S.site.pages.map(p=>{const pa=p.kind==='home'?'/':p.kind==='service'?'/services/'+p.slug:p.kind==='custom'?'/info/'+p.slug:'/'+p.slug;return `<option value="${esc(pa)}"${pa===m.path?' selected':''}>${esc(p.nav)}</option>`;}).join('')}</select><button class="btn sec sm" type="button" data-mrm="${i}">${T('Remove')}</button></div>`).join('');
-    const slot=s=>{const id=th.slots[s.slot];const ph=id&&S.site.photos.find(x=>x.id===id);return `<div class="pslot">${ph?`<img src="${photoUrl(ph.id)}" alt="${esc(ph.alt)}">`:`<div class="pslot-ph"><b>${esc(s.slot)}</b><small>${s.w} × ${s.h} &middot; ${esc(s.ratio)}</small></div>`}<div><b>${esc(L(s.alt))}</b><br><small class="muted">${esc(s.slot)}</small>
-<div class="btns"><button class="btn sec sm" type="button" data-slot="${s.slot}">${T(ph?'Change photo':'Choose photo')}</button>${ph?`<button class="btn sec sm" type="button" data-crop="${s.slot}">${T('Adjust crop')}</button>`:''}<button class="btn sec sm" type="button" disabled title="${T('Coming soon: make this photo with AI credits')}">&#10024; ${T('Create with AI')}</button></div>
-<details><summary class="muted">${T('AI prompt for this space')}</summary><p class="muted" style="font-size:13px">${esc(s.prompt)}</p></details></div></div>`;};
+    const slot=s=>{const arr=(s.prompts&&s.prompts.length)?s.prompts:[s.prompt],vi=(((S.company&&S.company.id)||0)+(th.pv||0))%arr.length;const id=th.slots[s.slot];const ph=id&&S.site.photos.find(x=>x.id===id);return `<div class="pslot">${ph?`<img src="${photoUrl(ph.id)}" alt="${esc(ph.alt)}">`:`<div class="pslot-ph"><b>${esc(s.slot)}</b><small>${s.w} × ${s.h} &middot; ${esc(s.ratio)}</small></div>`}<div><b>${esc(L(s.alt))}</b><br><small class="muted">${esc(s.slot)}</small>
+<div class="btns"><button class="btn sec sm" type="button" data-slot="${s.slot}">${T(ph?'Change photo':'Choose photo')}</button>${ph?`<button class="btn sec sm" type="button" data-crop="${s.slot}">${T('Adjust crop')}</button>`:''}${S.imageAi&&S.imageAi.on&&!/^BA-/.test(s.slot)?`<button class="btn sec sm" type="button" data-ai="${s.slot}" data-vi="${vi}">&#10024; ${T('Create with AI')}</button>`:`<button class="btn sec sm" type="button" disabled title="${T('Coming soon: make this photo with AI credits')}">&#10024; ${T('Create with AI')}</button>`}</div>
+<details><summary class="muted">${T('AI prompt for this space')} (${vi+1}/${arr.length})</summary><p class="muted" style="font-size:13px">${esc(arr[vi])}</p></details></div></div>`;};
     const logo=th.logo&&S.site.photos.find(x=>x.id===th.logo);
     const pairs=th.pairs.map((p,i)=>`<div class="mrow"><button class="btn sec sm" type="button" data-pb="${i}">${T('Before')}: ${p.before?'&#10003;':'-'}</button><button class="btn sec sm" type="button" data-pa="${i}">${T('After')}: ${p.after?'&#10003;':'-'}</button><input data-pc="${i}" maxlength="120" placeholder="${T('Caption (optional)')}" value="${esc(p.caption||'')}"><button class="btn sec sm" type="button" data-prm="${i}">${T('Remove')}</button></div><div class="mrow"><input data-pf="service:${i}" maxlength="40" placeholder="${T('Service')}" aria-label="${T('Service')}" value="${esc(p.service||'')}"><input data-pf="city:${i}" maxlength="40" placeholder="${T('City')}" aria-label="${T('City')}" value="${esc(p.city||'')}"><input data-pf="year:${i}" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="${T('Year')}" aria-label="${T('Year')}" style="max-width:90px" value="${esc(p.year||'')}"><input data-pf="size:${i}" maxlength="30" placeholder="${T('Size (for example 2,400 sq ft)')}" aria-label="${T('Size')}" value="${esc(p.size||'')}"></div>`).join('');
-    const lang=S.site.lang;
+    const lang=window.WL||S.site.lang;
     const texts=I.texts.map(x=>`<label for="tx_${x.key}">${esc(x[lang]||x.en)}</label><input id="tx_${x.key}" data-tx="${lang}:${x.key}" maxlength="${x.key==='heroWord'?12:200}" placeholder="${esc(x[lang]||x.en)}" value="${esc(x.key==='heroWord'?th.heroWord:(th.texts[lang+':'+x.key]||''))}">`).join('');
     const social=(S.site.social||[]);
-    look=`<div class="card"><h3>${T('Colors')}</h3><div class="sws">${tokens}</div><div class="btns"><button class="btn sec sm" type="button" id="tokReset">${T('Back to the template colors')}</button></div></div>
+    look=`<div class="card"><h3>${T('Colors')}</h3><div class="sws">${tokens}</div><div id="colWarn">${warnHtml(colorWarnings(I,th))}</div><div class="btns"><button class="btn sec sm" type="button" id="colEye" aria-pressed="false">&#128065; ${T('Preview')}: ${T('after')}</button></div><div id="colPrev">${colorPreview(I,th,false)}</div><div class="btns"><button class="btn sec sm" type="button" id="tokReset">${T('Back to the template colors')}</button></div></div>
 <div class="card"><h3>${T('Fonts')}</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>${fontSel(I.fonts.find(f=>f.key==='display')||{key:'display',label:{en:'Headlines',es:'Títulos'},default:''})}</div><div>${fontSel(I.fonts.find(f=>f.key==='body')||{key:'body',label:{en:'Text',es:'Texto'},default:''})}</div></div></div>
 <div class="card"><h3>${T('Sections')}</h3><p class="muted">${T('Turn sections on or off and change their order. Sections marked with a door come with that door; visitors never see a locked section.')}</p>${secRows}</div>
 <div class="card"><h3>${T('Logo')}</h3>${logo?`<img src="${photoUrl(logo.id)}" alt="" style="max-height:60px;border-radius:8px">`:`<p class="muted">${T('No logo here yet. Your logo from Settings is used if you have one.')}</p>`}<div class="btns"><button class="btn sec sm" type="button" id="logoPick">${T('Choose logo photo')}</button><button class="btn sec sm" type="button" id="logoMake">${T('Make a simple logo')}</button></div></div>
 <div class="card"><h3>${T('Menu')}</h3><label class="switch"><input type="checkbox" id="menuAuto"${th.menu.length?'':' checked'}> ${T('Menu follows my pages')}</label>${th.menu.length?menuRows+`<div class="btns"><button class="btn sec sm" type="button" id="menuAdd"${th.menu.length>=10?' disabled':''}>+ ${T('Add menu item')}</button></div>`:''}</div>
-<div class="card"><h3>${T('Photo spaces')}</h3><p class="muted">${T('Your own job photos look best. Until you add one, visitors see a soft color block in that space.')}</p>${I.imageSlots.map(slot).join('')}</div>
+${(()=>{const w=settingWarnings(I,th,secs);return w.length?`<div class="card warnbox"><h3>&#9888; ${T('Heads-up')}</h3><ul>${w.map(x=>`<li>${x}</li>`).join('')}</ul></div>`:'';})()}<div class="card"><h3>${T('Photo spaces')}</h3><p class="muted">${T('Your own job photos look best. Until you add one, visitors see a soft color block in that space.')}</p>${I.imageSlots.map(slot).join('')}</div>
 <div class="card"><h3>${T('Before and after')}</h3><p class="muted">${T('Pick a before photo and an after photo of the same spot. Visitors drag a slider to compare. Service, city, year and size appear in templates that show a project row (Sunset Sand).')}</p>${pairs}<div class="btns"><button class="btn sec sm" type="button" id="pairAdd"${th.pairs.length>=24?' disabled':''}>+ ${T('Add a pair')}</button></div></div>
-<div class="card"><h3>${T('Words in this template')}</h3><p class="muted">${T('Leave a box empty to use the template wording.')}</p>${texts}</div>
+<div class="card"><h3>${T('Words in this template')}</h3><p class="muted">${T('Leave a box empty to use the template wording. Choose a language to edit the words visitors see in that language. Fix any spelling here; it is saved with your site.')}</p><div class="btns"><button class="btn${lang==='en'?'':' sec'} sm" type="button" data-wl="en" aria-pressed="${lang==='en'}">English</button><button class="btn${lang==='es'?'':' sec'} sm" type="button" data-wl="es" aria-pressed="${lang==='es'}">Español</button></div>${texts}</div>
 <div class="card"><h3>${T('Social links')}</h3>${social.map((s,i)=>`<div class="mrow"><select data-sk="${i}">${I.socialKinds.map(k=>`<option${k===s.kind?' selected':''}>${k}</option>`).join('')}</select><input data-su="${i}" maxlength="300" placeholder="https://" value="${esc(s.url)}"><button class="btn sec sm" type="button" data-srm="${i}">${T('Remove')}</button></div>`).join('')}<div class="btns"><button class="btn sec sm" type="button" id="socAdd"${social.length>=9?' disabled':''}>+ ${T('Add a link')}</button></div>
 <h3 style="margin-top:14px">${T('Your policy pages (optional)')}</h3><p class="muted">${T('Link your own privacy policy and terms if you have them. We do not write legal text for you.')}</p>
 <label for="lg_p">${T('Privacy policy link')}</label><input id="lg_p" maxlength="300" placeholder="https://" value="${esc(th.legal.privacy)}"><label for="lg_t">${T('Terms link')}</label><input id="lg_t" maxlength="300" placeholder="https://" value="${esc(th.legal.terms)}"></div>`;
@@ -438,10 +470,12 @@ function rLook(){
 <div class="card"><h3>${T('Start over')}</h3><p class="muted">${T('Throw away the draft and go back to the published site (or to a fresh first draft written from your business profile).')}</p><button class="btn sec" type="button" id="discard">${T('Discard draft')}</button></div>`;
   const all=(sel,fn)=>[].forEach.call(document.querySelectorAll(sel),fn);
   const re=()=>{touch();rLook();};
-  all('[data-use]',b=>b.onclick=async()=>{S.site.template=b.dataset.use;touch();if(await save(true).catch(()=>false)){msg('Template changed. Your content is the same; check the preview.',true);rLook();}});
+  all('[data-use]',b=>b.onclick=async()=>{S.site.template=b.dataset.use;const nt=themeOf();nt.pv=(nt.pv||0)+1;touch();if(await save(true).catch(()=>false)){msg('Template changed. Your content is the same; check the preview.',true);rLook();}});
   all('[data-upg]',b=>b.onclick=()=>openUp('template'));
   if(I&&!I.legacy){
-    all('[data-tok]',x=>x.oninput=()=>{th.tokens[x.dataset.tok]=x.value;touch();});
+    let eyeBefore=false;const paintCol=()=>{$('colWarn').innerHTML=warnHtml(colorWarnings(I,th));$('colPrev').innerHTML=colorPreview(I,th,eyeBefore);$('colEye').setAttribute('aria-pressed',eyeBefore);$('colEye').innerHTML='&#128065; '+T('Preview')+': '+T(eyeBefore?'before':'after');};
+    all('[data-tok]',x=>x.oninput=()=>{th.tokens[x.dataset.tok]=x.value;touch();paintCol();});
+    if($('colEye'))$('colEye').onclick=()=>{eyeBefore=!eyeBefore;paintCol();};
     $('tokReset').onclick=()=>{th.tokens={};re();};
     all('[data-font]',x=>x.onchange=()=>{th.fonts[x.dataset.font]=x.value;touch();});
     const secList=()=>{const mine=new Map(th.sections.map(s=>[s.key,s]));return I.sections.map(d=>({key:d.key,on:d.required?true:mine.has(d.key)?mine.get(d.key).on:d.enabled,order:mine.has(d.key)?mine.get(d.key).order:d.order})).sort((a,b)=>a.order-b.order);};
@@ -455,6 +489,7 @@ function rLook(){
     all('[data-mrm]',x=>x.onclick=()=>{th.menu.splice(+x.dataset.mrm,1);re();});
     all('[data-slot]',x=>x.onclick=()=>photoChoice(th.slots[x.dataset.slot],id=>{const sd=I.imageSlots.find(q=>q.slot===x.dataset.slot);if(id){th.slots[x.dataset.slot]=id;const p=S.site.photos.find(q=>q.id===id);if(th.focus)delete th.focus[x.dataset.slot];if(p&&p.w&&p.h&&sd&&Math.abs(p.w/p.h-sd.w/sd.h)>.03)return cropFlow(id,sd,()=>re());}else{delete th.slots[x.dataset.slot];if(th.focus)delete th.focus[x.dataset.slot];}re();},true));
     all('[data-crop]',x=>x.onclick=()=>{const sd=I.imageSlots.find(q=>q.slot===x.dataset.crop),id=th.slots[x.dataset.crop];if(sd&&id)cropFlow(id,sd,()=>re());});
+    all('[data-ai]',x=>x.onclick=()=>{const sd=I.imageSlots.find(q=>q.slot===x.dataset.ai);if(sd)aiMake(sd,+x.dataset.vi);});
     if($('logoMake'))$('logoMake').onclick=()=>logoMaker();
     $('pairAdd').onclick=()=>{th.pairs.push({before:'',after:'',caption:'',service:'',city:'',year:'',size:''});re();};
     all('[data-pb]',x=>x.onclick=()=>photoChoice(th.pairs[+x.dataset.pb].before,id=>{th.pairs[+x.dataset.pb].before=id;re();}));
@@ -462,6 +497,7 @@ function rLook(){
     all('[data-pc]',x=>x.oninput=()=>{th.pairs[+x.dataset.pc].caption=x.value;touch();});
     all('[data-pf]',x=>x.oninput=()=>{const[k,i]=x.dataset.pf.split(':');th.pairs[+i][k]=x.value;touch();});
     all('[data-prm]',x=>x.onclick=()=>{th.pairs.splice(+x.dataset.prm,1);re();});
+    all('[data-wl]',x=>x.onclick=()=>{window.WL=x.dataset.wl;re();});
     all('[data-tx]',x=>x.oninput=()=>{const k=x.dataset.tx;if(k.endsWith(':heroWord'))th.heroWord=x.value;else if(x.value.trim())th.texts[k]=x.value;else delete th.texts[k];touch();});
     S.site.social=S.site.social||[];
     $('socAdd').onclick=()=>{const used=S.site.social.map(s=>s.kind);S.site.social.push({kind:I.socialKinds.find(k=>!used.includes(k))||'facebook',url:''});re();};

@@ -15,6 +15,8 @@ import {
 import { handleReviewsApi, shownReviews } from "./reviews.ts";
 import { siteRobots, siteSitemap } from "./siterender.ts";
 import { configOf } from "../templates/configs.ts";
+import { bumpDaily, callFal, loadImageAiSettings, modelInput, NO_AI_SLOTS, promptFor, unbumpDaily } from "./imageai.ts";
+import { CREDIT_COST } from "./credits.ts";
 import { BLOCKS, blockState, type BlockKey } from "./siteblocks.ts";
 import { FONT_CHOICES, SOCIAL_KINDS } from "./sitetheme.ts";
 import { canPublishWith, entries, entryOf, mayChoose, pickerList, readRegistry, REGISTRY_KEY, renderWithTemplate, uiLangOf, type Registry } from "./sitetemplates.ts";
@@ -216,6 +218,7 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
       origin,
       cityPages: cityPages.filter((c) => c.published).length,
       photoStorage: !!env.FILES,
+      imageAi: await loadImageAiSettings(env).then((x) => ({ on: x.enabled && !!env.FAL_KEY && !!env.FILES && door !== "free", dailyCap: x.dailyCap, draftCredits: CREDIT_COST.site_image_draft, qualityCredits: CREDIT_COST.site_image })).catch(() => ({ on: false, dailyCap: 0, draftCredits: 1, qualityCredits: 3 })),
       stripe: !!env.STRIPE_SECRET_KEY,
     });
   }
@@ -271,6 +274,39 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
     if (!live?.site.photos.some((p) => p.id === id)) await env.FILES?.delete(`site/${co.id}/${id}`);
     if (a.viewAs) await audit(env, co.id, by, "delete photo", id);
     return json({ ok: true, site: cur, usage: usageOf(cur) });
+  }
+  if (action === "image") {
+    // Create a picture for one photo space with the AI image tool (credits; see src/imageai.ts for the rules).
+    const ai = await loadImageAiSettings(env);
+    if (!ai.enabled || !env.FAL_KEY || !env.FILES) return json({ error: "Create with AI is not turned on yet." }, 503);
+    if (door === "free") return json({ error: "Create with AI comes with a paid site." }, 402);
+    const cur = (await loadDraft(env, co, lang)).site;
+    const sl = configOf(cur.template)?.imageSlots.find((q) => q.slot === String(b?.slot ?? ""));
+    if (!sl || NO_AI_SLOTS.includes(sl.slot)) return json({ error: "This photo space cannot be made with AI. Before and after photos must be your own work." }, 400);
+    if (cur.photos.length >= limits.photos) return json({ error: `Your ${DOOR_NAMES[door]} site can have ${limits.photos} photos.`, over: "photos" }, 402);
+    const quality = b?.quality === "quality";
+    const feature = quality ? "site_image" : "site_image_draft";
+    const day = todayLocal();
+    if (!(await bumpDaily(env, co.id, ai.dailyCap, day))) return json({ error: `You have made ${ai.dailyCap} AI pictures today. Try again tomorrow.`, reason: "daily_cap" }, 429);
+    const u = await consume(env, { id: co.id, plan: co.plan, createdAt: co.created_at }, feature);
+    if (!u.allowed) {
+      await unbumpDaily(env, co.id, day);
+      return json({ error: u.reason === "kill_switch" ? "AI help is paused right now." : "You are out of AI credits. Add credits on the AI use and credits page.", reason: u.reason }, 402);
+    }
+    const model = quality ? ai.qualityModel : ai.draftModel;
+    const out = await callFal(env, model, modelInput(model, sl, promptFor(sl, Number(b?.variant) || 0, b?.note)));
+    if (!out) {
+      await refund(env, { id: co.id }, feature);
+      await unbumpDaily(env, co.id, day);
+      return json({ error: "The AI could not make the picture right now. Your credits were not used. Try again in a minute." }, 503);
+    }
+    const id = crypto.randomUUID().replace(/-/g, "").slice(0, 20);
+    await env.FILES.put(`site/${co.id}/${id}`, out.bytes, { httpMetadata: { contentType: out.type, cacheControl: "public, max-age=31536000, immutable" } });
+    const meta = { id, alt: `${sl.alt[lang]} (${lang === "es" ? "imagen hecha con IA" : "AI-made picture"})`.slice(0, 160), w: out.w || sl.w, h: out.h || sl.h, bytes: out.bytes.byteLength, at: new Date().toISOString(), ai: true };
+    cur.photos.push(meta);
+    await setKv(env, draftKey(co.id), JSON.stringify(cur));
+    await audit(env, co.id, by, "AI picture", `${sl.slot} ${feature}`);
+    return json({ ok: true, photo: meta, usage: usageOf(cur), credits: u.credit ?? 0 });
   }
   if (action === "write") {
     // AI help with one piece of text. Costs credits (typing is always free).

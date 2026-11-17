@@ -1,5 +1,6 @@
 import { adminActor, can, logAudit } from "./adminroles.ts";
 import { getSessionUser } from "./auth.ts";
+import { loadImageAiSettings, readImageAiSettings, saveImageAiSettings } from "./imageai.ts";
 import { todayLocal } from "./dates.ts";
 import { loadRegistry } from "./sitebuilder.ts";
 import { entries, NO_DEFAULT_SLOTS, readRegistry, REGISTRY_KEY, type Registry, type TemplateOverride } from "./sitetemplates.ts";
@@ -172,4 +173,25 @@ export async function handleImageAi(request: Request, env: Env): Promise<Respons
   const user = await getSessionUser(env, request);
   if (!user) return json({ error: "Not signed in." }, 401);
   return json({ error: "Create with AI is coming soon. For now, upload your own photo.", ready: false }, 501);
+}
+
+/** GET and POST /api/site/image-ai/settings (admin): the switch, the daily cap per client and the two models. */
+export async function handleImageAiSettings(request: Request, env: Env): Promise<Response> {
+  const actor = await adminActor(env, request);
+  if (!actor || !can(actor.role, "sites", "see")) return json({ error: "Not found." }, 404);
+  if (request.method === "GET") return json({ settings: await loadImageAiSettings(env), keyPresent: !!env.FAL_KEY, canChange: can(actor.role, "sites", "change") });
+  if (request.method !== "POST") return json({ error: "Not found." }, 404);
+  if (!can(actor.role, "sites", "change")) return json({ error: "Your role can look but not change this." }, 403);
+  let b: any;
+  try {
+    b = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON." }, 400);
+  }
+  const before = await loadImageAiSettings(env);
+  const next = readImageAiSettings({ ...before, ...b });
+  if (next.enabled && !env.FAL_KEY) return json({ error: "Add the FAL_KEY secret in Cloudflare first, then turn this on." }, 400);
+  await saveImageAiSettings(env, next);
+  await logAudit(env, actor, "image_ai_settings", { detail: { before, after: next } });
+  return json({ ok: true, settings: next, keyPresent: !!env.FAL_KEY });
 }
