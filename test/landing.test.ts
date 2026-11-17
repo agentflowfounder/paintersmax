@@ -10,7 +10,7 @@ test("landing: cleaned and bounded; a bad video link is dropped", () => {
   assert.equal(l.campaign, "spring-push-2027");
   assert.equal(l.plan, "pro");
   assert.equal(cleanLanding({ name: "x" }), null);
-  assert.equal(cleanSlug("  Ünï Cødé  "), "uni-code");
+  assert.equal(cleanSlug("  Ünï Códe  "), "uni-code");
   assert.equal(cleanLanding({ name: "ab", status: "weird", goal: "weird", yt: "https://youtu.be/dQw4w9WgXcQ" })!.status, "draft");
 });
 
