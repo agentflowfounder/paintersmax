@@ -296,7 +296,7 @@ export async function handleVehicles(request: Request, env: Env): Promise<Respon
     if (!mime || !data || data.length > 4_500_000 || !/^[A-Za-z0-9+/=]+$/.test(data)) return json({ error: "Choose a photo (JPEG, PNG or WebP) that is not too large." }, 400);
     const used = await consume(env, co!, "vehicle_read");
     if (!used.allowed) return json({ error: used.reason === "kill_switch" ? "Photo reading is paused right now. Type it in instead." : "You have used this month's photo reads. You can still type it in, or upgrade for more.", code: used.reason }, 429);
-    const out = await visionAsk(env, { system: prompt, user: "Read this photo.", mime, data, maxTokens: 300 });
+    const out = await visionAsk(env, { system: prompt, user: "Read this photo.", mime, data, maxTokens: 300, companyId: co!.id });
     const parsed = out.ok ? parseJsonLoose(out.text) : null;
     if (!out.ok || !parsed || typeof parsed !== "object") {
       await refund(env, co!, "vehicle_read");

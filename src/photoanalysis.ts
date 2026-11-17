@@ -117,9 +117,9 @@ function b64(buf: ArrayBuffer): string {
 }
 
 /** One vision call (Gemini first, then OpenAI, then Anthropic). Returns the parsed JSON, or why every provider failed. */
-async function askVision(env: Env, mime: string, data: string, language: "en" | "es", user: string): Promise<{ raw: any } | { why: string }> {
+async function askVision(env: Env, mime: string, data: string, language: "en" | "es", user: string, companyId?: number): Promise<{ raw: any } | { why: string }> {
   const lang = language === "es" ? "\nWrite every text field in Spanish." : "";
-  const out = await visionAsk(env, { system: ANALYSIS_PROMPT + lang, user, mime, data, maxTokens: 2800 });
+  const out = await visionAsk(env, { system: ANALYSIS_PROMPT + lang, user, mime, data, maxTokens: 2800, companyId });
   if (!out.ok) return { why: out.why };
   const raw = parseJsonLoose(out.text);
   return raw && typeof raw === "object" ? { raw } : { why: `${out.provider} gave an answer we could not read` };
@@ -185,7 +185,7 @@ export async function handlePhotoAnalysis(request: Request, env: Env): Promise<R
       .filter(Boolean)
       .slice(0, 12);
     const focus = (Array.isArray(b?.focus) ? b.focus : []).filter((x: unknown): x is string => typeof x === "string" && FOCUS_CHOICES.includes(x)).slice(0, 9);
-    const res = await askVision(env, f.mime, b64(await obj.arrayBuffer()), b?.language === "es" ? "es" : "en", analysisUserText(typeof b?.note === "string" ? b.note : "", focus, prior));
+    const res = await askVision(env, f.mime, b64(await obj.arrayBuffer()), b?.language === "es" ? "es" : "en", analysisUserText(typeof b?.note === "string" ? b.note : "", focus, prior), co.id);
     if (!("raw" in res)) {
       await refund(env, co, "photo_analysis");
       return json({ error: friendlyVisionError(res.why, "Photo analysis"), detail: res.why, allowance: await left() }, 503);

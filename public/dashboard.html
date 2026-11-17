@@ -36,6 +36,10 @@ details.acc .in{padding:0 12px 12px}
 <main>
 <h2 style="margin-top:0">Home</h2>
 <div id="hm"><div class="empty">Loading...</div></div>
+<div id="bcbox"></div>
+<script>fetch('/api/broadcasts').then(r=>r.ok?r.json():null).then(j=>{if(!j||!j.banners)return;const es=(localStorage.getItem('pm_lang')||'')==='es';const box=document.getElementById('bcbox');j.banners.forEach(b=>{let gone=false;try{gone=localStorage.getItem('pm_bc_'+b.id)==='1';}catch(e){}if(gone)return;const el=document.createElement('div');el.className='card';el.style.cssText='border-left:4px solid #E8A33D;background:#fff8e6';const h=document.createElement('b');h.textContent=es&&b.subjectEs?b.subjectEs:b.subject;const p=document.createElement('div');p.style.whiteSpace='pre-wrap';p.textContent=es&&b.bodyEs?b.bodyEs:b.body;const x=document.createElement('button');x.type='button';x.textContent='\u00d7';x.setAttribute('aria-label','Close');x.style.cssText='float:right;border:0;background:none;font-size:22px;cursor:pointer';x.onclick=()=>{try{localStorage.setItem('pm_bc_'+b.id,'1');}catch(e){}el.remove();};el.append(x,h,p);el.setAttribute('translate','no');box.append(el);});}).catch(()=>{});</script>
+<div class="card" id="fbcard" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><b>Feedback</b> <span id="fbnew"></span><div class="hint">Found a bug or have an idea? Tell us. We answer every message.</div></div><a href="/feedback" style="color:#0F1B2D;font-weight:700">Send feedback &rarr;</a></div>
+<script>fetch('/api/feedback?unread=1').then(r=>r.ok?r.json():null).then(j=>{if(j&&j.unread){const e=document.getElementById('fbnew');e.className='pilltag';e.textContent=(window.pmT||(s=>s))('New reply');}}).catch(()=>{});</script>
 <h2>Signatures</h2><div id="sigs" class="empty">Loading...</div>
 <h2>Leads</h2><div id="box" class="empty">Loading...</div><h2>Get started</h2>
 <div class="card"><ol class="steps" style="margin:0;padding-left:20px">

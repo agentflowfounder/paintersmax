@@ -5,6 +5,7 @@ import { addJobEvent } from "./crm.ts";
 import { complete, keyFor, sanitizeHistory } from "./assistant.ts";
 import { consume, refund } from "./usage.ts";
 import type { Env } from "./types.ts";
+import { recordUse } from "./aimeter.ts";
 
 /**
  * Insurance policy reader. A painter uploads a policy (PDF or photo). An AI reads it once and we save a plain-language
@@ -93,7 +94,7 @@ interface FilePart {
   data: string; // base64
 }
 
-async function viaGeminiDoc(env: Env, file: FilePart, prompt: string, json_: boolean, maxTokens: number): Promise<string> {
+async function viaGeminiDoc(env: Env, file: FilePart, prompt: string, json_: boolean, maxTokens: number, companyId?: number): Promise<string> {
   const base = env.GEMINI_API_BASE ?? "https://generativelanguage.googleapis.com";
   const model = geminiModel(env);
   const r = await fetch(`${base}/v1beta/models/${model}:generateContent`, {
@@ -107,10 +108,11 @@ async function viaGeminiDoc(env: Env, file: FilePart, prompt: string, json_: boo
   });
   if (!r.ok) throw new Error(`gemini ${r.status}`);
   const j = (await r.json()) as any;
+  await recordUse(env, companyId, model, j?.usageMetadata?.promptTokenCount, (j?.usageMetadata?.candidatesTokenCount ?? 0) + (j?.usageMetadata?.thoughtsTokenCount ?? 0));
   return j.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ?? "";
 }
 
-async function viaAnthropicDoc(env: Env, file: FilePart, prompt: string, maxTokens: number): Promise<string> {
+async function viaAnthropicDoc(env: Env, file: FilePart, prompt: string, maxTokens: number, companyId?: number): Promise<string> {
   const block = file.mime === "application/pdf"
     ? { type: "document", source: { type: "base64", media_type: file.mime, data: file.data } }
     : { type: "image", source: { type: "base64", media_type: file.mime, data: file.data } };
@@ -121,14 +123,15 @@ async function viaAnthropicDoc(env: Env, file: FilePart, prompt: string, maxToke
   });
   if (!r.ok) throw new Error(`anthropic ${r.status}`);
   const j = (await r.json()) as any;
+  await recordUse(env, companyId, env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5", j?.usage?.input_tokens, j?.usage?.output_tokens);
   return j.content?.map((c: any) => c.text ?? "").join("") ?? "";
 }
 
-async function readDoc(env: Env, file: FilePart, prompt: string, asJson: boolean, maxTokens: number): Promise<string | null> {
+async function readDoc(env: Env, file: FilePart, prompt: string, asJson: boolean, maxTokens: number, companyId?: number): Promise<string | null> {
   for (const p of ["gemini", "anthropic"] as const) {
     if (!keyFor(env, p)) continue;
     try {
-      const out = (p === "gemini" ? await viaGeminiDoc(env, file, prompt, asJson, maxTokens) : await viaAnthropicDoc(env, file, prompt, maxTokens)).trim();
+      const out = (p === "gemini" ? await viaGeminiDoc(env, file, prompt, asJson, maxTokens, companyId) : await viaAnthropicDoc(env, file, prompt, maxTokens, companyId)).trim();
       if (out) return out;
     } catch (err) {
       console.error("insurance reader failed", p, String(err));
@@ -292,7 +295,7 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
       return json({ error: msg, code: used.reason }, 429);
     }
     const file = { mime, data };
-    const [sumRaw, textRaw] = await Promise.all([readDoc(env, file, SUMMARY_PROMPT, true, 6000), readDoc(env, file, TEXT_PROMPT, false, 24000)]);
+    const [sumRaw, textRaw] = await Promise.all([readDoc(env, file, SUMMARY_PROMPT, true, 6000, company.id), readDoc(env, file, TEXT_PROMPT, false, 24000, company.id)]);
     const parsed = sumRaw ? parseJsonLoose(sumRaw) : null;
     if (!parsed) {
       await refund(env, company, "insurance_scan");
@@ -334,7 +337,7 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
     const used = await consume(env, company, "ai_assistant");
     if (!used.allowed) return json({ error: used.reason === "monthly_limit" ? "You have used this month's assistant questions. Upgrade your plan for more." : "The assistant is not available right now.", code: used.reason }, 429);
     const system = `${ASK_SYSTEM}${b.language === "es" ? "\nAlways answer in Spanish." : ""}\n\n<policy>\nSummary: ${row.summary}\n\nText:\n${row.policy_text.slice(0, ASK_TEXT)}\n</policy>`;
-    const reply = await complete(env, system, [...sanitizeHistory(b.history), { role: "user", content: question }]);
+    const reply = await complete(env, system, [...sanitizeHistory(b.history), { role: "user", content: question }], company.id);
     if (!reply) {
       await refund(env, company, "ai_assistant");
       return json({ error: "The assistant could not answer right now. Please try again in a minute." }, 503);

@@ -1,3 +1,5 @@
+import { recordUse } from "./aimeter.ts";
+import { clientTextModel } from "./envelopes.ts";
 import { briefText, cleanBrief } from "./jobbrief.ts";
 import type { Env } from "./types.ts";
 import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
@@ -143,7 +145,7 @@ export async function setTextDefault(env: Env, value: TextDefault): Promise<void
   textDefaultCache = null;
 }
 
-async function viaGemini(env: Env, system: string, turns: Turn[], maxTokens = 900): Promise<string> {
+async function viaGemini(env: Env, system: string, turns: Turn[], maxTokens = 900, companyId?: number): Promise<string> {
   const model = geminiModel(env);
   const call = (thinkingOff: boolean) =>
     fetch(`${env.GEMINI_API_BASE ?? "https://generativelanguage.googleapis.com"}/v1beta/models/${model}:generateContent`, {
@@ -159,10 +161,11 @@ async function viaGemini(env: Env, system: string, turns: Turn[], maxTokens = 90
   if (r.status === 400) r = await call(false);
   if (!r.ok) throw new Error(`gemini ${r.status}`);
   const j = (await r.json()) as any;
+  await recordUse(env, companyId, model, j.usageMetadata?.promptTokenCount, (Number(j.usageMetadata?.candidatesTokenCount) || 0) + (Number(j.usageMetadata?.thoughtsTokenCount) || 0));
   return j.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ?? "";
 }
 
-async function viaOpenAI(env: Env, system: string, turns: Turn[], maxTokens = 900): Promise<string> {
+async function viaOpenAI(env: Env, system: string, turns: Turn[], maxTokens = 900, companyId?: number): Promise<string> {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${env.OPENAI_API_KEY}` },
@@ -170,13 +173,14 @@ async function viaOpenAI(env: Env, system: string, turns: Turn[], maxTokens = 90
   });
   if (!r.ok) throw new Error(`openai ${r.status}`);
   const j = (await r.json()) as any;
+  await recordUse(env, companyId, env.MODEL_OPENAI ?? "gpt-4.1-mini", j.usage?.prompt_tokens, j.usage?.completion_tokens);
   return j.choices?.[0]?.message?.content ?? "";
 }
 
-const viaAnthropic = (env: Env, system: string, turns: Turn[], maxTokens = 900) => viaAnthropicModel(env, env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5", system, turns, maxTokens);
-const viaHaiku = (env: Env, system: string, turns: Turn[], maxTokens = 900) => viaAnthropicModel(env, fastAnthropicModel(env), system, turns, maxTokens);
+const viaAnthropic = (env: Env, system: string, turns: Turn[], maxTokens = 900, companyId?: number) => viaAnthropicModel(env, env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5", system, turns, maxTokens, companyId);
+const viaHaiku = (env: Env, system: string, turns: Turn[], maxTokens = 900, companyId?: number) => viaAnthropicModel(env, fastAnthropicModel(env), system, turns, maxTokens, companyId);
 
-async function viaAnthropicModel(env: Env, model: string, system: string, turns: Turn[], maxTokens = 900): Promise<string> {
+async function viaAnthropicModel(env: Env, model: string, system: string, turns: Turn[], maxTokens = 900, companyId?: number): Promise<string> {
   const r = await fetch(`${env.ANTHROPIC_API_BASE ?? "https://api.anthropic.com"}/v1/messages`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
@@ -184,26 +188,29 @@ async function viaAnthropicModel(env: Env, model: string, system: string, turns:
   });
   if (!r.ok) throw new Error(`anthropic ${r.status}`);
   const j = (await r.json()) as any;
+  await recordUse(env, companyId, model, j.usage?.input_tokens, j.usage?.output_tokens);
   return j.content?.[0]?.text ?? "";
 }
 
 const CALLERS = { gemini: viaGemini, openai: viaOpenAI, anthropic: viaAnthropic, haiku: viaHaiku } as const;
 
 /** Tries each provider with a key, cheapest first. Returns null when none works. */
-export async function ask(env: Env, jobContext: string | null, history: Turn[], question: string, language: "en" | "es" = "en"): Promise<string | null> {
+export async function ask(env: Env, jobContext: string | null, history: Turn[], question: string, language: "en" | "es" = "en", companyId?: number): Promise<string | null> {
   const base = language === "es" ? `${SYSTEM_PROMPT}\n\nAlways answer in Spanish, even if the question is in English.` : SYSTEM_PROMPT;
   const system = jobContext ? `${base}\n\n<job_data>\n${jobContext}\n</job_data>` : base;
-  return complete(env, system, [...history, { role: "user", content: question }]);
+  return complete(env, system, [...history, { role: "user", content: question }], companyId);
 }
 
 export type Provider = "gemini" | "openai" | "anthropic" | "haiku";
 
 /** Runs a prompt through providers that have a key, in the order given (default: the text default chosen in /admin, then the rest). Returns the text and which provider answered. */
-export async function completeEx(env: Env, system: string, turns: Turn[], opts: { prefer?: Provider[]; maxTokens?: number } = {}): Promise<{ text: string; provider: Provider } | null> {
-  for (const p of opts.prefer ?? TEXT_ORDERS[await textDefault(env)]) {
+export async function completeEx(env: Env, system: string, turns: Turn[], opts: { prefer?: Provider[]; maxTokens?: number; companyId?: number } = {}): Promise<{ text: string; provider: Provider } | null> {
+  // A client can have its own text model, chosen by admin (envelopes.ts); otherwise the platform default applies.
+  const own = !opts.prefer && opts.companyId ? await clientTextModel(env, opts.companyId).catch(() => null) : null;
+  for (const p of opts.prefer ?? TEXT_ORDERS[own ?? (await textDefault(env))]) {
     if (!keyFor(env, p)) continue;
     try {
-      const out = (await CALLERS[p](env, system, turns, opts.maxTokens)).trim();
+      const out = (await CALLERS[p](env, system, turns, opts.maxTokens, opts.companyId)).trim();
       if (out) return { text: out, provider: p };
     } catch (err) {
       console.error("assistant provider failed", p, String(err));
@@ -213,8 +220,8 @@ export async function completeEx(env: Env, system: string, turns: Turn[], opts: 
 }
 
 /** Runs a prompt through each provider that has a key, cheapest first. Returns null when none works. */
-export async function complete(env: Env, system: string, turns: Turn[]): Promise<string | null> {
-  return (await completeEx(env, system, turns))?.text ?? null;
+export async function complete(env: Env, system: string, turns: Turn[], companyId?: number): Promise<string | null> {
+  return (await completeEx(env, system, turns, { companyId }))?.text ?? null;
 }
 
 export const COVER_PROMPT = [

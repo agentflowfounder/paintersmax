@@ -2,7 +2,10 @@ import { loadMarkets, saveMarkets } from "./ratecatalog.ts";
 import { listDomains, removeDomain, setDomain } from "./domains.ts";
 import { RESERVED_SLUGS } from "./settings.ts";
 import { adminTickerView, saveConfig } from "./ticker.ts";
-import { getSessionUser, requestLoginLink } from "./auth.ts";
+import { requestLoginLink } from "./auth.ts";
+import { sendCode, verifyCode } from "./admin2fa.ts";
+import { adminActor, adminPending, can, logAudit, ROLE_LIMITS, type Area, type AdminActor } from "./adminroles.ts";
+import { ACT_AREAS, adminAct, adminView } from "./admincp.ts";
 import { grantCredits, WELCOME_CREDITS } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
 import { normalizePlan } from "./usage.ts";
@@ -15,8 +18,8 @@ import type { Env } from "./types.ts";
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 
-/** The owner's own company. Only people who log in to it can use the admin page. */
-export const ADMIN_COMPANY_SLUG = "paintersmax-master";
+/** The owner's own company. Only people who log in to it (with an admin role, see adminroles.ts) can use the admin page. */
+export { ADMIN_COMPANY_SLUG } from "./adminroles.ts";
 
 export function slugify(name: string): string {
   const s = name
@@ -72,12 +75,28 @@ export async function provisionClient(env: Env, origin: string, input: { name: u
   return { ok: true, companyId, slug, created: true };
 }
 
-/** GET lists every client. POST with action "create" adds one; "plan" changes a client's plan. Owner company only. */
+/** The area each of the original admin actions belongs to (the newer ones are in admincp.ts ACT_AREAS). */
+const OLD_ACT_AREAS: Record<string, Area> = {
+  create: "clients", plan: "subscriptions", credits_grant: "credits",
+  ticker_save: "settings", markets_set: "settings", aimodel_set: "settings", aimodel_test: "settings", notices_set: "settings",
+  domain_set: "domains", domain_remove: "domains",
+  help_save: "content", help_delete: "content", help_dismiss: "content", help_draft: "content",
+};
+/** Actions that only read or draft, so they are not written to the audit log. */
+const NOT_LOGGED = new Set(["aimodel_test", "help_draft"]);
+const OLD_VIEW_AREAS: Record<string, Area> = { markets: "settings", domains: "domains", notices: "settings", help: "content", aimodel: "settings", ticker: "settings" };
+
+/**
+ * /api/admin. GET returns a view (?clients=1, ?client=<id>, ?subs=1 ... see admincp.ts, plus the original views).
+ * POST {action, ...} changes something. Every request checks the signed-in admin's role for the area, and every change
+ * goes to the audit log. Anyone who is not an admin gets "Not found".
+ */
 export async function handleAdmin(request: Request, env: Env): Promise<Response> {
-  const user = await getSessionUser(env, request);
-  if (!user) return json({ error: "Not signed in." }, 401);
-  const me = await env.DB.prepare("SELECT slug FROM companies WHERE id = ?").bind(user.companyId).first<{ slug: string }>();
-  if (me?.slug !== ADMIN_COMPANY_SLUG) return json({ error: "Not found." }, 404);
+  const pending = await adminPending(env, request);
+  if (pending) return codeStep(env, request, pending);
+  const actor = await adminActor(env, request);
+  if (!actor) return json({ error: "Not found." }, 404);
+  const today = todayLocal();
 
   if (request.method === "POST") {
     let b: any;
@@ -86,6 +105,77 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
     } catch {
       return json({ error: "Invalid JSON." }, 400);
     }
+    const action = typeof b?.action === "string" ? b.action : "";
+    const area = ACT_AREAS[action] ?? OLD_ACT_AREAS[action];
+    if (!area) return json({ error: "Unknown action." }, 400);
+    // Outreach on a missed renewal can be marked by billing (subscriptions) or by sales (research).
+    const allowed = can(actor.role, area, "change") || (action === "sub_outreach" && can(actor.role, "research", "change"));
+    if (!allowed) return json({ error: "Your role cannot make this change. Ask the owner." }, 403);
+    if (ACT_AREAS[action]) {
+      const r = await adminAct(env, actor, b, today);
+      if (!r.ok) return json({ error: r.error }, r.status ?? 400);
+      await logAudit(env, actor, action, { companyId: r.companyId ?? null, detail: r.detail });
+      return json({ ok: true, ...(r.data ?? {}) });
+    }
+    const res = await oldAction(request, env, b, actor.role);
+    if (res.ok && !NOT_LOGGED.has(action)) {
+      const cid = Number(b?.companyId);
+      await logAudit(env, actor, action, { companyId: Number.isInteger(cid) ? cid : null, detail: auditOf(b) });
+    }
+    return res;
+  }
+
+  const url = new URL(request.url);
+  const view = await adminView(env, actor, url, today);
+  if (view) {
+    if (!can(actor.role, view.area, "see")) return json({ error: "Your role cannot see this." }, 403);
+    if ("csv" in view) return new Response(view.csv, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${view.filename}"`, "cache-control": "no-store" } });
+    if (view.data === null) return json({ error: "Not found." }, 404);
+    return json(view.data);
+  }
+  const old = Object.keys(OLD_VIEW_AREAS).find((k) => url.searchParams.get(k) === "1");
+  if (!can(actor.role, old ? OLD_VIEW_AREAS[old] : "clients", "see")) return json({ error: "Your role cannot see this." }, 403);
+  return oldView(env, url);
+}
+
+/**
+ * The code step. An admin who signed in but has not entered today's emailed code can only ask for a code and enter it.
+ * GET ?me=1 answers {needsCode: true} so the page shows the code screen. Everything else is refused until the code is right.
+ */
+async function codeStep(env: Env, request: Request, who: AdminActor): Promise<Response> {
+  if (request.method === "POST") {
+    let b: any;
+    try {
+      b = await request.json();
+    } catch {
+      return json({ error: "Invalid JSON." }, 400);
+    }
+    if (b?.action === "code_send") {
+      const r = await sendCode(env, who.userId, who.email);
+      return r.ok ? json({ ok: true }) : json({ error: r.error }, 429);
+    }
+    if (b?.action === "code_verify") {
+      const r = await verifyCode(env, request, who.userId, b.code);
+      if (!r.ok) return json({ error: r.error }, 400);
+      await logAudit(env, who, "admin_code_ok", { detail: "signed in with the emailed code" });
+      return json({ ok: true });
+    }
+    return json({ error: "Enter your admin code first.", needsCode: true }, 403);
+  }
+  if (new URL(request.url).searchParams.get("me") === "1") return json({ needsCode: true, email: who.email });
+  return json({ error: "Enter your admin code first.", needsCode: true }, 403);
+}
+
+/** A short, safe summary of an original action for the audit log (no long text). */
+function auditOf(b: any): string {
+  const o: Record<string, unknown> = {};
+  for (const k of ["name", "email", "plan", "host", "slug", "credits", "note", "id", "rule", "home", "digest", "default"]) if (b?.[k] !== undefined && typeof b[k] !== "object") o[k] = String(b[k]).slice(0, 80);
+  if (b?.article?.title) o.article = String(b.article.title).slice(0, 80);
+  return JSON.stringify(o);
+}
+
+async function oldAction(request: Request, env: Env, b: any, role: keyof typeof ROLE_LIMITS): Promise<Response> {
+  {
     if (b?.action === "create") {
       const r = await provisionClient(env, new URL(request.url).origin, b);
       if (!r.ok) return json({ error: r.error }, 400);
@@ -121,7 +211,9 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
       return d ? json({ ok: true, draft: d }) : json({ error: "The AI could not write a draft right now. Write the answer yourself, or try again." }, 503);
     }
     if (b?.action === "credits_grant") {
-      // Add AI credits to a client (for example after they pay for a pack another way). Only paid clients can use them.
+      // Add AI credits to a client (for example after they pay for a pack another way). Works on every plan.
+      const max = ROLE_LIMITS[role].maxGrantCredits;
+      if (Number(b?.credits) > max) return json({ error: max ? `Your role can add up to ${max} credits at a time.` : "Your role cannot add credits." }, 403);
       const id = Number(b?.companyId);
       const co = Number.isInteger(id) ? await env.DB.prepare("SELECT id FROM companies WHERE id = ?").bind(id).first() : null;
       if (!co) return json({ error: "Client not found." }, 404);
@@ -155,16 +247,18 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
     }
     return json({ error: "Unknown action." }, 400);
   }
+}
 
-  if (new URL(request.url).searchParams.get("markets") === "1") return json({ markets: await loadMarkets(env) });
-  if (new URL(request.url).searchParams.get("domains") === "1") return json({ domains: await listDomains(env) });
-  if (new URL(request.url).searchParams.get("notices") === "1") {
+async function oldView(env: Env, url: URL): Promise<Response> {
+  if (url.searchParams.get("markets") === "1") return json({ markets: await loadMarkets(env) });
+  if (url.searchParams.get("domains") === "1") return json({ domains: await listDomains(env) });
+  if (url.searchParams.get("notices") === "1") {
     const sw = await loadAdmin(env);
     return json({ rules: RULES.map((r) => ({ id: r.id, group: GROUP_LABELS[r.group], label: r.label, canDigest: inEmailEngine(r), emailDefault: r.digest, always: !!r.always, home: sw[r.id]?.home ?? "default", digest: sw[r.id]?.digest ?? "default" })) });
   }
-  if (new URL(request.url).searchParams.get("help") === "1") return json(await adminHelpView(env));
-  if (new URL(request.url).searchParams.get("aimodel") === "1") return json({ default: await textDefault(env, 0), gemini: geminiModel(env), haiku: fastAnthropicModel(env), haikuKey: !!env.ANTHROPIC_API_KEY });
-  if (new URL(request.url).searchParams.get("ticker") === "1") return json(await adminTickerView(env));
+  if (url.searchParams.get("help") === "1") return json(await adminHelpView(env));
+  if (url.searchParams.get("aimodel") === "1") return json({ default: await textDefault(env, 0), gemini: geminiModel(env), haiku: fastAnthropicModel(env), haikuKey: !!env.ANTHROPIC_API_KEY });
+  if (url.searchParams.get("ticker") === "1") return json(await adminTickerView(env));
 
   const rows = await env.DB.prepare(
     `SELECT c.id, c.slug, c.name, c.plan, c.created_at AS createdAt,

@@ -2,14 +2,14 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>PaintersMax Admin</title>
+<title>PaintersMax Admin</title><script src="/i18n.js" data-app></script>
 <style>
 *{box-sizing:border-box}
 body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
 header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
 header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
 header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
-main{max-width:820px;margin:0 auto;padding:16px 16px 60px}
+main{max-width:1060px;margin:0 auto;padding:16px 16px 60px}
 h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 8px;font-size:26px}
 .card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
 label{display:block;font-size:14px;font-weight:600;margin:10px 0 4px}
@@ -22,9 +22,60 @@ input,select{width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;
 .c{padding:12px 0;border-bottom:1px solid #eee;display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center}.c:last-child{border-bottom:0}
 small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#0a7a3d}.bad{color:#b42318}
 @media(max-width:560px){.row{grid-template-columns:1fr}}
+.tabs{background:#16263d;display:flex;flex-wrap:wrap;gap:2px;padding:4px 10px;position:sticky;top:0;z-index:20}
+.tabs a{color:#fff;font-size:14px;font-weight:600;padding:9px 11px;border-radius:8px;text-decoration:none;white-space:nowrap}.tabs a.on{background:#E8A33D;color:#0F1B2D}.tabs a:hover{background:rgba(255,255,255,.12)}
+textarea{width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
+.area{display:none}.area.on{display:block}
+table.t{width:100%;border-collapse:collapse;font-size:14px}table.t th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#4A5568;padding:6px 6px;border-bottom:1px solid #ddd}table.t td{padding:8px 6px;border-bottom:1px solid #eee;vertical-align:top}
+.scroll{overflow-x:auto}.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:0 0 14px}.tile{background:#0F1B2D;color:#fff;border-radius:10px;padding:12px}.tile b{display:block;font-family:Newsreader,Georgia,serif;font-size:26px;font-weight:500;color:#E8A33D}.tile>span{font-size:12px;opacity:.85}
+.pill{display:inline-block;font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px;margin:0 4px 2px 0;background:#eceae4;color:#0F1B2D}.pill.red{background:#fdecea;color:#b42318}.pill.gold{background:#fff3d6;color:#8a5a00}.pill.green{background:#e6f4ea;color:#0a7a3d}
+.btn.sm{margin:0;padding:7px 10px;font-size:13px}.btn.gray{background:#eceae4}.btn.red{background:#fbe9e7;color:#b42318}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:640px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.chk{display:inline-flex;gap:6px;align-items:center;font-weight:500;margin:6px 12px 6px 0}.chk input{width:auto}
+.msgs div{border-left:3px solid #cfd5dc;padding:6px 10px;margin:8px 0;white-space:pre-wrap;font-size:14px}.msgs div.a{border-color:#E8A33D;background:#fff8e6}
+#msg{position:sticky;top:44px;z-index:15;background:#F7F5F1}
+a.lk{color:#0F1B2D;font-weight:600}
 </style></head><body>
-<header><div><b>PaintersMax</b> Admin</div><div><a href="/jobs">Jobs</a><a href="/dashboard">Leads</a></div></header>
-<main><h2>Live stats ticker</h2>
+<header><div><b>PaintersMax</b> <span>Admin</span> <span class="pill gold" id="me_role"></span></div><div><a href="/dashboard">Home</a><a href="/jobs">Jobs</a></div></header>
+<nav class="tabs" id="tabs" aria-label="Admin areas"></nav>
+<main><div id="msg"></div>
+<section class="area" data-area="clients"><h2>Clients</h2><div class="card" id="cl_box">Loading...</div>
+<h2 style="font-size:20px">Add a client</h2>
+<div class="card"><div class="row"><div><label>Company name</label><input id="n"></div><div><label>Owner email</label><input id="e" type="email"></div><div><label>Plan</label><select id="p"><option value="free">Free</option><option value="starter">Starter</option><option value="basic">Basic</option><option value="pro">Pro</option></select></div></div>
+<button class="btn" id="go">Create client and email sign-in link</button>
+<p><small>The owner gets a one-time sign-in link at that email. Creating the same email twice does nothing.</small></p></div></section>
+<section class="area" data-area="client"><div id="cp_box">Loading...</div></section>
+<section class="area" data-area="subs"><h2>Subscriptions and money</h2><div id="sb_box">Loading...</div></section>
+<section class="area" data-area="credits"><h2>AI credits</h2><div id="cu_box">Loading...</div>
+<h2 style="font-size:20px">Add AI credits</h2>
+<div class="card"><div class="row"><div><label>Client</label><select id="cr_c"></select></div><div><label>Credits</label><input id="cr_n" inputmode="numeric" placeholder="25"></div><div><label>Note (optional)</label><input id="cr_note" maxlength="100" placeholder="Paid by Zelle"></div></div>
+<button class="btn" id="cr_go">Add credits</button>
+<p><small>Credits are extra AI uses, used after a monthly amount runs out or for a tool the plan does not include. Admin credits last 90 days and work on every plan, the free one included.</small></p></div>
+</section>
+<section class="area" data-area="promos"><h2>Promotions and promo codes</h2><div id="pr_box">Loading...</div></section>
+<section class="area" data-area="research"><h2>Marketing research</h2><div id="rs_box">Loading...</div></section>
+<section class="area" data-area="feedback"><h2>Feedback from clients</h2><div id="fb_box">Loading...</div></section>
+<section class="area" data-area="domains"><h2>Domains we hold</h2><div id="hd_box">Loading...</div><div id="dm_box"></div>
+<h2>Client domains</h2>
+<div class="card"><small>For a client with their own domain: add the domain to your Cloudflare account, add it to the paintersmax-site worker (Workers, Settings, Domains and Routes, Add custom domain), then connect it here. Add both the bare domain and the www version if you want both. The client still signs in at paintersmax.app.</small>
+<div class="row"><div><label>Domain</label><input id="dm_host" placeholder="rivera-painting.com"></div><div><label>Client</label><select id="dm_slug"></select></div></div>
+<div><button class="btn" id="dm_add">Connect domain</button></div><div id="dm_list" style="margin-top:10px"></div></div>
+</section>
+<section class="area" data-area="broadcasts"><h2>Broadcasts</h2><div id="bc_box">Loading...</div></section>
+<section class="area" data-area="content"><h2>Help guide and questions</h2>
+<div class="card"><small>Painters ask questions on the Help page. When the guide cannot answer one, the question (never the painter's name or company) lands here. Draft an answer with AI if you want, edit it, then approve it. Nothing joins the guide until you save it. Editing a starter article saves your own copy, which replaces the starter.</small>
+<div id="h_un" style="margin-top:10px"></div>
+<label>Topic</label><select id="h_topic"></select>
+<label>Title</label><input id="h_title" placeholder="How do I ...">
+<label>Words painters might use (comma separated, English or Spanish)</label><input id="h_keys">
+<label>Answer (start a step with 1. 2. 3. on its own line)</label><textarea id="h_body" rows="6" style="width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit"></textarea>
+<div class="row"><div><label>Button label (optional)</label><input id="h_ll" placeholder="Open Jobs"></div><div><label>Button page (optional)</label><input id="h_lh" placeholder="/jobs"></div></div>
+<label>Notes for the AI draft (optional)</label><input id="h_hint" placeholder="Tell the AI what is true in the app">
+<div><button class="btn" id="h_save">Approve and add to the guide</button> <button class="btn" id="h_draft" style="background:#eceae4">Draft with AI</button> <button class="btn" id="h_clear" style="background:#eceae4">New</button></div>
+<div id="h_list" style="margin-top:10px"></div></div>
+</section>
+<section class="area" data-area="settings"><h2>Live stats ticker</h2>
 <div class="card" id="tk">Loading...</div>
 <h2>Market price levels</h2>
 <div class="card"><small>Starting rates are multiplied by these numbers for each client's market. 1.00 is the average market. These are my starting guesses, not market data: change them as you learn what your clients see. Allowed range 0.50 to 2.00.</small>
@@ -38,23 +89,6 @@ small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#
 <label>Buy links</label><textarea id="m_links" rows="2" placeholder="Buy at Store | https://example.com/item | affiliate"></textarea>
 <div><button class="btn" id="m_save">Save item</button> <button class="btn" id="m_clear" style="background:#eceae4;color:#0F1B2D">New item</button> <button class="btn" id="m_reset" style="background:#fbe9e7;color:#b42318">Reset to starting list</button></div>
 <div id="m_list" style="margin-top:10px"></div></div>
-<h2>Help guide and questions</h2>
-<div class="card"><small>Painters ask questions on the Help page. When the guide cannot answer one, the question (never the painter's name or company) lands here. Draft an answer with AI if you want, edit it, then approve it. Nothing joins the guide until you save it. Editing a starter article saves your own copy, which replaces the starter.</small>
-<div id="h_un" style="margin-top:10px"></div>
-<label>Topic</label><select id="h_topic"></select>
-<label>Title</label><input id="h_title" placeholder="How do I ...">
-<label>Words painters might use (comma separated, English or Spanish)</label><input id="h_keys">
-<label>Answer (start a step with 1. 2. 3. on its own line)</label><textarea id="h_body" rows="6" style="width:100%;padding:11px;border:1px solid #cfd5dc;border-radius:8px;font:inherit"></textarea>
-<div class="row"><div><label>Button label (optional)</label><input id="h_ll" placeholder="Open Jobs"></div><div><label>Button page (optional)</label><input id="h_lh" placeholder="/jobs"></div></div>
-<label>Notes for the AI draft (optional)</label><input id="h_hint" placeholder="Tell the AI what is true in the app">
-<div><button class="btn" id="h_save">Approve and add to the guide</button> <button class="btn" id="h_draft" style="background:#eceae4">Draft with AI</button> <button class="btn" id="h_clear" style="background:#eceae4">New</button></div>
-<div id="h_list" style="margin-top:10px"></div></div>
-<h2>Client domains</h2>
-<div class="card"><small>For a client with their own domain: add the domain to your Cloudflare account, add it to the paintersmax-site worker (Workers, Settings, Domains and Routes, Add custom domain), then connect it here. Add both the bare domain and the www version if you want both. The client still signs in at paintersmax.app.</small>
-<div class="row"><div><label>Domain</label><input id="dm_host" placeholder="rivera-painting.com"></div><div><label>Client</label><select id="dm_slug"></select></div></div>
-<div><button class="btn" id="dm_add">Connect domain</button></div><div id="dm_list" style="margin-top:10px"></div></div>
-<h2>Clients</h2><div id="msg"></div>
-<div class="card" id="list">Loading...</div>
 <h2 style="font-size:20px">Reminders for every plan</h2>
 <div class="card"><small>Each reminder follows the plan by default: the free plan sees 3 Home lines and gets no email, Starter gets a Monday email, Basic and Pro get the daily email. Choose <b>On for all plans</b> to give a reminder to everyone, or <b>Off for everyone</b> to hide it. Changes apply the next time a painter opens Home, and to the next morning email.</small>
 <div id="nt_list" style="margin-top:10px;overflow-x:auto">Loading...</div></div>
@@ -64,21 +98,16 @@ small{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#
 <div class="row" style="margin-top:10px"><div style="flex:1"><label>Try the same question on both</label><input id="am_q" maxlength="500" placeholder="How do I prep a stained ceiling before painting?"></div></div>
 <button class="btn" id="am_go">Run the side-by-side test</button>
 <div id="am_out" style="margin-top:10px"></div></div>
-<h2 style="font-size:20px">Add AI credits</h2>
-<div class="card"><div class="row"><div><label>Client</label><select id="cr_c"></select></div><div><label>Credits</label><input id="cr_n" inputmode="numeric" placeholder="25"></div><div><label>Note (optional)</label><input id="cr_note" maxlength="100" placeholder="Paid by Zelle"></div></div>
-<button class="btn" id="cr_go">Add credits</button>
-<p><small>Credits are extra AI uses, used after a monthly amount runs out or for a tool the plan does not include. Admin credits last 90 days and work on every plan, the free one included.</small></p></div>
-<h2 style="font-size:20px">Add a client</h2>
-<div class="card"><div class="row"><div><label>Company name</label><input id="n"></div><div><label>Owner email</label><input id="e" type="email"></div><div><label>Plan</label><select id="p"><option value="free">Free</option><option value="starter">Starter</option><option value="basic">Basic</option><option value="pro">Pro</option></select></div></div>
-<button class="btn" id="go">Create client and email sign-in link</button>
-<p><small>The owner gets a one-time sign-in link at that email. Creating the same email twice does nothing.</small></p></div></main>
+</section>
+<section class="area" data-area="security"><h2>Team and roles</h2><div id="tm_box">Loading...</div><h2>Audit log</h2><div id="au_box">Loading...</div></section>
+</main>
 <script>
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=id=>document.getElementById(id);
 function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
 async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
 const PLANS=['free','starter','basic','pro'];
-async function load(){try{const {clients}=await api('/api/admin');$('dm_slug').innerHTML=clients.map(c=>`<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join('');$('cr_c').innerHTML=clients.map(c=>`<option value="${c.id}">${esc(c.name)} (${esc(c.plan)})</option>`).join('');$('list').innerHTML=clients.map(c=>`<div class="c"><div><b>${esc(c.name)}</b> <small>${esc(c.slug)}</small><br><small>${esc(c.owners||'no login yet')} &middot; ${c.jobs} jobs &middot; ${c.leads} leads</small></div><select data-id="${c.id}">${PLANS.map(p=>`<option value="${p}" ${p===c.plan?'selected':''}>${p}</option>`).join('')}</select></div>`).join('');}catch(e){if(e)$('list').textContent='You do not have access to this page.';}}
+async function load(){try{const {clients}=await api('/api/admin');$('dm_slug').innerHTML=clients.map(c=>`<option value="${esc(c.slug)}">${esc(c.name)}</option>`).join('');$('cr_c').innerHTML=clients.map(c=>`<option value="${c.id}">${esc(c.name)} (${esc(c.plan)})</option>`).join('');}catch(e){}}
 document.addEventListener('change',async e=>{const id=e.target.dataset&&e.target.dataset.id;if(!id)return;try{await api('/api/admin',{action:'plan',companyId:+id,plan:e.target.value});msg('Plan updated.',true);}catch(x){if(x)msg(x.message);}});
 $('cr_go').onclick=async()=>{try{msg('');await api('/api/admin',{action:'credits_grant',companyId:+$('cr_c').value,credits:+$('cr_n').value,note:$('cr_note').value});msg('Credits added.',true);$('cr_n').value='';$('cr_note').value='';}catch(x){if(x)msg(x.message);}};
 $('go').onclick=async()=>{try{msg('');const r=await api('/api/admin',{action:'create',name:$('n').value,email:$('e').value,plan:$('p').value});msg(r.created?'Client created. Sign-in link sent.':'That email already has an account. Nothing changed.',true);$('n').value='';$('e').value='';load();}catch(x){if(x)msg(x.message);}};
@@ -126,8 +155,6 @@ document.addEventListener('click',async e=>{const d=e.target.dataset||{};
 $('h_clear').onclick=hClear;
 $('h_draft').onclick=async()=>{try{msg('Writing a draft...',true);const r=await api('/api/admin',{action:'help_draft',question:$('h_title').value,hint:$('h_hint').value});$('h_title').value=r.draft.title;$('h_keys').value=r.draft.keywords.join(', ');$('h_body').value=r.draft.body;msg('Draft ready. Read it, fix anything wrong, then approve.',true);}catch(x){if(x)msg(x.message);}};
 $('h_save').onclick=async()=>{try{msg('');const lh=$('h_lh').value.trim(),ll=$('h_ll').value.trim();await api('/api/admin',{action:'help_save',article:{id:HID||undefined,topic:$('h_topic').value,title:$('h_title').value,keywords:$('h_keys').value,body:$('h_body').value,link:lh&&ll?{label:ll,href:lh}:undefined,fromQuestion:HFQ||undefined}});hClear();msg('Saved to the guide.',true);hLoad();}catch(x){if(x)msg(x.message);}};
-tkLoad();
-hLoad();
 const NSW=[['default','Follows the plan'],['all','On for all plans'],['off','Off for everyone']];
 async function ntLoad(){try{const {rules}=await api('/api/admin?notices=1');let g='';
  $('nt_list').innerHTML='<table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr><th style="text-align:left;padding:6px 4px">Reminder</th><th style="text-align:left;padding:6px 4px">On Home</th><th style="text-align:left;padding:6px 4px">In the morning email</th></tr></thead><tbody>'+rules.map(r=>{const head=r.group!==g?`<tr><td colspan="3" style="padding:12px 4px 4px;font-weight:700">${esc(g=r.group)}</td></tr>`:'';
@@ -138,10 +165,6 @@ document.addEventListener('change',async e=>{const id=e.target.dataset&&e.target
 async function amLoad(){try{const v=await api('/api/admin?aimodel=1');$('am_box').innerHTML=`<label><input type="radio" name="am" value="gemini" ${v.default==='gemini'?'checked':''}> Gemini (${esc(v.gemini)})</label> &nbsp; <label><input type="radio" name="am" value="haiku" ${v.default==='haiku'?'checked':''}> Claude Haiku (${esc(v.haiku)})${v.haikuKey?'':' <small>no Anthropic key in Cloudflare yet</small>'}</label>`;}catch(x){if(x)$('am_box').textContent='Could not load the model setting.';}}
 document.addEventListener('change',async e=>{if(e.target.name!=='am')return;try{await api('/api/admin',{action:'aimodel_set',default:e.target.value});msg('Text tools now ask '+(e.target.value==='haiku'?'Claude Haiku':'Gemini')+' first. It applies within a minute.',true);}catch(x){if(x)msg(x.message);}});
 $('am_go').onclick=async()=>{const q=$('am_q').value.trim();if(!q){msg('Type a question to test.');return;}$('am_go').disabled=true;$('am_out').innerHTML='Asking both...';try{const {answers}=await api('/api/admin',{action:'aimodel_test',question:q});$('am_out').innerHTML='<div class="row">'+answers.map(a=>`<div style="flex:1;min-width:240px"><b>${a.provider==='haiku'?'Claude Haiku':'Gemini'}</b> <small>${a.ok?a.ms+' ms, about '+a.tokens+' tokens':'did not answer'}</small><div style="white-space:pre-wrap;font-size:14px;margin-top:4px">${esc(a.text)}</div></div>`).join('')+'</div>';}catch(x){if(x)$('am_out').textContent=x.message;}$('am_go').disabled=false;};
-amLoad();
-ntLoad();
-mLoad();
-mkLoad();
-dmLoad();
-load();
-</script></body></html>
+</script>
+<script src="/admincp.js"></script>
+</body></html>

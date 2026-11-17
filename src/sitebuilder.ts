@@ -254,7 +254,7 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
       `Language: ${lang === "es" ? "Spanish" : "English"}.`,
       `Current text:\n<text>\n${text || "(empty)"}\n</text>`,
     ].join("\n");
-    const out = await completeEx(env, WRITE_PROMPT, [{ role: "user", content: user }], { maxTokens: 700 });
+    const out = await completeEx(env, WRITE_PROMPT, [{ role: "user", content: user }], { maxTokens: 700, companyId: co.id });
     if (!out) {
       await refund(env, { id: co.id }, "site_write");
       return json({ error: "The AI could not write right now. Your credits were not used. Try again in a minute." }, 503);

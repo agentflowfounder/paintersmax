@@ -1,3 +1,4 @@
+import { recordUse } from "./aimeter.ts";
 import type { Env } from "./types.ts";
 import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
 
@@ -15,6 +16,7 @@ export interface VisionIn {
   mime: string;
   data: string; // base64
   maxTokens?: number;
+  companyId?: number; // whose AI use this is, for the cost view in admin
 }
 export type VisionOut = { ok: true; text: string; provider: VisionProvider; tried: string[] } | { ok: false; why: string; tried: string[] };
 
@@ -51,6 +53,7 @@ async function viaGemini(env: Env, i: VisionIn, json: boolean): Promise<{ text: 
   if (!r.ok) return { fail: await failure("gemini", r) };
   const j = (await r.json()) as any;
   const text = j.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ?? "";
+  await recordUse(env, i.companyId, model, j.usageMetadata?.promptTokenCount, (Number(j.usageMetadata?.candidatesTokenCount) || 0) + (Number(j.usageMetadata?.thoughtsTokenCount) || 0));
   return text.trim() ? { text } : { fail: `gemini empty (${j.candidates?.[0]?.finishReason ?? j.promptFeedback?.blockReason ?? "no text"})` };
 }
 
@@ -71,6 +74,7 @@ async function viaOpenAI(env: Env, i: VisionIn, json: boolean): Promise<{ text: 
   if (!r.ok) return { fail: await failure("openai", r) };
   const j = (await r.json()) as any;
   const text = j.choices?.[0]?.message?.content ?? "";
+  await recordUse(env, i.companyId, env.MODEL_OPENAI ?? "gpt-4.1-mini", j.usage?.prompt_tokens, j.usage?.completion_tokens);
   return String(text).trim() ? { text } : { fail: "openai empty" };
 }
 
@@ -88,6 +92,7 @@ async function viaAnthropic(env: Env, i: VisionIn): Promise<{ text: string } | {
   if (!r.ok) return { fail: await failure("anthropic", r) };
   const j = (await r.json()) as any;
   const text = j.content?.map((b: any) => b.text ?? "").join("") ?? "";
+  await recordUse(env, i.companyId, env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5", j.usage?.input_tokens, j.usage?.output_tokens);
   return text.trim() ? { text } : { fail: "anthropic empty" };
 }
 

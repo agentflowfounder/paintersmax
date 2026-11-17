@@ -1,4 +1,5 @@
 import type { Env, QuoteRequest } from "./types.ts";
+import { recordUse } from "./aimeter.ts";
 import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
 
 /** What the AI sees in the customer's photos. It never sets prices; only scope, effort weights and questions. */
@@ -55,7 +56,7 @@ function parse(text: string): Brief | null {
   }
 }
 
-async function viaGemini(env: Env, text: string, photos: { mime: string; data: string }[]): Promise<string> {
+async function viaGemini(env: Env, text: string, photos: { mime: string; data: string }[], companyId?: number): Promise<string> {
   const model = geminiModel(env);
   const call = (thinkingOff: boolean) =>
     fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -75,10 +76,11 @@ async function viaGemini(env: Env, text: string, photos: { mime: string; data: s
   if (r.status === 400) r = await call(false); // some models do not accept the thinking setting
   if (!r.ok) throw new Error(`gemini ${r.status}`);
   const j = (await r.json()) as any;
+  await recordUse(env, companyId, model, j?.usageMetadata?.promptTokenCount, (j?.usageMetadata?.candidatesTokenCount ?? 0) + (j?.usageMetadata?.thoughtsTokenCount ?? 0));
   return j.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-async function viaOpenAI(env: Env, text: string, photos: { mime: string; data: string }[]): Promise<string> {
+async function viaOpenAI(env: Env, text: string, photos: { mime: string; data: string }[], companyId?: number): Promise<string> {
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${env.OPENAI_API_KEY}` },
@@ -98,18 +100,19 @@ async function viaOpenAI(env: Env, text: string, photos: { mime: string; data: s
   });
   if (!r.ok) throw new Error(`openai ${r.status}`);
   const j = (await r.json()) as any;
+  await recordUse(env, companyId, env.MODEL_OPENAI ?? "gpt-4.1-mini", j?.usage?.prompt_tokens, j?.usage?.completion_tokens);
   return j.choices?.[0]?.message?.content ?? "";
 }
 
 /** Reads the photos and returns a structured brief, or null if no provider worked. */
-export async function writeBrief(env: Env, q: QuoteRequest, lowCents?: number, highCents?: number): Promise<{ provider: string; brief: Brief } | null> {
+export async function writeBrief(env: Env, q: QuoteRequest, lowCents?: number, highCents?: number, companyId?: number): Promise<{ provider: string; brief: Brief } | null> {
   if (!q.photos?.length) return null;
   const text = PROMPT(q, lowCents === undefined ? undefined : Math.round(lowCents / 100), highCents === undefined ? undefined : Math.round(highCents / 100));
   const order: ("gemini" | "openai")[] = ["gemini", "openai"];
   for (const p of order) {
     if (p === "gemini" ? !env.GEMINI_API_KEY : !env.OPENAI_API_KEY) continue;
     try {
-      const out = p === "gemini" ? await viaGemini(env, text, q.photos) : await viaOpenAI(env, text, q.photos);
+      const out = p === "gemini" ? await viaGemini(env, text, q.photos, companyId) : await viaOpenAI(env, text, q.photos, companyId);
       const brief = parse(out);
       if (brief) return { provider: p, brief };
     } catch (err) {

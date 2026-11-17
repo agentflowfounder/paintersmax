@@ -17,6 +17,7 @@ import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
 import { readSettings, renderQuotePage, sanitize, tenantFromHost } from "./settings.ts";
 import { handleImport } from "./import.ts";
+import { sendDomainEmails } from "./domainemails.ts";
 import { handleSchedule, scheduledJobs } from "./schedule.ts";
 import { handleCalSettings, handleFeed } from "./calfeed.ts";
 import { slugForHost } from "./domains.ts";
@@ -50,6 +51,8 @@ import { bookedVisits, handleVisit, sendVisitReminders } from "./visit.ts";
 import { sendStartNotices } from "./startnotice.ts";
 import { handlePulse } from "./pulse.ts";
 import { handleCredits } from "./creditsapi.ts";
+import { handleFeedback } from "./feedback.ts";
+import { handleBroadcastsApi } from "./broadcasts.ts";
 import { handleNotices, sendOwnerDigests } from "./notices.ts";
 import { handleColors } from "./colors.ts";
 import { handleVehicles } from "./vehicles.ts";
@@ -87,14 +90,14 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
   if (!(await dailyCap(env, company.id, `quote:v:${visitor}`, 10))) return json({ error: "That is a lot of quotes for one day. Please call or email us and we will help you directly." }, 429);
 
   const { lowCents, highCents } = priceRange(q.jobType, q.sqft, readSettings(company.settings).rates);
-  const { provider, summary } = await writeSummary(env, q, lowCents, highCents);
+  const { provider, summary } = await writeSummary(env, q, lowCents, highCents, company.id);
 
   // Photo brief: metered under ai_estimate. If the plan is used up or the AI fails, the normal quote still goes out.
   let brief: Awaited<ReturnType<typeof writeBrief>> = null;
   if (q.photos?.length) {
     const use = await consume(env, company, "ai_estimate", visitor);
     if (use.allowed) {
-      brief = await writeBrief(env, q, lowCents, highCents);
+      brief = await writeBrief(env, q, lowCents, highCents, company.id);
       if (!brief) await refund(env, company, "ai_estimate", visitor);
     }
   }
@@ -314,7 +317,7 @@ async function handleBrief(request: Request, env: Env): Promise<Response> {
     details: `${service}. ${str(body?.details, 1500)}`,
     photos,
     companySlug: str(body?.companySlug, 60),
-  });
+  }, undefined, undefined, company.id);
   if (!out) {
     await refund(env, company, "ai_estimate", visitor);
     return json({ error: "ai_unavailable" }, 502);
@@ -431,6 +434,7 @@ export default {
     ctx.waitUntil(sendStartNotices(env).catch((err) => console.error("start notices failed", String(err))));
     ctx.waitUntil(sendOwnerDigests(env).catch((err) => console.error("owner digest failed", String(err))));
     ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
+    ctx.waitUntil(sendDomainEmails(env).catch((err) => console.error("domain emails failed", String(err))));
     ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -1020,6 +1024,22 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleBilling(request, env);
       } catch (err) {
         console.error("handleBilling failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/feedback") {
+      try {
+        return await handleFeedback(request, env);
+      } catch (err) {
+        console.error("handleFeedback failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/broadcasts" || pathname === "/api/unsubscribe") {
+      try {
+        return await handleBroadcastsApi(request, env, pathname);
+      } catch (err) {
+        console.error("handleBroadcastsApi failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

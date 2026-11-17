@@ -1,4 +1,5 @@
 import type { Env, JobType, Provider, QuoteRequest } from "./types.ts";
+import { recordUse } from "./aimeter.ts";
 import { geminiModel, thinkingOff as thinkingCfg } from "./gemini.ts";
 
 /** Which provider handles which kind of job. Edit here, or later move to per-company settings. */
@@ -24,7 +25,7 @@ function prompt(req: QuoteRequest, low: number, high: number): string {
   ].join("\n");
 }
 
-async function callGemini(env: Env, text: string): Promise<string> {
+async function callGemini(env: Env, text: string, companyId?: number): Promise<string> {
   const model = geminiModel(env);
   const call = (thinkingOff: boolean) =>
     fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -40,10 +41,11 @@ async function callGemini(env: Env, text: string): Promise<string> {
   if (r.status === 400) r = await call(false);
   if (!r.ok) throw new Error(`gemini ${r.status}`);
   const j = (await r.json()) as any;
+  await recordUse(env, companyId, model, j?.usageMetadata?.promptTokenCount, (j?.usageMetadata?.candidatesTokenCount ?? 0) + (j?.usageMetadata?.thoughtsTokenCount ?? 0));
   return j.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-async function callOpenAI(env: Env, text: string): Promise<string> {
+async function callOpenAI(env: Env, text: string, companyId?: number): Promise<string> {
   const model = env.MODEL_OPENAI ?? "gpt-4.1-mini";
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -52,10 +54,11 @@ async function callOpenAI(env: Env, text: string): Promise<string> {
   });
   if (!r.ok) throw new Error(`openai ${r.status}`);
   const j = (await r.json()) as any;
+  await recordUse(env, companyId, model, j?.usage?.prompt_tokens, j?.usage?.completion_tokens);
   return j.choices?.[0]?.message?.content ?? "";
 }
 
-async function callAnthropic(env: Env, text: string): Promise<string> {
+async function callAnthropic(env: Env, text: string, companyId?: number): Promise<string> {
   const model = env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5";
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -68,6 +71,7 @@ async function callAnthropic(env: Env, text: string): Promise<string> {
   });
   if (!r.ok) throw new Error(`anthropic ${r.status}`);
   const j = (await r.json()) as any;
+  await recordUse(env, companyId, model, j?.usage?.input_tokens, j?.usage?.output_tokens);
   return j.content?.[0]?.text ?? "";
 }
 
@@ -81,12 +85,13 @@ export async function writeSummary(
   req: QuoteRequest,
   lowCents: number,
   highCents: number,
+  companyId?: number,
 ): Promise<{ provider: Provider | "demo"; summary: string }> {
   const text = prompt(req, Number(dollars(lowCents).replace(/,/g, "")), Number(dollars(highCents).replace(/,/g, "")));
   for (const p of pickProviders(req)) {
     if (!keyFor(env, p)) continue;
     try {
-      const out = (await CALLERS[p](env, text)).trim();
+      const out = (await CALLERS[p](env, text, companyId)).trim();
       if (out) return { provider: p, summary: out };
     } catch (err) {
       console.error("AI provider failed", p, String(err));
