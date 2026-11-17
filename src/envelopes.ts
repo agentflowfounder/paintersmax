@@ -28,7 +28,7 @@ export const GROUP_LABELS: Record<Group, string> = {
 
 /** Every metered feature belongs to one envelope (the compiler checks a new feature gets one). */
 export const FEATURE_GROUP: Record<Feature, Group> = {
-  ai_quote: "website", smart_select: "website", hd_render: "website", color_repaint: "website",
+  ai_quote: "website", smart_select: "website", hd_render: "website", color_repaint: "website", site_write: "website",
   photo_tag: "estimates", photo_analysis: "estimates", ai_estimate: "estimates", estimate_draft: "estimates", quote_helper: "estimates",
   ai_assistant: "assistant", ai_detailed: "assistant", ai_deep: "assistant", help_chat: "assistant",
   ai_invoice: "automation", receipt_read: "automation", bank_read: "automation", vehicle_read: "automation", insurance_scan: "automation",

@@ -58,6 +58,10 @@ import { handleColors } from "./colors.ts";
 import { handleVehicles } from "./vehicles.ts";
 import { handleSignoff } from "./signoff.ts";
 import { consume, dailyCap, isFeature, refund, usageSummary } from "./usage.ts";
+import { handleSiteAdmin, handleSiteApi, handleSitePhoto, handleSitePhotoUpload, handleSitePreview, handleSiteReviews, serveTenantSite } from "./sitebuilder.ts";
+import { handleDirAdmin, handleDirClaim, handleDirectory, handleDirLead, handleDirMe } from "./directory.ts";
+import { DIR_HOST, isDirHost } from "./dircore.ts";
+import { handleReviewPage, handleReviewSubmit } from "./reviews.ts";
 import type { Env } from "./types.ts";
 import { parsePhotos, parseQuoteRequest } from "./validate.ts";
 
@@ -366,6 +370,16 @@ async function sendChatDigests(env: Env): Promise<number> {
  * The address the visitor sees. A client's own Worker forwards /areas/* here and sends X-Forwarded-Host with their domain,
  * so the page names their domain as canonical. Only a plain hostname is accepted.
  */
+/** A public page that fails shows the friendly error instead of a crash; null means "not one of these pages". */
+async function safePage(fn: () => Promise<Response | null>): Promise<Response | null> {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error("page failed", String(err));
+    return new Response("Something went wrong. Please try again in a minute.", { status: 500, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+}
+
 function visitorOrigin(request: Request): string {
   const fwd = (request.headers.get("x-forwarded-host") ?? "").toLowerCase().trim();
   if (/^[a-z0-9]([a-z0-9.-]{0,120}[a-z0-9])?\.[a-z]{2,}$/.test(fwd)) return `https://${fwd}`;
@@ -462,8 +476,18 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     const { pathname, hostname } = new URL(request.url);
     // A client's own address: rivera-painting.paintersmax.app shows their quote page. Owners sign in on the main site.
     // A client's own domain (managed in Cloudflare and mapped to a company in the admin page) behaves like their subdomain.
+    // Site photos are served the same way on every address (painter sites, the directory, the app).
+    if (pathname.startsWith("/site-photo/") && request.method === "GET") return handleSitePhoto(env, pathname);
+    // PainterSelect, the homeowner directory, lives on its own domain. Its form posts go to the /api/dir routes below.
+    if (isDirHost(hostname) && !pathname.startsWith("/api/")) {
+      if (hostname !== DIR_HOST) return Response.redirect(`https://${DIR_HOST}${pathname}`, 301);
+      return (await safePage(() => handleDirectory(request, env, "", pathname))) ?? new Response("Not found.", { status: 404 });
+    }
     const tenant = tenantFromHost(hostname) ?? (await slugForHost(env, hostname).catch(() => null));
     if (tenant) {
+      // A published website answers its own pages (and its sitemap and robots file). Unpublished: the quote page as before.
+      const sitePage = request.method === "GET" ? await safePage(() => serveTenantSite(env, tenant, pathname, visitorOrigin(request))) : null;
+      if (sitePage) return sitePage;
       const ao = pathname.match(/^\/areas\/([a-z0-9-]{3,70})\/?$/);
       if (ao) return handleCityPage(request, env, tenant, ao[1], visitorOrigin(request));
       if (pathname === "/check-project") {
@@ -642,6 +666,25 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleVehicles(request, env);
       } catch (err) {
         console.error("vehicles failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/find" || pathname.startsWith("/find/")) {
+      // The directory on the main address, for testing before painterselect.com is connected. Hidden from search engines.
+      const r = await safePage(() => handleDirectory(request, env, "/find", pathname.slice(5) || "/"));
+      if (r) return r;
+    }
+    if (pathname.startsWith("/review/") && request.method === "GET") return handleReviewPage(env, pathname, "en");
+    const siteRoutes: Record<string, (r: Request, e: Env, c: ExecutionContext) => Promise<Response>> = {
+      "/api/site": handleSiteApi, "/api/site/photo": handleSitePhotoUpload, "/api/site/preview": handleSitePreview, "/api/site/admin": handleSiteAdmin,
+      "/api/reviews": handleSiteReviews, "/api/review/submit": handleReviewSubmit,
+      "/api/dir/lead": handleDirLead, "/api/dir/claim": handleDirClaim, "/api/dir/me": handleDirMe, "/api/dir/admin": handleDirAdmin,
+    };
+    if (siteRoutes[pathname]) {
+      try {
+        return await siteRoutes[pathname](request, env, ctx);
+      } catch (err) {
+        console.error(`${pathname} failed`, String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
