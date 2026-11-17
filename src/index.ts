@@ -34,6 +34,7 @@ import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleHelp } from "./helplib.ts";
 import { handleHelpVideos, handleHelpVideosAdmin, handleYoutubeSearch } from "./youtube.ts";
 import { handleWeather } from "./weather.ts";
+import { handleLandingAdmin, handleLandingPage, handleLpEvent } from "./landing.ts";
 import { handleImageAi, handleImageAiSettings, handleTemplateSlotImage, handleTemplateSlotImageGet, handleTemplateThumb, handleTemplateThumbGet, handleTemplatesAdmin } from "./sitetemplatesapi.ts";
 import { handleDemo } from "./demo.ts";
 import { requireAgreement } from "./agreement.ts";
@@ -479,6 +480,7 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     // Site photos are served the same way on every address (painter sites, the directory, the app).
     if (pathname.startsWith("/site-photo/") && request.method === "GET") return handleSitePhoto(env, pathname);
     if (pathname.startsWith("/site-template-thumb/") && request.method === "GET") return handleTemplateThumbGet(env, pathname);
+    if (pathname.startsWith("/l/") && request.method === "GET") return handleLandingPage(request, env);
     if (pathname.startsWith("/site-template-image/") && request.method === "GET") return handleTemplateSlotImageGet(env, pathname);
     // PainterSelect, the homeowner directory, lives on its own domain. Its form posts go to the /api/dir routes below.
     if (isDirHost(hostname) && !pathname.startsWith("/api/")) {
@@ -680,7 +682,7 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     const siteRoutes: Record<string, (r: Request, e: Env, c: ExecutionContext) => Promise<Response>> = {
       "/api/site": handleSiteApi, "/api/site/photo": handleSitePhotoUpload, "/api/site/preview": handleSitePreview, "/api/site/admin": handleSiteAdmin,
       "/api/site/templates/admin": handleTemplatesAdmin, "/api/site/templates/thumb": handleTemplateThumb, "/api/site/templates/slot-image": handleTemplateSlotImage, "/api/site/image-ai": handleImageAi, "/api/site/image-ai/settings": handleImageAiSettings,
-      "/api/weather": handleWeather, "/api/help-videos": handleHelpVideos, "/api/admin/help-videos": handleHelpVideosAdmin, "/api/youtube/search": handleYoutubeSearch,
+      "/api/weather": handleWeather, "/api/lp/event": handleLpEvent, "/api/admin/landing": handleLandingAdmin, "/api/help-videos": handleHelpVideos, "/api/admin/help-videos": handleHelpVideosAdmin, "/api/youtube/search": handleYoutubeSearch,
       "/api/reviews": handleSiteReviews, "/api/review/submit": handleReviewSubmit,
       "/api/dir/lead": handleDirLead, "/api/dir/claim": handleDirClaim, "/api/dir/me": handleDirMe, "/api/dir/admin": handleDirAdmin,
     };

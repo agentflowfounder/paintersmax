@@ -1,3 +1,4 @@
+import { creditCheckout } from "./landing.ts";
 import { getSessionUser } from "./auth.ts";
 import { provisionClient } from "./admin.ts";
 import { allowanceById, allowanceByPrice, companyOfAllowanceSub, grantCredits, loadAllowance, saveAllowance, topUpById } from "./credits.ts";
@@ -64,6 +65,7 @@ export async function handleCheckout(request: Request, env: Env): Promise<Respon
   const email = typeof b?.email === "string" ? b.email.trim().toLowerCase().slice(0, 200) : "";
   if (!name) return json({ error: "Enter your company name." }, 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Enter a valid email." }, 400);
+  await creditCheckout(env, request).catch(() => {}); // credits the landing page this visitor came from
   const session = await stripeApi(env, "checkout/sessions", checkoutForm(new URL(request.url).origin, { plan, name, email }));
   return json({ url: session.url });
 }
