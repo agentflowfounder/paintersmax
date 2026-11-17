@@ -81,7 +81,7 @@ export interface TemplateEntry {
   updatedOn: string | null;
 }
 
-const DEFAULT_SORT: Record<string, number> = { "dfw-pro-painters": 10, classic: 80, bold: 90 };
+const DEFAULT_SORT: Record<string, number> = { "sunset-sand": 10, classic: 80, bold: 90 };
 
 export function entries(reg: Registry): TemplateEntry[] {
   return TEMPLATE_IDS.map((id) => {

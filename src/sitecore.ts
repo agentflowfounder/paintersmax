@@ -42,7 +42,7 @@ export const upgradeCents = (from: Door, to: Door) => Math.max(0, DOOR_FLOOR_CEN
 /** Templates live in the template library (templates/configs.ts, src/sitetemplates.ts). Any known template may be
  * saved in a draft (Free previews them all); the door check happens when the painter publishes. */
 /** New sites start with the newest basic template. */
-export const DEFAULT_TEMPLATE = "dfw-pro-painters";
+export const DEFAULT_TEMPLATE = "sunset-sand";
 export const isTemplateId = (t: string) => TEMPLATE_IDS.includes(t);
 
 /** A door plus any limits admin set by hand (for a trade group deal or a founder). Override never lowers a door. */

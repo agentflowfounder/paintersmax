@@ -29,7 +29,7 @@ Painter websites are one Site document each (src/sitecore.ts). A template is a t
 
 ## Adding a template
 
-1. Make `templates/<slug>/site.config.ts` and `render.ts` (copy Sunset's as a start), and `public/templates/<slug>/1.0.0/`.
+1. Make `templates/<slug>/site.config.ts` and `render.ts` (copy sunset-sand's as a start), and `public/templates/<slug>/1.0.0/`.
 2. Add it to `templates/configs.ts` and `templates/renderers.ts`.
 3. Draw a sample: `node --experimental-strip-types tools/template-sample.ts <slug> /tmp/out preview en`, serve `/tmp/out` with `public/templates` linked at `/templates`, and check 375, 768 and 1280 widths.
 4. `npm test` checks the required sections, both languages, placeholder contact and a config swap.

@@ -1,5 +1,4 @@
 import type { TemplateConfig } from "../src/sitetheme.ts";
-import { config as sunset } from "./dfw-pro-painters/site.config.ts";
 import { config as sunsetSand } from "./sunset-sand/site.config.ts";
 
 /**
@@ -28,7 +27,6 @@ const legacy = (id: string, name: string, cls: TemplateConfig["class"], en: stri
 export const TEMPLATE_VERSIONS: Record<string, Record<string, TemplateConfig>> = {
   classic: { "1.0.0": legacy("classic", "Classic", "basic", "Simple and clear. Navy header, white pages.", "Simple y claro. Encabezado azul marino, páginas blancas.") },
   bold: { "1.0.0": legacy("bold", "Bold", "premium", "Dark gradient banner and larger type.", "Portada oscura con degradado y letra más grande.") },
-  "dfw-pro-painters": { "1.0.0": sunset },
   "sunset-sand": { "1.0.0": sunsetSand },
 };
 
