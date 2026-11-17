@@ -32,6 +32,8 @@ import { handleLessons } from "./lessons.ts";
 import { handleCertPublic, handleWarranty } from "./warranty.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleHelp } from "./helplib.ts";
+import { handleHelpVideos, handleHelpVideosAdmin, handleYoutubeSearch } from "./youtube.ts";
+import { handleWeather } from "./weather.ts";
 import { handleImageAi, handleImageAiSettings, handleTemplateSlotImage, handleTemplateSlotImageGet, handleTemplateThumb, handleTemplateThumbGet, handleTemplatesAdmin } from "./sitetemplatesapi.ts";
 import { handleDemo } from "./demo.ts";
 import { requireAgreement } from "./agreement.ts";
@@ -678,6 +680,7 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     const siteRoutes: Record<string, (r: Request, e: Env, c: ExecutionContext) => Promise<Response>> = {
       "/api/site": handleSiteApi, "/api/site/photo": handleSitePhotoUpload, "/api/site/preview": handleSitePreview, "/api/site/admin": handleSiteAdmin,
       "/api/site/templates/admin": handleTemplatesAdmin, "/api/site/templates/thumb": handleTemplateThumb, "/api/site/templates/slot-image": handleTemplateSlotImage, "/api/site/image-ai": handleImageAi, "/api/site/image-ai/settings": handleImageAiSettings,
+      "/api/weather": handleWeather, "/api/help-videos": handleHelpVideos, "/api/admin/help-videos": handleHelpVideosAdmin, "/api/youtube/search": handleYoutubeSearch,
       "/api/reviews": handleSiteReviews, "/api/review/submit": handleReviewSubmit,
       "/api/dir/lead": handleDirLead, "/api/dir/claim": handleDirClaim, "/api/dir/me": handleDirMe, "/api/dir/admin": handleDirAdmin,
     };

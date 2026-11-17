@@ -1,6 +1,8 @@
 import { escapeHtml as e } from "../../src/settings.ts";
 import { reviewsHtml } from "../../src/reviews.ts";
-import { pathOf, type Block, type Page } from "../../src/sitecore.ts";
+import { MAX_WEATHER_PLACES, pathOf, type Block, type Page } from "../../src/sitecore.ts";
+import { videoBlock, weatherBlock } from "../../src/mediahtml.ts";
+import { heroVideoHtml } from "../../src/ytcore.ts";
 import { richText, structuredData } from "../../src/siterender.ts";
 import { fontsHref, resolveFonts, resolveSections, tokenCss } from "../../src/sitetheme.ts";
 import {
@@ -51,6 +53,9 @@ ${dl}<a class="dl" href="${e(x.langHref)}" lang="${e(t(x, "langCode"))}">${e(t(x
 }
 
 function heroCard(x: X): string {
+  // The painter's hero video (dashboard video switch on): plays muted and looped inside the card.
+  const m = x.site.media;
+  if (m?.on && m.heroYt) return `<div class="hero-card has-video hv-${m.heroOrient}">${heroVideoHtml(m.heroYt, m.heroOrient)}</div>`;
   const url = videoUrl(x);
   const img = photo(x, x.theme.slots["HERO-CARD"] ?? pagePhoto(x, x.site.pages.find((q) => q.kind === "home")?.id ?? "", 1), slotDef(x, "HERO-CARD"), { cls: "card-img" });
   if (url) return `<a class="hero-card" href="${e(url)}" target="_blank" rel="noopener">${img}<span class="card-cap">${ic("arrow-up-right")} ${e(t(x, "heroVideo"))}</span></a>`;
@@ -149,6 +154,11 @@ function contentBlock(x: X, b: Block, i: number): string {
     const btn = b.action === "call" && phone ? `<a class="btn solid" href="tel:${e(tel(phone))}">${ic("phone")} ${e(t(x, "call"))} ${e(phone)}</a>` : `<a class="btn solid" href="${e(x.quoteHref)}">${e(t(x, "getQuote"))} ${ic("arrow-up-right")}</a>`;
     return `<section><div class="wrap"><div class="cta-in reveal"><div>${b.heading ? `<h2>${e(b.heading)}</h2>` : ""}${b.body ? `<p>${e(b.body)}</p>` : ""}</div><div class="btns">${btn}</div></div></div></section>`;
   }
+  if (b.type === "video") {
+    if (!x.site.media?.on) return x.preview ? `<section><div class="wrap"><p class="pm-gate-tag">${e(x.uiLang === "es" ? "Solo usted ve esto: este video está oculto porque los videos están apagados." : "Only you see this: this video is hidden because videos are turned off.")}</p></div></section>` : "";
+    return `<section class="${band.trim()}"><div class="wrap reveal">${videoBlock(b, x.uiLang, x.company.name)}</div></section>`;
+  }
+  if (b.type === "weather") return b.place ? `<section class="${band.trim()}"><div class="wrap reveal">${weatherBlock(b.place, b.heading, x.uiLang)}</div></section>` : "";
   if (b.type === "reviews") {
     const list = x.reviews ?? [];
     if (!list.length) return "";
@@ -223,7 +233,14 @@ export function render(x: X): string {
       case "review_request": if (!hasReviewsBlock) parts.push(reviewsBlock(x, (h) => reviewsHtml(x.reviews ?? [], c.name, site.lang, h))); break;
       case "business_info": parts.push(businessInfo(x)); break;
       case "maps": parts.push(map(x, t(x, "mapTitle"))); break;
-      case "weather": parts.push(soonOnly(x, "weather")); break;
+      case "weather": {
+        // The template's own spot: the painter's city, unless the painter placed weather blocks themselves (never more than 2 places in all).
+        const placed = x.site.pages.some((q) => q.blocks.some((bl) => bl.type === "weather"));
+        const city = [x.site.business.city, x.site.business.state].filter(Boolean).join(", ");
+        if (!placed && city && MAX_WEATHER_PLACES > 0) parts.push(`<section><div class="wrap reveal">${weatherBlock(city, "", x.uiLang)}</div></section>`);
+        else parts.push(gate(x, "weather").card);
+        break;
+      }
       case "chat_helper": parts.push(chatHelper(x)); break;
       case "voice_chat": parts.push(soonOnly(x, "voice_chat")); break;
       case "estimate_request": parts.push(estimateRequest(x)); break;

@@ -66,7 +66,7 @@ test("blocks: the feature ladder (door, credits, coming soon)", () => {
   assert.equal(blockState("instant_quote", "launch", 0).state, "on");
   assert.equal(blockState("instant_quote", "free", 0).state, "on"); // Free previews like Launch
   assert.deepEqual(blockState("weather", "launch", 10), { state: "upgrade", door: "grow" });
-  assert.equal(blockState("weather", "grow", 10).state, "soon");
+  assert.equal(blockState("weather", "grow", 10).state, "on");
   assert.equal(blockState("color_studio_ai", "grow", 10).state, "soon");
   assert.ok(BLOCKS.color_studio_ai.creditCost > 0);
   assert.equal(BLOCKS.color_studio.creditCost, 0);

@@ -55,6 +55,11 @@ function blockHtml(b: Block, x: RenderCtx, T: (typeof L)["en"]): string {
     // Every tab's text is in the page (search engines read it all); the script only shows one at a time.
     return `<section class="blk tabs-blk">${h}<div class="tabs" role="tablist">${b.tabs.map((t, i) => `<button type="button" role="tab" id="tb-${e(b.id)}-${i}" aria-controls="tp-${e(b.id)}-${i}" aria-selected="${i === 0}"${i ? ' tabindex="-1"' : ""}>${e(t.label)}</button>`).join("")}</div>${b.tabs.map((t, i) => `<div class="tp" role="tabpanel" id="tp-${e(b.id)}-${i}" aria-labelledby="tb-${e(b.id)}-${i}"${i ? " hidden" : ""}>${richText(t.body)}</div>`).join("")}</section>`;
   }
+  if (b.type === "video") {
+    if (!x.site.media?.on) return "";
+    return `<section class="blk">${h}<div class="vid vid-${b.orient}"><iframe src="https://www.youtube-nocookie.com/embed/${b.yt}?rel=0&modestbranding=1&playsinline=1" title="${e(b.heading || x.company.name)}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>${b.caption ? `<p>${e(b.caption)}</p>` : ""}</section>`;
+  }
+  if (b.type === "weather") return "";
   if (b.type === "reviews") return reviewsHtml(x.reviews ?? [], x.company.name, x.site.lang, b.heading);
   const phone = x.site.business.phone;
   const btn = b.action === "call" && phone ? `<a class="btn" href="tel:${e(tel(phone))}">${e(T.call)} ${e(phone)}</a>` : `<a class="btn" href="${e(x.quoteHref)}">${e(T.quote)}</a>`;
@@ -122,6 +127,7 @@ nav.m{display:flex;flex-wrap:wrap;gap:2px}nav.m a{color:#fff;text-decoration:non
 .hero{background:${bold ? `linear-gradient(135deg,#0F1B2D,#22385a)` : "#fff"};color:${bold ? "#fff" : "#0F1B2D"};border-bottom:1px solid rgba(15,27,45,.08)}.hero .wrap{padding:${bold ? "56px" : "36px"} 16px}
 h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:${bold ? "46px" : "38px"};line-height:1.12;margin:0 0 12px}h2{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:27px;margin:0 0 10px}
 .hero p{font-size:18px;max-width:720px;margin:0 0 14px}main .wrap{padding:8px 16px 40px}.blk{margin:30px 0}.muted{color:#4A5568}
+.vid{position:relative;aspect-ratio:16/9;max-width:860px;border-radius:10px;overflow:hidden;background:#000}.vid-tall{aspect-ratio:9/16;max-width:360px}.vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.gal figure{margin:0}.gal img{width:100%;height:200px;object-fit:cover;border-radius:10px;display:block;background:#e9e6df}.gal figcaption{font-size:13px;color:#4A5568;margin-top:4px}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}.tabs button{font:inherit;font-weight:600;padding:9px 15px;border-radius:20px;border:1px solid #cfd5dc;background:#fff;cursor:pointer}.tabs button[aria-selected=true]{background:#0F1B2D;color:#fff;border-color:#0F1B2D}
 .tp{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:4px 18px}
