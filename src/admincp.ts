@@ -3,7 +3,7 @@ import { CREDIT_COST, creditView, grantCredits } from "./credits.ts";
 import { FEATURE_LABELS } from "./creditsapi.ts";
 import { listDomains } from "./domains.ts";
 import { envelopeUse, forgetClientModel, FEATURE_GROUP, GROUP_LABELS, GROUPS, loadEnvelopes, saveEnvelopes } from "./envelopes.ts";
-import { aiCostView, setPrice } from "./aimeter.ts";
+import { aiCostView, setPrice, setProfit } from "./aimeter.ts";
 import { audienceRows, deleteBroadcast, loadBroadcasts, loadSettings, progressView, saveBroadcast, saveSettings, sendBatch, sendTest, WHO, WHO_LABELS } from "./broadcasts.ts";
 import { adminFeedbackAct, adminFeedbackList, feedbackForCompany, saveQuick } from "./feedback.ts";
 import { loadDmSettings, previewFor, saveDmSettings, sendDmTest } from "./domainemails.ts";
@@ -220,7 +220,7 @@ export const ACT_AREAS: Record<string, Area> = {
   client_note: "clients", client_flags: "clients",
   door_set: "subscriptions", sub_set: "subscriptions", sub_renewed: "subscriptions", sub_outreach: "subscriptions",
   promo_save: "promos", promo_active: "promos",
-  envelopes_set: "credits", bundle_apply: "credits", aiprice_set: "credits",
+  envelopes_set: "credits", bundle_apply: "credits", aiprice_set: "credits", profit_set: "credits",
   market_save: "research", market_lesson: "research", contact_save: "research", contacts_import: "research",
   feedback_reply: "feedback",
   quickreply_save: "feedback",
@@ -336,6 +336,11 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
       if (actor.role !== "owner") return fail("Only the owner can change AI prices.", 403);
       const r = await setPrice(env, b);
       return r.ok ? { ok: true, detail: r.removed ? `removed price for ${r.model}` : `price for ${r.model}: in ${Number(b.inPerM)} out ${Number(b.outPerM)} per million tokens` } : fail(r.error);
+    }
+    case "profit_set": {
+      if (actor.role !== "owner") return fail("Only the owner can change profit settings.", 403);
+      const r = await setProfit(env, b);
+      return r.ok ? { ok: true, detail: `credit earns ${Number(b.centsPerCredit)} cents, target margin ${Number(b.targetMarginPct) || 0}%` } : fail(r.error);
     }
     case "broadcast_save": {
       const r = await saveBroadcast(env, b.broadcast ?? {}, actor.email, today);

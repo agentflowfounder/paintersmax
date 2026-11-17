@@ -1,3 +1,4 @@
+import { CREDIT_COST } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
 import { masterCompanyId, readBlob, str, updateBlob } from "./kv.ts";
 import type { Env } from "./types.ts";
@@ -51,7 +52,33 @@ export async function recordUse(env: Env, companyId: number | undefined, model: 
   }
 }
 
+/** What a credit earns the owner and the margin the owner wants. Entered by the owner; nothing here is built in. */
+export interface ProfitSettings { centsPerCredit: number; targetMarginPct: number }
+export const PROFIT_KEY = "aiprofit";
+export function readProfit(raw: unknown): ProfitSettings {
+  const c = Number((raw as any)?.centsPerCredit);
+  const t = Number((raw as any)?.targetMarginPct);
+  return { centsPerCredit: Number.isFinite(c) && c > 0 && c <= 1000 ? c : 0, targetMarginPct: Number.isFinite(t) && t >= 0 && t < 100 ? t : 0 };
+}
+export async function setProfit(env: Env, b: any) {
+  const c = Number(b?.centsPerCredit);
+  const t = b?.targetMarginPct === "" || b?.targetMarginPct === undefined ? 0 : Number(b.targetMarginPct);
+  if (!(Number.isFinite(c) && c > 0 && c <= 1000)) return { ok: false as const, error: "Enter what one credit earns you, in cents (for example 10)." };
+  if (!(Number.isFinite(t) && t >= 0 && t < 100)) return { ok: false as const, error: "Enter the margin you want as a percent from 0 to 99 (for example 70)." };
+  await updateBlob(env, PROFIT_KEY, readProfit, () => ({ value: { centsPerCredit: c, targetMarginPct: t } }));
+  return { ok: true as const };
+}
+/** Margin on credit sales: what clients paid for the credits they spent, less the AI cost. Null when it cannot be worked out. */
+export function marginPct(creditsSpent: number, centsPerCredit: number, costCents: number | null): number | null {
+  const revenue = creditsSpent * centsPerCredit;
+  if (!(revenue > 0) || costCents === null) return null;
+  return Math.round(((revenue - costCents) / revenue) * 1000) / 10;
+}
+
 export interface ClientCost {
+  creditsSpent?: number;
+  marginPct?: number | null;
+  underTarget?: boolean;
   companyId: number;
   name: string;
   tokensIn: number;
@@ -64,8 +91,10 @@ export const costCents = (p: Price | undefined, tin: number, tout: number): numb
 
 export async function aiCostView(env: Env, month: string) {
   const period = /^\d{4}-\d{2}$/.test(month) ? month : todayLocal().slice(0, 7);
-  const [prices, rows] = await Promise.all([
+  const [prices, profit, creditRows, rows] = await Promise.all([
     readBlob(env, PRICES_KEY, readPrices),
+    readBlob(env, PROFIT_KEY, readProfit),
+    env.DB.prepare("SELECT company_id AS c, feature AS f, count AS n FROM usage_counters WHERE period = ? AND feature LIKE '%:credit'").bind(period).all<{ c: number; f: string; n: number }>(),
     env.DB.prepare("SELECT company_id AS c, feature AS f, count AS n FROM usage_counters WHERE period = ? AND feature >= 'ai:' AND feature < 'ai;'").bind(period).all<{ c: number; f: string; n: number }>(),
   ]);
   const by = new Map<number, Map<string, { i: number; o: number }>>();
@@ -79,6 +108,12 @@ export async function aiCostView(env: Env, month: string) {
     per.set(m[2], cur);
     by.set(r.c, per);
   }
+  const spent = new Map<number, number>();
+  for (const r of creditRows.results ?? []) {
+    const f = r.f.slice(0, -7) as keyof typeof CREDIT_COST;
+    spent.set(r.c, (spent.get(r.c) ?? 0) + r.n * (CREDIT_COST[f] ?? 1));
+  }
+  for (const c of spent.keys()) if (!by.has(c)) by.set(c, new Map());
   const home = await masterCompanyId(env).catch(() => 0);
   const ids = [...by.keys()].filter((c) => c > 0 && c !== home);
   const names = new Map<number, string>();
@@ -96,8 +131,13 @@ export async function aiCostView(env: Env, month: string) {
       tokensOut: models.reduce((a, m) => a + m.tokensOut, 0),
       costCents: models.some((m) => m.costCents === null) ? null : Math.round(models.reduce((a, m) => a + (m.costCents ?? 0), 0) * 100) / 100,
       models,
+      creditsSpent: spent.get(companyId) ?? 0,
     };
   });
+  for (const c of clients) {
+    c.marginPct = marginPct(c.creditsSpent ?? 0, profit.centsPerCredit, c.costCents);
+    c.underTarget = c.marginPct !== null && profit.targetMarginPct > 0 && c.marginPct < profit.targetMarginPct;
+  }
   clients.sort((a, b) => (b.costCents ?? -1) - (a.costCents ?? -1) || b.tokensIn + b.tokensOut - (a.tokensIn + a.tokensOut));
   const seen = [...new Set(clients.flatMap((c) => c.models.map((m) => m.model)))].sort();
   const priced = clients.filter((c) => c.costCents !== null);
@@ -108,6 +148,12 @@ export async function aiCostView(env: Env, month: string) {
     prices,
     totals: { tokensIn: clients.reduce((a, c) => a + c.tokensIn, 0), tokensOut: clients.reduce((a, c) => a + c.tokensOut, 0), costCents: clients.some((c) => c.costCents === null) ? null : Math.round(priced.reduce((a, c) => a + (c.costCents ?? 0), 0) * 100) / 100 },
     metered: METERED,
+    profit: {
+      ...profit,
+      creditsSpent: clients.reduce((a, c) => a + (c.creditsSpent ?? 0), 0),
+      marginPct: marginPct(clients.reduce((a, c) => a + (c.creditsSpent ?? 0), 0), profit.centsPerCredit, clients.some((c) => c.costCents === null) ? null : Math.round(priced.reduce((a, c) => a + (c.costCents ?? 0), 0) * 100) / 100),
+      underTarget: clients.filter((c) => c.underTarget).length,
+    },
   };
 }
 
