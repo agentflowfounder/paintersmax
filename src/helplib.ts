@@ -351,7 +351,7 @@ export async function handleHelp(request: Request, env: Env): Promise<Response> 
     return json({ error: used.reason === "kill_switch" ? "Help chat is paused right now. Try again soon, or browse the guide." : "You have used this month's help questions. You can still browse the guide.", code: used.reason, allowance: await left() }, 429);
   }
   const system = `${HELP_PROMPT}${b?.language === "es" ? "\nAnswer in Spanish." : ""}\n\nHELP ARTICLES:\n${articleBlock(good.slice(0, 3))}`;
-  const out = await completeEx(env, system, [...sanitizeHistory(b?.history), { role: "user", content: question }], { maxTokens: 700 });
+  const out = await completeEx(env, system, [...sanitizeHistory(b?.history), { role: "user", content: question }], { maxTokens: 700, companyId: co.id });
   if (!out) {
     await refund(env, co, "help_chat");
     return json({ error: "The help assistant could not answer right now. Nothing was used from your allowance. Try the guide below.", allowance: await left() }, 503);

@@ -67,8 +67,9 @@ test("cleanSite: limits are enforced and core pages always exist once", () => {
   assert.ok(ph.ok);
   const blk = ph.ok ? ph.site.pages.find((p) => p.kind === "gallery")!.blocks[0] : null;
   assert.deepEqual(blk && blk.type === "photos" ? blk.photos : null, ["abcdef123456"]);
-  // The premium template needs Signature.
-  assert.equal(cleanSite({ template: "bold" }, DOOR_LIMITS.launch, "launch").ok && (cleanSite({ template: "bold" }, DOOR_LIMITS.launch, "launch") as any).site.template, "classic");
+  // Any known template may sit in a draft (the door is checked at publish); an unknown one becomes classic.
+  assert.equal(cleanSite({ template: "bold" }, DOOR_LIMITS.launch, "launch").ok && (cleanSite({ template: "bold" }, DOOR_LIMITS.launch, "launch") as any).site.template, "bold");
+  assert.equal((cleanSite({ template: "nope" }, DOOR_LIMITS.launch, "launch") as any).site.template, "classic");
   // A Search Console tag pasted whole keeps only the code.
   const gsc = cleanSite({ gscToken: '<meta name="google-site-verification" content="AbC_123-xyz987" />' }, DOOR_LIMITS.launch, "launch");
   assert.equal(gsc.ok && gsc.site.gscToken, "AbC_123-xyz987");
@@ -191,7 +192,7 @@ test("Spanish strings for the new screens load and translate", () => {
   assert.equal(T("Your Launch site can have 5 pages."), "Su sitio Launch puede tener 5 páginas.");
   assert.equal(T("At least 150 words of real text (now 12)"), "Al menos 150 palabras de texto real (ahora 12)");
   // Every T('...') string in the new pages has a Spanish version.
-  for (const f of ["../public/site.html", "../public/sites-admin.html"]) {
+  for (const f of ["../public/site.html", "../public/sites-admin.html", "../public/templates-admin.html"]) {
     const src = readFileSync(new URL(f, import.meta.url), "utf8");
     for (const m of src.matchAll(/T\('((?:[^'\\]|\\.)*)'\)/g)) {
       const s = m[1].replace(/\\'/g, "'");

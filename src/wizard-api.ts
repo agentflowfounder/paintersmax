@@ -804,7 +804,7 @@ export async function handleAssistant(request: Request, env: Env): Promise<Respo
     const msg = used.reason === "kill_switch" ? "The assistant is paused right now. Try again soon." : used.reason === "not_in_plan" ? "The assistant is not included in your plan." : "You have used this month's assistant questions. Upgrade your plan for more.";
     return json({ error: msg, code: used.reason }, 429);
   }
-  const reply = await ask(env, context, sanitizeHistory(b?.history), question, b?.language === "es" ? "es" : "en");
+  const reply = await ask(env, context, sanitizeHistory(b?.history), question, b?.language === "es" ? "es" : "en", company.id);
   if (!reply) {
     await refund(env, company, "ai_assistant");
     return json({ error: "The assistant could not answer right now. Please try again in a minute." }, 503);

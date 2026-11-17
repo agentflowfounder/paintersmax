@@ -1,3 +1,5 @@
+import { configOf, TEMPLATE_IDS } from "../templates/configs.ts";
+import { cleanSocial, cleanTheme, SITE_SCHEMA, upgradeSite, type SocialLink, type Theme } from "./sitetheme.ts";
 import type { Plan } from "./usage.ts";
 
 /**
@@ -37,12 +39,11 @@ export const isDoor = (v: unknown): v is Door => typeof v === "string" && (DOORS
 export const nextDoor = (d: Door): Door | null => (d === "signature" ? null : DOORS[DOORS.indexOf(d) + 1]);
 export const upgradeCents = (from: Door, to: Door) => Math.max(0, DOOR_FLOOR_CENTS[to] - DOOR_FLOOR_CENTS[from]);
 
-/** Templates each door can pick. Signature gets the premium look on top of the standard one. */
-export const TEMPLATES = [
-  { id: "classic", name: "Classic", doors: ["free", "launch", "grow", "signature"] as Door[] },
-  { id: "bold", name: "Bold (premium)", doors: ["signature"] as Door[] },
-];
-export const templateAllowed = (t: string, d: Door) => TEMPLATES.some((x) => x.id === t && x.doors.includes(d));
+/** Templates live in the template library (templates/configs.ts, src/sitetemplates.ts). Any known template may be
+ * saved in a draft (Free previews them all); the door check happens when the painter publishes. */
+/** New sites start with the newest basic template. */
+export const DEFAULT_TEMPLATE = "sunset-sand";
+export const isTemplateId = (t: string) => TEMPLATE_IDS.includes(t);
 
 /** A door plus any limits admin set by hand (for a trade group deal or a founder). Override never lowers a door. */
 export interface DoorRecord { door?: Door; override?: Partial<Limits>; note?: string }
@@ -111,7 +112,10 @@ export interface PhotoMeta { id: string; alt: string; w: number; h: number; byte
 
 export interface Site {
   v: 1;
+  sv: number; // schema version (sitetheme.ts SITE_SCHEMA); older saved sites are upgraded on read
   template: string;
+  themes: Record<string, Theme>; // the painter's look choices, per template (switching keeps them)
+  social: SocialLink[];
   lang: "en" | "es";
   pages: Page[];
   photos: PhotoMeta[]; // every uploaded photo (the site total)
@@ -163,7 +167,8 @@ export type CleanResult = { ok: true; site: Site } | { ok: false; error: string;
  * Keeps only valid, bounded values and checks the door limits. Core pages always exist exactly once.
  * Anything going onto a public page passes through here.
  */
-export function cleanSite(input: any, limits: Limits, door: Door, now = new Date().toISOString()): CleanResult {
+export function cleanSite(rawInput: any, limits: Limits, door: Door, now = new Date().toISOString()): CleanResult {
+  const input = upgradeSite(rawInput);
   const photos: PhotoMeta[] = (Array.isArray(input?.photos) ? input.photos : [])
     .filter((p: any) => typeof p?.id === "string" && /^[a-f0-9]{12,32}$/.test(p.id))
     .map((p: any) => ({ id: p.id, alt: s(p.alt, 160), w: Math.max(0, Math.round(Number(p.w) || 0)), h: Math.max(0, Math.round(Number(p.h) || 0)), bytes: Math.max(0, Math.round(Number(p.bytes) || 0)), at: s(p.at, 30) }));
@@ -214,11 +219,19 @@ export function cleanSite(input: any, limits: Limits, door: Door, now = new Date
   const b = input?.business ?? {};
   const gbp = s(b.gbpUrl, 300);
   const token = s(input?.gscToken, 120);
+  const template = isTemplateId(s(input?.template, 40)) ? s(input?.template, 40) : "classic";
+  const themes: Record<string, Theme> = {};
+  for (const [id, raw] of Object.entries(input?.themes && typeof input.themes === "object" ? input.themes : {})) {
+    if (isTemplateId(id)) themes[id] = cleanTheme(raw, configOf(id), photoIds);
+  }
   return {
     ok: true,
     site: {
       v: 1,
-      template: templateAllowed(s(input?.template, 20), door) ? s(input?.template, 20) : "classic",
+      sv: SITE_SCHEMA,
+      template,
+      themes,
+      social: cleanSocial(input?.social),
       lang: input?.lang === "es" ? "es" : "en",
       pages,
       photos,
@@ -409,7 +422,10 @@ export function firstDraft(d: DraftInput, limits: Limits): Site {
   }
   return {
     v: 1,
-    template: "classic",
+    sv: SITE_SCHEMA,
+    template: DEFAULT_TEMPLATE,
+    themes: {},
+    social: [],
     lang: d.lang,
     pages,
     photos: [],

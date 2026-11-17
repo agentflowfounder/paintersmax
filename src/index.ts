@@ -32,6 +32,7 @@ import { handleLessons } from "./lessons.ts";
 import { handleCertPublic, handleWarranty } from "./warranty.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleHelp } from "./helplib.ts";
+import { handleImageAi, handleTemplateSlotImage, handleTemplateSlotImageGet, handleTemplateThumb, handleTemplateThumbGet, handleTemplatesAdmin } from "./sitetemplatesapi.ts";
 import { handleDemo } from "./demo.ts";
 import { requireAgreement } from "./agreement.ts";
 import { handleBrand } from "./brand.ts";
@@ -50,6 +51,7 @@ import { bookedVisits, handleVisit, sendVisitReminders } from "./visit.ts";
 import { sendStartNotices } from "./startnotice.ts";
 import { handlePulse } from "./pulse.ts";
 import { handleCredits } from "./creditsapi.ts";
+import { handleFeedback } from "./feedback.ts";
 import { handleNotices, sendOwnerDigests } from "./notices.ts";
 import { handleColors } from "./colors.ts";
 import { handleVehicles } from "./vehicles.ts";
@@ -474,6 +476,8 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     // A client's own domain (managed in Cloudflare and mapped to a company in the admin page) behaves like their subdomain.
     // Site photos are served the same way on every address (painter sites, the directory, the app).
     if (pathname.startsWith("/site-photo/") && request.method === "GET") return handleSitePhoto(env, pathname);
+    if (pathname.startsWith("/site-template-thumb/") && request.method === "GET") return handleTemplateThumbGet(env, pathname);
+    if (pathname.startsWith("/site-template-image/") && request.method === "GET") return handleTemplateSlotImageGet(env, pathname);
     // PainterSelect, the homeowner directory, lives on its own domain. Its form posts go to the /api/dir routes below.
     if (isDirHost(hostname) && !pathname.startsWith("/api/")) {
       if (hostname !== DIR_HOST) return Response.redirect(`https://${DIR_HOST}${pathname}`, 301);
@@ -482,7 +486,7 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     const tenant = tenantFromHost(hostname) ?? (await slugForHost(env, hostname).catch(() => null));
     if (tenant) {
       // A published website answers its own pages (and its sitemap and robots file). Unpublished: the quote page as before.
-      const sitePage = request.method === "GET" ? await safePage(() => serveTenantSite(env, tenant, pathname, visitorOrigin(request))) : null;
+      const sitePage = request.method === "GET" ? await safePage(() => serveTenantSite(env, tenant, pathname, visitorOrigin(request), new URL(request.url).search)) : null;
       if (sitePage) return sitePage;
       const ao = pathname.match(/^\/areas\/([a-z0-9-]{3,70})\/?$/);
       if (ao) return handleCityPage(request, env, tenant, ao[1], visitorOrigin(request));
@@ -673,6 +677,7 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     if (pathname.startsWith("/review/") && request.method === "GET") return handleReviewPage(env, pathname, "en");
     const siteRoutes: Record<string, (r: Request, e: Env, c: ExecutionContext) => Promise<Response>> = {
       "/api/site": handleSiteApi, "/api/site/photo": handleSitePhotoUpload, "/api/site/preview": handleSitePreview, "/api/site/admin": handleSiteAdmin,
+      "/api/site/templates/admin": handleTemplatesAdmin, "/api/site/templates/thumb": handleTemplateThumb, "/api/site/templates/slot-image": handleTemplateSlotImage, "/api/site/image-ai": handleImageAi,
       "/api/reviews": handleSiteReviews, "/api/review/submit": handleReviewSubmit,
       "/api/dir/lead": handleDirLead, "/api/dir/claim": handleDirClaim, "/api/dir/me": handleDirMe, "/api/dir/admin": handleDirAdmin,
     };
@@ -1020,6 +1025,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleBilling(request, env);
       } catch (err) {
         console.error("handleBilling failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/feedback") {
+      try {
+        return await handleFeedback(request, env);
+      } catch (err) {
+        console.error("handleFeedback failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
