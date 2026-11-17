@@ -30,6 +30,8 @@ small,.muted{color:#4A5568}
 .blk{border:1px solid #e3e0d8;border-radius:10px;padding:12px;margin:10px 0;background:#fcfbf8}.blk .bh{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
 .pill{display:inline-block;font-size:12px;padding:2px 9px;border-radius:12px;background:#eceae4}.pill.live{background:#d9f3e3;color:#0a7a3d}.pill.warn{background:#fff3cd;color:#5c4400}
 .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:8px}.slot{position:relative;border:2px dashed #cfd5dc;border-radius:8px;height:90px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#4A5568;background:#fff;overflow:hidden}
+#phCanvas{position:sticky;top:0;z-index:2;max-height:42vh;width:auto;max-width:100%;background:#fff}.cropd{max-width:min(96vw,720px)}.crop{position:relative;display:inline-block;max-width:100%;line-height:0;touch-action:none}.crop img{max-width:100%;max-height:60vh;display:block;opacity:1}.crop-dim{position:absolute;inset:0;background:rgba(15,27,45,.68)}.crop-box{position:absolute;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.4);cursor:grab;background-repeat:no-repeat}.crop-box:focus-visible{outline:3px solid #f5a623}
+.adjs{display:grid;gap:6px;margin:8px 0}.adj{display:grid;grid-template-columns:150px 1fr 36px;gap:8px;align-items:center;font-size:14px;margin:0}.adj input{width:100%}.adj output{text-align:right;color:#5b6573}
 .slot img{width:100%;height:100%;object-fit:cover}.slot .x{position:absolute;top:3px;right:3px;background:#fff;border:0;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700}
 .checks li{margin:3px 0;font-size:14px}.checks .y{color:#0a7a3d}.checks .n{color:#b42318}
 .cnt{float:right;font-weight:400;font-size:12px;color:#4A5568}
@@ -83,11 +85,15 @@ canvas{max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none}
 
 <dialog id="ph" aria-labelledby="phT">
 <h3 id="phT">Add a photo</h3>
-<p class="muted">The photo is made smaller and its hidden location data is removed before upload. Drag a box over any face, house number or license plate to blur it.</p>
+<p class="muted">The photo is made smaller and its hidden location data is removed before upload. Photos of you and your crew at work are welcome; show only people who agreed to it.</p>
 <input type="file" id="phFile" accept="image/jpeg,image/png,image/webp,image/heic">
 <div id="phWork" hidden>
 <canvas id="phCanvas"></canvas>
 <div class="btns"><button class="btn sec sm" type="button" id="phUndo">Undo blur</button></div>
+<p class="muted" style="margin:4px 0">Drag a box over any face, house number or license plate to blur it.</p>
+<label class="switch"><input type="checkbox" id="phFaces"> Blur faces in this photo</label><small class="muted" id="phFaceNote" aria-live="polite"></small>
+<details open><summary><b>Adjust the photo</b></summary><div id="phAdj" class="adjs"></div><div class="btns"><button class="btn sec sm" type="button" id="phAdjReset">Reset all adjustments</button></div></details>
+<label class="switch"><input type="checkbox" id="phAiBlur" checked disabled> When AI improves a photo, blur the faces first (your original stays as it is)</label><small class="muted">AI photo improvement is coming soon; this choice will apply when it arrives.</small>
 <label for="phAlt">Describe the photo (what was painted, and where)</label>
 <input id="phAlt" maxlength="160" placeholder="Living room walls and trim, painted in Tyler, TX">
 </div>
@@ -242,34 +248,125 @@ function openUp(why){
   $('upGo').onclick=async()=>{$('upGo').disabled=true;try{if(dirty)await save(true);const j=await api('/api/site',{action:'upgrade',door:S.next.door});location.href=j.url;}catch(e){$('upMsg').textContent=e?T(e.message):'';$('upGo').disabled=false;}};
 }
 
-// ---------- Photos: resize, strip location data, blur, describe, upload
-let ph={img:null,boxes:[],p:null,b:null,drag:null};
+// ---------- Photos: resize, adjust, strip location data, blur, describe, upload
+const ADJ=[['exposure','Exposure',-100,100],['brightness','Brightness',-100,100],['contrast','Contrast',-100,100],['highlights','Highlights',-100,100],['shadows','Shadows',-100,100],['saturation','Color strength',-100,100],['warmth','Warmth (cool to warm)',-100,100],['tint','Tint (green to pink)',-100,100],['sharpness','Sharpness',0,100],['vignette','Dark edges (less to more)',-100,100]];
+const adj0=()=>Object.fromEntries(ADJ.map(a=>[a[0],0]));
+let ph={img:null,boxes:[],p:null,b:null,drag:null,adj:adj0(),raf:0};
 function openPhoto(p,b){
   if(!S.photoStorage)return msg('Photo storage is not turned on yet.');
   if(usage().photos>=S.limits.photos)return openUp('photos');
-  ph={img:null,boxes:[],p,b,drag:null};$('phFile').value='';$('phWork').hidden=true;$('phGo').disabled=true;$('phMsg').textContent='';$('phAlt').value='';$('ph').showModal();
+  ph={img:null,boxes:[],p,b,drag:null,adj:adj0(),raf:0};$('phFile').value='';$('phWork').hidden=true;$('phGo').disabled=true;$('phMsg').textContent='';$('phAlt').value='';$('phFaces').checked=false;$('phFaceNote').textContent='';syncSliders();$('ph').showModal();
 }
-$('phFile').onchange=()=>{const f=$('phFile').files[0];if(!f)return;const img=new Image();img.onload=()=>{ph.img=img;ph.boxes=[];$('phWork').hidden=false;$('phGo').disabled=false;draw();};img.onerror=()=>{$('phMsg').textContent=T('This photo type cannot be opened here. Use a JPG or PNG.');};img.src=URL.createObjectURL(f);};
-function draw(){
-  const c=$('phCanvas'),img=ph.img,max=1600,s=Math.min(1,max/Math.max(img.width,img.height));
+$('phFile').onchange=()=>{const f=$('phFile').files[0];if(!f)return;const img=new Image();img.onload=()=>{ph.img=img;ph.boxes=[];ph.adj=adj0();syncSliders();$('phWork').hidden=false;$('phGo').disabled=false;draw(1000);};img.onerror=()=>{$('phMsg').textContent=T('This photo type cannot be opened here. Use a JPG or PNG.');};img.src=URL.createObjectURL(f);};
+function syncSliders(){ADJ.forEach(a=>{const r=$('adj_'+a[0]);if(r){r.value=ph.adj[a[0]];$('adjv_'+a[0]).textContent=ph.adj[a[0]];}});}
+// Pixel adjustments: each value is -100..100 (sharpness 0..100); 0 changes nothing.
+function applyAdjust(c,a){
+  const w=c.width,h=c.height,x=c.getContext('2d'),im=x.getImageData(0,0,w,h),d=im.data;
+  const ex=Math.pow(2,a.exposure/100),br=a.brightness/100*60,ct=1+a.contrast/100,hi=a.highlights/100*60,sh=a.shadows/100*60,sa=1+a.saturation/100,wa=a.warmth/100*30,ti=a.tint/100*20,vg=a.vignette/100;
+  const any=Object.values(a).some(v=>v);if(!any)return;
+  const cx=w/2,cy=h/2,md=cx*cx+cy*cy;
+  for(let i=0,p=0;i<d.length;i+=4,p++){
+    let r=d[i]*ex+br,g=d[i+1]*ex+br,b=d[i+2]*ex+br;
+    const L=(0.299*r+0.587*g+0.114*b)/255;
+    if(sh&&L<.5){const k=sh*(1-2*L);r+=k;g+=k;b+=k;}
+    if(hi&&L>.5){const k=hi*(2*L-1);r+=k;g+=k;b+=k;}
+    r=(r-128)*ct+128;g=(g-128)*ct+128;b=(b-128)*ct+128;
+    const gr=0.299*r+0.587*g+0.114*b;r=gr+(r-gr)*sa;g=gr+(g-gr)*sa;b=gr+(b-gr)*sa;
+    r+=wa;b-=wa;g-=ti;
+    if(vg){const px=p%w-cx,py=((p/w)|0)-cy,t=(px*px+py*py)/md,f=vg>0?1-vg*.7*t:1+(-vg)*.4*t;r*=f;g*=f;b*=f;}
+    d[i]=r<0?0:r>255?255:r;d[i+1]=g<0?0:g>255?255:g;d[i+2]=b<0?0:b>255?255:b;
+  }
+  if(a.sharpness>0){const amt=a.sharpness/100*1.5,src=new Uint8ClampedArray(d);
+    for(let y=1;y<h-1;y++)for(let xx=1;xx<w-1;xx++){const i=(y*w+xx)*4;for(let k=0;k<3;k++){const j=i+k,bl=(src[j-4]+src[j+4]+src[j-w*4]+src[j+w*4]+src[j])/5;const v=src[j]+amt*(src[j]-bl);d[j]=v<0?0:v>255?255:v;}}}
+  x.putImageData(im,0,0);
+}
+function draw(max){
+  const c=$('phCanvas'),img=ph.img,s=Math.min(1,max/Math.max(img.width,img.height));
   c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);const x=c.getContext('2d');x.drawImage(img,0,0,c.width,c.height);
-  for(const bx of ph.boxes){const w=Math.abs(bx.w),h=Math.abs(bx.h),l=Math.min(bx.x,bx.x+bx.w),t=Math.min(bx.y,bx.y+bx.h);if(w<4||h<4)continue;const px=Math.max(8,Math.round(Math.max(w,h)/10));const d=x.getImageData(l,t,w,h);
-    for(let yy=0;yy<h;yy+=px)for(let xx=0;xx<w;xx+=px){const i=((yy*w)+xx)*4;x.fillStyle=`rgb(${d.data[i]},${d.data[i+1]},${d.data[i+2]})`;x.fillRect(l+xx,t+yy,px,px);}}
+  applyAdjust(c,ph.adj);
+  for(const bx of ph.boxes){const l0=Math.min(bx.x,bx.x+bx.w)*c.width,t0=Math.min(bx.y,bx.y+bx.h)*c.height,w=Math.round(Math.abs(bx.w)*c.width),h=Math.round(Math.abs(bx.h)*c.height),l=Math.round(l0),t=Math.round(t0);if(w<4||h<4)continue;const px=Math.max(8,Math.round(Math.max(w,h)/10));const dd=x.getImageData(l,t,w,h);
+    for(let yy=0;yy<h;yy+=px)for(let xx=0;xx<w;xx+=px){const i=((yy*w)+xx)*4;x.fillStyle=`rgb(${dd.data[i]},${dd.data[i+1]},${dd.data[i+2]})`;x.fillRect(l+xx,t+yy,px,px);}}
 }
-(function(){const c=$('phCanvas');const pos=e=>{const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)*c.width/r.width,y:(e.clientY-r.top)*c.height/r.height};};
+const redraw=()=>{if(!ph.img||ph.raf)return;ph.raf=requestAnimationFrame(()=>{ph.raf=0;draw(1000);});};
+(function(){const c=$('phCanvas');const pos=e=>{const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height};};
   c.onpointerdown=e=>{if(!ph.img)return;const p=pos(e);ph.drag={x:p.x,y:p.y,w:0,h:0};ph.boxes.push(ph.drag);c.setPointerCapture(e.pointerId);};
-  c.onpointermove=e=>{if(!ph.drag)return;const p=pos(e);ph.drag.w=p.x-ph.drag.x;ph.drag.h=p.y-ph.drag.y;draw();};
-  c.onpointerup=()=>{ph.drag=null;draw();};
-  $('phUndo').onclick=()=>{ph.boxes.pop();draw();};})();
+  c.onpointermove=e=>{if(!ph.drag)return;const p=pos(e);ph.drag.w=p.x-ph.drag.x;ph.drag.h=p.y-ph.drag.y;redraw();};
+  c.onpointerup=()=>{ph.drag=null;redraw();};
+  $('phUndo').onclick=()=>{ph.boxes.pop();draw(1000);};
+  $('phAdj').innerHTML=ADJ.map(a=>`<label class="adj" for="adj_${a[0]}"><span>${T(a[1])}</span><input type="range" id="adj_${a[0]}" min="${a[2]}" max="${a[3]}" step="1" value="0"><output id="adjv_${a[0]}">0</output></label>`).join('');
+  ADJ.forEach(a=>{$('adj_'+a[0]).oninput=e=>{ph.adj[a[0]]=+e.target.value;$('adjv_'+a[0]).textContent=e.target.value;redraw();};});
+  $('phAdjReset').onclick=()=>{ph.adj=adj0();syncSliders();draw(1000);};
+  $('phFaces').onchange=async()=>{
+    $('phFaceNote').textContent='';if(!ph.img)return;
+    ph.boxes=ph.boxes.filter(b=>!b.face);
+    if(!$('phFaces').checked){draw(1000);return;}
+    if(!('FaceDetector' in window)){$('phFaceNote').textContent=T('This browser cannot find faces by itself. Drag a box over each face instead.');return;}
+    try{const fd=new FaceDetector({fastMode:true,maxDetectedFaces:12}),c2=$('phCanvas'),f=await fd.detect(c2);
+      f.forEach(q=>{const b=q.boundingBox,px=b.width*.2,py=b.height*.2;ph.boxes.push({face:1,x:Math.max(0,b.x-px)/c2.width,y:Math.max(0,b.y-py)/c2.height,w:Math.min(c2.width,b.width+2*px)/c2.width,h:Math.min(c2.height,b.height+2*py)/c2.height});});
+      $('phFaceNote').textContent=f.length?T('Faces found and blurred. Use Undo blur to take one off.'):T('No faces found. Drag a box over any face you want to blur.');draw(1000);}
+    catch(e){$('phFaceNote').textContent=T('Could not look for faces. Drag a box over each face instead.');}};})();
 $('phGo').onclick=async()=>{
   const alt=$('phAlt').value.trim();if(alt.length<5){$('phMsg').textContent=T('Describe the photo in a few words. Google and visitors who cannot see it read this.');return;}
   $('phGo').disabled=true;$('phMsg').textContent='';
-  const c=$('phCanvas');const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.82));
+  draw(1600);const c=$('phCanvas');const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.82));
   const fd=new FormData();fd.append('file',new File([blob],'photo.jpg',{type:'image/jpeg'}));fd.append('w',c.width);fd.append('h',c.height);fd.append('alt',alt);fd.append('page',ph.p.id);fd.append('block',ph.b.id);if(AS)fd.append('as',AS);
   try{if(dirty)await save(true);const r=await fetch('/api/site/photo',{method:'POST',body:fd});const j=await r.json();if(!r.ok){if(j.over){$('ph').close();return openUp('photos');}throw new Error(j.error||'Upload failed.');}
     S.site.photos.push(j.photo);const pg=S.site.pages.find(x=>x.id===ph.p.id),bl=pg&&pg.blocks.find(x=>x.id===ph.b.id);if(bl&&!bl.photos.includes(j.photo.id))bl.photos.push(j.photo.id);
     $('ph').close();render();msg('Photo added.',true);}catch(e){$('phMsg').textContent=T(e.message);}finally{$('phGo').disabled=false;}
 };
+
+// ---------- Crop window: the whole photo dimmed, a bright box shows what visitors will see in that photo space
+function cropFlow(photoId,sd,done){
+  const th=themeOf();th.focus=th.focus||{};const f0=th.focus[sd.slot]||{x:50,y:50};let fx=f0.x,fy=f0.y;
+  const d=document.createElement('dialog');d.className='cropd';
+  d.innerHTML=`<h3>${T('Choose the part visitors see')}</h3><p class="muted">${T('The dark part will be cut off in this space. Drag the bright box to move it.')} (${esc(sd.slot)}, ${esc(sd.ratio)})</p>
+<div class="crop" id="cr"><img id="crImg" alt="" src="${photoUrl(photoId)}"><div class="crop-dim"></div><div class="crop-box" id="crBox" role="slider" tabindex="0" aria-label="${T('Visible part of the photo')}"></div></div>
+<div class="btns"><button class="btn" type="button" data-ok>${T('Use this crop')}</button><button class="btn sec" type="button" data-mid>${T('Center it')}</button><button class="btn sec" type="button" data-c>${T('Cancel')}</button></div>`;
+  document.body.appendChild(d);d.showModal();
+  const img=d.querySelector('#crImg'),box=d.querySelector('#crBox'),ratio=sd.w/sd.h;let W=0,H=0,bw=0,bh=0;
+  const close=()=>{d.close();d.remove();};
+  const place=()=>{const l=(W-bw)*fx/100,t=(H-bh)*fy/100;Object.assign(box.style,{width:bw+'px',height:bh+'px',left:l+'px',top:t+'px',backgroundImage:`url(${img.src})`,backgroundSize:W+'px '+H+'px',backgroundPosition:`${-l}px ${-t}px`});};
+  const layout=()=>{W=img.clientWidth;H=img.clientHeight;if(W/H>ratio){bh=H;bw=H*ratio;}else{bw=W;bh=W/ratio;}place();};
+  img.onload=layout;if(img.complete)layout();
+  let drag=null;
+  box.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,fx,fy};box.setPointerCapture(e.pointerId);};
+  box.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;fx=(W-bw)>1?Math.max(0,Math.min(100,drag.fx+dx/(W-bw)*100)):50;fy=(H-bh)>1?Math.max(0,Math.min(100,drag.fy+dy/(H-bh)*100)):50;place();};
+  box.onpointerup=()=>{drag=null;};
+  box.onkeydown=e=>{const k={ArrowLeft:[-5,0],ArrowRight:[5,0],ArrowUp:[0,-5],ArrowDown:[0,5]}[e.key];if(!k)return;e.preventDefault();fx=Math.max(0,Math.min(100,fx+k[0]));fy=Math.max(0,Math.min(100,fy+k[1]));place();};
+  d.querySelector('[data-mid]').onclick=()=>{fx=50;fy=50;place();};
+  d.querySelector('[data-c]').onclick=()=>{close();done(false);};
+  d.querySelector('[data-ok]').onclick=()=>{fx=Math.round(fx);fy=Math.round(fy);if(fx===50&&fy===50)delete th.focus[sd.slot];else th.focus[sd.slot]={x:fx,y:fy};close();touch();done(true);};
+}
+// ---------- Simple logo maker (no AI, no credits): initials or the name, a shape and a color
+function logoMaker(){
+  const th=themeOf(),name=(S.site.business.name||S.company.name||'My Painting').trim();
+  const ini=name.split(/\s+/).filter(w=>/[\p{L}]/u.test(w)).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'P';
+  const d=document.createElement('dialog');
+  d.innerHTML=`<h3>${T('Make a simple logo')}</h3><p class="muted">${T('A clean logo from your name. It is free and uses no credits. You can replace it any time with your own.')}</p>
+<canvas id="lgC" width="512" height="512" style="width:200px;height:200px;border:1px solid #dcd6cc;border-radius:8px;background:repeating-conic-gradient(#f2f2f2 0 25%,#fff 0 50%) 0 0/16px 16px"></canvas>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><label for="lgT">${T('Letters or name')}</label><input id="lgT" maxlength="24" value="${esc(ini)}"></div>
+<div><label for="lgS">${T('Shape')}</label><select id="lgS"><option value="circle">${T('Circle')}</option><option value="square">${T('Rounded square')}</option><option value="plain">${T('Letters only')}</option></select></div>
+<div><label for="lgF">${T('Letter style')}</label><select id="lgF"><option value="Georgia, serif">${T('Classic serif')}</option><option value="Helvetica, Arial, sans-serif">${T('Clean sans')}</option><option value="Impact, Haettenschweiler, sans-serif">${T('Bold')}</option></select></div>
+<div><label for="lgC1">${T('Logo color')}</label><input type="color" id="lgC1" style="height:44px;padding:2px" value="${esc(S.company.brandColor||'#1c3b5a')}"></div></div>
+<div class="btns"><button class="btn" type="button" data-ok>${T('Use as my logo')}</button><button class="btn sec" type="button" data-c>${T('Cancel')}</button></div><div class="bad" id="lgM"></div>`;
+  document.body.appendChild(d);d.showModal();
+  const c=d.querySelector('#lgC'),x=c.getContext('2d'),q=s=>d.querySelector(s);
+  const lum=h=>{const n=parseInt(h.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;return(0.299*r+0.587*g+0.114*b)/255;};
+  const paint=()=>{x.clearRect(0,0,512,512);const col=q('#lgC1').value,sh=q('#lgS').value,t=q('#lgT').value.trim()||ini,ff=q('#lgF').value;
+    if(sh==='circle'){x.fillStyle=col;x.beginPath();x.arc(256,256,248,0,7);x.fill();}
+    else if(sh==='square'){x.fillStyle=col;x.beginPath();x.roundRect(8,8,496,496,72);x.fill();}
+    x.fillStyle=sh==='plain'?col:(lum(col)>.6?'#1b1b1b':'#ffffff');x.textAlign='center';x.textBaseline='middle';
+    let fs=t.length<=3?260:150;x.font=`700 ${fs}px ${ff}`;while(x.measureText(t).width>(sh==='plain'?480:360)&&fs>24){fs-=6;x.font=`700 ${fs}px ${ff}`;}
+    x.fillText(t,256,sh==='plain'?256:266);};
+  ['#lgT','#lgS','#lgF','#lgC1'].forEach(s=>q(s).oninput=paint);paint();
+  const close=()=>{d.close();d.remove();};q('[data-c]').onclick=close;
+  q('[data-ok]').onclick=async()=>{q('[data-ok]').disabled=true;
+    try{if(usage().photos>=S.limits.photos){close();return openUp('photos');}
+      const blob=await new Promise(r=>c.toBlob(r,'image/png'));const fd=new FormData();fd.append('file',new File([blob],'logo.png',{type:'image/png'}));fd.append('w',512);fd.append('h',512);fd.append('alt','Logo of '+name);if(AS)fd.append('as',AS);
+      if(dirty)await save(true);const r=await fetch('/api/site/photo',{method:'POST',body:fd});const j=await r.json();if(!r.ok){if(j.over){close();return openUp('photos');}throw new Error(j.error||'Upload failed.');}
+      S.site.photos.push(j.photo);th.logo=j.photo.id;close();touch();re();msg('Logo saved.',true);}
+    catch(e){q('#lgM').textContent=e?T(e.message):'';q('[data-ok]').disabled=false;}};
+}
 
 // ---------- Business details
 function rBiz(){
@@ -286,7 +383,7 @@ ${f('gbpUrl','Link to your Google Business Profile reviews (optional)',300,'http
 }
 // ---------- Look: template, colors, fonts, sections, menu, logo, photo spaces, words, links
 function themeOf(){const id=S.site.template;S.site.themes=S.site.themes||{};const t=S.site.themes[id]||(S.site.themes[id]={});
-  t.tokens=t.tokens||{};t.fonts=t.fonts||{};t.sections=t.sections||[];t.menu=t.menu||[];t.slots=t.slots||{};t.pairs=t.pairs||[];t.legal=t.legal||{privacy:'',terms:''};t.texts=t.texts||{};t.logo=t.logo||'';t.heroWord=t.heroWord||'';return t;}
+  t.tokens=t.tokens||{};t.fonts=t.fonts||{};t.sections=t.sections||[];t.menu=t.menu||[];t.slots=t.slots||{};t.pairs=t.pairs||[];t.legal=t.legal||{privacy:'',terms:''};t.texts=t.texts||{};t.logo=t.logo||'';t.focus=t.focus||{};t.heroWord=t.heroWord||'';return t;}
 const DOORN={launch:'Launch',grow:'Grow',signature:'Signature'};
 const photoUrl=id=>`/site-photo/${S.company.id}/${id}`;
 function photoChoice(cur,onPick,allowNone){
@@ -315,7 +412,7 @@ function rLook(){
     const secRows=secs.map((s,i)=>`<div class="srow"><label class="switch"><input type="checkbox" data-sec="${s.d.key}"${s.on?' checked':''}${s.d.required?' disabled':''}> ${esc(L(s.d.label))}</label> ${st(s.d.block)} <small class="muted">${s.d.pages.map(p=>T(KIND[p]||p)).join(', ')}</small><span class="btns" style="margin:0"><button class="btn sec sm" type="button" data-smv="${i}" data-dir="-1" aria-label="${T('Move up')}">&uarr;</button><button class="btn sec sm" type="button" data-smv="${i}" data-dir="1" aria-label="${T('Move down')}">&darr;</button></span></div>`).join('');
     const menuRows=th.menu.map((m,i)=>`<div class="mrow"><input data-ml="${i}" maxlength="30" value="${esc(m.label)}" aria-label="${T('Menu name')}"><select data-mp="${i}" aria-label="${T('Page')}">${S.site.pages.map(p=>{const pa=p.kind==='home'?'/':p.kind==='service'?'/services/'+p.slug:p.kind==='custom'?'/info/'+p.slug:'/'+p.slug;return `<option value="${esc(pa)}"${pa===m.path?' selected':''}>${esc(p.nav)}</option>`;}).join('')}</select><button class="btn sec sm" type="button" data-mrm="${i}">${T('Remove')}</button></div>`).join('');
     const slot=s=>{const id=th.slots[s.slot];const ph=id&&S.site.photos.find(x=>x.id===id);return `<div class="pslot">${ph?`<img src="${photoUrl(ph.id)}" alt="${esc(ph.alt)}">`:`<div class="pslot-ph"><b>${esc(s.slot)}</b><small>${s.w} × ${s.h} &middot; ${esc(s.ratio)}</small></div>`}<div><b>${esc(L(s.alt))}</b><br><small class="muted">${esc(s.slot)}</small>
-<div class="btns"><button class="btn sec sm" type="button" data-slot="${s.slot}">${T(ph?'Change photo':'Choose photo')}</button><button class="btn sec sm" type="button" disabled title="${T('Coming soon: make this photo with AI credits')}">&#10024; ${T('Create with AI')}</button></div>
+<div class="btns"><button class="btn sec sm" type="button" data-slot="${s.slot}">${T(ph?'Change photo':'Choose photo')}</button>${ph?`<button class="btn sec sm" type="button" data-crop="${s.slot}">${T('Adjust crop')}</button>`:''}<button class="btn sec sm" type="button" disabled title="${T('Coming soon: make this photo with AI credits')}">&#10024; ${T('Create with AI')}</button></div>
 <details><summary class="muted">${T('AI prompt for this space')}</summary><p class="muted" style="font-size:13px">${esc(s.prompt)}</p></details></div></div>`;};
     const logo=th.logo&&S.site.photos.find(x=>x.id===th.logo);
     const pairs=th.pairs.map((p,i)=>`<div class="mrow"><button class="btn sec sm" type="button" data-pb="${i}">${T('Before')}: ${p.before?'&#10003;':'-'}</button><button class="btn sec sm" type="button" data-pa="${i}">${T('After')}: ${p.after?'&#10003;':'-'}</button><input data-pc="${i}" maxlength="120" placeholder="${T('Caption (optional)')}" value="${esc(p.caption||'')}"><button class="btn sec sm" type="button" data-prm="${i}">${T('Remove')}</button></div><div class="mrow"><input data-pf="service:${i}" maxlength="40" placeholder="${T('Service')}" aria-label="${T('Service')}" value="${esc(p.service||'')}"><input data-pf="city:${i}" maxlength="40" placeholder="${T('City')}" aria-label="${T('City')}" value="${esc(p.city||'')}"><input data-pf="year:${i}" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="${T('Year')}" aria-label="${T('Year')}" style="max-width:90px" value="${esc(p.year||'')}"><input data-pf="size:${i}" maxlength="30" placeholder="${T('Size (for example 2,400 sq ft)')}" aria-label="${T('Size')}" value="${esc(p.size||'')}"></div>`).join('');
@@ -325,7 +422,7 @@ function rLook(){
     look=`<div class="card"><h3>${T('Colors')}</h3><div class="sws">${tokens}</div><div class="btns"><button class="btn sec sm" type="button" id="tokReset">${T('Back to the template colors')}</button></div></div>
 <div class="card"><h3>${T('Fonts')}</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>${fontSel(I.fonts.find(f=>f.key==='display')||{key:'display',label:{en:'Headlines',es:'Títulos'},default:''})}</div><div>${fontSel(I.fonts.find(f=>f.key==='body')||{key:'body',label:{en:'Text',es:'Texto'},default:''})}</div></div></div>
 <div class="card"><h3>${T('Sections')}</h3><p class="muted">${T('Turn sections on or off and change their order. Sections marked with a door come with that door; visitors never see a locked section.')}</p>${secRows}</div>
-<div class="card"><h3>${T('Logo')}</h3>${logo?`<img src="${photoUrl(logo.id)}" alt="" style="max-height:60px;border-radius:8px">`:`<p class="muted">${T('No logo here yet. Your logo from Settings is used if you have one.')}</p>`}<div class="btns"><button class="btn sec sm" type="button" id="logoPick">${T('Choose logo photo')}</button></div></div>
+<div class="card"><h3>${T('Logo')}</h3>${logo?`<img src="${photoUrl(logo.id)}" alt="" style="max-height:60px;border-radius:8px">`:`<p class="muted">${T('No logo here yet. Your logo from Settings is used if you have one.')}</p>`}<div class="btns"><button class="btn sec sm" type="button" id="logoPick">${T('Choose logo photo')}</button><button class="btn sec sm" type="button" id="logoMake">${T('Make a simple logo')}</button></div></div>
 <div class="card"><h3>${T('Menu')}</h3><label class="switch"><input type="checkbox" id="menuAuto"${th.menu.length?'':' checked'}> ${T('Menu follows my pages')}</label>${th.menu.length?menuRows+`<div class="btns"><button class="btn sec sm" type="button" id="menuAdd"${th.menu.length>=10?' disabled':''}>+ ${T('Add menu item')}</button></div>`:''}</div>
 <div class="card"><h3>${T('Photo spaces')}</h3><p class="muted">${T('Your own job photos look best. Until you add one, visitors see a soft color block in that space.')}</p>${I.imageSlots.map(slot).join('')}</div>
 <div class="card"><h3>${T('Before and after')}</h3><p class="muted">${T('Pick a before photo and an after photo of the same spot. Visitors drag a slider to compare. Service, city, year and size appear in templates that show a project row (Sunset Sand).')}</p>${pairs}<div class="btns"><button class="btn sec sm" type="button" id="pairAdd"${th.pairs.length>=24?' disabled':''}>+ ${T('Add a pair')}</button></div></div>
@@ -356,7 +453,9 @@ function rLook(){
     all('[data-ml]',x=>x.oninput=()=>{th.menu[+x.dataset.ml].label=x.value;touch();});
     all('[data-mp]',x=>x.onchange=()=>{th.menu[+x.dataset.mp].path=x.value;touch();});
     all('[data-mrm]',x=>x.onclick=()=>{th.menu.splice(+x.dataset.mrm,1);re();});
-    all('[data-slot]',x=>x.onclick=()=>photoChoice(th.slots[x.dataset.slot],id=>{if(id)th.slots[x.dataset.slot]=id;else delete th.slots[x.dataset.slot];re();},true));
+    all('[data-slot]',x=>x.onclick=()=>photoChoice(th.slots[x.dataset.slot],id=>{const sd=I.imageSlots.find(q=>q.slot===x.dataset.slot);if(id){th.slots[x.dataset.slot]=id;const p=S.site.photos.find(q=>q.id===id);if(th.focus)delete th.focus[x.dataset.slot];if(p&&p.w&&p.h&&sd&&Math.abs(p.w/p.h-sd.w/sd.h)>.03)return cropFlow(id,sd,()=>re());}else{delete th.slots[x.dataset.slot];if(th.focus)delete th.focus[x.dataset.slot];}re();},true));
+    all('[data-crop]',x=>x.onclick=()=>{const sd=I.imageSlots.find(q=>q.slot===x.dataset.crop),id=th.slots[x.dataset.crop];if(sd&&id)cropFlow(id,sd,()=>re());});
+    if($('logoMake'))$('logoMake').onclick=()=>logoMaker();
     $('pairAdd').onclick=()=>{th.pairs.push({before:'',after:'',caption:'',service:'',city:'',year:'',size:''});re();};
     all('[data-pb]',x=>x.onclick=()=>photoChoice(th.pairs[+x.dataset.pb].before,id=>{th.pairs[+x.dataset.pb].before=id;re();}));
     all('[data-pa]',x=>x.onclick=()=>photoChoice(th.pairs[+x.dataset.pa].after,id=>{th.pairs[+x.dataset.pa].after=id;re();}));

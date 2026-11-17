@@ -25,16 +25,22 @@ export function gate(x: ThemeRenderCtx, key: BlockKey): { show: boolean; card: s
   };
 }
 
+/** The crop centre the painter chose for a photo space, as an inline style (empty when centred). */
+const focusStyle = (x: ThemeRenderCtx, slot: ImageSlotDef | undefined) => {
+  const f = slot ? x.theme.focus?.[slot.slot] : undefined;
+  return f ? ` style="object-position:${f.x}% ${f.y}%"` : "";
+};
+
 /** A photo from the site, or a labeled placeholder. Painters see the slot name, size and AI prompt; visitors see a soft color field. */
 export function photo(x: ThemeRenderCtx, id: string | null | undefined, slot: ImageSlotDef | undefined, o: { cls?: string; eager?: boolean; sizes?: string } = {}): string {
   const p = id ? x.site.photos.find((q) => q.id === id) : undefined;
   if (p) {
-    return `<img class="${o.cls ?? ""}" src="${e(x.photoSrc(p.id))}" alt="${e(p.alt || `${x.company.name} painting project`)}"${p.w && p.h ? ` width="${p.w}" height="${p.h}"` : ""}${o.eager ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async"${o.sizes ? ` sizes="${e(o.sizes)}"` : ""}>`;
+    return `<img class="${o.cls ?? ""}" src="${e(x.photoSrc(p.id))}" alt="${e(p.alt || `${x.company.name} painting project`)}"${focusStyle(x, slot)}${p.w && p.h ? ` width="${p.w}" height="${p.h}"` : ""}${o.eager ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async"${o.sizes ? ` sizes="${e(o.sizes)}"` : ""}>`;
   }
   const alt = slot ? slot.alt[x.uiLang] : "";
   const dflt = slot ? x.defaults?.[slot.slot] : undefined;
   if (dflt && slot) {
-    return `<img class="${o.cls ?? ""}" src="${e(dflt)}" alt="${e(alt)}" width="${slot.w}" height="${slot.h}"${o.eager ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async" data-template-photo="${e(slot.slot)}">`;
+    return `<img class="${o.cls ?? ""}" src="${e(dflt)}" alt="${e(alt)}"${focusStyle(x, slot)} width="${slot.w}" height="${slot.h}"${o.eager ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async" data-template-photo="${e(slot.slot)}">`;
   }
   if (!x.preview || !slot) return `<div class="pm-ph ${o.cls ?? ""}" role="img" aria-label="${e(alt || t(x, "photoSoon"))}"></div>`;
   const ai = x.cfg.imageProvider;

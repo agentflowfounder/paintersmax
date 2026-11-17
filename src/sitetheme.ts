@@ -125,10 +125,12 @@ export interface Theme {
   pairs: BeforeAfter[]; // before and after photo pairs for the gallery block
   legal: { privacy: string; terms: string }; // the painter's own policy pages (we never write legal text)
   texts: Record<string, string>; // "<lang>:<i18n key>" -> the painter's wording for a template phrase
+  /** Where each photo space is cropped: the centre of the visible part, in percent (50,50 is the middle). */
+  focus: Record<string, { x: number; y: number }>;
   heroWord: string; // the big soft word in the hero (templates that have one)
 }
 
-export const emptyTheme = (): Theme => ({ tokens: {}, fonts: {}, sections: [], menu: [], logo: "", slots: {}, pairs: [], legal: { privacy: "", terms: "" }, texts: {}, heroWord: "" });
+export const emptyTheme = (): Theme => ({ tokens: {}, fonts: {}, sections: [], menu: [], logo: "", slots: {}, pairs: [], legal: { privacy: "", terms: "" }, texts: {}, focus: {}, heroWord: "" });
 
 export const SOCIAL_KINDS = ["facebook", "instagram", "google", "yelp", "nextdoor", "youtube", "tiktok", "linkedin", "x"] as const;
 export type SocialKind = (typeof SOCIAL_KINDS)[number];
@@ -171,6 +173,13 @@ export function cleanTheme(raw: any, cfg: TemplateConfig | null, photoIds: Set<s
   if (typeof raw.logo === "string" && photoIds.has(raw.logo)) t.logo = raw.logo;
   const slotKeys = new Set(cfg?.imageSlots.map((s) => s.slot) ?? []);
   for (const [k, v] of Object.entries(raw.slots ?? {})) if (slotKeys.has(k) && typeof v === "string" && photoIds.has(v)) t.slots[k] = v;
+  for (const [k, v] of Object.entries(raw.focus ?? {})) {
+    const x = Number((v as any)?.x), y = Number((v as any)?.y);
+    if (slotKeys.has(k) && Number.isFinite(x) && Number.isFinite(y)) {
+      const fx = Math.max(0, Math.min(100, Math.round(x))), fy = Math.max(0, Math.min(100, Math.round(y)));
+      if (fx !== 50 || fy !== 50) t.focus[k] = { x: fx, y: fy };
+    }
+  }
   for (const p of Array.isArray(raw.pairs) ? raw.pairs.slice(0, 24) : []) {
     if (typeof p?.before === "string" && typeof p?.after === "string" && photoIds.has(p.before) && photoIds.has(p.after) && p.before !== p.after) {
       t.pairs.push({ before: p.before, after: p.after, caption: str(p?.caption, 120), service: str(p?.service, 40), city: str(p?.city, 40), year: /^\d{4}$/.test(str(p?.year, 4)) ? str(p.year, 4) : "", size: str(p?.size, 30) });

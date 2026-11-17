@@ -258,3 +258,14 @@ test("default photos: admin defaults show until the painter adds their own; befo
   assert.ok(!live.includes("data-slot=\"HOME-HERO\""), "no placeholder label when a default exists");
   assert.ok(!draw(s, { reg: {} }).includes("/site-template-image/"));
 });
+
+test("crop focus: only real photo spaces, clamped, centre is not stored; drawn as object-position", () => {
+  const cfg = configOf("sunset-sand")!;
+  const t = cleanTheme({ focus: { "HOME-HERO": { x: 20.4, y: 130 }, "STORY-1": { x: 50, y: 50 }, "NOPE": { x: 1, y: 1 }, "STORY-2": { x: "a", y: 3 } } }, cfg, new Set());
+  assert.deepEqual(t.focus, { "HOME-HERO": { x: 20, y: 100 } });
+  const s = firstDraft({ name: "Rivera Painting", trades: ["interior"], cities: ["Tyler, TX"], lang: "en" }, DOOR_LIMITS.launch);
+  s.template = "sunset-sand";
+  s.photos = [{ id: "aaaaaaaaaaaa", alt: "Room", w: 4000, h: 3000, bytes: 1, at: "2026-11-16T00:00:00Z" } as any];
+  s.themes["sunset-sand"] = cleanTheme({ slots: { "HOME-HERO": "aaaaaaaaaaaa" }, focus: { "HOME-HERO": { x: 20, y: 70 } } }, cfg, new Set(["aaaaaaaaaaaa"])) as any;
+  assert.match(draw(s), /style="object-position:20% 70%"/);
+});
