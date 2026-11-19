@@ -32,6 +32,11 @@ import { handleLessons } from "./lessons.ts";
 import { handleCertPublic, handleWarranty } from "./warranty.ts";
 import { handlePhotoAnalysis } from "./photoanalysis.ts";
 import { handleHelp } from "./helplib.ts";
+import { handleHelpVideos, handleHelpVideosAdmin, handleYoutubeSearch } from "./youtube.ts";
+import { handleWeather } from "./weather.ts";
+import { handleLogoSettings, handleLandingAdmin, handleLandingPage, handleLpEvent } from "./landing.ts";
+import { handlePublicMedia, handleSandbox, handleSandboxFile, handleSandboxItem, handleSandboxJob, handleSandboxLibrary, handleSandboxModel, handleSandboxModels, handleSandboxRun, sandboxCleanup } from "./sandbox.ts";
+import { handleImageAi, handleImageAiSettings, handleTemplateSlotImage, handleTemplateSlotImageGet, handleTemplateThumb, handleTemplateThumbGet, handleTemplatesAdmin } from "./sitetemplatesapi.ts";
 import { handleDemo } from "./demo.ts";
 import { requireAgreement } from "./agreement.ts";
 import { handleBrand } from "./brand.ts";
@@ -50,11 +55,16 @@ import { bookedVisits, handleVisit, sendVisitReminders } from "./visit.ts";
 import { sendStartNotices } from "./startnotice.ts";
 import { handlePulse } from "./pulse.ts";
 import { handleCredits } from "./creditsapi.ts";
+import { handleFeedback } from "./feedback.ts";
 import { handleNotices, sendOwnerDigests } from "./notices.ts";
 import { handleColors } from "./colors.ts";
 import { handleVehicles } from "./vehicles.ts";
 import { handleSignoff } from "./signoff.ts";
 import { consume, dailyCap, isFeature, refund, usageSummary } from "./usage.ts";
+import { handleSiteAdmin, handleSiteApi, handleSitePhoto, handleSitePhotoUpload, handleSitePreview, handleSiteReviews, serveTenantSite } from "./sitebuilder.ts";
+import { handleDirAdmin, handleDirClaim, handleDirectory, handleDirLead, handleDirMe } from "./directory.ts";
+import { DIR_HOST, isDirHost } from "./dircore.ts";
+import { handleReviewPage, handleReviewSubmit } from "./reviews.ts";
 import type { Env } from "./types.ts";
 import { parsePhotos, parseQuoteRequest } from "./validate.ts";
 
@@ -363,6 +373,16 @@ async function sendChatDigests(env: Env): Promise<number> {
  * The address the visitor sees. A client's own Worker forwards /areas/* here and sends X-Forwarded-Host with their domain,
  * so the page names their domain as canonical. Only a plain hostname is accepted.
  */
+/** A public page that fails shows the friendly error instead of a crash; null means "not one of these pages". */
+async function safePage(fn: () => Promise<Response | null>): Promise<Response | null> {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error("page failed", String(err));
+    return new Response("Something went wrong. Please try again in a minute.", { status: 500, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+}
+
 function visitorOrigin(request: Request): string {
   const fwd = (request.headers.get("x-forwarded-host") ?? "").toLowerCase().trim();
   if (/^[a-z0-9]([a-z0-9.-]{0,120}[a-z0-9])?\.[a-z]{2,}$/.test(fwd)) return `https://${fwd}`;
@@ -418,6 +438,9 @@ export default {
     ctx.waitUntil(sendOwnerDigests(env).catch((err) => console.error("owner digest failed", String(err))));
     ctx.waitUntil(sendInsuranceReminders(env).catch((err) => console.error("insurance reminders failed", String(err))));
     ctx.waitUntil(refreshStaleCities(env).catch((err) => console.error("city refresh failed", String(err))));
+    // Once a day (the 09:00 UTC run): AI sandbox items past their keep window.
+    const at = new Date(_event.scheduledTime);
+    if (at.getUTCHours() === 9 && at.getUTCMinutes() < 5) ctx.waitUntil(sandboxCleanup(env).catch((err) => console.error("sandbox cleanup failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     return withSecurityHeaders(await friendly404(request, env, await handle(request, env, ctx)));
@@ -458,8 +481,22 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     const { pathname, hostname } = new URL(request.url);
     // A client's own address: rivera-painting.paintersmax.app shows their quote page. Owners sign in on the main site.
     // A client's own domain (managed in Cloudflare and mapped to a company in the admin page) behaves like their subdomain.
+    // Site photos are served the same way on every address (painter sites, the directory, the app).
+    if (pathname.startsWith("/site-photo/") && request.method === "GET") return handleSitePhoto(env, pathname);
+    if (pathname.startsWith("/site-template-thumb/") && request.method === "GET") return handleTemplateThumbGet(env, pathname);
+    if (pathname.startsWith("/l/") && request.method === "GET") return handleLandingPage(request, env);
+    if (pathname.startsWith("/media/ai/") && request.method === "GET") return handlePublicMedia(request, env);
+    if (pathname.startsWith("/site-template-image/") && request.method === "GET") return handleTemplateSlotImageGet(env, pathname);
+    // PainterSelect, the homeowner directory, lives on its own domain. Its form posts go to the /api/dir routes below.
+    if (isDirHost(hostname) && !pathname.startsWith("/api/")) {
+      if (hostname !== DIR_HOST) return Response.redirect(`https://${DIR_HOST}${pathname}`, 301);
+      return (await safePage(() => handleDirectory(request, env, "", pathname))) ?? new Response("Not found.", { status: 404 });
+    }
     const tenant = tenantFromHost(hostname) ?? (await slugForHost(env, hostname).catch(() => null));
     if (tenant) {
+      // A published website answers its own pages (and its sitemap and robots file). Unpublished: the quote page as before.
+      const sitePage = request.method === "GET" ? await safePage(() => serveTenantSite(env, tenant, pathname, visitorOrigin(request), new URL(request.url).search)) : null;
+      if (sitePage) return sitePage;
       const ao = pathname.match(/^\/areas\/([a-z0-9-]{3,70})\/?$/);
       if (ao) return handleCityPage(request, env, tenant, ao[1], visitorOrigin(request));
       if (pathname === "/check-project") {
@@ -638,6 +675,29 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleVehicles(request, env);
       } catch (err) {
         console.error("vehicles failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/find" || pathname.startsWith("/find/")) {
+      // The directory on the main address, for testing before painterselect.com is connected. Hidden from search engines.
+      const r = await safePage(() => handleDirectory(request, env, "/find", pathname.slice(5) || "/"));
+      if (r) return r;
+    }
+    if (pathname.startsWith("/review/") && request.method === "GET") return handleReviewPage(env, pathname, "en");
+    const siteRoutes: Record<string, (r: Request, e: Env, c: ExecutionContext) => Promise<Response>> = {
+      "/api/site": handleSiteApi, "/api/site/photo": handleSitePhotoUpload, "/api/site/preview": handleSitePreview, "/api/site/admin": handleSiteAdmin,
+      "/api/site/templates/admin": handleTemplatesAdmin, "/api/site/templates/thumb": handleTemplateThumb, "/api/site/templates/slot-image": handleTemplateSlotImage, "/api/site/image-ai": handleImageAi, "/api/site/image-ai/settings": handleImageAiSettings,
+      "/api/weather": handleWeather, "/api/lp/event": handleLpEvent, "/api/admin/landing": handleLandingAdmin, "/api/admin/pm-logo": handleLogoSettings, "/api/help-videos": handleHelpVideos, "/api/admin/help-videos": handleHelpVideosAdmin, "/api/youtube/search": handleYoutubeSearch,
+      "/api/admin/sandbox": handleSandbox, "/api/admin/sandbox/models": handleSandboxModels, "/api/admin/sandbox/model": handleSandboxModel, "/api/admin/sandbox/run": (r, e) => handleSandboxRun(r, e),
+      "/api/admin/sandbox/job": (r, e) => handleSandboxJob(r, e), "/api/admin/sandbox/library": handleSandboxLibrary, "/api/admin/sandbox/item": handleSandboxItem, "/api/admin/sandbox/file": handleSandboxFile,
+      "/api/reviews": handleSiteReviews, "/api/review/submit": handleReviewSubmit,
+      "/api/dir/lead": handleDirLead, "/api/dir/claim": handleDirClaim, "/api/dir/me": handleDirMe, "/api/dir/admin": handleDirAdmin,
+    };
+    if (siteRoutes[pathname]) {
+      try {
+        return await siteRoutes[pathname](request, env, ctx);
+      } catch (err) {
+        console.error(`${pathname} failed`, String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
@@ -977,6 +1037,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleBilling(request, env);
       } catch (err) {
         console.error("handleBilling failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/feedback") {
+      try {
+        return await handleFeedback(request, env);
+      } catch (err) {
+        console.error("handleFeedback failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

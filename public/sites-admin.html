@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Sites and directory - Admin</title><script src="/i18n.js" data-app></script><script src="/i18n-site.js"></script>
+<style>
+*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:10px}
+main{max-width:1200px;margin:0 auto;padding:16px 16px 60px}h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 6px}h3{margin:0 0 8px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #eceae4;padding:7px 6px;text-align:left;vertical-align:top}th{font-size:12px;text-transform:uppercase;color:#4A5568}
+input,select,textarea{padding:8px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}textarea{width:100%;min-height:110px}
+.btn{padding:7px 11px;border-radius:8px;border:0;font:inherit;font-weight:700;cursor:pointer;background:#E8A33D;color:#0F1B2D;text-decoration:none;display:inline-block;font-size:13px}.btn.sec{background:#eceae4}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:12px;background:#fde2e1;color:#b42318;margin:1px}.pill.ok{background:#d9f3e3;color:#0a7a3d}
+.tabs{display:flex;gap:6px;margin:0 0 12px}.tabs button{font:inherit;font-weight:600;padding:8px 14px;border-radius:20px;border:1px solid #cfd5dc;background:#fff;cursor:pointer}.tabs button[aria-selected=true]{background:#0F1B2D;color:#fff}
+#msg{min-height:18px;font-size:14px;margin:6px 0}.ok{color:#0a7a3d}.bad{color:#b42318}.muted{color:#4A5568}.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+</style></head><body>
+<header><div><b>PaintersMax</b> Sites and directory</div><div><a href="/templates-admin">Website templates</a><a href="/marketing-admin">Marketing studio</a><a href="/admin">Admin</a></div></header>
+<main>
+<div class="tabs" id="tabs"><button type="button" data-t="sites" aria-selected="true">Client websites</button><button type="button" data-t="dir" aria-selected="false">PainterSelect directory</button></div>
+<div id="msg" role="status"></div>
+<div id="body">Loading...</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const T=s=>(window.pmT?pmT(s):s);
+function msg(t,ok){$('msg').textContent=t?T(t):'';$('msg').className=ok?'ok':'bad';}
+async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
+const day=s=>s?(window.pmDate?pmDate(String(s).slice(0,10)):String(s).slice(0,10)):'-';
+let tab='sites';
+[].forEach.call(document.querySelectorAll('#tabs button'),b=>b.onclick=()=>{tab=b.dataset.t;[].forEach.call(document.querySelectorAll('#tabs button'),o=>o.setAttribute('aria-selected',String(o===b)));go();});
+function go(){(tab==='sites'?sites:dir)().catch(e=>{if(e)msg(e.message);});}
+
+async function sites(){
+  const S=await api('/api/site/admin');
+  const m=(u,l)=>`${u} / ${l}`;
+  $('body').innerHTML=`<div class="card"><h3>${T('Client websites')}</h3><p class="muted">${T('Open editor lets you fix a site for a painter who calls; every change is written to that client\'s audit log. Limits raise a client above their door (for a trade group deal or a founder) without changing it.')}</p>
+<table><thead><tr><th>${T('Client')}</th><th>${T('Door')}</th><th>${T('Pages')}</th><th>${T('Services')}</th><th>${T('Photos')}</th><th>${T('Published')}</th><th>${T('Domain')}</th><th>Search Console</th><th>${T('Health')}</th><th></th></tr></thead><tbody>
+${S.clients.map(c=>`<tr data-id="${c.id}"><td><b>${esc(c.name)}</b><br><small class="muted">${esc(c.slug)} &middot; ${esc(c.plan)}</small>${c.note?`<br><small>${esc(c.note)}</small>`:''}</td>
+<td><select data-door>${['auto'].concat(S.doors.map(d=>d.door)).map(d=>`<option value="${d}"${(c.doorSet?c.door:'auto')===d?' selected':''}>${d==='auto'?T('From plan')+' ('+c.door+')':esc(d)}</option>`).join('')}</select>${c.override?'<br><small>'+T('Custom limits')+'</small>':''}</td>
+<td>${m(c.usage.pages,c.limits.pages)}</td><td>${m(c.usage.services,c.limits.services)}</td><td>${m(c.usage.photos,c.limits.photos)}</td><td>${day(c.publishedAt)}</td><td>${esc(c.domain||'-')}</td><td>${c.searchConsole?'<span class="pill ok">'+T('Code added')+'</span>':'-'}</td>
+<td>${c.health.length?c.health.map(h=>`<span class="pill">${esc(T(h))}</span>`).join(''):'<span class="pill ok">OK</span>'}</td>
+<td class="row"><a class="btn" href="/site?as=${c.id}">${T('Open editor')}</a><button class="btn sec" type="button" data-lim>${T('Limits')}</button><button class="btn sec" type="button" data-aud>${T('Audit log')}</button></td></tr>`).join('')}</tbody></table></div><div id="aud"></div>`;
+  [].forEach.call(document.querySelectorAll('tr[data-id]'),tr=>{const id=Number(tr.dataset.id),c=S.clients.find(x=>x.id===id);
+    tr.querySelector('[data-door]').onchange=async e=>{try{await api('/api/site/admin',{action:'door',companyId:id,door:e.target.value});msg('Door saved.',true);sites();}catch(er){msg(er.message);}};
+    tr.querySelector('[data-lim]').onclick=async()=>{const v=prompt(T('Pages, service pages, photos (for example 12, 8, 100). Leave empty to remove the custom limits.'),c.override?[c.override.pages||'',c.override.services||'',c.override.photos||''].join(', '):'');if(v===null)return;const [p,s,ph]=v.split(',').map(x=>Number(x.trim())||undefined);const note=v.trim()?prompt(T('Why (for example: trade group deal)'),c.note||''):'';try{await api('/api/site/admin',{action:'override',companyId:id,pages:p,services:s,photos:ph,note});msg('Limits saved.',true);sites();}catch(er){msg(er.message);}};
+    tr.querySelector('[data-aud]').onclick=async()=>{const a=await api('/api/site/admin?audit='+id);$('aud').innerHTML=`<div class="card"><h3>${T('Audit log')}: ${esc(c.name)}</h3>${a.audit.length?'<table>'+a.audit.map(x=>`<tr><td>${esc(x.at.replace('T',' ').slice(0,16))}</td><td>${esc(x.by)}</td><td>${esc(x.action)}</td><td>${esc(x.detail)}</td></tr>`).join('')+'</table>':T('Nothing yet.')}</div>`;$('aud').scrollIntoView();};
+  });
+}
+
+async function dir(){
+  const D=await api('/api/dir/admin');
+  const svc=['interior','exterior','cabinets','commercial'];
+  $('body').innerHTML=`
+<div class="card"><h3>${T('Claims to confirm')} (${D.claims.length})</h3><p class="muted">${T('Call the phone number on the listing before you approve. The account was already opened as a free account.')}</p>
+${D.claims.length?'<table>'+D.claims.map(l=>`<tr data-k="${esc(l.key)}"><td><b>${esc(l.name)}</b><br>${esc(l.city)}, ${esc(l.state)} &middot; ${esc(l.phone||'')}</td><td>${esc(l.claim.email)}<br><small>${esc(l.accountName||'')}</small></td><td>${day(l.claim.at)}</td><td class="row"><button class="btn" data-ca>${T('Approve')}</button><button class="btn sec" data-cr>${T('Reject')}</button></td></tr>`).join('')+'</table>':'<p class="muted">'+T('None waiting.')+'</p>'}</div>
+<div class="card"><h3>${T('Market pool')} (${D.pool.length})</h3><p class="muted">${T('Requests from cities where no member could take them. Assign one to a member, or delete it.')}</p>
+${D.pool.length?'<table>'+D.pool.map(p=>`<tr data-k="${esc(p.key)}"><td>${day(p.at)}</td><td><b>${esc(p.name)}</b><br>${esc(p.email)} ${esc(p.phone||'')}</td><td>${esc(p.place)}<br>${esc(p.service)}${p.sqft?', '+p.sqft+' sq ft':''}</td><td>${esc(p.details||'')}</td><td class="row"><select data-m><option value="">${T('Choose a member')}</option>${D.members.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</select><button class="btn" data-pa>${T('Assign')}</button><button class="btn sec" data-pd>${T('Delete')}</button></td></tr>`).join('')+'</table>':'<p class="muted">'+T('Empty.')+'</p>'}</div>
+<div class="card"><h3>${T('Members')} (${D.members.length})</h3><p class="muted">${T('Paid clients whose business profile lists cities. They show first in those cities and get the leads, up to their daily cap.')}</p>
+<table><thead><tr><th>${T('Member')}</th><th>${T('Cities')}</th><th>${T('Insured')}</th><th>${T('Leads today')}</th><th>${T('Daily cap')}</th><th>${T('Founding badge')}</th></tr></thead><tbody>${D.members.map(m=>`<tr data-id="${m.id}"><td><a href="/find/pro/${esc(m.slug)}" target="_blank">${esc(m.name)}</a></td><td>${m.cities}</td><td>${m.insured?'&#10003;':''}</td><td>${m.leadsToday}</td><td><input type="number" min="0" max="100" value="${m.cap}" data-cap style="width:70px"></td><td><input type="checkbox" data-f${m.founding?' checked':''}></td></tr>`).join('')}</tbody></table></div>
+<div class="card"><h3>${T('Add a listing')}</h3><p class="muted">${T('Public business data only: name, city, phone and website.')}</p><div class="row">
+<input id="ln" placeholder="${T('Business name')}"><input id="lc" placeholder="${T('City')}"><input id="ls" placeholder="TX" maxlength="2" style="width:60px"><input id="lp" placeholder="${T('Phone')}"><input id="lw" placeholder="${T('Website')}">
+${svc.map(s=>`<label><input type="checkbox" data-ls="${s}"> ${T(s)}</label>`).join('')}<button class="btn" id="la">${T('Add')}</button></div>
+<h3 style="margin-top:16px">${T('Import many')}</h3><p class="muted">${T('One business per line: name, city, state, phone, website. You can paste from a spreadsheet. Duplicates are skipped.')}</p>
+<textarea id="imp" placeholder="Rivera Painting, Tyler, TX, 903-555-0100, riverapainting.com"></textarea><div class="row"><input id="isrc" placeholder="${T('Source (for example: research agent, Tyler run)')}" style="flex:1"><button class="btn" id="ib">${T('Import')}</button></div></div>
+<div class="card"><h3>${T('Listings')} (${D.listings.length})</h3><input id="lf" placeholder="${T('Filter by name or city')}" style="width:100%;margin-bottom:8px">
+<table id="lt"><tbody>${D.listings.map(l=>`<tr data-k="${esc(l.key)}" data-q="${esc((l.name+' '+l.city).toLowerCase())}"><td><b>${esc(l.name)}</b></td><td>${esc(l.city)}, ${esc(l.state)}</td><td>${esc(l.phone)}</td><td>${l.website?`<a href="${esc(l.website)}" target="_blank" rel="noopener">${T('Website')}</a>`:''}</td><td>${l.claim?`<span class="pill${l.claim.status==='approved'?' ok':''}">${esc(T(l.claim.status))}</span>`:''}</td><td><small class="muted">${esc(l.source)}</small></td><td><button class="btn sec" data-ld>${T('Delete')}</button></td></tr>`).join('')}</tbody></table>
+<p class="muted">${T('Test address before painterselect.com is connected:')} <a href="/find" target="_blank">paintersmax.app/find</a></p></div>`;
+  const post=async(b,ok)=>{try{const j=await api('/api/dir/admin',b);msg(ok||'Saved.',true);return j;}catch(e){msg(e.message);return null;}};
+  [].forEach.call(document.querySelectorAll('[data-ca],[data-cr]'),b=>b.onclick=async()=>{const k=b.closest('tr').dataset.k;if(await post({action:b.hasAttribute('data-ca')?'claim_approve':'claim_reject',key:k}))dir();});
+  [].forEach.call(document.querySelectorAll('[data-pa]'),b=>b.onclick=async()=>{const tr=b.closest('tr'),m=tr.querySelector('[data-m]').value;if(!m)return msg('Choose a member.');if(await post({action:'pool_assign',key:tr.dataset.k,companyId:Number(m)},'Sent to the member.'))dir();});
+  [].forEach.call(document.querySelectorAll('[data-pd]'),b=>b.onclick=async()=>{if(confirm('Delete this request?')&&await post({action:'pool_delete',key:b.closest('tr').dataset.k}))dir();});
+  [].forEach.call(document.querySelectorAll('tr[data-id]'),tr=>{const id=Number(tr.dataset.id);tr.querySelector('[data-cap]').onchange=e=>post({action:'member_set',companyId:id,cap:Number(e.target.value)});tr.querySelector('[data-f]').onchange=e=>post({action:'member_set',companyId:id,founding:e.target.checked});});
+  [].forEach.call(document.querySelectorAll('[data-ld]'),b=>b.onclick=async()=>{if(confirm('Delete this listing?')&&await post({action:'listing_delete',key:b.closest('tr').dataset.k}))dir();});
+  $('la').onclick=async()=>{const services=[].filter.call(document.querySelectorAll('[data-ls]'),x=>x.checked).map(x=>x.dataset.ls);if(await post({action:'listing_add',listing:{name:$('ln').value,city:$('lc').value,state:$('ls').value,phone:$('lp').value,website:$('lw').value,services}},'Listing added.'))dir();};
+  $('ib').onclick=async()=>{const j=await post({action:'listing_import',text:$('imp').value,source:$('isrc').value});if(j){msg(T('Added')+' '+j.added+', '+T('duplicates')+' '+j.duplicates+', '+T('skipped')+' '+j.skipped+'.',true);setTimeout(dir,1200);}};
+  $('lf').oninput=e=>{const q=e.target.value.toLowerCase();[].forEach.call(document.querySelectorAll('#lt tr'),tr=>tr.hidden=!!q&&!tr.dataset.q.includes(q));};
+}
+go();
+</script>
+</body></html>

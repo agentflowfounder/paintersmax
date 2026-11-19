@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F1B2D">
+<meta name="robots" content="noindex">
+<title>Website</title><script src="/i18n.js" data-app></script><script src="/i18n-site.js"></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:10px}
+main{max-width:1100px;margin:0 auto;padding:16px 16px 90px}
+h2{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 4px;font-size:26px}h3{margin:0 0 8px;font-size:17px}
+p.lead{color:#4A5568;margin:0 0 14px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+input,textarea,select{width:100%;padding:10px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}
+textarea{min-height:90px}
+.btn{padding:10px 15px;border-radius:8px;border:0;font:inherit;font-weight:700;cursor:pointer;background:#E8A33D;color:#0F1B2D;text-decoration:none;display:inline-block}
+.btn.sec{background:#eceae4}.btn.sm{padding:6px 10px;font-size:13px}.btn.dark{background:#0F1B2D;color:#fff}.btn:disabled{opacity:.5;cursor:default}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+small,.muted{color:#4A5568}
+#msg{font-size:14px;margin:8px 0;min-height:18px}.ok{color:#0a7a3d}.bad{color:#b42318}
+.meters{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 12px}.meter{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:8px 12px;font-size:14px}.meter b{font-size:16px}.meter.full{border-color:#E8A33D;background:#fff8ec}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}.tabs button{font:inherit;font-weight:600;padding:8px 14px;border-radius:20px;border:1px solid #cfd5dc;background:#fff;cursor:pointer}.tabs button[aria-selected=true]{background:#0F1B2D;color:#fff;border-color:#0F1B2D}
+.cols{display:grid;grid-template-columns:260px 1fr;gap:14px;align-items:start}
+.plist button.pg{all:unset;box-sizing:border-box;display:flex;justify-content:space-between;width:100%;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:14px}.plist button.pg:hover{background:#f1efe9}.plist button.pg.on{background:#E8A33D}
+.plist .grp{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#4A5568;margin:10px 0 4px}
+.blk{border:1px solid #e3e0d8;border-radius:10px;padding:12px;margin:10px 0;background:#fcfbf8}.blk .bh{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
+.pill{display:inline-block;font-size:12px;padding:2px 9px;border-radius:12px;background:#eceae4}.pill.live{background:#d9f3e3;color:#0a7a3d}.pill.warn{background:#fff3cd;color:#5c4400}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:8px}.slot{position:relative;border:2px dashed #cfd5dc;border-radius:8px;height:90px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#4A5568;background:#fff;overflow:hidden}
+#phCanvas{position:sticky;top:0;z-index:2;max-height:42vh;width:auto;max-width:100%;background:#fff}.warnbox{background:#fff6e5;border:1px solid #f0c36d;border-radius:10px;padding:10px 12px;margin:8px 0}.warnbox ul{margin:6px 0 6px 18px;padding:0}.cprev{border:1px solid #dcd6cc;border-radius:10px;padding:14px;margin-top:8px}.cbtn{display:inline-block;margin-top:10px;padding:8px 14px;border-radius:6px;font-weight:600}
+.cropd{max-width:min(96vw,720px)}.crop{position:relative;display:inline-block;max-width:100%;line-height:0;touch-action:none}.crop img{max-width:100%;max-height:60vh;display:block;opacity:1}.crop-dim{position:absolute;inset:0;background:rgba(15,27,45,.68)}.crop-box{position:absolute;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.4);cursor:grab;background-repeat:no-repeat}.crop-box:focus-visible{outline:3px solid #f5a623}
+.adjs{display:grid;gap:6px;margin:8px 0}.adj{display:grid;grid-template-columns:150px 1fr 36px;gap:8px;align-items:center;font-size:14px;margin:0}.adj input{width:100%}.adj output{text-align:right;color:#5b6573}
+.slot img{width:100%;height:100%;object-fit:cover}.slot .x{position:absolute;top:3px;right:3px;background:#fff;border:0;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700}
+.checks li{margin:3px 0;font-size:14px}.checks .y{color:#0a7a3d}.checks .n{color:#b42318}
+.cnt{float:right;font-weight:400;font-size:12px;color:#4A5568}
+dialog{border:0;border-radius:12px;max-width:640px;width:calc(100% - 32px);padding:20px}dialog::backdrop{background:rgba(15,27,45,.55)}
+table.doors{border-collapse:collapse;width:100%;font-size:14px}table.doors td,table.doors th{border-bottom:1px solid #eceae4;padding:8px;text-align:left}table.doors tr.cur{background:#fff8ec}
+.pv{display:flex;gap:8px;margin:8px 0}.frame{border:1px solid #cfd5dc;border-radius:10px;background:#fff;width:100%;height:720px}.frame.phone{width:390px;max-width:100%;height:760px}
+.va{background:#fff3cd;color:#5c4400;border-radius:8px;padding:10px 12px;margin:0 0 12px;font-weight:600}
+canvas{max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none}
+.rev{border-bottom:1px solid #eceae4;padding:10px 0}.stars{color:#E8A33D;letter-spacing:2px}
+.icons label{display:inline-flex;align-items:center;gap:4px;margin:0 12px 0 0;font-weight:400}.icons input{width:auto}
+.switch{display:flex;gap:8px;align-items:center;font-weight:600}.switch input{width:auto}
+@media(max-width:820px){.cols{grid-template-columns:1fr}}
+.tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}.tpl{border:1px solid #cfd5dc;border-radius:10px;padding:10px;background:#fff}.tpl.on{border:2px solid #0F1B2D}.tpl img,.tpl-ph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;display:grid;place-items:center;background:linear-gradient(160deg,#f6e8cf,#e08a35);color:#fff;font-family:Newsreader,Georgia,serif;font-size:22px;margin-bottom:8px}.tpl p{font-size:13px;margin:6px 0}
+.sws{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}.sw{display:flex;align-items:center;gap:8px;font-weight:500}.sw input{width:42px;height:34px;padding:2px}
+.srow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;border-bottom:1px solid #eceae4;padding:6px 0}.srow .btns{margin-left:auto}
+.mrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}.mrow input{flex:1;min-width:140px}.mrow select{width:auto}
+.pslot{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:start;border-bottom:1px solid #eceae4;padding:10px 0}.pslot img,.pslot-ph{width:120px;height:90px;object-fit:cover;border-radius:8px}.pslot-ph{display:grid;place-content:center;text-align:center;border:2px dashed #cfd5dc;font-size:12px;background:#faf8f4}
+</style></head><body>
+<header><div><b>PaintersMax</b> Website</div><div><a href="/dashboard">Home</a></div></header>
+<main><div data-help="site-start" style="margin:6px 0"></div>
+<div id="va" class="va" hidden></div>
+<h2>Your website</h2>
+<p class="lead">Edit your pages, add your own photos, and publish when it looks right. Changes stay a draft until you tap Publish. Typing is free; the AI writing help uses credits.</p>
+<div class="meters" id="meters"></div>
+<div id="msg" role="status"></div>
+<div class="tabs" role="tablist" id="tabs">
+<button type="button" role="tab" data-t="pages" aria-selected="true">Pages</button>
+<button type="button" role="tab" data-t="biz" aria-selected="false">Business details</button>
+<button type="button" role="tab" data-t="look" aria-selected="false">Look and Google</button>
+<button type="button" role="tab" data-t="reviews" aria-selected="false">Reviews</button>
+<button type="button" role="tab" data-t="dir" aria-selected="false">PainterSelect listing</button>
+<button type="button" role="tab" data-t="preview" aria-selected="false">Preview</button>
+</div>
+<div id="body">Loading...</div>
+<div class="card btns" style="position:sticky;bottom:0;margin:0;z-index:5">
+<button class="btn dark" id="saveBtn" type="button">Save draft</button>
+<button class="btn" id="pubBtn" type="button">Publish</button>
+<button class="btn sec" id="prevBtn" type="button">Preview</button>
+<span id="pubState" class="muted"></span>
+</div>
+</main>
+
+<dialog id="up" aria-labelledby="upT">
+<h2 id="upT">Upgrade</h2>
+<p id="upWhy" class="lead"></p>
+<table class="doors" id="upTable"></table>
+<p class="muted" id="upNote">You pay only the difference. Nothing on your site is lost.</p>
+<div class="btns"><button class="btn" id="upGo" type="button">Upgrade now</button><button class="btn sec" type="button" onclick="document.getElementById('up').close()">Not now</button></div>
+<div id="upMsg" class="bad"></div>
+</dialog>
+
+<dialog id="ph" aria-labelledby="phT">
+<h3 id="phT">Add a photo</h3>
+<p class="muted">The photo is made smaller and its hidden location data is removed before upload. Photos of you and your crew at work are welcome; show only people who agreed to it.</p>
+<input type="file" id="phFile" accept="image/jpeg,image/png,image/webp,image/heic">
+<div id="phWork" hidden>
+<canvas id="phCanvas"></canvas>
+<div class="btns"><button class="btn sec sm" type="button" id="phUndo">Undo blur</button></div>
+<p class="muted" style="margin:4px 0">Drag a box over any face, house number or license plate to blur it.</p>
+<label class="switch"><input type="checkbox" id="phFaces"> Blur faces in this photo</label><small class="muted" id="phFaceNote" aria-live="polite"></small>
+<details open><summary><b>Adjust the photo</b></summary><div id="phAdj" class="adjs"></div><div class="btns"><button class="btn sec sm" type="button" id="phAdjReset">Reset all adjustments</button><button class="btn sec sm" type="button" id="phCmp" aria-pressed="false">&#128065; Preview: after</button></div></details>
+<label class="switch"><input type="checkbox" id="phAiBlur" checked disabled> When AI improves a photo, blur the faces first (your original stays as it is)</label><small class="muted">AI photo improvement is coming soon; this choice will apply when it arrives.</small>
+<label for="phAlt">Describe the photo (what was painted, and where)</label>
+<input id="phAlt" maxlength="160" placeholder="Living room walls and trim, painted in Tyler, TX">
+</div>
+<div class="btns"><button class="btn" id="phGo" type="button" disabled>Upload</button><button class="btn sec" type="button" onclick="document.getElementById('ph').close()">Cancel</button></div>
+<div id="phMsg" class="bad"></div>
+</dialog>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const T=s=>(window.pmT?pmT(s):s);
+const AS=new URLSearchParams(location.search).get('as');
+const asQ=AS?('?as='+encodeURIComponent(AS)):'';
+function msg(t,ok){const m=$('msg');m.textContent=t?T(t):'';m.className=ok?'ok':'bad';}
+async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(AS?{...body,as:AS}:body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.error||'Something went wrong.');e.j=j;e.status=r.status;throw e;}return j;}
+const money=c=>'$'+Math.round(c/100).toLocaleString('en-US');
+let S=null,cur=null,tab='pages',dirty=false;
+const KIND={home:'Home',services:'Services',gallery:'Gallery',about:'About',contact:'Contact',service:'Service page',custom:'Extra page'};
+const PHOTOS={home:6,gallery:6,service:3,services:3,about:3,contact:1,custom:3};
+const BT={text:'Text',photos:'Photos',tabs:'Tabs',cta:'Button',reviews:'Customer reviews',video:'Video',weather:'Painting weather'};
+const nid=()=>Math.random().toString(36).slice(2,12);
+
+async function load(){
+  try{S=await api('/api/site'+asQ);}catch(e){if(e)msg(e.message);return;}
+  if(S.viewAs){$('va').hidden=false;$('va').textContent=T('Admin view: you are editing the site of')+' '+S.company.name+'. '+T('Every change is written to the audit log.');}
+  if(!cur||!S.site.pages.some(p=>p.id===cur))cur=S.site.pages[0].id;
+  if(new URLSearchParams(location.search).get('upgrade'))setTimeout(()=>openUp(null),0);
+  if(new URLSearchParams(location.search).get('upgraded'))msg('Thank you. Your upgrade is being applied; refresh in a minute if the new limits do not show yet.',true);
+  render();
+}
+function usage(){const p=S.site.pages;return{pages:p.filter(x=>x.kind!=='service').length,services:p.filter(x=>x.kind==='service').length,photos:S.site.photos.length};}
+function meters(){
+  const u=usage(),L=S.limits;
+  const m=(n,of,label)=>`<div class="meter${n>=of?' full':''}"><b>${n} of ${of}</b> ${T(label)}</div>`;
+  $('meters').innerHTML=`<div class="meter"><b>${esc(T(S.name))}</b> ${T('door')}</div>`+m(u.pages,L.pages,'pages')+m(u.services,L.services,'service pages')+m(u.photos,L.photos,'photos')+(S.next?`<button class="btn sm" type="button" id="seeUp">${T('See what')} ${esc(T(S.next.name))} ${T('gives')}</button>`:'');
+  if($('seeUp'))$('seeUp').onclick=()=>openUp(null);
+  const st=$('pubState');
+  st.textContent=S.publishedAt?(T('Published')+' '+(window.pmDate?pmDate(S.publishedAt.slice(0,10)):S.publishedAt.slice(0,10))+(dirty||S.changed?' · '+T('Draft has changes'):'')):T('Not published yet');
+  $('pubBtn').textContent=T(S.canPublish?'Publish':'Publish (needs Launch)');
+}
+function tabsUi(){[].forEach.call(document.querySelectorAll('#tabs button'),b=>{b.setAttribute('aria-selected',String(b.dataset.t===tab));b.onclick=()=>{tab=b.dataset.t;render();};});}
+function render(){meters();tabsUi();({pages:rPages,biz:rBiz,look:rLook,reviews:rReviews,dir:rDir,preview:rPreview})[tab]();}
+const page=()=>S.site.pages.find(p=>p.id===cur);
+const touch=()=>{dirty=true;meters();};
+
+// ---------- Pages
+function rPages(){
+  const ps=S.site.pages,p=page();
+  const core=ps.filter(x=>['home','services','gallery','about','contact'].includes(x.kind)),extra=ps.filter(x=>x.kind==='custom'),svc=ps.filter(x=>x.kind==='service');
+  const li=x=>`<button type="button" class="pg${x.id===cur?' on':''}" data-id="${x.id}"><span>${esc(x.nav)}</span>${(S.checks[x.id]||[]).some(c=>!c.ok&&c.level==='must')?'<span title="Needs work">&#9888;</span>':''}</button>`;
+  const checks=(S.checks[p.id]||[]);
+  $('body').innerHTML=`<div class="cols"><div class="card plist">
+<div class="grp">${T('Main pages')}</div>${core.map(li).join('')}${extra.map(li).join('')}
+<button class="btn sec sm" type="button" id="addPage" style="margin-top:6px">+ ${T('Add page')}</button>
+<div class="grp">${T('Service pages')}</div>${svc.map(li).join('')}
+<button class="btn sec sm" type="button" id="addSvc" style="margin-top:6px">+ ${T('Add service page')}</button>
+<p class="muted" style="font-size:13px">${T('Tabs inside a page do not count as pages. Use them to add more content without hitting the limit.')}</p>
+</div><div>
+<div class="card"><div class="bh" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3 style="margin:0">${esc(p.nav)} <span class="pill">${T(KIND[p.kind])}</span></h3>
+<span class="btns" style="margin:0">${p.kind!=='home'?`<button class="btn sec sm" type="button" data-mv="-1">&uarr; ${T('Move up')}</button><button class="btn sec sm" type="button" data-mv="1">&darr; ${T('Move down')}</button>`:''}${['custom','service'].includes(p.kind)?`<button class="btn sec sm" type="button" id="delPage">${T('Remove page')}</button>`:''}</span></div>
+<label for="f_nav">${T('Menu name')}</label><input id="f_nav" maxlength="30" value="${esc(p.nav)}">
+<label for="f_headline">${T('Headline')} <button class="btn sec sm" type="button" data-ai="headline">${T('AI help')}</button></label><input id="f_headline" maxlength="120" value="${esc(p.headline)}">
+<label for="f_intro">${T('Opening text')} <button class="btn sec sm" type="button" data-ai="intro">${T('AI help')}</button></label><textarea id="f_intro" maxlength="1500">${esc(p.intro)}</textarea>
+<details style="margin-top:12px"><summary><b>${T('Google search result')}</b> <small>${T('(title and description)')}</small></summary>
+<label for="f_seoTitle">${T('Page title')} <span class="cnt" id="c_seoTitle"></span> <button class="btn sec sm" type="button" data-ai="seoTitle">${T('AI help')}</button></label><input id="f_seoTitle" maxlength="70" value="${esc(p.seoTitle)}">
+<label for="f_seoDesc">${T('Description')} <span class="cnt" id="c_seoDesc"></span> <button class="btn sec sm" type="button" data-ai="seoDesc">${T('AI help')}</button></label><textarea id="f_seoDesc" maxlength="170" style="min-height:60px">${esc(p.seoDesc)}</textarea>
+</details></div>
+<div class="card"><h3>${T('Sections')}</h3><p class="muted" style="margin:0">${T('Sections show in this order. Use the arrows to move them.')}</p><div id="blocks"></div>
+<div class="btns"><select id="newBlock" style="width:auto">${Object.keys(BT).map(k=>`<option value="${k}">${T(BT[k])}</option>`).join('')}</select><button class="btn sec sm" type="button" id="addBlock">+ ${T('Add section')}</button></div></div>
+<div class="card"><h3>${T('Checks for this page')}</h3><ul class="checks">${checks.map(c=>`<li class="${c.ok?'y':'n'}">${c.ok?'&#10003;':'&#10007;'} ${esc(T(c.text))}${c.level==='must'&&!c.ok?' <b>('+T('needed to publish')+')</b>':''}</li>`).join('')}</ul></div>
+</div></div>`;
+  [].forEach.call(document.querySelectorAll('.pg'),b=>b.onclick=()=>{cur=b.dataset.id;render();});
+  ['nav','headline','intro','seoTitle','seoDesc'].forEach(k=>{const el=$('f_'+k);el.oninput=()=>{p[k]=el.value;touch();count();if(k==='nav')[].forEach.call(document.querySelectorAll('.pg.on span:first-child'),s=>s.textContent=el.value);};});
+  function count(){$('c_seoTitle').textContent=p.seoTitle.length+' / 60';$('c_seoDesc').textContent=p.seoDesc.length+' / 160';}count();
+  [].forEach.call(document.querySelectorAll('[data-ai]'),b=>b.onclick=()=>aiWrite(b.dataset.ai,$('f_'+b.dataset.ai),v=>{p[b.dataset.ai]=v;}));
+  [].forEach.call(document.querySelectorAll('[data-mv]'),b=>b.onclick=()=>{const i=ps.indexOf(p),j=i+Number(b.dataset.mv);if(j<1||j>=ps.length)return;ps.splice(i,1);ps.splice(j,0,p);touch();render();});
+  if($('delPage'))$('delPage').onclick=()=>{if(!confirm('Remove this page? Its words are deleted when you save.'))return;S.site.pages=ps.filter(x=>x.id!==p.id);cur=S.site.pages[0].id;touch();render();};
+  $('addPage').onclick=()=>addPage('custom');$('addSvc').onclick=()=>addPage('service');
+  $('addBlock').onclick=()=>{if(p.blocks.length>=12)return msg('A page can have 12 sections.');const t=$('newBlock').value;const b={id:nid(),type:t,heading:''};if(t==='text')b.body='';if(t==='photos')b.photos=[];if(t==='tabs')b.tabs=[{id:nid(),label:T('Tab 1'),body:''}];if(t==='cta'){b.body='';b.action='quote';}if(t==='video'){b.yt='';b.orient='wide';b.kind='intro';b.caption='';}if(t==='weather'){if(!['grow','signature'].includes(S.door))return msg(T('Painting weather comes with the Grow door and up.'));if(S.site.pages.reduce((n,q)=>n+q.blocks.filter(x=>x.type==='weather').length,0)>=2)return msg(T('A site can show weather for 2 places.'));b.place=[S.site.business.city,S.site.business.state].filter(Boolean).join(', ');}p.blocks.push(b);touch();rBlocks(p);};
+  rBlocks(p);
+}
+function rBlocks(p){
+  const box=$('blocks');
+  box.innerHTML=p.blocks.map((b,i)=>`<div class="blk" data-i="${i}"><div class="bh"><b>${T(BT[b.type])}</b><span><button class="btn sec sm" type="button" data-bm="-1" aria-label="${T('Move up')}">&uarr;</button> <button class="btn sec sm" type="button" data-bm="1" aria-label="${T('Move down')}">&darr;</button> <button class="btn sec sm" type="button" data-bd aria-label="${T('Remove section')}">&times;</button></span></div>
+<label>${T('Heading')}</label><input data-k="heading" maxlength="120" value="${esc(b.heading)}">
+${b.type==='text'?`<label>${T('Text')} <small>${T('(start a line with - for a list)')}</small> <button class="btn sec sm" type="button" data-bai>${T('AI help')}</button></label><textarea data-k="body" maxlength="6000">${esc(b.body)}</textarea>`:''}
+${b.type==='cta'?`<label>${T('Short line')}</label><input data-k="body" maxlength="400" value="${esc(b.body)}"><label>${T('Button')}</label><select data-k="action"><option value="quote"${b.action==='quote'?' selected':''}>${T('Free estimate')}</option><option value="call"${b.action==='call'?' selected':''}>${T('Call')}</option></select>`:''}
+${b.type==='video'?`<label>${T('YouTube link')}</label><input data-k="yt" maxlength="200" placeholder="https://youtu.be/..." value="${esc(b.yt)}"><div class="mrow"><select data-k="kind"><option value="intro"${b.kind==='intro'?' selected':''}>${T('Meet us')}</option><option value="testimonial"${b.kind==='testimonial'?' selected':''}>${T('Customer testimonial')}</option><option value="message"${b.kind==='message'?' selected':''}>${T('A personal message')}</option><option value="how"${b.kind==='how'?' selected':''}>${T('How we work')}</option></select><select data-k="orient"><option value="wide"${b.orient==='wide'?' selected':''}>${T('Wide (horizontal)')}</option><option value="tall"${b.orient==='tall'?' selected':''}>${T('Tall (phone video)')}</option></select></div><label>${T('Caption')}</label><input data-k="caption" maxlength="200" value="${esc(b.caption)}"><p class="muted">${S.site.media&&S.site.media.on?T('Videos are on.'):T('Videos are off. Turn them on in the Look tab to show this one.')}</p>`:''}
+${b.type==='weather'?`<label>${T('City for the weather')}</label><input data-k="place" maxlength="80" placeholder="Tyler, TX" value="${esc(b.place)}"><p class="muted">${T('Shows the next 5 days and marks good days to paint outside. Weather is limited to 2 places on a site.')}</p>`:''}
+${b.type==='reviews'?`<p class="muted">${T('Shows the reviews you chose to show on the Reviews tab.')}</p>`:''}
+${b.type==='photos'?photoSlots(p,b):''}
+${b.type==='tabs'?b.tabs.map((t,ti)=>`<div style="border-top:1px solid #eceae4;margin-top:8px;padding-top:6px"><label>${T('Tab name')} <button class="btn sec sm" type="button" data-td="${ti}">${T('Remove tab')}</button></label><input data-tk="label" data-ti="${ti}" maxlength="40" value="${esc(t.label)}"><label>${T('Tab text')}</label><textarea data-tk="body" data-ti="${ti}" maxlength="6000">${esc(t.body)}</textarea></div>`).join('')+`<button class="btn sec sm" type="button" data-ta>+ ${T('Add tab')}</button>`:''}
+</div>`).join('');
+  [].forEach.call(box.querySelectorAll('.blk'),el=>{
+    const i=Number(el.dataset.i),b=p.blocks[i];
+    [].forEach.call(el.querySelectorAll('[data-k]'),f=>f.oninput=f.onchange=()=>{b[f.dataset.k]=f.value;touch();});
+    [].forEach.call(el.querySelectorAll('[data-tk]'),f=>f.oninput=()=>{b.tabs[Number(f.dataset.ti)][f.dataset.tk]=f.value;touch();});
+    const q=s=>el.querySelector(s);
+    q('[data-bd]').onclick=()=>{p.blocks.splice(i,1);touch();rBlocks(p);};
+    [].forEach.call(el.querySelectorAll('[data-bm]'),m=>m.onclick=()=>{const j=i+Number(m.dataset.bm);if(j<0||j>=p.blocks.length)return;p.blocks.splice(i,1);p.blocks.splice(j,0,b);touch();rBlocks(p);});
+    if(q('[data-ta]'))q('[data-ta]').onclick=()=>{if(b.tabs.length>=8)return msg('A section can have 8 tabs.');b.tabs.push({id:nid(),label:T('Tab')+' '+(b.tabs.length+1),body:''});touch();rBlocks(p);};
+    [].forEach.call(el.querySelectorAll('[data-td]'),d=>d.onclick=()=>{b.tabs.splice(Number(d.dataset.td),1);touch();rBlocks(p);});
+    if(q('[data-bai]'))q('[data-bai]').onclick=()=>aiWrite('text',q('textarea[data-k=body]'),v=>{b.body=v;});
+    [].forEach.call(el.querySelectorAll('[data-rm]'),x=>x.onclick=()=>{b.photos=b.photos.filter(id=>id!==x.dataset.rm);touch();rBlocks(p);});
+    [].forEach.call(el.querySelectorAll('[data-add]'),x=>x.onclick=()=>pickPhoto(p,b));
+  });
+}
+function photoSlots(p,b){
+  const want=Math.max(PHOTOS[p.kind]||3,b.photos.length+1);
+  const have=b.photos.map(id=>S.site.photos.find(x=>x.id===id)).filter(Boolean);
+  let h='<div class="slots">'+have.map(ph=>`<div class="slot"><img alt="${esc(ph.alt)}" src="/site-photo/${S.company.id}/${ph.id}"><button class="x" type="button" data-rm="${ph.id}" aria-label="${T('Remove from this section')}">&times;</button></div>`).join('');
+  for(let k=have.length;k<want;k++)h+=`<button type="button" class="slot" data-add style="cursor:pointer">+ ${T('Photo')}</button>`;
+  return h+'</div>';
+}
+function pickPhoto(p,b){
+  const unused=S.site.photos.filter(x=>!b.photos.includes(x.id));
+  if(!unused.length)return openPhoto(p,b);
+  const d=document.createElement('dialog');
+  d.innerHTML=`<h3>${T('Choose a photo')}</h3><div class="slots">${unused.map(x=>`<button type="button" class="slot" data-pick="${x.id}"><img alt="${esc(x.alt)}" src="/site-photo/${S.company.id}/${x.id}"></button>`).join('')}</div><div class="btns"><button class="btn" type="button" data-new>+ ${T('Upload a new photo')}</button><button class="btn sec" type="button" data-c>${T('Cancel')}</button></div>`;
+  document.body.appendChild(d);d.showModal();
+  d.querySelector('[data-c]').onclick=()=>{d.close();d.remove();};
+  d.querySelector('[data-new]').onclick=()=>{d.close();d.remove();openPhoto(p,b);};
+  [].forEach.call(d.querySelectorAll('[data-pick]'),x=>x.onclick=()=>{b.photos.push(x.dataset.pick);d.close();d.remove();touch();rBlocks(p);});
+}
+async function addPage(kind){
+  const u=usage(),L=S.limits;
+  if(kind==='custom'&&u.pages>=L.pages)return openUp('pages');
+  if(kind==='service'&&u.services>=L.services)return openUp('services');
+  const name=prompt(T(kind==='service'?'Name of the service (for example Cabinet painting)':'Name of the page (for example Financing or FAQ)'));
+  if(!name)return;
+  const nav=name.trim().slice(0,30),slug=nav.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,50)||'page';
+  const pg={id:nid(),kind,slug,nav,seoTitle:'',seoDesc:'',headline:nav,intro:'',blocks:[{id:nid(),type:'text',heading:'',body:T('[Write what this page is about.]')},{id:nid(),type:'photos',heading:'',photos:[]},{id:nid(),type:'cta',heading:T('Get a free estimate'),body:'',action:'quote'}]};
+  S.site.pages.push(pg);cur=pg.id;touch();render();
+}
+
+// ---------- AI help (costs credits)
+async function aiWrite(field,el,set){
+  const ask=prompt(T('What should the AI do? (for example: make it shorter, mention cabinets, more friendly). Uses 1 AI credit.'),'');
+  if(ask===null)return;
+  msg('Writing...',true);
+  try{const j=await api('/api/site',{action:'write',field,text:el.value,ask,page:page().nav});el.value=j.text;set(j.text);touch();msg('Done. Check the new text, then save.',true);}catch(e){if(e)msg(e.message);}
+}
+
+// ---------- Upgrade notice
+function openUp(why){
+  if(!S.next){msg('You have the biggest door. Ask us if you need more.');return;}
+  const u=usage(),L=S.limits;
+  $('upT').textContent=why?(why==='pages'?`${u.pages} ${T('of')} ${L.pages} ${T('pages')}`:why==='services'?`${u.services} ${T('of')} ${L.services} ${T('service pages')}`:why==='photos'?`${u.photos} ${T('of')} ${L.photos} ${T('photos')}`:why==='template'?T('More templates'):T('Publish your site')):T('Compare the doors');
+  $('upWhy').textContent=why==='template'?T('This template comes with a higher door. Your content moves with you.'):why==='publish'?T('Publishing your website comes with the Launch door. Your draft is saved and nothing is lost.'):why?T('Your door is full. The next door gives you more room right away.'):T('Here is what each door gives. Nothing is hidden.');
+  const rows=S.doors.map(d=>`<tr class="${d.current?'cur':''}"><td><b>${esc(T(d.name))}</b>${d.current?' <span class="pill">'+T('Yours')+'</span>':''}</td><td>${d.limits.pages} ${T('pages')}</td><td>${d.limits.services} ${T('service pages')}</td><td>${d.limits.photos} ${T('photos')}</td><td>${d.upgradeCents&&!d.current?T('Upgrade')+' '+money(d.upgradeCents):''}</td></tr>`).join('');
+  $('upTable').innerHTML=`<tr><th>${T('Door')}</th><th>${T('Pages')}</th><th>${T('Services')}</th><th>${T('Photos')}</th><th></th></tr>`+rows;
+  $('upGo').textContent=T('Upgrade to')+' '+T(S.next.name)+' '+T('for')+' '+money(S.next.priceCents);
+  $('upMsg').textContent='';$('up').showModal();
+  $('upGo').onclick=async()=>{$('upGo').disabled=true;try{if(dirty)await save(true);const j=await api('/api/site',{action:'upgrade',door:S.next.door});location.href=j.url;}catch(e){$('upMsg').textContent=e?T(e.message):'';$('upGo').disabled=false;}};
+}
+
+// ---------- Photos: resize, adjust, strip location data, blur, describe, upload
+const ADJ=[['exposure','Exposure',-100,100],['brightness','Brightness',-100,100],['contrast','Contrast',-100,100],['highlights','Highlights',-100,100],['shadows','Shadows',-100,100],['saturation','Color strength',-100,100],['warmth','Warmth (cool to warm)',-100,100],['tint','Tint (green to pink)',-100,100],['sharpness','Sharpness',0,100],['vignette','Dark edges (less to more)',-100,100]];
+const adj0=()=>Object.fromEntries(ADJ.map(a=>[a[0],0]));
+let ph={img:null,boxes:[],p:null,b:null,drag:null,adj:adj0(),raf:0};
+function openPhoto(p,b){
+  if(!S.photoStorage)return msg('Photo storage is not turned on yet.');
+  if(usage().photos>=S.limits.photos)return openUp('photos');
+  ph={img:null,boxes:[],p,b,drag:null,adj:adj0(),raf:0};ph.cmp=false;$('phCmp').setAttribute('aria-pressed','false');$('phFile').value='';$('phWork').hidden=true;$('phGo').disabled=true;$('phMsg').textContent='';$('phAlt').value='';$('phFaces').checked=false;$('phFaceNote').textContent='';syncSliders();$('ph').showModal();
+}
+$('phFile').onchange=()=>{const f=$('phFile').files[0];if(!f)return;const img=new Image();img.onload=()=>{ph.img=img;ph.boxes=[];ph.adj=adj0();syncSliders();$('phWork').hidden=false;$('phGo').disabled=false;draw(1000);};img.onerror=()=>{$('phMsg').textContent=T('This photo type cannot be opened here. Use a JPG or PNG.');};img.src=URL.createObjectURL(f);};
+function syncSliders(){ADJ.forEach(a=>{const r=$('adj_'+a[0]);if(r){r.value=ph.adj[a[0]];$('adjv_'+a[0]).textContent=ph.adj[a[0]];}});}
+// Pixel adjustments: each value is -100..100 (sharpness 0..100); 0 changes nothing.
+function applyAdjust(c,a){
+  const w=c.width,h=c.height,x=c.getContext('2d'),im=x.getImageData(0,0,w,h),d=im.data;
+  const ex=Math.pow(2,a.exposure/100),br=a.brightness/100*60,ct=1+a.contrast/100,hi=a.highlights/100*60,sh=a.shadows/100*60,sa=1+a.saturation/100,wa=a.warmth/100*30,ti=a.tint/100*20,vg=a.vignette/100;
+  const any=Object.values(a).some(v=>v);if(!any)return;
+  const cx=w/2,cy=h/2,md=cx*cx+cy*cy;
+  for(let i=0,p=0;i<d.length;i+=4,p++){
+    let r=d[i]*ex+br,g=d[i+1]*ex+br,b=d[i+2]*ex+br;
+    const L=(0.299*r+0.587*g+0.114*b)/255;
+    if(sh&&L<.5){const k=sh*(1-2*L);r+=k;g+=k;b+=k;}
+    if(hi&&L>.5){const k=hi*(2*L-1);r+=k;g+=k;b+=k;}
+    r=(r-128)*ct+128;g=(g-128)*ct+128;b=(b-128)*ct+128;
+    const gr=0.299*r+0.587*g+0.114*b;r=gr+(r-gr)*sa;g=gr+(g-gr)*sa;b=gr+(b-gr)*sa;
+    r+=wa;b-=wa;g-=ti;
+    if(vg){const px=p%w-cx,py=((p/w)|0)-cy,t=(px*px+py*py)/md,f=vg>0?1-vg*.7*t:1+(-vg)*.4*t;r*=f;g*=f;b*=f;}
+    d[i]=r<0?0:r>255?255:r;d[i+1]=g<0?0:g>255?255:g;d[i+2]=b<0?0:b>255?255:b;
+  }
+  if(a.sharpness>0){const amt=a.sharpness/100*1.5,src=new Uint8ClampedArray(d);
+    for(let y=1;y<h-1;y++)for(let xx=1;xx<w-1;xx++){const i=(y*w+xx)*4;for(let k=0;k<3;k++){const j=i+k,bl=(src[j-4]+src[j+4]+src[j-w*4]+src[j+w*4]+src[j])/5;const v=src[j]+amt*(src[j]-bl);d[j]=v<0?0:v>255?255:v;}}}
+  x.putImageData(im,0,0);
+}
+function draw(max){
+  const c=$('phCanvas'),img=ph.img,s=Math.min(1,max/Math.max(img.width,img.height));
+  c.width=Math.round(img.width*s);c.height=Math.round(img.height*s);const x=c.getContext('2d');x.drawImage(img,0,0,c.width,c.height);
+  applyAdjust(c,ph.adj);
+  for(const bx of ph.boxes){const l0=Math.min(bx.x,bx.x+bx.w)*c.width,t0=Math.min(bx.y,bx.y+bx.h)*c.height,w=Math.round(Math.abs(bx.w)*c.width),h=Math.round(Math.abs(bx.h)*c.height),l=Math.round(l0),t=Math.round(t0);if(w<4||h<4)continue;const px=Math.max(8,Math.round(Math.max(w,h)/10));const dd=x.getImageData(l,t,w,h);
+    for(let yy=0;yy<h;yy+=px)for(let xx=0;xx<w;xx+=px){const i=((yy*w)+xx)*4;x.fillStyle=`rgb(${dd.data[i]},${dd.data[i+1]},${dd.data[i+2]})`;x.fillRect(l+xx,t+yy,px,px);}}
+}
+const redraw=()=>{if(!ph.img||ph.raf||ph.cmp)return;ph.raf=requestAnimationFrame(()=>{ph.raf=0;draw(1000);});};
+(function(){const c=$('phCanvas');const pos=e=>{const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height};};
+  c.onpointerdown=e=>{if(!ph.img)return;const p=pos(e);ph.drag={x:p.x,y:p.y,w:0,h:0};ph.boxes.push(ph.drag);c.setPointerCapture(e.pointerId);};
+  c.onpointermove=e=>{if(!ph.drag)return;const p=pos(e);ph.drag.w=p.x-ph.drag.x;ph.drag.h=p.y-ph.drag.y;redraw();};
+  c.onpointerup=()=>{ph.drag=null;redraw();};
+  $('phUndo').onclick=()=>{ph.boxes.pop();draw(1000);};
+  $('phAdj').innerHTML=ADJ.map(a=>`<label class="adj" for="adj_${a[0]}"><span>${T(a[1])}</span><input type="range" id="adj_${a[0]}" min="${a[2]}" max="${a[3]}" step="1" value="0"><output id="adjv_${a[0]}">0</output></label>`).join('');
+  ADJ.forEach(a=>{$('adj_'+a[0]).oninput=e=>{ph.adj[a[0]]=+e.target.value;$('adjv_'+a[0]).textContent=e.target.value;redraw();};});
+  $('phAdjReset').onclick=()=>{ph.adj=adj0();syncSliders();draw(1000);};
+  $('phCmp').onclick=()=>{ph.cmp=!ph.cmp;const keep=ph.adj;if(ph.cmp){ph.adj=adj0();draw(1000);ph.adj=keep;}else draw(1000);$('phCmp').setAttribute('aria-pressed',ph.cmp);$('phCmp').innerHTML='&#128065; '+T('Preview')+': '+T(ph.cmp?'before':'after');};
+  $('phFaces').onchange=async()=>{
+    $('phFaceNote').textContent='';if(!ph.img)return;
+    ph.boxes=ph.boxes.filter(b=>!b.face);
+    if(!$('phFaces').checked){draw(1000);return;}
+    if(!('FaceDetector' in window)){$('phFaceNote').textContent=T('This browser cannot find faces by itself. Drag a box over each face instead.');return;}
+    try{const fd=new FaceDetector({fastMode:true,maxDetectedFaces:12}),c2=$('phCanvas'),f=await fd.detect(c2);
+      f.forEach(q=>{const b=q.boundingBox,px=b.width*.2,py=b.height*.2;ph.boxes.push({face:1,x:Math.max(0,b.x-px)/c2.width,y:Math.max(0,b.y-py)/c2.height,w:Math.min(c2.width,b.width+2*px)/c2.width,h:Math.min(c2.height,b.height+2*py)/c2.height});});
+      $('phFaceNote').textContent=f.length?T('Faces found and blurred. Use Undo blur to take one off.'):T('No faces found. Drag a box over any face you want to blur.');draw(1000);}
+    catch(e){$('phFaceNote').textContent=T('Could not look for faces. Drag a box over each face instead.');}};})();
+$('phGo').onclick=async()=>{
+  const alt=$('phAlt').value.trim();if(alt.length<5){$('phMsg').textContent=T('Describe the photo in a few words. Google and visitors who cannot see it read this.');return;}
+  $('phGo').disabled=true;$('phMsg').textContent='';
+  draw(1600);const c=$('phCanvas');const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.82));
+  const fd=new FormData();fd.append('file',new File([blob],'photo.jpg',{type:'image/jpeg'}));fd.append('w',c.width);fd.append('h',c.height);fd.append('alt',alt);fd.append('page',ph.p.id);fd.append('block',ph.b.id);if(AS)fd.append('as',AS);
+  try{if(dirty)await save(true);const r=await fetch('/api/site/photo',{method:'POST',body:fd});const j=await r.json();if(!r.ok){if(j.over){$('ph').close();return openUp('photos');}throw new Error(j.error||'Upload failed.');}
+    S.site.photos.push(j.photo);const pg=S.site.pages.find(x=>x.id===ph.p.id),bl=pg&&pg.blocks.find(x=>x.id===ph.b.id);if(bl&&!bl.photos.includes(j.photo.id))bl.photos.push(j.photo.id);
+    $('ph').close();render();msg('Photo added.',true);}catch(e){$('phMsg').textContent=T(e.message);}finally{$('phGo').disabled=false;}
+};
+
+// ---------- Heads-up warnings and the before/after color preview
+const hexRgb=h=>{const n=parseInt(String(h).slice(1),16);return[n>>16&255,n>>8&255,n&255];};
+const relLum=h=>{const c=hexRgb(h).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4);});return .2126*c[0]+.7152*c[1]+.0722*c[2];};
+const contrast=(a,b)=>{const x=relLum(a),y=relLum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+const COLPAIRS=[['c-ink','c-bg',4.5,'Main text on the page color'],['c-ink-soft','c-bg',4.5,'Small gray text on the page color'],['c-ink','c-surface',4.5,'Text on cards'],['c-brand-ink','c-brand',4.5,'Button text on the button color'],['c-accent','c-bg',4.5,'Small colored labels on the page color'],['c-fade','c-bg',3,'Large faded words on the page color']];
+function tokVal(I,th,k,before){const d=I.tokens.find(t=>t.key===k);return d?(before?d.default:(th.tokens[k]||d.default)):null;}
+function colorWarnings(I,th){return COLPAIRS.map(([a,b,min,l])=>{const x=tokVal(I,th,a),y=tokVal(I,th,b);if(!x||!y)return null;const r=contrast(x,y);return r<min?`${T(l)}: ${r.toFixed(1)}:1 (${T('needs')} ${min}:1)`:null;}).filter(Boolean);}
+function warnHtml(list){return list.length?`<div class="warnbox" role="status"><b>&#9888; ${T('Hard to read')}</b><ul>${list.map(x=>`<li>${x}</li>`).join('')}</ul><small>${T('Visitors with weak eyesight or bright sun may not be able to read this. Pick a darker or lighter color.')}</small></div>`:'';}
+function colorPreview(I,th,before){const v=k=>tokVal(I,th,k,before)||'#888';return `<div class="cprev" style="background:${v('c-bg')};color:${v('c-ink')}"><small style="color:${v('c-accent')};letter-spacing:.12em">${T('SAMPLE LABEL')}</small><b style="display:block;font-size:20px;margin:4px 0">${T('Fresh coat, clean finish')}</b><span style="color:${v('c-ink-soft')}">${T('A short line of regular text on your page.')}</span><div><span class="cbtn" style="background:${v('c-brand')};color:${v('c-brand-ink')}">${T('Free estimate')}</span></div></div>`;}
+function settingWarnings(I,th,secs){const w=[];
+  I.imageSlots.forEach(sd=>{const ph=S.site.photos.find(x=>x.id===th.slots[sd.slot]);if(!ph)return;if(ph.w&&ph.w<sd.w*.7)w.push(`${esc(sd.slot)}: ${T('this photo is small for this space and may look blurry')} (${ph.w} px, ${T('best')} ${sd.w} px)`);if((ph.alt||'').trim().length<5)w.push(`${esc(sd.slot)}: ${T('add a short description of the photo')}`);if(ph.ai)w.push(`${esc(sd.slot)}: ${T('AI-made picture. Do not present it as your own work.')}`);});
+  if(th.menu.length>7)w.push(T('The menu has many items; on a phone a long menu is hard to use.'));
+  const on=k=>{const x=secs.find(q=>q.d.key===k);return !x||x.on;};
+  if(!on('instant_quote')&&!on('estimate_request'))w.push(T('Quote sections are off, so visitors only have the phone and the form at the bottom.'));
+  if(!th.logo&&!(S.company&&S.company.logoUrl))w.push(T('No logo yet: the header shows your business name as text. You can make a simple logo below.'));
+  return w;}
+// ---------- Crop window: the whole photo dimmed, a bright box shows what visitors will see in that photo space
+function cropFlow(photoId,sd,done){
+  const th=themeOf();th.focus=th.focus||{};const f0=th.focus[sd.slot]||{x:50,y:50};let fx=f0.x,fy=f0.y;
+  const d=document.createElement('dialog');d.className='cropd';
+  d.innerHTML=`<h3>${T('Choose the part visitors see')}</h3><p class="muted">${T('The dark part will be cut off in this space. Drag the bright box to move it.')} (${esc(sd.slot)}, ${esc(sd.ratio)})</p>
+<div class="crop" id="cr"><img id="crImg" alt="" src="${photoUrl(photoId)}"><div class="crop-dim"></div><div class="crop-box" id="crBox" role="slider" tabindex="0" aria-label="${T('Visible part of the photo')}"></div></div>
+<div class="btns"><button class="btn" type="button" data-ok>${T('Use this crop')}</button><button class="btn sec" type="button" data-mid>${T('Center it')}</button><button class="btn sec" type="button" data-c>${T('Cancel')}</button></div>`;
+  document.body.appendChild(d);d.showModal();
+  const img=d.querySelector('#crImg'),box=d.querySelector('#crBox'),ratio=sd.w/sd.h;let W=0,H=0,bw=0,bh=0;
+  const close=()=>{d.close();d.remove();};
+  const place=()=>{const l=(W-bw)*fx/100,t=(H-bh)*fy/100;Object.assign(box.style,{width:bw+'px',height:bh+'px',left:l+'px',top:t+'px',backgroundImage:`url(${img.src})`,backgroundSize:W+'px '+H+'px',backgroundPosition:`${-l}px ${-t}px`});};
+  const layout=()=>{W=img.clientWidth;H=img.clientHeight;if(W/H>ratio){bh=H;bw=H*ratio;}else{bw=W;bh=W/ratio;}place();};
+  img.onload=layout;if(img.complete)layout();
+  let drag=null;
+  box.onpointerdown=e=>{drag={x:e.clientX,y:e.clientY,fx,fy};box.setPointerCapture(e.pointerId);};
+  box.onpointermove=e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;fx=(W-bw)>1?Math.max(0,Math.min(100,drag.fx+dx/(W-bw)*100)):50;fy=(H-bh)>1?Math.max(0,Math.min(100,drag.fy+dy/(H-bh)*100)):50;place();};
+  box.onpointerup=()=>{drag=null;};
+  box.onkeydown=e=>{const k={ArrowLeft:[-5,0],ArrowRight:[5,0],ArrowUp:[0,-5],ArrowDown:[0,5]}[e.key];if(!k)return;e.preventDefault();fx=Math.max(0,Math.min(100,fx+k[0]));fy=Math.max(0,Math.min(100,fy+k[1]));place();};
+  d.querySelector('[data-mid]').onclick=()=>{fx=50;fy=50;place();};
+  d.querySelector('[data-c]').onclick=()=>{close();done(false);};
+  d.querySelector('[data-ok]').onclick=()=>{fx=Math.round(fx);fy=Math.round(fy);if(fx===50&&fy===50)delete th.focus[sd.slot];else th.focus[sd.slot]={x:fx,y:fy};close();touch();done(true);};
+}
+// ---------- Create with AI: one picture for one photo space (credits; the server enforces every rule)
+function aiMake(sd,vi){
+  const th=themeOf(),c=S.imageAi||{draftCredits:1,qualityCredits:3};
+  const d=document.createElement('dialog');
+  d.innerHTML=`<h3>${T('Create a picture with AI')} (${esc(sd.slot)})</h3><p class="muted">${T('AI makes a picture for this space from the template idea. If it fails you are not charged. The picture is marked AI-made. It is not a photo of your work, so do not present it as your work.')}</p>
+<label class="switch"><input type="radio" name="aiq" value="draft" checked> ${T('Draft')} (${c.draftCredits} ${T('credit')})</label><label class="switch"><input type="radio" name="aiq" value="quality"> ${T('Quality')} (${c.qualityCredits} ${T('credits')})</label>
+<label for="aiNote">${T('Extra detail (optional)')}</label><input id="aiNote" maxlength="100" placeholder="${T('For example: warmer light')}">
+<div class="btns"><button class="btn" type="button" data-ok>${T('Create picture')}</button><button class="btn sec" type="button" data-c>${T('Cancel')}</button></div><div class="bad" id="aiM" aria-live="polite"></div>`;
+  document.body.appendChild(d);d.showModal();const q=x=>d.querySelector(x),close=()=>{d.close();d.remove();};q('[data-c]').onclick=close;
+  q('[data-ok]').onclick=async()=>{q('[data-ok]').disabled=true;q('#aiM').textContent=T('Making your picture. This can take about half a minute.');
+    try{if(dirty)await save(true);const j=await api('/api/site',{action:'image',slot:sd.slot,quality:d.querySelector('[name=aiq]:checked').value,variant:vi,note:q('#aiNote').value});
+      S.site.photos.push(j.photo);th.slots[sd.slot]=j.photo.id;if(th.focus)delete th.focus[sd.slot];close();touch();re();msg('Picture added. Check how it looks in the preview.',true);}
+    catch(e){q('#aiM').textContent=e?T(e.message):'';q('[data-ok]').disabled=false;}};
+}
+// ---------- Simple logo maker (no AI, no credits): initials or the name, a shape and a color
+function logoMaker(){
+  const th=themeOf(),name=(S.site.business.name||S.company.name||'My Painting').trim();
+  const ini=name.split(/\s+/).filter(w=>/[\p{L}]/u.test(w)).slice(0,2).map(w=>w[0].toUpperCase()).join('')||'P';
+  const d=document.createElement('dialog');
+  d.innerHTML=`<h3>${T('Make a simple logo')}</h3><p class="muted">${T('A clean logo from your name. It is free and uses no credits. You can replace it any time with your own.')}</p>
+<canvas id="lgC" width="512" height="512" style="width:200px;height:200px;border:1px solid #dcd6cc;border-radius:8px;background:repeating-conic-gradient(#f2f2f2 0 25%,#fff 0 50%) 0 0/16px 16px"></canvas>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><label for="lgT">${T('Letters or name')}</label><input id="lgT" maxlength="24" value="${esc(ini)}"></div>
+<div><label for="lgS">${T('Shape')}</label><select id="lgS"><option value="circle">${T('Circle')}</option><option value="square">${T('Rounded square')}</option><option value="plain">${T('Letters only')}</option></select></div>
+<div><label for="lgF">${T('Letter style')}</label><select id="lgF"><option value="Georgia, serif">${T('Classic serif')}</option><option value="Helvetica, Arial, sans-serif">${T('Clean sans')}</option><option value="Impact, Haettenschweiler, sans-serif">${T('Bold')}</option></select></div>
+<div><label for="lgC1">${T('Logo color')}</label><input type="color" id="lgC1" style="height:44px;padding:2px" value="${esc(S.company.brandColor||'#1c3b5a')}"></div></div>
+<div class="btns"><button class="btn" type="button" data-ok>${T('Use as my logo')}</button><button class="btn sec" type="button" data-c>${T('Cancel')}</button></div><div class="bad" id="lgM"></div>`;
+  document.body.appendChild(d);d.showModal();
+  const c=d.querySelector('#lgC'),x=c.getContext('2d'),q=s=>d.querySelector(s);
+  const lum=h=>{const n=parseInt(h.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;return(0.299*r+0.587*g+0.114*b)/255;};
+  const paint=()=>{x.clearRect(0,0,512,512);const col=q('#lgC1').value,sh=q('#lgS').value,t=q('#lgT').value.trim()||ini,ff=q('#lgF').value;
+    if(sh==='circle'){x.fillStyle=col;x.beginPath();x.arc(256,256,248,0,7);x.fill();}
+    else if(sh==='square'){x.fillStyle=col;x.beginPath();x.roundRect(8,8,496,496,72);x.fill();}
+    x.fillStyle=sh==='plain'?col:(lum(col)>.6?'#1b1b1b':'#ffffff');x.textAlign='center';x.textBaseline='middle';
+    let fs=t.length<=3?260:150;x.font=`700 ${fs}px ${ff}`;while(x.measureText(t).width>(sh==='plain'?480:360)&&fs>24){fs-=6;x.font=`700 ${fs}px ${ff}`;}
+    x.fillText(t,256,sh==='plain'?256:266);};
+  ['#lgT','#lgS','#lgF','#lgC1'].forEach(s=>q(s).oninput=paint);paint();
+  const close=()=>{d.close();d.remove();};q('[data-c]').onclick=close;
+  q('[data-ok]').onclick=async()=>{q('[data-ok]').disabled=true;
+    try{if(usage().photos>=S.limits.photos){close();return openUp('photos');}
+      const blob=await new Promise(r=>c.toBlob(r,'image/png'));const fd=new FormData();fd.append('file',new File([blob],'logo.png',{type:'image/png'}));fd.append('w',512);fd.append('h',512);fd.append('alt','Logo of '+name);if(AS)fd.append('as',AS);
+      if(dirty)await save(true);const r=await fetch('/api/site/photo',{method:'POST',body:fd});const j=await r.json();if(!r.ok){if(j.over){close();return openUp('photos');}throw new Error(j.error||'Upload failed.');}
+      S.site.photos.push(j.photo);th.logo=j.photo.id;close();touch();re();msg('Logo saved.',true);}
+    catch(e){q('#lgM').textContent=e?T(e.message):'';q('[data-ok]').disabled=false;}};
+}
+
+// ---------- Business details
+function rBiz(){
+  const b=S.site.business;
+  const f=(k,l,ml,h)=>`<label for="b_${k}">${T(l)}</label><input id="b_${k}" maxlength="${ml}" value="${esc(b[k])}"${h?` placeholder="${esc(h)}"`:''}>`;
+  $('body').innerHTML=`<div class="card"><h3>${T('Business details')}</h3><p class="muted">${T('These show on every page and tell Google who you are and where you work. Use the same name, address and phone as your Google Business Profile.')}</p>
+${f('phone','Phone',30)}${f('email','Email',200)}${f('address','Street address (leave blank if you work from home)',160)}
+<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px"><div>${f('city','City',60)}</div><div>${f('state','State',2,'TX')}</div><div>${f('zip','ZIP',10)}</div></div>
+${f('serviceArea','Cities you serve (separate with commas)',300,'Tyler, Longview, Kilgore')}${f('hours','Hours',120,'Mo-Fr 08:00-17:00')}${f('license','License number (optional)',60)}
+${f('gbpUrl','Link to your Google Business Profile reviews (optional)',300,'https://g.page/r/...')}
+<label for="b_footer">${T('A short line for the bottom of every page (optional)')}</label><input id="b_footer" maxlength="300" value="${esc(S.site.footer)}"></div>`;
+  ['phone','email','address','city','state','zip','serviceArea','hours','license','gbpUrl'].forEach(k=>$('b_'+k).oninput=e=>{b[k]=e.target.value;touch();});
+  $('b_footer').oninput=e=>{S.site.footer=e.target.value;touch();};
+}
+// ---------- Look: template, colors, fonts, sections, menu, logo, photo spaces, words, links
+function themeOf(){const id=S.site.template;S.site.themes=S.site.themes||{};const t=S.site.themes[id]||(S.site.themes[id]={});
+  t.tokens=t.tokens||{};t.fonts=t.fonts||{};t.sections=t.sections||[];t.menu=t.menu||[];t.slots=t.slots||{};t.pairs=t.pairs||[];t.legal=t.legal||{privacy:'',terms:''};t.texts=t.texts||{};t.logo=t.logo||'';t.focus=t.focus||{};t.heroWord=t.heroWord||'';return t;}
+const DOORN={launch:'Launch',grow:'Grow',signature:'Signature'};
+const photoUrl=id=>`/site-photo/${S.company.id}/${id}`;
+function photoChoice(cur,onPick,allowNone){
+  const d=document.createElement('dialog');
+  d.innerHTML=`<h3>${T('Choose a photo')}</h3>${S.site.photos.length?`<div class="slots">${S.site.photos.map(x=>`<button type="button" class="slot" data-pick="${x.id}"${x.id===cur?' style="border-color:#0F1B2D"':''}><img alt="${esc(x.alt)}" src="${photoUrl(x.id)}"></button>`).join('')}</div>`:`<p class="muted">${T('Upload photos on the Pages tab first. They show here.')}</p>`}<div class="btns">${allowNone?`<button class="btn sec" type="button" data-none>${T('No photo')}</button>`:''}<button class="btn sec" type="button" data-c>${T('Cancel')}</button></div>`;
+  document.body.appendChild(d);d.showModal();
+  const close=()=>{d.close();d.remove();};
+  d.querySelector('[data-c]').onclick=close;
+  if(allowNone)d.querySelector('[data-none]').onclick=()=>{close();onPick('');};
+  [].forEach.call(d.querySelectorAll('[data-pick]'),x=>x.onclick=()=>{close();onPick(x.dataset.pick);});
+}
+function rLook(){
+  const I=S.themeInfo,th=themeOf(),es=(document.documentElement.lang||'en').startsWith('es');
+  const L=o=>o?(es?o.es:o.en):'';
+  const badge=t=>t.current?`<span class="pill live">${T('Your template')}</span>`:t.state==='locked'?`<span class="pill warn">${T('Comes with')} ${esc(T(DOORN[t.lowestDoor]||t.lowestDoor))}</span>`:t.state==='preview'?`<span class="pill">${T('Preview on Free')}</span>`:'';
+  const pick=`<div class="card"><h3>${T('Template')}</h3><p class="muted">${T('Your words, pages and photos stay the same when you switch. Each template keeps its own colors and settings.')}</p>
+<div class="tpls">${S.templates.map(t=>`<div class="tpl${t.current?' on':''}">${t.thumb?`<img src="${esc(t.thumb)}" alt="" loading="lazy">`:`<div class="tpl-ph">${esc(t.name)}</div>`}<b>${esc(T(t.name))}</b> ${badge(t)}<p class="muted">${esc(L(t.description))}</p>
+<div class="btns"><a class="btn sec sm" target="_blank" rel="noopener" href="/api/site/preview?path=/&tpl=${encodeURIComponent(t.id)}${AS?'&as='+encodeURIComponent(AS):''}">${T('Preview')}</a>${t.current?'':t.state==='locked'?`<button class="btn sm" type="button" data-upg>${T('See upgrades')}</button>`:`<button class="btn sm" type="button" data-use="${t.id}">${T('Use this template')}</button>`}</div></div>`).join('')}</div></div>`;
+  let look='';
+  if(I&&!I.legacy){
+    const tokens=I.tokens.map(k=>`<label class="sw"><input type="color" data-tok="${k.key}" value="${esc(th.tokens[k.key]||k.default)}"> ${esc(L(k.label))}</label>`).join('');
+    const fontSel=f=>`<label for="font_${f.key}">${esc(L(f.label))}</label><select id="font_${f.key}" data-font="${f.key}">${I.fontChoices.map(c=>`<option${(th.fonts[f.key]||f.default)===c.family?' selected':''}>${esc(c.family)}</option>`).join('')}</select>`;
+    const mine=new Map(th.sections.map(s=>[s.key,s]));
+    const secs=I.sections.map(d=>({d,on:d.required?true:mine.has(d.key)?mine.get(d.key).on:d.enabled,order:mine.has(d.key)?mine.get(d.key).order:d.order})).sort((a,b)=>a.order-b.order);
+    const st=b=>!b?'':b.state.state==='upgrade'?`<span class="pill warn">${T(DOORN[b.state.door])} ${T('door')}</span>`:b.state.state==='soon'?`<span class="pill">${T('Coming soon')}</span>`:b.state.state==='topup'?`<span class="pill warn">${T('Needs credits')}</span>`:b.creditCost?`<span class="pill">${T('Uses credits')}: ${b.creditCost}</span>`:'';
+    const secRows=secs.map((s,i)=>`<div class="srow"><label class="switch"><input type="checkbox" data-sec="${s.d.key}"${s.on?' checked':''}${s.d.required?' disabled':''}> ${esc(L(s.d.label))}</label> ${st(s.d.block)} <small class="muted">${s.d.pages.map(p=>T(KIND[p]||p)).join(', ')}</small><span class="btns" style="margin:0"><button class="btn sec sm" type="button" data-smv="${i}" data-dir="-1" aria-label="${T('Move up')}">&uarr;</button><button class="btn sec sm" type="button" data-smv="${i}" data-dir="1" aria-label="${T('Move down')}">&darr;</button></span></div>`).join('');
+    const menuRows=th.menu.map((m,i)=>`<div class="mrow"><input data-ml="${i}" maxlength="30" value="${esc(m.label)}" aria-label="${T('Menu name')}"><select data-mp="${i}" aria-label="${T('Page')}">${S.site.pages.map(p=>{const pa=p.kind==='home'?'/':p.kind==='service'?'/services/'+p.slug:p.kind==='custom'?'/info/'+p.slug:'/'+p.slug;return `<option value="${esc(pa)}"${pa===m.path?' selected':''}>${esc(p.nav)}</option>`;}).join('')}</select><button class="btn sec sm" type="button" data-mrm="${i}">${T('Remove')}</button></div>`).join('');
+    const slot=s=>{const arr=(s.prompts&&s.prompts.length)?s.prompts:[s.prompt],vi=(((S.company&&S.company.id)||0)+(th.pv||0))%arr.length;const id=th.slots[s.slot];const ph=id&&S.site.photos.find(x=>x.id===id);return `<div class="pslot">${ph?`<img src="${photoUrl(ph.id)}" alt="${esc(ph.alt)}">`:`<div class="pslot-ph"><b>${esc(s.slot)}</b><small>${s.w} × ${s.h} &middot; ${esc(s.ratio)}</small></div>`}<div><b>${esc(L(s.alt))}</b><br><small class="muted">${esc(s.slot)}</small>
+<div class="btns"><button class="btn sec sm" type="button" data-slot="${s.slot}">${T(ph?'Change photo':'Choose photo')}</button>${ph?`<button class="btn sec sm" type="button" data-crop="${s.slot}">${T('Adjust crop')}</button>`:''}${S.imageAi&&S.imageAi.on&&!/^BA-/.test(s.slot)?`<button class="btn sec sm" type="button" data-ai="${s.slot}" data-vi="${vi}">&#10024; ${T('Create with AI')}</button>`:`<button class="btn sec sm" type="button" disabled title="${T('Coming soon: make this photo with AI credits')}">&#10024; ${T('Create with AI')}</button>`}</div>
+<details><summary class="muted">${T('AI prompt for this space')} (${vi+1}/${arr.length})</summary><p class="muted" style="font-size:13px">${esc(arr[vi])}</p></details></div></div>`;};
+    const logo=th.logo&&S.site.photos.find(x=>x.id===th.logo);
+    const pairs=th.pairs.map((p,i)=>`<div class="mrow"><button class="btn sec sm" type="button" data-pb="${i}">${T('Before')}: ${p.before?'&#10003;':'-'}</button><button class="btn sec sm" type="button" data-pa="${i}">${T('After')}: ${p.after?'&#10003;':'-'}</button><input data-pc="${i}" maxlength="120" placeholder="${T('Caption (optional)')}" value="${esc(p.caption||'')}"><button class="btn sec sm" type="button" data-prm="${i}">${T('Remove')}</button></div><div class="mrow"><input data-pf="service:${i}" maxlength="40" placeholder="${T('Service')}" aria-label="${T('Service')}" value="${esc(p.service||'')}"><input data-pf="city:${i}" maxlength="40" placeholder="${T('City')}" aria-label="${T('City')}" value="${esc(p.city||'')}"><input data-pf="year:${i}" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="${T('Year')}" aria-label="${T('Year')}" style="max-width:90px" value="${esc(p.year||'')}"><input data-pf="size:${i}" maxlength="30" placeholder="${T('Size (for example 2,400 sq ft)')}" aria-label="${T('Size')}" value="${esc(p.size||'')}"></div>`).join('');
+    const lang=window.WL||S.site.lang;
+    const texts=I.texts.map(x=>`<label for="tx_${x.key}">${esc(x[lang]||x.en)}</label><input id="tx_${x.key}" data-tx="${lang}:${x.key}" maxlength="${x.key==='heroWord'?12:200}" placeholder="${esc(x[lang]||x.en)}" value="${esc(x.key==='heroWord'?th.heroWord:(th.texts[lang+':'+x.key]||''))}">`).join('');
+    const social=(S.site.social||[]);
+    look=`<div class="card"><h3>${T('Colors')}</h3><div class="sws">${tokens}</div><div id="colWarn">${warnHtml(colorWarnings(I,th))}</div><div class="btns"><button class="btn sec sm" type="button" id="colEye" aria-pressed="false">&#128065; ${T('Preview')}: ${T('after')}</button></div><div id="colPrev">${colorPreview(I,th,false)}</div><div class="btns"><button class="btn sec sm" type="button" id="tokReset">${T('Back to the template colors')}</button></div></div>
+<div class="card"><h3>${T('Fonts')}</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div>${fontSel(I.fonts.find(f=>f.key==='display')||{key:'display',label:{en:'Headlines',es:'Títulos'},default:''})}</div><div>${fontSel(I.fonts.find(f=>f.key==='body')||{key:'body',label:{en:'Text',es:'Texto'},default:''})}</div></div></div>
+<div class="card"><h3>${T('Sections')}</h3><p class="muted">${T('Turn sections on or off and change their order. Sections marked with a door come with that door; visitors never see a locked section.')}</p>${secRows}</div>
+<div class="card"><h3>${T('Logo')}</h3>${logo?`<img src="${photoUrl(logo.id)}" alt="" style="max-height:60px;border-radius:8px">`:`<p class="muted">${T('No logo here yet. Your logo from Settings is used if you have one.')}</p>`}<div class="btns"><button class="btn sec sm" type="button" id="logoPick">${T('Choose logo photo')}</button><button class="btn sec sm" type="button" id="logoMake">${T('Make a simple logo')}</button></div></div>
+<div class="card"><h3>${T('Menu')}</h3><label class="switch"><input type="checkbox" id="menuAuto"${th.menu.length?'':' checked'}> ${T('Menu follows my pages')}</label>${th.menu.length?menuRows+`<div class="btns"><button class="btn sec sm" type="button" id="menuAdd"${th.menu.length>=10?' disabled':''}>+ ${T('Add menu item')}</button></div>`:''}</div>
+${(()=>{const w=settingWarnings(I,th,secs);return w.length?`<div class="card warnbox"><h3>&#9888; ${T('Heads-up')}</h3><ul>${w.map(x=>`<li>${x}</li>`).join('')}</ul></div>`:'';})()}<div class="card"><h3>${T('Photo spaces')}</h3><p class="muted">${T('Your own job photos look best. Until you add one, visitors see a soft color block in that space.')}</p>${I.imageSlots.map(slot).join('')}</div>
+<div class="card"><h3>${T('Your videos')}</h3><p class="muted">${T('Show your own YouTube videos on your site: a hero video, a welcome video on the About page, or customer testimonials. Add them as Video sections on any page. Videos load only when a visitor taps play.')}</p><label class="chk"><input type="checkbox" id="vidOn"${(S.site.media&&S.site.media.on)?' checked':''}> ${T('Show videos on my site')}</label><label>${T('Hero video link (optional)')}</label><input id="vidHero" maxlength="200" placeholder="https://youtu.be/..." value="${esc((S.site.media&&S.site.media.heroYt)||'')}"><label>${T('Hero video shape')}</label><select id="vidOrient"><option value="wide"${!(S.site.media&&S.site.media.heroOrient==='tall')?' selected':''}>${T('Wide (horizontal)')}</option><option value="tall"${(S.site.media&&S.site.media.heroOrient==='tall')?' selected':''}>${T('Tall (phone video)')}</option></select></div>
+<div class="card"><h3>${T('Before and after')}</h3><p class="muted">${T('Pick a before photo and an after photo of the same spot. Visitors drag a slider to compare. Service, city, year and size appear in templates that show a project row (Sunset Sand).')}</p>${pairs}<div class="btns"><button class="btn sec sm" type="button" id="pairAdd"${th.pairs.length>=24?' disabled':''}>+ ${T('Add a pair')}</button></div></div>
+<div class="card"><h3>${T('Words in this template')}</h3><p class="muted">${T('Leave a box empty to use the template wording. Choose a language to edit the words visitors see in that language. Fix any spelling here; it is saved with your site.')}</p><div class="btns"><button class="btn${lang==='en'?'':' sec'} sm" type="button" data-wl="en" aria-pressed="${lang==='en'}">English</button><button class="btn${lang==='es'?'':' sec'} sm" type="button" data-wl="es" aria-pressed="${lang==='es'}">Español</button></div>${texts}</div>
+<div class="card"><h3>${T('Social links')}</h3>${social.map((s,i)=>`<div class="mrow"><select data-sk="${i}">${I.socialKinds.map(k=>`<option${k===s.kind?' selected':''}>${k}</option>`).join('')}</select><input data-su="${i}" maxlength="300" placeholder="https://" value="${esc(s.url)}"><button class="btn sec sm" type="button" data-srm="${i}">${T('Remove')}</button></div>`).join('')}<div class="btns"><button class="btn sec sm" type="button" id="socAdd"${social.length>=9?' disabled':''}>+ ${T('Add a link')}</button></div>
+<h3 style="margin-top:14px">${T('Your policy pages (optional)')}</h3><p class="muted">${T('Link your own privacy policy and terms if you have them. We do not write legal text for you.')}</p>
+<label for="lg_p">${T('Privacy policy link')}</label><input id="lg_p" maxlength="300" placeholder="https://" value="${esc(th.legal.privacy)}"><label for="lg_t">${T('Terms link')}</label><input id="lg_t" maxlength="300" placeholder="https://" value="${esc(th.legal.terms)}"></div>`;
+  }else if(I&&I.legacy){look=`<div class="card"><p class="muted">${T('Your brand color and logo come from Settings.')}</p></div>`;}
+  $('body').innerHTML=pick+look+`<div class="card"><h3>${T('Google Search Console')}</h3><p class="muted">${T('Search Console shows which of your pages Google has found and what people searched to find you. It is free.')}</p>
+<ol class="muted"><li>${T('Open search.google.com/search-console and add your site address as a URL prefix property:')} <b>${esc(S.origin)}</b></li><li>${T('Pick the HTML tag method and copy the tag.')}</li><li>${T('Paste it below, save and publish, then tap Verify in Search Console.')}</li><li>${T('In Search Console, open Sitemaps and add sitemap.xml.')}</li></ol>
+<label for="gsc">${T('Search Console code or the whole tag')}</label><input id="gsc" maxlength="120" value="${esc(S.site.gscToken)}">
+<p class="muted">${T('Your sitemap:')} <a href="${esc(S.origin)}/sitemap.xml" target="_blank" rel="noopener">${esc(S.origin)}/sitemap.xml</a> &middot; ${T('City pages published:')} ${S.cityPages} <a href="/citypages">${T('Edit city pages')}</a></p></div>
+<div class="card"><h3>${T('Start over')}</h3><p class="muted">${T('Throw away the draft and go back to the published site (or to a fresh first draft written from your business profile).')}</p><button class="btn sec" type="button" id="discard">${T('Discard draft')}</button></div>`;
+  const all=(sel,fn)=>[].forEach.call(document.querySelectorAll(sel),fn);
+  const re=()=>{touch();rLook();};
+  all('[data-use]',b=>b.onclick=async()=>{S.site.template=b.dataset.use;const nt=themeOf();nt.pv=(nt.pv||0)+1;touch();if(await save(true).catch(()=>false)){msg('Template changed. Your content is the same; check the preview.',true);rLook();}});
+  all('[data-upg]',b=>b.onclick=()=>openUp('template'));
+  if(I&&!I.legacy){
+    let eyeBefore=false;const paintCol=()=>{$('colWarn').innerHTML=warnHtml(colorWarnings(I,th));$('colPrev').innerHTML=colorPreview(I,th,eyeBefore);$('colEye').setAttribute('aria-pressed',eyeBefore);$('colEye').innerHTML='&#128065; '+T('Preview')+': '+T(eyeBefore?'before':'after');};
+    all('[data-tok]',x=>x.oninput=()=>{th.tokens[x.dataset.tok]=x.value;touch();paintCol();});
+    if($('colEye'))$('colEye').onclick=()=>{eyeBefore=!eyeBefore;paintCol();};
+    $('tokReset').onclick=()=>{th.tokens={};re();};
+    all('[data-font]',x=>x.onchange=()=>{th.fonts[x.dataset.font]=x.value;touch();});
+    const secList=()=>{const mine=new Map(th.sections.map(s=>[s.key,s]));return I.sections.map(d=>({key:d.key,on:d.required?true:mine.has(d.key)?mine.get(d.key).on:d.enabled,order:mine.has(d.key)?mine.get(d.key).order:d.order})).sort((a,b)=>a.order-b.order);};
+    all('[data-sec]',x=>x.onchange=()=>{const l=secList();l.forEach((s,i)=>s.order=i*10);const s=l.find(q=>q.key===x.dataset.sec);s.on=x.checked;th.sections=l;touch();});
+    all('[data-smv]',x=>x.onclick=()=>{const l=secList(),i=+x.dataset.smv,j=i+(+x.dataset.dir);if(j<0||j>=l.length)return;[l[i],l[j]]=[l[j],l[i]];l.forEach((s,k)=>s.order=k*10);th.sections=l;re();});
+    $('logoPick').onclick=()=>photoChoice(th.logo,id=>{th.logo=id;re();},true);
+    $('menuAuto').onchange=e=>{th.menu=e.target.checked?[]:S.site.pages.filter(p=>p.kind!=='service').map(p=>({label:p.nav,path:p.kind==='home'?'/':p.kind==='custom'?'/info/'+p.slug:'/'+p.slug}));re();};
+    if($('menuAdd'))$('menuAdd').onclick=()=>{th.menu.push({label:T('New item'),path:'/'});re();};
+    all('[data-ml]',x=>x.oninput=()=>{th.menu[+x.dataset.ml].label=x.value;touch();});
+    all('[data-mp]',x=>x.onchange=()=>{th.menu[+x.dataset.mp].path=x.value;touch();});
+    all('[data-mrm]',x=>x.onclick=()=>{th.menu.splice(+x.dataset.mrm,1);re();});
+    all('[data-slot]',x=>x.onclick=()=>photoChoice(th.slots[x.dataset.slot],id=>{const sd=I.imageSlots.find(q=>q.slot===x.dataset.slot);if(id){th.slots[x.dataset.slot]=id;const p=S.site.photos.find(q=>q.id===id);if(th.focus)delete th.focus[x.dataset.slot];if(p&&p.w&&p.h&&sd&&Math.abs(p.w/p.h-sd.w/sd.h)>.03)return cropFlow(id,sd,()=>re());}else{delete th.slots[x.dataset.slot];if(th.focus)delete th.focus[x.dataset.slot];}re();},true));
+    all('[data-crop]',x=>x.onclick=()=>{const sd=I.imageSlots.find(q=>q.slot===x.dataset.crop),id=th.slots[x.dataset.crop];if(sd&&id)cropFlow(id,sd,()=>re());});
+    all('[data-ai]',x=>x.onclick=()=>{const sd=I.imageSlots.find(q=>q.slot===x.dataset.ai);if(sd)aiMake(sd,+x.dataset.vi);});
+    if($('logoMake'))$('logoMake').onclick=()=>logoMaker();
+    const mediaOf=()=>(S.site.media=S.site.media||{on:false,heroYt:'',heroOrient:'wide'});
+    $('vidOn').onchange=e=>{mediaOf().on=e.target.checked;touch();};
+    $('vidHero').onchange=e=>{mediaOf().heroYt=e.target.value.trim();touch();};
+    $('vidOrient').onchange=e=>{mediaOf().heroOrient=e.target.value;touch();};
+    $('pairAdd').onclick=()=>{th.pairs.push({before:'',after:'',caption:'',service:'',city:'',year:'',size:''});re();};
+    all('[data-pb]',x=>x.onclick=()=>photoChoice(th.pairs[+x.dataset.pb].before,id=>{th.pairs[+x.dataset.pb].before=id;re();}));
+    all('[data-pa]',x=>x.onclick=()=>photoChoice(th.pairs[+x.dataset.pa].after,id=>{th.pairs[+x.dataset.pa].after=id;re();}));
+    all('[data-pc]',x=>x.oninput=()=>{th.pairs[+x.dataset.pc].caption=x.value;touch();});
+    all('[data-pf]',x=>x.oninput=()=>{const[k,i]=x.dataset.pf.split(':');th.pairs[+i][k]=x.value;touch();});
+    all('[data-prm]',x=>x.onclick=()=>{th.pairs.splice(+x.dataset.prm,1);re();});
+    all('[data-wl]',x=>x.onclick=()=>{window.WL=x.dataset.wl;re();});
+    all('[data-tx]',x=>x.oninput=()=>{const k=x.dataset.tx;if(k.endsWith(':heroWord'))th.heroWord=x.value;else if(x.value.trim())th.texts[k]=x.value;else delete th.texts[k];touch();});
+    S.site.social=S.site.social||[];
+    $('socAdd').onclick=()=>{const used=S.site.social.map(s=>s.kind);S.site.social.push({kind:I.socialKinds.find(k=>!used.includes(k))||'facebook',url:''});re();};
+    all('[data-sk]',x=>x.onchange=()=>{S.site.social[+x.dataset.sk].kind=x.value;touch();});
+    all('[data-su]',x=>x.oninput=()=>{S.site.social[+x.dataset.su].url=x.value;touch();});
+    all('[data-srm]',x=>x.onclick=()=>{S.site.social.splice(+x.dataset.srm,1);re();});
+    $('lg_p').oninput=e=>{th.legal.privacy=e.target.value;touch();};
+    $('lg_t').oninput=e=>{th.legal.terms=e.target.value;touch();};
+  }
+  $('gsc').oninput=e=>{S.site.gscToken=e.target.value;touch();};
+  $('discard').onclick=async()=>{if(!confirm('Discard every change since the last publish?'))return;try{await api('/api/site',{action:'discard'});dirty=false;await load();msg('Draft discarded.',true);}catch(e){if(e)msg(e.message);}};
+}
+// ---------- Reviews
+const ICONS={like:'\u{1F44D}',smile:'\u{1F60A}',heart:'❤️'};
+async function rReviews(){
+  $('body').innerHTML='<div class="card">'+T('Loading...')+'</div>';
+  let R;try{R=await api('/api/reviews'+asQ);}catch(e){if(e)msg(e.message);return;}
+  const stars=n=>'★'.repeat(n)+'☆'.repeat(5-n);
+  const st={pending:'Waiting for you',shown:'Shown on your site',hidden:'Hidden'};
+  $('body').innerHTML=`<div class="card"><h3>${T('Ask a customer for a review')}</h3><p class="muted">${T('Only customers with a paid invoice can get a link. Each link works once and ends after the days you choose.')} ${T('This is separate from the Google review request.')}</p>
+${R.jobs.length?`<div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;align-items:end"><div><label for="rj">${T('Paid job')}</label><select id="rj">${R.jobs.map(j=>`<option value="${j.id}">${esc(j.customer)} &middot; ${esc(j.title)}</option>`).join('')}</select></div><div><label for="rd">${T('Link works for (days)')}</label><input id="rd" type="number" min="7" max="90" value="${R.defaultDays}"></div><button class="btn" type="button" id="mk">${T('Make link')}</button></div><div id="lk"></div>`:`<p>${T('No paid jobs yet. Mark an invoice paid on the job first.')}</p>`}
+${R.links.length?`<details style="margin-top:10px"><summary>${T('Links you made')} (${R.links.length})</summary><ul>${R.links.map(l=>`<li>${esc(l.customer)} &middot; ${l.usedAt?T('Used'):l.expired?T('Expired'):T('Open until')+' '+(window.pmDate?pmDate(l.expiresOn):l.expiresOn)}</li>`).join('')}</ul></details>`:''}</div>
+<div class="card"><h3>${T('Reviews')}</h3><p class="muted">${T('New reviews wait here until you show them. Hide a review only for a good reason, like private details or rude words, not because it is less than 5 stars: honest reviews build trust and the law does not allow hiding reviews just for being negative.')}</p>
+${R.reviews.length?R.reviews.map(r=>`<div class="rev" data-id="${r.id}"><div><span class="stars">${stars(r.rating)}</span> <b>${esc(r.name)}</b> <small>${esc(window.pmDate?pmDate(r.at.slice(0,10)):r.at.slice(0,10))}</small> <span class="pill${r.status==='shown'?' live':r.status==='pending'?' warn':''}">${T(st[r.status])}</span></div>
+<p>${esc(r.text)}</p><div class="btns" style="margin-top:0">${r.status!=='shown'?`<button class="btn sm" type="button" data-s="shown">${T('Show on my site')}</button>`:''}${r.status!=='hidden'?`<button class="btn sec sm" type="button" data-s="hidden">${T('Hide')}</button>`:''}</div>
+<label>${T('Your reply (optional)')}</label><textarea data-r maxlength="600" style="min-height:60px">${esc(r.reply?.text||'')}</textarea>
+<div class="icons">${['','like','smile','heart'].map(ic=>`<label><input type="radio" name="ic_${r.id}" value="${ic}"${(r.reply?.icon||'')===ic?' checked':''}> ${ic?ICONS[ic]:T('No icon')}</label>`).join('')}</div>
+<button class="btn sec sm" type="button" data-rp>${T('Save reply')}</button></div>`).join(''):`<p class="muted">${T('No reviews yet.')}</p>`}
+<p class="muted">${T('To show reviews on a page, add a Customer reviews section to it. Home has one already.')}</p></div>`;
+  if($('mk'))$('mk').onclick=async()=>{try{const j=await api('/api/reviews',{action:'link',jobId:Number($('rj').value),days:Number($('rd').value),lang:window.PM_LANG});
+    const body=encodeURIComponent(T('Thank you for choosing us. Would you write a short review of the job for our website? This private link works until')+' '+j.expiresOn+':\n'+j.url);
+    $('lk').innerHTML=`<p class="ok">${T('Link ready for')} ${esc(j.customer)}. ${T('Send it now: it is shown only once.')}</p><input readonly value="${esc(j.url)}" onclick="this.select()"><div class="btns"><button class="btn sm" type="button" id="cp">${T('Copy link')}</button>${j.email?`<a class="btn sec sm" href="mailto:${esc(j.email)}?subject=${encodeURIComponent(T('Your review'))}&body=${body}">${T('Email it')}</a>`:''}<a class="btn sec sm" href="sms:?&body=${body}">${T('Text it')}</a></div>`;
+    $('cp').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(j.url).then(()=>msg('Link copied.',true));}catch(e){if(e)msg(e.message);}};
+  [].forEach.call(document.querySelectorAll('.rev'),el=>{const id=el.dataset.id;
+    [].forEach.call(el.querySelectorAll('[data-s]'),b=>b.onclick=async()=>{try{await api('/api/reviews',{action:'status',id,status:b.dataset.s});rReviews();msg('Saved. Publish is not needed: reviews update on your site right away.',true);}catch(e){if(e)msg(e.message);}});
+    el.querySelector('[data-rp]').onclick=async()=>{const ic=(el.querySelector('input[type=radio]:checked')||{}).value||null;try{await api('/api/reviews',{action:'reply',id,text:el.querySelector('[data-r]').value,icon:ic});msg('Reply saved.',true);}catch(e){if(e)msg(e.message);}};});
+}
+// ---------- PainterSelect directory
+async function rDir(){
+  if(AS){$('body').innerHTML='<div class="card muted">'+T('Use the Directory part of the admin sites page for this client.')+'</div>';return;}
+  let D;try{D=await api('/api/dir/me');}catch(e){if(e)msg(e.message);return;}
+  $('body').innerHTML=D.member?`<div class="card"><h3>${T('Your PainterSelect profile')}</h3><p class="muted">${T('PainterSelect is our directory for homeowners. Members show first in their cities, with photos, badges and the instant quote, and get the leads from the city pages.')}</p>
+<p><a class="btn" href="${esc(D.profileUrl)}" target="_blank" rel="noopener">${T('Open my profile')}</a></p>
+<p>${T('Your cities:')} ${D.cities.length?D.cities.map(c=>`<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.name)}, ${esc(c.state)}</a>`).join(' &middot; '):T('none yet. Add them in Estimating Setup.')}</p>
+<p>${T('Leads from PainterSelect today:')} <b>${D.leadsToday} ${T('of')} ${D.cap}</b> &middot; ${T('All time:')} <b>${D.leadsTotal}</b>${D.founding?' &middot; <span class="pill warn">'+T('Founding painter')+'</span>':''}</p>
+<label class="switch"><input type="checkbox" id="opt"${D.optOut?'':' checked'}> ${T('Show me on PainterSelect and send me its leads')}</label></div>`
+  :`<div class="card"><h3>${T('Your PainterSelect profile')}</h3><p>${T('A member profile on PainterSelect, with the leads from your city pages, comes with the Launch door and up.')}</p><button class="btn" type="button" id="dirUp">${T('See the doors')}</button></div>`;
+  if($('opt'))$('opt').onchange=async e=>{try{await api('/api/dir/me',{optOut:!e.target.checked});msg('Saved.',true);}catch(er){if(er)msg(er.message);}};
+  if($('dirUp'))$('dirUp').onclick=()=>openUp(null);
+}
+// ---------- Preview
+function rPreview(){
+  const p=page();
+  $('body').innerHTML=`<div class="card"><div class="pv"><button class="btn sm" type="button" data-w="desk">${T('Computer')}</button><button class="btn sec sm" type="button" data-w="phone">${T('Phone')}</button><select id="pvPage" style="width:auto">${S.site.pages.map(x=>`<option value="${x.id}"${x.id===p.id?' selected':''}>${esc(x.nav)}</option>`).join('')}</select></div>
+<p class="muted">${dirty?T('Save your draft to see the newest changes here.'):T('This is your draft. Visitors see it after you publish.')}</p><iframe class="frame" id="pv" title="${T('Preview')}"></iframe></div>`;
+  const path=x=>x.kind==='home'?'/':x.kind==='service'?'/services/'+x.slug:x.kind==='custom'?'/info/'+x.slug:'/'+x.slug;
+  const go=()=>{const x=S.site.pages.find(q=>q.id===$('pvPage').value);$('pv').src='/api/site/preview?path='+encodeURIComponent(path(x))+(AS?'&as='+encodeURIComponent(AS):'');};
+  $('pvPage').onchange=go;go();
+  [].forEach.call(document.querySelectorAll('[data-w]'),b=>b.onclick=()=>{$('pv').className='frame'+(b.dataset.w==='phone'?' phone':'');[].forEach.call(document.querySelectorAll('[data-w]'),o=>o.className='btn sm'+(o===b?'':' sec'));});
+}
+// ---------- Save and publish
+async function save(quiet){
+  try{const j=await api('/api/site',{action:'save',site:S.site});S.site=j.site;S.checks=j.checks;S.blockers=j.blockers;if(j.themeInfo!==undefined){S.themeInfo=j.themeInfo;S.canPublishTemplate=j.canPublishTemplate;S.templates=S.templates.map(t=>({...t,current:t.id===j.site.template}));}dirty=false;S.changed=true;if(!quiet){msg('Draft saved.',true);render();}return true;}
+  catch(e){if(e&&e.j&&e.j.over)openUp(e.j.over);else if(e)msg(e.message);if(quiet)throw e;return false;}
+}
+$('saveBtn').onclick=()=>save(false);
+$('prevBtn').onclick=async()=>{if(dirty&&!(await save(true).catch(()=>false)))return;tab='preview';render();};
+$('pubBtn').onclick=async()=>{
+  if(!S.canPublish){if(dirty)await save(true).catch(()=>{});return openUp('publish');}
+  try{const j=await api('/api/site',{action:'publish',site:S.site});dirty=false;S.site=j.site;S.publishedAt=j.publishedAt;S.changed=false;render();msg(T('Published. Your site is live at')+' '+j.origin,true);}
+  catch(e){if(!e)return;if(e.j&&e.j.over)return openUp(e.j.over);msg(e.message+(e.j&&e.j.blockers?' '+e.j.blockers.map(T).join(' '):''));}
+};
+window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
+load();
+</script>
+<script src="/nav.js"></script>
+<script src="/helpvideo.js" defer></script></body></html>

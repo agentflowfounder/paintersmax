@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Website templates - Admin</title><script src="/i18n.js" data-app></script><script src="/i18n-site.js"></script>
+<style>
+*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:10px}
+main{max-width:1200px;margin:0 auto;padding:16px 16px 60px}h3{margin:0 0 6px;font-family:Newsreader,Georgia,serif;font-weight:500;font-size:22px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:0 0 14px}
+.grid{display:grid;grid-template-columns:200px 1fr;gap:16px}@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.dslots{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:8px}.dslot{border:1px solid #dcd6cc;border-radius:8px;padding:8px;display:grid;gap:4px}.dslot img,.dph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;background:#efe9df}
+.thumb{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:linear-gradient(160deg,#f6e8cf,#e08a35);display:grid;place-items:center;color:#fff;font-family:Newsreader,Georgia,serif;font-size:20px}
+input,select{padding:8px;border:1px solid #cfd5dc;border-radius:8px;font:inherit;background:#fff}input[type=file]{max-width:100%;width:100%;font-size:12px}label{font-size:13px;font-weight:600;display:block;margin:8px 0 4px}
+.btn{padding:7px 11px;border-radius:8px;border:0;font:inherit;font-weight:700;cursor:pointer;background:#E8A33D;color:#0F1B2D;text-decoration:none;display:inline-block;font-size:13px}.btn.sec{background:#eceae4}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:12px;background:#eceae4;margin:1px}.pill.ok{background:#d9f3e3;color:#0a7a3d}.pill.off{background:#fde2e1;color:#b42318}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.muted{color:#4A5568;font-size:14px}#msg{min-height:18px;font-size:14px;margin:6px 0}.ok{color:#0a7a3d}.bad{color:#b42318}
+details summary{cursor:pointer;font-weight:600;font-size:14px;margin-top:8px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #eceae4;padding:6px;text-align:left}
+</style></head><body>
+<header><div><b>PaintersMax</b> Website templates</div><div><a href="/sites-admin">Client websites</a><a href="/marketing-admin">Marketing studio</a><a href="/admin">Admin</a></div></header>
+<main>
+<p class="muted">Turn templates on or off, choose which doors may publish with each one, rename them, set the order clients see, add a picker image, roll back to an older version, and preview any template with any client's content. Free clients preview every template that is on and never publish. A template a client uses is never deleted: turning it off only hides it from new choices. Every change is written to the audit log.</p>
+<div id="msg" role="status"></div>
+<div id="ai"></div><div id="body">Loading...</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const T=s=>(window.pmT?pmT(s):s);
+function msg(t,ok){$('msg').textContent=t?T(t):'';$('msg').className=ok?'ok':'bad';}
+async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
+const DOORS=[['launch','Launch'],['grow','Grow'],['signature','Signature']];
+const CLASS={basic:'Basic (Launch and up)',standard:'Standard (Grow and up)',premium:'Premium (Signature)'};
+let D=null;
+// ---------- Zip of default photos: read in the browser, one upload per photo space
+async function readZip(file){
+  const buf=new Uint8Array(await file.arrayBuffer()),dv=new DataView(buf.buffer);let e=-1;
+  for(let i=buf.length-22;i>=Math.max(0,buf.length-65557);i--)if(dv.getUint32(i,true)===0x06054b50){e=i;break;}
+  if(e<0)throw new Error('This does not look like a zip file.');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const out=[];
+  for(let k=0;k<n;k++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nlen=dv.getUint16(p+28,true),xlen=dv.getUint16(p+30,true),clen=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
+    const name=new TextDecoder().decode(buf.subarray(p+46,p+46+nlen));p+=46+nlen+xlen+clen;
+    if(name.endsWith('/')||/(^|\/)(__MACOSX|\.)/.test(name))continue;
+    const ln=dv.getUint16(off+26,true),lx=dv.getUint16(off+28,true),start=off+30+ln+lx,raw=buf.subarray(start,start+csize);
+    let data;
+    if(method===0)data=raw;else if(method===8){const ds=new DecompressionStream('deflate-raw');const w=ds.writable.getWriter();w.write(raw);w.close();data=new Uint8Array(await new Response(ds.readable).arrayBuffer());}else{out.push({name,err:'unsupported zip method'});continue;}
+    out.push({name,data});
+  }
+  return out;
+}
+const MIME={webp:'image/webp',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg'};
+async function uploadZip(id,slots,file,logEl){
+  const lines=[];let ok=0;
+  try{const files=await readZip(file);
+    const names=slots.map(x=>x.slot).sort((a,b)=>b.length-a.length);
+    for(const f of files){
+      const base=f.name.split('/').pop(),ext=(base.split('.').pop()||'').toLowerCase();
+      if(f.err){lines.push(base+': '+f.err);continue;}
+      if(!MIME[ext]){lines.push(base+': skipped (not WebP, PNG or JPG)');continue;}
+      const up=base.toUpperCase().replace(/\.[A-Z]+$/,'');
+      const slot=names.find(sl=>new RegExp('(^|[^A-Z0-9-])'+sl+'($|[^A-Z0-9-])').test(up));
+      if(!slot){lines.push(base+': skipped (no photo space name in the file name, or before/after)');continue;}
+      if(f.data.length>3*1024*1024){lines.push(base+': too large (over 3 MB)');continue;}
+      const fd=new FormData();fd.append('id',id);fd.append('slot',slot);fd.append('file',new File([f.data],base,{type:MIME[ext]}));
+      const r=await fetch('/api/site/templates/slot-image',{method:'POST',body:fd});const j=await r.json().catch(()=>({}));
+      if(r.ok){ok++;lines.push(base+' -> '+slot+': saved');}else lines.push(base+': '+(j.error||'failed'));
+    }
+  }catch(e){lines.push(e.message||'Could not read the zip.');}
+  logEl.textContent=ok+' '+T('saved')+'\n'+lines.join('\n');
+}
+async function loadAi(){try{const j=await api('/api/site/image-ai/settings');const st=j.settings,ro=!j.canChange;
+  $('ai').innerHTML=`<div class="card"><h3>${T('Create with AI (images)')}</h3><p class="muted">${T('Secret FAL_KEY in Cloudflare')}: <b>${j.keyPresent?T('found'):T('missing')}</b>. ${T('Clients pay with AI credits: draft 1, quality 3. Failed pictures give the credits back.')}</p>
+<div class="row"><label class="switch" style="margin:0"><input type="checkbox" id="aiOn"${st.enabled?' checked':''}${ro?' disabled':''}> ${T('On (kill switch: turn off to stop all AI pictures)')}</label></div>
+<div class="row"><div><label for="aiCap">${T('Pictures per client per day')}</label><input id="aiCap" type="number" min="1" max="100" value="${st.dailyCap}" style="width:90px"${ro?' disabled':''}></div><div><label for="aiDm">${T('Draft model')}</label><input id="aiDm" value="${esc(st.draftModel)}"${ro?' disabled':''}></div><div><label for="aiQm">${T('Quality model')}</label><input id="aiQm" value="${esc(st.qualityModel)}"${ro?' disabled':''}></div></div>
+${ro?'':`<div class="row" style="margin-top:10px"><button class="btn" type="button" id="aiSave">${T('Save')}</button></div>`}</div>`;
+  if($('aiSave'))$('aiSave').onclick=async()=>{try{await api('/api/site/image-ai/settings',{enabled:$('aiOn').checked,dailyCap:parseInt($('aiCap').value,10),draftModel:$('aiDm').value.trim(),qualityModel:$('aiQm').value.trim()});msg('Saved.',true);await loadAi();}catch(e){if(e)msg(e.message);}};
+ }catch(e){}}
+async function load(){loadAi();try{D=await api('/api/site/templates/admin');}catch(e){if(e)$('body').textContent=e.message;return;}render();}
+function render(){
+  const ro=!D.canChange;
+  $('body').innerHTML=D.templates.map(t=>`<div class="card" data-id="${esc(t.id)}"><div class="grid"><div>${t.thumbUrl?`<img class="thumb" src="${esc(t.thumbUrl)}?v=${esc(t.updatedOn||'')}" alt="">`:`<div class="thumb">${esc(t.name)}</div>`}
+${ro?'':`<label for="th_${esc(t.id)}">${T('Picker image (WebP, PNG or JPG, under 1 MB)')}</label><input type="file" id="th_${esc(t.id)}" accept="image/webp,image/png,image/jpeg" data-thumb>`}</div>
+<div><h3>${esc(t.name)} <span class="pill ${t.enabled?'ok':'off'}">${T(t.enabled?'On':'Off')}</span> <span class="pill">${esc(T(CLASS[t.class]||t.class))}</span>${t.legacy?` <span class="pill">${T('First builder look')}</span>`:''}</h3>
+<p class="muted"><b>${T('Slug')}:</b> ${esc(t.slug)} &middot; <b>${T('Version in use')}:</b> ${esc(t.version)}${t.version!==t.latest?` (${T('newest is')} ${esc(t.latest)})`:''}${t.updatedOn?` &middot; ${T('Changed')} ${esc(t.updatedOn)}`:''}</p>
+<div class="row"><label style="margin:0"><input type="checkbox" data-en${t.enabled?' checked':''}${ro?' disabled':''}> ${T('On (clients can choose it)')}</label></div>
+<label>${T('Doors that may publish with it')}</label><div class="row">${DOORS.map(([d,n])=>`<label style="margin:0;font-weight:500"><input type="checkbox" data-door="${d}"${t.doors.includes(d)?' checked':''}${ro?' disabled':''}> ${T(n)}</label>`).join('')}<span class="muted">${T('Free previews every template that is on.')}</span></div>
+<div class="row"><div><label for="nm_${esc(t.id)}">${T('Name clients see')}</label><input id="nm_${esc(t.id)}" data-name maxlength="40" value="${esc(t.name)}"${ro?' disabled':''}></div><div><label for="so_${esc(t.id)}">${T('Order (low first)')}</label><input id="so_${esc(t.id)}" data-sort type="number" min="0" max="999" value="${t.sort}" style="width:90px"${ro?' disabled':''}></div>
+<div><label for="vr_${esc(t.id)}">${T('Version')}</label><select id="vr_${esc(t.id)}" data-ver${ro?' disabled':''}><option value="">${T('Newest')} (${esc(t.latest)})</option>${t.versions.map(v=>`<option value="${esc(v)}"${t.version===v&&t.version!==t.latest?' selected':''}>${esc(v)}</option>`).join('')}</select></div></div>
+<label for="nt_${esc(t.id)}">${T('Admin note')}</label><input id="nt_${esc(t.id)}" data-note maxlength="200" value="${esc(t.note)}" style="width:100%"${ro?' disabled':''}>
+${ro?'':`<div class="row" style="margin-top:10px"><button class="btn" type="button" data-save>${T('Save')}</button></div>`}
+<div class="row" style="margin-top:10px"><label style="margin:0" for="pv_${esc(t.id)}">${T('Preview with client')}</label><select id="pv_${esc(t.id)}" data-pvc><option value="">${T('Your own sample company')}</option>${allClients().map(c=>`<option value="${c.companyId}">${esc(c.name)}</option>`).join('')}</select><input data-pvid placeholder="${T('or client id')}" style="width:110px" inputmode="numeric"><button class="btn sec" type="button" data-pv>${T('Open preview')}</button></div>
+<details><summary>${T('Clients using it')} (${t.clients.length})</summary>${t.clients.length?`<table><tr><th>${T('Client')}</th><th>${T('Draft')}</th><th>${T('Live')}</th><th></th></tr>${t.clients.map(c=>`<tr><td>${esc(c.name)} <small class="muted">#${c.companyId}</small></td><td>${c.draft?'&#10003;':''}</td><td>${c.live?'&#10003;':''}</td><td><a href="/site?as=${c.companyId}">${T('Open editor')}</a></td></tr>`).join('')}</table>`:`<p class="muted">${T('No client uses it yet.')}</p>`}</details>
+<details><summary>${T('Default photos')} (${(t.slots||[]).filter(x=>x.has).length}/${(t.slots||[]).length})</summary><p class="muted">${T('Visitors see these until the painter adds their own photo for that space. Use only images you may use on client sites. WebP, PNG or JPG, under 3 MB each. Before and after photos have no default.')}</p>${ro?'':`<div class="row" style="margin:8px 0"><label for="zp_${esc(t.id)}" style="margin:0">${T('Upload a zip of all photos')}</label><input type="file" id="zp_${esc(t.id)}" accept=".zip,application/zip" data-zip></div><pre class="muted" data-ziplog style="white-space:pre-wrap;font-size:12px"></pre>`}<div class="dslots">${(t.slots||[]).map(x=>`<div class="dslot" data-slot="${esc(x.slot)}">${x.has?`<img src="${esc(x.url)}?v=${esc(t.updatedOn||'')}" alt="">`:`<div class="dph"></div>`}<b>${esc(x.slot)}</b><small class="muted">${x.w} &times; ${x.h} (${esc(x.ratio)})</small>${ro?'':`<input type="file" accept="image/webp,image/png,image/jpeg" data-dfile aria-label="${esc(x.slot)}">${x.has?`<button class="btn sec sm" type="button" data-drm>${T('Remove')}</button>`:''}`}</div>`).join('')}</div></details>
+<details><summary>${T('Inspiration and license')}</summary><p class="muted"><b>${T('Inspiration')}:</b> ${esc(t.inspiration)}</p><p class="muted"><b>${T('License')}:</b> ${esc(t.license)}</p></details>
+</div></div></div>`).join('');
+  [].forEach.call(document.querySelectorAll('.card[data-id]'),c=>{
+    const id=c.dataset.id,q=s=>c.querySelector(s);
+    if(q('[data-save]'))q('[data-save]').onclick=async()=>{
+      try{
+        await api('/api/site/templates/admin',{action:'set',id,enabled:q('[data-en]').checked,doors:[].map.call(c.querySelectorAll('[data-door]:checked'),x=>x.dataset.door),name:q('[data-name]').value,sort:parseInt(q('[data-sort]').value,10),note:q('[data-note]').value});
+        const t=D.templates.find(x=>x.id===id),v=q('[data-ver]').value;
+        if(v!==(t.version!==t.latest?t.version:''))await api('/api/site/templates/admin',{action:'version',id,version:v});
+        msg('Saved.',true);await load();
+      }catch(e){if(e)msg(e.message);}
+    };
+    if(q('[data-thumb]'))q('[data-thumb]').onchange=async e=>{const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append('id',id);fd.append('file',f);
+      try{const r=await fetch('/api/site/templates/thumb',{method:'POST',body:fd});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Upload failed.');msg('Picker image saved.',true);await load();}catch(err){msg(err.message);}};
+    if(q('[data-zip]'))q('[data-zip]').onchange=async e=>{const f=e.target.files[0];if(!f)return;const t=D.templates.find(x=>x.id===id);await uploadZip(id,t.slots||[],f,q('[data-ziplog]'));msg('Zip finished. Reload to see the photos.',true);};
+    [].forEach.call(c.querySelectorAll('.dslot'),d=>{const slot=d.dataset.slot,f=d.querySelector('[data-dfile]'),rm=d.querySelector('[data-drm]');
+      const send=async fd=>{fd.append('id',id);fd.append('slot',slot);try{const r=await fetch('/api/site/templates/slot-image',{method:'POST',body:fd});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Upload failed.');msg('Saved.',true);await load();}catch(err){msg(err.message);}};
+      if(f)f.onchange=()=>{if(f.files[0]){const fd=new FormData();fd.append('file',f.files[0]);send(fd);}};
+      if(rm)rm.onclick=()=>{const fd=new FormData();fd.append('remove','1');send(fd);};});
+    q('[data-pv]').onclick=()=>{const as=(q('[data-pvid]').value||q('[data-pvc]').value).trim();window.open('/api/site/preview?path=/&tpl='+encodeURIComponent(id)+(as?'&as='+encodeURIComponent(as):''),'_blank','noopener');};
+  });
+}
+function allClients(){const m=new Map();D.templates.forEach(t=>t.clients.forEach(c=>m.set(c.companyId,c)));return [...m.values()].sort((a,b)=>a.name.localeCompare(b.name));}
+load();
+</script>
+</body></html>

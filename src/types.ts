@@ -6,6 +6,9 @@ export interface Env {
   GEMINI_API_BASE?: string; // tests only: points the document reader at a mock server
   // Secrets (set in Cloudflare: Settings -> Variables and Secrets). All optional: missing = demo mode.
   ANTHROPIC_API_KEY?: string;
+  /** fal.ai key for the website image tool. A Cloudflare secret; never stored in the code. */
+  FAL_KEY?: string;
+  YOUTUBE_API_KEY?: string; // secret: YouTube Data API v3 (search only; playing a pasted video needs no key)
   OPENAI_API_KEY?: string;
   GEMINI_API_KEY?: string;
   RESEND_API_KEY?: string;

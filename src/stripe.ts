@@ -1,8 +1,10 @@
+import { creditCheckout } from "./landing.ts";
 import { getSessionUser } from "./auth.ts";
 import { provisionClient } from "./admin.ts";
 import { allowanceById, allowanceByPrice, companyOfAllowanceSub, grantCredits, loadAllowance, saveAllowance, topUpById } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
 import { normalizePlan, type Plan } from "./usage.ts";
+import { applyPaidUpgrade } from "./sitebuilder.ts";
 import type { Env } from "./types.ts";
 
 const json = (data: unknown, status = 200) =>
@@ -63,6 +65,7 @@ export async function handleCheckout(request: Request, env: Env): Promise<Respon
   const email = typeof b?.email === "string" ? b.email.trim().toLowerCase().slice(0, 200) : "";
   if (!name) return json({ error: "Enter your company name." }, 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Enter a valid email." }, 400);
+  await creditCheckout(env, request).catch(() => {}); // credits the landing page this visitor came from
   const session = await stripeApi(env, "checkout/sessions", checkoutForm(new URL(request.url).origin, { plan, name, email }));
   return json({ url: session.url });
 }
@@ -145,6 +148,11 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
     const co = t && Number.isInteger(cid) ? await env.DB.prepare("SELECT id FROM companies WHERE id = ?").bind(cid).first() : null;
     if (t && co && typeof obj.id === "string") await grantCredits(env, cid, { id: `stripe:${obj.id}`, credits: t.credits, source: "topup", note: `Top-up of ${t.credits}` }, todayLocal());
     if (co && typeof obj.customer === "string") await env.DB.prepare("UPDATE companies SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?").bind(obj.customer, cid).run();
+  } else if (event.type === "checkout.session.completed" && obj.mode === "payment" && obj.metadata?.kind === "site_upgrade" && obj.payment_status === "paid") {
+    // A one-click website upgrade was paid. The door comes from our own list; it can only go up.
+    const cid = Number(obj.metadata?.company_id);
+    if (Number.isInteger(cid)) await applyPaidUpgrade(env, cid, obj.metadata?.door, typeof obj.id === "string" ? obj.id : undefined);
+    if (Number.isInteger(cid) && typeof obj.customer === "string") await env.DB.prepare("UPDATE companies SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?").bind(obj.customer, cid).run();
   } else if (event.type === "checkout.session.completed" && obj.mode === "subscription" && obj.metadata?.kind === "allowance") {
     // A monthly allowance started. The first month's credits are added now; later months arrive with each paid invoice (below).
     const a = allowanceById(obj.metadata?.allowance);
