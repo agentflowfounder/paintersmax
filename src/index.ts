@@ -41,6 +41,9 @@ import { handleTemplatePacks } from "./sitepacks.ts";
 import { handleImageAi, handleImageAiSettings, handleTemplateSlotImage, handleTemplateSlotImageGet, handleTemplateThumb, handleTemplateThumbGet, handleTemplatesAdmin } from "./sitetemplatesapi.ts";
 import { handleDemo } from "./demo.ts";
 import { requireAgreement } from "./agreement.ts";
+import { handleFreeSignup } from "./freesignup.ts";
+import { todayLocal } from "./dates.ts";
+import { handleStarterPublic, releaseHeldWelcome } from "./starter.ts";
 import { handleBrand } from "./brand.ts";
 import { visionAsk } from "./vision.ts";
 import { handleFiles } from "./files.ts";
@@ -443,6 +446,8 @@ export default {
     // Once a day (the 09:00 UTC run): AI sandbox items past their keep window.
     const at = new Date(_event.scheduledTime);
     if (at.getUTCHours() === 9 && at.getUTCMinutes() < 5) ctx.waitUntil(sandboxCleanup(env).catch((err) => console.error("sandbox cleanup failed", String(err))));
+    // Once a day (the 12:00 UTC run, 6 AM in Texas): welcome credits that waited because yesterday's sign-ups were over the ceiling.
+    if (at.getUTCHours() === 12 && at.getUTCMinutes() < 5) ctx.waitUntil(releaseHeldWelcome(env, todayLocal()).catch((err) => console.error("held welcome failed", String(err))));
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     return withSecurityHeaders(await friendly404(request, env, await handle(request, env, ctx)));
@@ -1012,6 +1017,26 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleJobNote(request, env);
       } catch (err) {
         console.error("handleJobNote failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/starter" && request.method === "GET") {
+      try {
+        return await handleStarterPublic(env, todayLocal());
+      } catch (err) {
+        console.error("starter info failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/start/free") {
+      try {
+        if (request.method === "POST") {
+          const stop = await requireAgreement(request, env);
+          if (stop) return stop;
+        }
+        return await handleFreeSignup(request, env);
+      } catch (err) {
+        console.error("free signup failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

@@ -1892,6 +1892,7 @@
   }, [
     [/^(\d+) AI requests? could not run this month because a monthly amount ran out\. Add AI credits so they keep working\.$/, function (a, n) { return n + (n === '1' ? ' solicitud de IA no pudo ejecutarse' : ' solicitudes de IA no pudieron ejecutarse') + ' este mes porque se acabó una cantidad mensual. Agregue créditos de IA para que sigan funcionando.'; }],
     [/^Your AI credits are almost gone: (\d+) left\.$/, function (a, n) { return 'Sus créditos de IA casi se acaban: quedan ' + n + '.'; }],
+    [/^(\d+) free AI credits? run out on (\d{4}-\d{2}-\d{2})\. Use them for color previews, photo reads or estimate drafts before then\.$/, function (a, n, d) { return n + (n === '1' ? ' crédito gratis de IA se vence' : ' créditos gratis de IA se vencen') + ' el ' + d + '. Úselos antes en vistas de color, lecturas de fotos o borradores de presupuesto.'; }],
   ]);
 
   /* ---- Part 20: Color preview ---- */
@@ -1974,6 +1975,10 @@
     "A switch takes effect at your next monthly charge. To cancel, use Manage billing.": "El cambio aplica en su próximo cargo mensual. Para cancelar, use Administrar pagos.",
     "One-time top-up": "Recarga única", "Add credits whenever you need them, on any plan, for example before an ad campaign. Top-up credits do not expire during early access.": "Agregue créditos cuando los necesite, en cualquier plan, por ejemplo antes de una campaña de anuncios. Los créditos de recarga no vencen durante el acceso anticipado.",
     "Allowance and welcome credits have an end date, shown above. Top-up credits stay until you use them.": "Los créditos de mensualidad y de bienvenida tienen fecha de fin, mostrada arriba. Los créditos de recarga se quedan hasta que los use.",
+    "Logo designs": "Diseños de logo", "Website writing help": "Ayuda para escribir su sitio web", "What your credits can do": "Lo que pueden hacer sus créditos",
+    "Pick any mix. Typing, quotes, estimates, contracts and invoices never use credits.": "Elija cualquier combinación. Escribir, cotizaciones, presupuestos, contratos y facturas nunca usan créditos.",
+    "times": "veces", "Quote helper answers": "Respuestas del ayudante de cotización", "Job photo reads": "Lecturas de fotos del trabajo",
+    "Color previews on a customer's photo": "Vistas de color en la foto del cliente",
     "Done. Your new allowance starts at your next monthly charge.": "Listo. Su nueva mensualidad empieza en su próximo cargo mensual.", "until": "hasta",
     "allowance credits": "créditos de mensualidad", "top-up credits": "créditos de recarga", "welcome credits": "créditos de bienvenida", "sign-up credits": "créditos de inscripción", "promotion credits": "créditos de promoción", "earned credits": "créditos ganados", "added credits": "créditos agregados", "pack credits": "créditos de paquete",
     "Choose a top-up.": "Elija una recarga.", "Choose an allowance.": "Elija una mensualidad.", "That is already your allowance.": "Esa ya es su mensualidad.", "Could not read your allowance. Use Manage billing instead.": "No se pudo leer su mensualidad. Use Administrar pagos.",

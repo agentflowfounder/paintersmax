@@ -5,7 +5,8 @@ import { adminTickerView, saveConfig } from "./ticker.ts";
 import { requestLoginLink } from "./auth.ts";
 import { adminActor, can, logAudit, ROLE_LIMITS, type Area } from "./adminroles.ts";
 import { ACT_AREAS, adminAct, adminView } from "./admincp.ts";
-import { grantCredits, WELCOME_CREDITS } from "./credits.ts";
+import { grantCredits } from "./credits.ts";
+import { grantWelcome } from "./starter.ts";
 import { todayLocal } from "./dates.ts";
 import { normalizePlan } from "./usage.ts";
 import { fastAnthropicModel, setTextDefault, sideBySide, textDefault } from "./assistant.ts";
@@ -43,14 +44,14 @@ async function uniqueSlug(env: Env, name: string): Promise<string> {
 }
 
 export type ProvisionResult =
-  | { ok: true; companyId: number; slug: string; created: boolean }
+  | { ok: true; companyId: number; slug: string; created: boolean; welcome?: { status: "granted" | "held" | "off"; credits: number; expiresOn: string } }
   | { ok: false; error: string };
 
 /**
  * Creates a client: a company, its owner login and a sign-in email. Safe to call twice for the same email
  * (a payment webhook may repeat): the second call changes nothing and reports created = false.
  */
-export async function provisionClient(env: Env, origin: string, input: { name: unknown; email: unknown; plan: unknown }): Promise<ProvisionResult> {
+export async function provisionClient(env: Env, origin: string, input: { name: unknown; email: unknown; plan: unknown }, o: { capped?: boolean; sendLink?: boolean } = {}): Promise<ProvisionResult> {
   const name = typeof input.name === "string" ? input.name.trim().slice(0, 100) : "";
   const email = typeof input.email === "string" ? input.email.trim().toLowerCase().slice(0, 200) : "";
   if (!name) return { ok: false, error: "Company name is required." };
@@ -64,14 +65,20 @@ export async function provisionClient(env: Env, origin: string, input: { name: u
   const company = await env.DB.prepare("INSERT INTO companies (slug, name, plan, notify_email) VALUES (?, ?, ?, ?)").bind(slug, name, plan, email).run();
   const companyId = Number(company.meta.last_row_id);
   await env.DB.prepare("INSERT INTO users (company_id, email, role) VALUES (?, ?, 'owner')").bind(companyId, email).run();
-  // Every new company starts with welcome credits, added once (the grant id is the company id).
-  await grantCredits(env, companyId, { id: `welcome:${companyId}`, credits: WELCOME_CREDITS, source: "welcome", note: "Welcome credits" }, todayLocal()).catch((err) => console.error("welcome credits failed", String(err)));
-  try {
-    await requestLoginLink(env, origin, email);
-  } catch (err) {
-    console.error("welcome link failed", String(err));
+  // Every new company starts with welcome credits, added once (the grant id is the company id). Amount and days are the
+  // starter campaign settings; public sign-ups also count against its daily ceiling (see starter.ts).
+  const welcome = await grantWelcome(env, companyId, todayLocal(), { capped: o.capped === true }).catch((err) => {
+    console.error("welcome credits failed", String(err));
+    return undefined;
+  });
+  if (o.sendLink !== false) {
+    try {
+      await requestLoginLink(env, origin, email);
+    } catch (err) {
+      console.error("welcome link failed", String(err));
+    }
   }
-  return { ok: true, companyId, slug, created: true };
+  return { ok: true, companyId, slug, created: true, welcome };
 }
 
 /** The area each of the original admin actions belongs to (the newer ones are in admincp.ts ACT_AREAS). */

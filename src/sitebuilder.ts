@@ -1,7 +1,8 @@
 import { getSessionUser, type SessionUser } from "./auth.ts";
 import { ADMIN_COMPANY_SLUG } from "./admin.ts";
 import { completeEx } from "./assistant.ts";
-import { grantDoorCredits } from "./credits.ts";
+import { afterDoorPaid, autoPromoFor, doorCharge, pickPromo } from "./starter.ts";
+import { loadPromos, type Promo } from "./promos.ts";
 import { todayLocal } from "./dates.ts";
 import { coiLink, showsCustomers } from "./insurance.ts";
 import { readSettings } from "./settings.ts";
@@ -155,12 +156,17 @@ export function themeInfo(id: string, reg: Registry, door: Door, balance: number
   };
 }
 
-function doorInfo(door: Door, rec: DoorRecord, reg: Registry = {}, current = "") {
+function doorInfo(door: Door, rec: DoorRecord, reg: Registry = {}, current = "", promos: Promo[] = [], today = todayLocal()) {
   const nd = nextDoor(door);
+  // From Free the price is the sign-up price: list, or the floor while a promotion that applies by itself is running.
+  const charge = (to: Exclude<Door, "free">) => {
+    const promo = door === "free" ? autoPromoFor(promos, to, today) : null;
+    return { cents: doorCharge(door, to, promo, today).cents, promo: promo ? { name: promo.name, endsOn: promo.endsOn, credits: promo.bonusCredits, founding: promo.founding } : null };
+  };
   return {
     door, name: DOOR_NAMES[door], limits: limitsFor(door, rec), canPublish: canPublish(door), override: rec.override ?? null,
-    next: nd ? { door: nd, name: DOOR_NAMES[nd], limits: DOOR_LIMITS[nd], priceCents: upgradeCents(door, nd), floorCents: DOOR_FLOOR_CENTS[nd], listCents: DOOR_LIST_CENTS[nd] } : null,
-    doors: DOORS.filter((d) => d !== "free").map((d) => ({ door: d, name: DOOR_NAMES[d], limits: DOOR_LIMITS[d], floorCents: DOOR_FLOOR_CENTS[d], listCents: DOOR_LIST_CENTS[d], upgradeCents: upgradeCents(door, d), current: d === door })),
+    next: nd && nd !== "free" ? { door: nd, name: DOOR_NAMES[nd], limits: DOOR_LIMITS[nd], priceCents: charge(nd).cents, promo: charge(nd).promo, floorCents: DOOR_FLOOR_CENTS[nd], listCents: DOOR_LIST_CENTS[nd] } : null,
+    doors: DOORS.filter((d): d is Exclude<Door, "free"> => d !== "free").map((d) => ({ door: d, name: DOOR_NAMES[d], limits: DOOR_LIMITS[d], floorCents: DOOR_FLOOR_CENTS[d], listCents: DOOR_LIST_CENTS[d], upgradeCents: DOORS.indexOf(d) > DOORS.indexOf(door) ? charge(d).cents : 0, current: d === door })),
     templates: pickerList(reg, door, current),
   };
 }
@@ -207,7 +213,7 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
     return json({
       company: { id: co.id, name: co.name, slug: co.slug, brandColor: readSettings(co.settings).brandColor ?? null },
       viewAs: a.viewAs,
-      ...doorInfo(door, rec, reg, site.template),
+      ...doorInfo(door, rec, reg, site.template, await loadPromos(env).catch(() => [])),
       themeInfo: themeInfo(site.template, reg, door, balance),
       canPublishTemplate: canPublishWith(reg, site.template, door),
       usage: usageOf(site),
@@ -371,33 +377,39 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
     if (!isDoor(to) || DOORS.indexOf(to) <= DOORS.indexOf(door)) return json({ error: "Choose a higher door." }, 400);
     if (a.viewAs) return json({ error: "Upgrades are paid by the painter. Change the door from the admin site list instead." }, 400);
     if (!env.STRIPE_SECRET_KEY) return json({ error: "Online upgrades are not open yet. Write to us and we will upgrade you by hand." }, 503);
-    const s = await stripeApi(env, "checkout/sessions", upgradeCheckoutForm(url.origin, { companyId: co.id, email: a.user.email, from: door, to }));
+    if (to === "free") return json({ error: "Choose a higher door." }, 400);
+    const today = todayLocal();
+    const pick = door === "free" ? await pickPromo(env, to, b?.code, today) : { promo: null };
+    if (pick.error && b?.code) return json({ error: pick.error }, 400);
+    const charge = doorCharge(door, to, pick.promo, today);
+    const s = await stripeApi(env, "checkout/sessions", upgradeCheckoutForm(url.origin, { companyId: co.id, email: a.user.email, from: door, to, cents: charge.cents, promoCode: charge.promoApplied ? pick.promo!.code : "" }));
     return json({ url: s.url });
   }
   return json({ error: "Unknown action." }, 400);
 }
 
-export function upgradeCheckoutForm(origin: string, i: { companyId: number; email: string; from: Door; to: Door }): URLSearchParams {
+export function upgradeCheckoutForm(origin: string, i: { companyId: number; email: string; from: Door; to: Door; cents?: number; promoCode?: string; successPath?: string }): URLSearchParams {
   const f = new URLSearchParams();
   f.set("mode", "payment");
   f.set("customer_email", i.email);
-  f.set("success_url", `${origin}/site?upgraded=1`);
+  f.set("success_url", `${origin}${i.successPath ?? "/site?upgraded=1"}`);
   f.set("cancel_url", `${origin}/site`);
   f.set("line_items[0][quantity]", "1");
   f.set("line_items[0][price_data][currency]", "usd");
-  f.set("line_items[0][price_data][unit_amount]", String(upgradeCents(i.from, i.to)));
+  f.set("line_items[0][price_data][unit_amount]", String(i.cents ?? upgradeCents(i.from, i.to)));
   f.set("line_items[0][price_data][product_data][name]", `PaintersMax website upgrade: ${DOOR_NAMES[i.from]} to ${DOOR_NAMES[i.to]}`);
   f.set("metadata[kind]", "site_upgrade");
   f.set("metadata[company_id]", String(i.companyId));
   f.set("metadata[from]", i.from);
   f.set("metadata[door]", i.to);
+  if (i.promoCode) f.set("metadata[promo]", i.promoCode);
   return f;
 }
 
 const PLAN_RANK: Record<Plan, number> = { free: 0, starter: 1, basic: 2, pro: 3 };
 
 /** Called by the Stripe webhook when an upgrade is paid. Raises the door (never lowers it) and the matching AI plan. */
-export async function applyPaidUpgrade(env: Env, companyId: number, to: unknown, paymentId?: string): Promise<boolean> {
+export async function applyPaidUpgrade(env: Env, companyId: number, to: unknown, paymentId?: string, pay: { promoCode?: string; paidCents?: number } = {}): Promise<boolean> {
   if (!isDoor(to)) return false;
   const co = await companyById(env, companyId);
   if (!co) return false;
@@ -406,7 +418,8 @@ export async function applyPaidUpgrade(env: Env, companyId: number, to: unknown,
   const plan = DOOR_PLAN[to];
   if (PLAN_RANK[plan] > PLAN_RANK[normalizePlan(co.plan)]) await env.DB.prepare("UPDATE companies SET plan = ? WHERE id = ?").bind(plan, co.id).run();
   // The new door's credits, once per company and door (the credit rules decide the amount and the free-credit cap).
-  if (paymentId && to !== "free") await grantDoorCredits(env, co.id, { door: to, paymentId, promo: null }, todayLocal()).catch((err) => console.error("door credits failed", String(err)));
+  // A promotion on the payment (Booked by Spring) replaces them and may give the Founding badge; the paid year starts now.
+  if (paymentId && to !== "free") await afterDoorPaid(env, co.id, { door: to, paymentId, promoCode: typeof pay.promoCode === "string" ? pay.promoCode : "", paidCents: Number(pay.paidCents) || 0 }, todayLocal()).catch((err) => console.error("door credits failed", String(err)));
   return true;
 }
 
