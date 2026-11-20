@@ -11,6 +11,7 @@ import { handleAdmin } from "./admin.ts";
 import { handleAuthConfig, handleGoogleCallback, handleGoogleStart } from "./google.ts";
 import { handleBilling, handleCheckout, handleStripeWebhook } from "./stripe.ts";
 import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleLang, handleProfile, handleRateCard } from "./wizard-api.ts";
+import { adminActor } from "./adminroles.ts";
 import { endSession, getSessionUser, hasSessionCookie, requestLoginLink, verifyLoginLink } from "./auth.ts";
 import { crossSiteWrite, visitorKey } from "./guard.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
@@ -608,7 +609,7 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     }
     if (pathname === "/api/me") {
       const user = await getSessionUser(env, request);
-      return user ? json({ email: user.email, company: user.companyName }) : json({ error: "Not signed in." }, 401);
+      return user ? json({ email: user.email, company: user.companyName, admin: !!(await adminActor(env, request).catch(() => null)) }) : json({ error: "Not signed in." }, 401);
     }
     if (pathname === "/api/usage/consume" && request.method === "POST") {
       try {
