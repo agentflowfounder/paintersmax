@@ -47,6 +47,11 @@ test("credit menu: 250 credits, what each tool gives, and a busy first month lea
   assert.equal(m.sample.credits, 65);
   assert.equal(m.sample.left, 185);
   assert.equal(creditMenu(0).sample.left, 0);
+  const cy = creditMenu(250, 60).cycle;
+  assert.equal(cy.perJob, 11);
+  assert.equal(cy.jobs, 22);
+  assert.equal(cy.jobsPerMonth, 11);
+  assert.equal(cy.seasons.length, 3);
 });
 
 test("welcome credits use the admin settings", async () => {
@@ -149,7 +154,7 @@ test("sign-up form: old plan names map to doors, and bad input is refused", () =
   assert.equal(doorFromInput(""), null);
   assert.deepEqual(readSignup({ name: "", email: "a@b.co" }), { error: "Enter your company name." });
   assert.deepEqual(readSignup({ name: "Rose City", email: "nope" }), { error: "Enter a valid email address." });
-  const r = readSignup({ name: " Rose City Painters ", email: "Owner@Example.com", door: "basic", lang: "es", website: "", lp: "Booked Spring", src: "Facebook Group" }) as any;
+  const r = readSignup({ name: " Rose City Painters ", email: "Owner@Example.com", city: "Tyler, TX", phone: "(903) 555-0142", door: "basic", lang: "es", website: "", lp: "Booked Spring", src: "Facebook Group" }) as any;
   assert.equal(r.name, "Rose City Painters");
   assert.equal(r.email, "owner@example.com");
   assert.equal(r.door, "grow");
@@ -157,7 +162,9 @@ test("sign-up form: old plan names map to doors, and bad input is refused", () =
   assert.equal(r.lp, "booked-spring");
   assert.equal(r.src, "facebook-group");
   assert.equal(r.robot, false);
-  assert.equal((readSignup({ name: "x", email: "a@b.co", website: "spam.com" }) as any).robot, true);
+  assert.equal((readSignup({ name: "x", email: "a@b.co", city: "Tyler", phone: "9035550142", website: "spam.com" }) as any).robot, true);
+  assert.deepEqual(readSignup({ name: "x", email: "a@b.co", phone: "9035550142" }), { error: "Enter your city." });
+  assert.deepEqual(readSignup({ name: "x", email: "a@b.co", city: "Tyler", phone: "555-1212" }), { error: "Enter a phone number with 10 digits." });
 });
 
 test("door checkout form carries the charged amount and the promotion code for the webhook", async () => {

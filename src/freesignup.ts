@@ -38,8 +38,13 @@ export function readSignup(b: any): SignupInput | { error: string } {
   const email = s(b?.email, 200).toLowerCase();
   if (!name) return { error: "Enter your company name." };
   if (!EMAIL.test(email)) return { error: "Enter a valid email address." };
+  const city = s(b?.city, 80);
+  const phone = s(b?.phone, 30).replace(/[^0-9+()\-. ]/g, "");
+  // City and phone are required: they qualify the account and fill in the setup wizard.
+  if (!city) return { error: "Enter your city." };
+  if (phone.replace(/\D/g, "").length < 10) return { error: "Enter a phone number with 10 digits." };
   return {
-    name, email, city: s(b?.city, 80), phone: s(b?.phone, 30).replace(/[^0-9+()\-. ]/g, ""),
+    name, email, city, phone,
     lang: b?.lang === "es" ? "es" : "en", door: doorFromInput(b?.door), code: s(b?.code, 24), lp: cleanSlug(b?.lp), src: cleanTag(b?.src), robot: !!s(b?.website, 200),
   };
 }

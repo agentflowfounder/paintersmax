@@ -93,12 +93,41 @@ export const SAMPLE_MONTH: { feature: Feature; times: number }[] = [
   { feature: "logo_design", times: 4 },
 ];
 
-export function creditMenu(credits: number): { rows: MenuRow[]; sample: { credits: number; left: number; items: { feature: Feature; times: number; cost: number }[] } } {
+/**
+ * One job from the first call to the last invoice, in the order a painter works it. The counts are the planning
+ * assumption shown to new sign-ups (a draft to audit before the 2026-12-01 launch). Punch lists and warranties are
+ * free tools and use no credits.
+ */
+export const JOB_CYCLE: { feature: Feature; times: number; en: string; es: string }[] = [
+  { feature: "estimate_draft", times: 1, en: "Estimate draft", es: "Borrador de presupuesto" },
+  { feature: "quote_helper", times: 1, en: "Quote helper wording", es: "Redacción con el ayudante de cotización" },
+  { feature: "ai_assistant", times: 3, en: "Job assistant questions (prep, paint, coats)", es: "Preguntas al asistente de trabajos (preparación, pintura, manos)" },
+  { feature: "photo_analysis", times: 2, en: "Job photo and blueprint reads", es: "Lecturas de fotos y planos del trabajo" },
+  { feature: "ai_invoice", times: 2, en: "Customer emails and invoice notes", es: "Correos al cliente y notas de factura" },
+];
+/** Busy times of the painter's year, in credits, so a new account sees what the busiest weeks take. */
+export const SEASONS: { id: string; en: string; es: string; items: { feature: Feature; times: number }[] }[] = [
+  { id: "spring", en: "Spring and summer exterior rush", es: "Temporada fuerte de exteriores (primavera y verano)", items: [{ feature: "estimate_draft", times: 30 }, { feature: "photo_analysis", times: 25 }, { feature: "color_repaint", times: 10 }] },
+  { id: "tax", en: "Tax time, quarterly estimates and year-end", es: "Época de impuestos, pagos trimestrales y cierre de año", items: [{ feature: "receipt_read", times: 40 }, { feature: "bank_read", times: 6 }, { feature: "vehicle_read", times: 4 }] },
+  { id: "winter", en: "Slow winter weeks: website, logo and follow-ups", es: "Semanas lentas de invierno: sitio web, logo y seguimientos", items: [{ feature: "site_write", times: 10 }, { feature: "logo_design", times: 4 }, { feature: "ai_invoice", times: 10 }] },
+];
+
+export function creditCycle(credits: number, days: number) {
+  const c = Math.max(0, Math.floor(credits));
+  const steps = JOB_CYCLE.map((j) => ({ ...j, cost: CREDIT_COST[j.feature] * j.times }));
+  const perJob = steps.reduce((n, x) => n + x.cost, 0);
+  const jobs = perJob ? Math.floor(c / perJob) : 0;
+  const months = Math.max(1, days / 30);
+  const seasons = SEASONS.map((x) => ({ id: x.id, en: x.en, es: x.es, credits: x.items.reduce((n, i) => n + CREDIT_COST[i.feature] * i.times, 0), items: x.items }));
+  return { steps, perJob, jobs, jobsPerMonth: Math.max(0, Math.floor(jobs / months)), seasons };
+}
+
+export function creditMenu(credits: number, days = 60): { rows: MenuRow[]; sample: { credits: number; left: number; items: { feature: Feature; times: number; cost: number }[] }; cycle: ReturnType<typeof creditCycle> } {
   const c = Math.max(0, Math.floor(credits));
   const rows = MENU.map((m) => ({ ...m, cost: CREDIT_COST[m.feature], uses: Math.floor(c / CREDIT_COST[m.feature]) }));
   const items = SAMPLE_MONTH.map((s) => ({ ...s, cost: CREDIT_COST[s.feature] * s.times }));
   const used = items.reduce((n, i) => n + i.cost, 0);
-  return { rows, sample: { credits: used, left: Math.max(0, c - used), items } };
+  return { rows, sample: { credits: used, left: Math.max(0, c - used), items }, cycle: creditCycle(c, days) };
 }
 
 /**
@@ -210,7 +239,7 @@ export async function handleStarterPublic(env: Env, today: string): Promise<Resp
     const price = promoPrice(d, "signup", promo, today);
     return { door: d, cents: price.cents, listCents: price.listCents, credits: promo && promo.bonusCredits > 0 ? promo.bonusCredits : DOOR_CREDITS, promo: promo ? { name: promo.name, endsOn: promo.endsOn, founding: promo.founding } : null };
   });
-  return new Response(JSON.stringify({ welcome: { credits, days: s.welcomeDays }, menu: creditMenu(credits), doorMenu: creditMenu(DOOR_CREDITS), doors }), {
+  return new Response(JSON.stringify({ welcome: { credits, days: s.welcomeDays }, menu: creditMenu(credits, s.welcomeDays), doorMenu: creditMenu(DOOR_CREDITS, 90), doors }), {
     headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },
   });
 }
