@@ -18,7 +18,8 @@ import { configOf } from "../templates/configs.ts";
 import { bumpDaily, callFal, loadImageAiSettings, modelInput, NO_AI_SLOTS, promptFor, unbumpDaily } from "./imageai.ts";
 import { CREDIT_COST } from "./credits.ts";
 import { BLOCKS, blockState, type BlockKey } from "./siteblocks.ts";
-import { FONT_CHOICES, SOCIAL_KINDS } from "./sitetheme.ts";
+import { FONT_CHOICES, isFont, SOCIAL_KINDS } from "./sitetheme.ts";
+import { refreshPacks } from "./sitepacks.ts";
 import { canPublishWith, entries, entryOf, mayChoose, pickerList, readRegistry, REGISTRY_KEY, renderWithTemplate, uiLangOf, type Registry } from "./sitetemplates.ts";
 import { creditView } from "./credits.ts";
 import type { Env } from "./types.ts";
@@ -135,6 +136,7 @@ export async function siteOrigin(env: Env, slug: string): Promise<string> {
 }
 
 export async function loadRegistry(env: Env): Promise<Registry> {
+  await refreshPacks(env); // uploaded template packs join the template list first, so the registry can hold their settings
   return readRegistry(await getKv(env, REGISTRY_KEY));
 }
 
@@ -332,6 +334,36 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
     }
     if (a.viewAs) await audit(env, co.id, by, "AI write", field);
     return json({ ok: true, text: out.text.replace(/^["']|["']$/g, "").slice(0, field === "seoTitle" ? 70 : field === "seoDesc" ? 170 : 6000) });
+  }
+  if (action === "restyle") {
+    // AI help with the look: suggests colors and fonts for the template in use. It only proposes; the painter applies or ignores it. Costs the same credits as AI text help.
+    const ask = typeof b?.ask === "string" ? b.ask.trim().slice(0, 200) : "";
+    if (!ask) return json({ error: "Describe the look you want, for example warm and friendly, or modern and dark." }, 400);
+    const cur = (await loadDraft(env, co, lang)).site;
+    const cfg = configOf(cur.template, reg[cur.template]?.version);
+    if (!cfg || cfg.legacy || !cfg.tokens.length) return json({ error: "This template has no colors to restyle. Pick a newer template first." }, 400);
+    const u = await consume(env, { id: co.id, plan: co.plan, createdAt: co.created_at }, "site_write");
+    if (!u.allowed) return json({ error: u.reason === "kill_switch" ? "AI help is paused right now." : "You are out of AI credits. Add credits on the AI use and credits page.", reason: u.reason }, 402);
+    const sys = `You choose colors and fonts for a house painter's website. Reply with ONLY one JSON object, no words around it: {"tokens":{<key>:"#rrggbb"},"display":"<font>","body":"<font>"}. Allowed token keys: ${cfg.tokens.map((t) => `${t.key} (${t.label.en})`).join(", ")}. Allowed fonts: ${FONT_CHOICES.map((f) => f.family).join(", ")}. Keep text readable: dark text on light backgrounds or the reverse, strong contrast. Never include other keys.`;
+    const out = await completeEx(env, sys, [{ role: "user", content: `Business: ${co.name}. The owner wants: ${ask}` }], { maxTokens: 500 });
+    let j: any = null;
+    try {
+      j = out ? JSON.parse(out.text.slice(out.text.indexOf("{"), out.text.lastIndexOf("}") + 1)) : null;
+    } catch {
+      j = null;
+    }
+    const allowed = new Set(cfg.tokens.map((t) => t.key));
+    const tokens: Record<string, string> = {};
+    for (const [k, v] of Object.entries(j?.tokens ?? {})) if (allowed.has(k) && typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) tokens[k] = v.toLowerCase();
+    const fonts: { display?: string; body?: string } = {};
+    if (isFont(j?.display)) fonts.display = j.display;
+    if (isFont(j?.body)) fonts.body = j.body;
+    if (!Object.keys(tokens).length && !fonts.display && !fonts.body) {
+      await refund(env, { id: co.id }, "site_write");
+      return json({ error: "The AI could not suggest a look right now. Your credits were not used. Try again in a minute." }, 503);
+    }
+    if (a.viewAs) await audit(env, co.id, by, "AI restyle", ask.slice(0, 80));
+    return json({ ok: true, tokens, fonts });
   }
   if (action === "upgrade") {
     // One-click upgrade: a one-time Stripe payment for the difference between the two doors.

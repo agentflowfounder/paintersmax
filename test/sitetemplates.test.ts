@@ -40,14 +40,18 @@ test("library: default door split and admin overrides", () => {
   const reg = readRegistry({});
   const e = entries(reg);
   assert.deepEqual(e.find((t) => t.id === "sunset-sand")!.doors, ["launch", "grow", "signature"]);
-  assert.deepEqual(e.find((t) => t.id === "bold")!.doors, ["signature"]);
-  assert.ok(!canPublishWith(reg, "sunset-sand", "free"));
+  // Classic and Bold are the Free-tier templates: every door may publish with them.
+  assert.deepEqual(e.find((t) => t.id === "bold")!.doors, ["free", "launch", "grow", "signature"]);
+  assert.deepEqual(e.find((t) => t.id === "classic")!.doors, ["free", "launch", "grow", "signature"]);
+  assert.ok(canPublishWith(reg, "classic", "free"));
+  assert.ok(canPublishWith(reg, "bold", "free"));
+  assert.ok(!canPublishWith(reg, "sunset-sand", "free")); // a paid-tier template never publishes on Free
   assert.ok(canPublishWith(reg, "sunset-sand", "launch"));
-  assert.ok(!canPublishWith(reg, "bold", "grow"));
-  // Free may choose any template that is on (to preview); Launch may not choose a Signature one.
-  assert.ok(mayChoose(reg, "bold", "free", "classic"));
-  assert.ok(!mayChoose(reg, "bold", "launch", "classic"));
-  assert.equal(pickerList(reg, "launch", "classic").find((t) => t.id === "bold")!.state, "locked");
+  // Free may still look at any template that is on, but only the free ones show "use".
+  assert.ok(mayChoose(reg, "sunset-sand", "free", "classic"));
+  assert.equal(pickerList(reg, "free", "classic").find((t) => t.id === "bold")!.state, "use");
+  assert.equal(pickerList(reg, "free", "classic").find((t) => t.id === "sunset-sand")!.state, "preview");
+  assert.equal(pickerList(reg, "launch", "classic").find((t) => t.id === "sunset-sand")!.state, "use");
   // Admin turns a template off: hidden from new choices, kept for the client already using it.
   const off = readRegistry({ "sunset-sand": { enabled: false }, junk: { enabled: true } });
   assert.equal(Object.keys(off).length, 1);
@@ -56,10 +60,12 @@ test("library: default door split and admin overrides", () => {
   assert.ok(!mayChoose(off, "sunset-sand", "grow", "classic"));
   assert.ok(mayChoose(off, "sunset-sand", "grow", "sunset-sand"));
   // Admin changes the doors; an unknown version is ignored.
-  const r2 = readRegistry({ bold: { doors: ["grow", "signature", "free", "x"], version: "9.9.9" } });
-  assert.deepEqual(r2.bold.doors, ["grow", "signature"]);
+  const r2 = readRegistry({ bold: { doors: ["grow", "signature", "free", "x"], version: "9.9.9" }, "sunset-sand": { doors: ["free", "grow"] } });
+  assert.deepEqual(r2.bold.doors, ["free", "grow", "signature"]);
   assert.equal(r2.bold.version, undefined);
   assert.ok(canPublishWith(r2, "bold", "grow"));
+  assert.ok(!canPublishWith(r2, "bold", "launch"));
+  assert.deepEqual(r2["sunset-sand"].doors, ["grow"]); // Free is allowed only for free-class templates
 });
 
 test("blocks: the feature ladder (door, credits, coming soon)", () => {

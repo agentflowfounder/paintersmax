@@ -171,4 +171,4 @@ document.querySelectorAll('input[name=cm]').forEach(r=>r.addEventListener('chang
 (async()=>{try{const v=await api('/api/brand');CARDS=v.cardDesigns;ETPL=v.emailTemplates;FD=v.flyerDesigns;HD=v.hangerDesigns;if(!FD.some(x=>x.id===FDES))FDES=FD[0].id;if(!HD.some(x=>x.id===HDES))HDES=HD[0].id;chips('fd',FD,FDES,'data-fd');chips('hd',HD,HDES,'data-hd');if(!ETPL.some(x=>x.id===ETYPE))ETYPE='estimate';etabs();fill(v.brand||v.suggested);$('insHint').hidden=!v.hasInsurance||!!(v.brand&&v.brand.insured);$('det').open=!v.brand;
  if(!TABS.some(t=>t[0]===TAB))TAB=TABS[0][0];if(!CARDS.some(d=>d.id===DESIGN))DESIGN='classic';tabs();designs();refresh();}
 catch(e){if(e)msg(e.message);}})();
-</script><script src="/nav.js"></script></body></html>
+</script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>

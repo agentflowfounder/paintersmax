@@ -584,4 +584,4 @@ document.addEventListener('click',async e=>{if(e.target.id!=='ins_go')return;con
   const r=await fetch('/api/insurance',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'analyze',fileName:f.name,mime:f.type,data})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');location.href='/insurance';}
  catch(x){m.textContent=x.message;m.style.color='#b42318';e.target.disabled=false;}});
-</script><script src="/nav.js"></script></body></html>
+</script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>

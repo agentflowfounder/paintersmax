@@ -3,6 +3,10 @@
 (function () {
   if (!window.pmI18n) return;
   pmI18n.add({
+"Describe the look you want, for example warm and friendly": "Describa el estilo que desea, por ejemplo cálido y amigable",
+"Suggest colors and fonts": "Sugerir colores y letras",
+"The AI only suggests. You can undo it by changing the colors back. Uses AI credits.": "La IA solo sugiere. Puede deshacerlo cambiando los colores otra vez. Usa créditos de IA.",
+"Suggested look applied to your draft. Change any color to adjust it.": "Estilo sugerido aplicado a su borrador. Cambie cualquier color para ajustarlo.",
 "Painting weather comes with the Grow door and up.": "El clima para pintar viene con la puerta Grow y superiores.",
 "A site can show weather for 2 places.": "Un sitio puede mostrar el clima de 2 lugares.",
 "YouTube link": "Enlace de YouTube",

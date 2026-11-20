@@ -81,4 +81,4 @@ document.addEventListener('click',function(e){
 });
 function load(){return fetch('/api/credits').then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});}).then(draw);}
 load().catch(function(x){if(x)showErr(x);});
-</script><script src="/nav.js"></script><script src="/helpvideo.js" defer></script></body></html>
+</script><script src="/nav.js"></script><script src="/helpvideo.js" defer></script><script src="/logo-apply.js"></script></body></html>

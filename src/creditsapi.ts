@@ -12,7 +12,7 @@ export const FEATURE_LABELS: Record<Feature, string> = {
   ai_quote: "Website instant quotes", ai_estimate: "Estimate helper", ai_invoice: "Invoice notes", photo_tag: "Photo tags", smart_select: "Color smart select",
   hd_render: "HD color renders", ai_assistant: "Job assistant questions", insurance_scan: "Insurance policy reads", ai_detailed: "Detailed answers",
   photo_analysis: "Photo analysis", ai_deep: "Step-by-step deep answers", receipt_read: "Receipt reads", bank_read: "Bank statement reads",
-  quote_helper: "Quote helper", estimate_draft: "Estimate drafts", help_chat: "Help chat", vehicle_read: "Vehicle photo reads", color_repaint: "Color previews on a photo", site_write: "Website writing help", site_image: "Website photos made with AI", site_image_draft: "Website photo drafts made with AI",
+  quote_helper: "Quote helper", estimate_draft: "Estimate drafts", help_chat: "Help chat", vehicle_read: "Vehicle photo reads", color_repaint: "Color previews on a photo", site_write: "Website writing help", site_image: "Website photos made with AI", logo_design: "Logo designs", site_image_draft: "Website photo drafts made with AI",
 };
 
 /** The Stripe Checkout form for one top-up (a single payment, not a subscription). */

@@ -21,8 +21,10 @@ table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px
 .bar{height:8px;background:#eceae4;border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:#E8A33D}
 .lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}.it{border:1px solid #dcd6cc;border-radius:10px;padding:8px;background:#fff;min-width:0}.it img,.it video{width:100%;max-height:320px;object-fit:contain;background:#111;border-radius:6px;display:block}.it audio{width:100%}.it .btn{padding:6px 9px;font-size:12px}
 code{background:#eceae4;padding:1px 5px;border-radius:4px;font-size:13px;word-break:break-all}
+details.acc{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;margin:0 0 12px}details.acc>summary{cursor:pointer;list-style:none;padding:12px 16px;display:flex;align-items:center;gap:4px}details.acc>summary::-webkit-details-marker{display:none}details.acc>summary:before{content:"\25B8";font-size:14px;margin-right:8px;transition:transform .15s}details.acc[open]>summary:before{transform:rotate(90deg)}details.acc>summary h3{margin:0}.accb{padding:0 16px 16px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;align-items:center}.ctr{color:#6b7380;font-size:12px;margin-left:6px;white-space:nowrap}textarea{resize:vertical}
 </style></head><body>
-<header><div><b>PaintersMax</b> Marketing studio</div><div><a href="/templates-admin">Website templates</a><a href="/sites-admin">Client websites</a><a href="/admin">Admin</a></div></header>
+<header><div><b>PaintersMax</b> Marketing studio</div><div><a href="/templates-admin">Website templates</a><a href="/sites-admin">Client websites</a><a href="/marketing-guide" target="_blank" rel="noopener">User guide</a><a href="/admin">Admin</a></div></header>
 <main>
 <div class="tabs" role="tablist" id="tabs">
 <button role="tab" data-t="logo" aria-selected="true">Logo studio</button>
@@ -34,7 +36,7 @@ code{background:#eceae4;padding:1px 5px;border-radius:4px;font-size:13px;word-br
 <div id="msg" role="status"></div>
 <div id="pane"></div>
 </main>
-<script src="/pmlogo.js"></script>
+<script src="/pmlogo.js"></script><script src="/pmhelp.js"></script><script src="/marketing-help.js"></script><script src="/logostudio.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -42,37 +44,12 @@ function msg(t,ok){$('msg').textContent=t||'';$('msg').className=ok?'ok':'bad';}
 async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}if(r.status===404){throw new Error('This page needs an admin sign-in.');}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
 const pane=$('pane');let tab='logo';
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;document.querySelectorAll('#tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));msg('');show();});
-const show=()=>({logo:logoTab,help:helpTab,find:findTab,lp:lpTab,sandbox:sandboxTab})[tab]().catch(e=>{if(e)msg(e.message);});
+const show=()=>({logo:logoTab,help:helpTab,find:findTab,lp:lpTab,sandbox:sandboxTab})[tab]().then(()=>enhance(pane)).catch(e=>{if(e)msg(e.message);});
 
-/* ---------------- Logo studio ---------------- */
-const CN={box:'Box with phone (business in a box)',cycle:'Bid it, Book it, Bank it cycle',paint:'Paint roller',pm:'PM letters'};
-let LG={concept:'box',shape:'square',primary:'#1f3a5f',accent:'#e8833a',ink:'#ffffff',text:'#1f3a5f',slogan:true,dark:false};
+/* ---------------- Logo studio (shared with the painter page; saves to the PaintersMax company) ---------------- */
 async function logoTab(){
-  try{const j=await api('/api/admin/pm-logo');if(j.logo)for(const k of Object.keys(j.logo))if(j.logo[k]!==''&&j.logo[k]!=null)LG[k]=j.logo[k];}catch(e){msg(e.message);}
-  drawLogo();
-}
-function drawLogo(){
-  pane.innerHTML=`<div class="card"><h3>PaintersMax logo studio</h3><p class="muted">Pick a concept, a shape and your colors. Everything is drawn as clean vector art, so it stays sharp on a business card or a truck. Slogan: <b>Bid it. Book it. Bank it.</b></p>
-<h4>1. Concept</h4><div class="concepts">${PMLOGO.CONCEPTS.map(c=>`<button type="button" class="cc" data-c="${c}" aria-pressed="${LG.concept===c}">${PMLOGO.icon({...LG,concept:c},96)}<div>${esc(CN[c])}</div></button>`).join('')}</div>
-<h4>2. Shape</h4><div class="row">${PMLOGO.SHAPES.map(s=>`<button type="button" class="btn ${LG.shape===s?'':'sec'}" data-s="${s}">${s[0].toUpperCase()+s.slice(1)}</button>`).join('')}</div>
-<h4>3. Colors</h4><div class="row"><label>Shape <input type="color" data-k="primary" value="${LG.primary}"></label><label>Accent <input type="color" data-k="accent" value="${LG.accent}"></label><label>Symbol <input type="color" data-k="ink" value="${LG.ink}"></label><label>Name <input type="color" data-k="text" value="${LG.text}"></label><label><input type="checkbox" id="sl"${LG.slogan?' checked':''}> Show slogan</label><label><input type="checkbox" id="dk"${LG.dark?' checked':''}> Preview on dark</label></div>
-<h4>Preview</h4><div id="big"${LG.dark?' class="dark"':''}>${PMLOGO.lockup(LG)}</div>
-<h4>4. Files</h4><div class="row"><button class="btn" id="dSvg">Full logo (SVG)</button><button class="btn" id="dPng">Full logo (PNG, 2000 px)</button><button class="btn" id="dIcon">Icon only (PNG 512, app and social)</button><button class="btn" id="dFav">Browser tab icon (PNG 64)</button><button class="btn sec" id="dMono">One color for print (SVG)</button></div>
-<p class="muted">SVG is for websites and printers. PNG is for email, social media and slides. The icon files are for the browser tab, your phone's home screen and profile pictures. The one-color file is for stamps, engraving and single-color print. The name uses a standard bold font; send the SVG to a printer as outlines if they ask.</p>
-<div class="row"><button class="btn" id="lgSave">Save this design</button></div></div>`;
-  pane.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{LG.concept=b.dataset.c;drawLogo();});
-  pane.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{LG.shape=b.dataset.s;drawLogo();});
-  pane.querySelectorAll('input[type=color]').forEach(i=>i.oninput=()=>{LG[i.dataset.k]=i.value;$('big').innerHTML=PMLOGO.lockup(LG);});
-  $('sl').onchange=e=>{LG.slogan=e.target.checked;$('big').innerHTML=PMLOGO.lockup(LG);};
-  $('dk').onchange=e=>{LG.dark=e.target.checked;$('big').className=LG.dark?'dark':'';};
-  const dl=(name,blob)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);};
-  const png=(svg,w,h,name)=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);c.toBlob(b=>dl(name,b),'image/png');};img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);};
-  $('dSvg').onclick=()=>dl('paintersmax-logo.svg',new Blob([PMLOGO.lockup(LG)],{type:'image/svg+xml'}));
-  $('dMono').onclick=()=>dl('paintersmax-logo-one-color.svg',new Blob([PMLOGO.lockup({...LG,mono:true})],{type:'image/svg+xml'}));
-  $('dPng').onclick=()=>{const w=LG.slogan?470:400;png(PMLOGO.lockup(LG),2000,Math.round(2000*120/w),'paintersmax-logo.png');};
-  $('dIcon').onclick=()=>png(PMLOGO.icon(LG,512),512,512,'paintersmax-icon-512.png');
-  $('dFav').onclick=()=>png(PMLOGO.icon(LG,64),64,64,'paintersmax-favicon-64.png');
-  $('lgSave').onclick=async()=>{try{await api('/api/admin/pm-logo',LG);msg('Logo design saved.',true);}catch(e){msg(e.message);}};
+  pane.innerHTML='<div id="lsroot">Loading...</div>';
+  PMLogoStudio.mount($('lsroot'),{admin:true,msg});
 }
 
 /* ---------------- Help videos ---------------- */
@@ -123,6 +100,7 @@ ${p.media?`<label>AI ${p.mediaType} from the sandbox</label><div class="row"><co
 <div><b>English</b>${f('Headline','h_en',p.headline.en,'',120)}<label>Sub-headline</label><textarea id="s_en" maxlength="300">${esc(p.sub.en)}</textarea>${p.bullets.concat([{en:'',es:''},{en:'',es:''}]).slice(0,5).map((b,i)=>f('Bullet '+(i+1),'b'+i+'_en',b.en,'',120)).join('')}${f('Button text','c_en',p.cta.en,'Start free',40)}${f('Small print','n_en',p.note.en,'',200)}
 <b style="display:block;margin-top:12px">Español</b>${f('Titular','h_es',p.headline.es,'',120)}<label>Subtítulo</label><textarea id="s_es" maxlength="300">${esc(p.sub.es)}</textarea>${p.bullets.concat([{en:'',es:''},{en:'',es:''}]).slice(0,5).map((b,i)=>f('Punto '+(i+1),'b'+i+'_es',b.es,'',120)).join('')}${f('Texto del botón','c_es',p.cta.es,'Empezar gratis',40)}${f('Letra pequeña','n_es',p.note.es,'',200)}</div></div>
 <div class="row" style="margin-top:12px"><button class="btn" id="lpSave">Save</button><button class="btn sec" id="lpCancel">Close</button><span class="muted">English and Spanish both needed for live pages? English is required; Spanish falls back to English.</span></div></div>`;
+  accordion($('ed'),['New landing page','Edit landing page']);helpIcons($('ed'));
   $('lpStatus').value=p.status;$('lpGoal').value=p.goal;$('lpPlan').value=p.plan;$('lpOr').value=p.orient;
   $('lpCancel').onclick=()=>{$('ed').innerHTML='';};
   $('lpSave').onclick=async()=>{const v=id=>$(id).value;const page={slug:v('lpSlug'),name:v('lpName'),campaign:v('lpCamp'),status:v('lpStatus'),goal:v('lpGoal'),plan:v('lpPlan'),yt:v('lpYt'),orient:v('lpOr'),headline:{en:v('h_en'),es:v('h_es')},sub:{en:v('s_en'),es:v('s_es')},cta:{en:v('c_en'),es:v('c_es')},note:{en:v('n_en'),es:v('n_es')},bullets:[0,1,2,3,4].map(i=>({en:v('b'+i+'_en'),es:v('b'+i+'_es')})),media:$('lpNoMedia')&&$('lpNoMedia').checked?'':p.media||'',mediaType:$('lpNoMedia')&&$('lpNoMedia').checked?'':p.mediaType||''};
@@ -150,7 +128,7 @@ ${j.isOwner?`<details style="margin-top:10px"${s.enabled?'':' open'}><summary><b
 <div class="card"><h3>Library</h3><div class="tabs" id="sbFil">${[['all','All'],['image','Images'],['video','Videos'],['audio','Sound'],['fav','Favorites'],['public','Public']].map(([k,v])=>`<button data-f="${k}" aria-selected="${SB.filter===k}">${v}</button>`).join('')}</div><div id="sbLib" class="lib"></div></div>`;
   if($('sbSave'))$('sbSave').onclick=async()=>{try{await api('/api/admin/sandbox',{settings:{enabled:$('sbOn').checked,perRunUsd:+$('sbRun').value,dailyUsd:+$('sbDay').value,monthlyUsd:+$('sbMon').value,keepDays:+$('sbKeep').value}});msg('Limits saved.',true);sandboxTab();}catch(e){msg(e.message);}};
   pane.querySelectorAll('#sbKinds button').forEach(b=>b.onclick=()=>{SB.kind=b.dataset.k;SB.model='';SB.info=null;sandboxTab();});
-  pane.querySelectorAll('#sbTpl [data-t]').forEach(b=>b.onclick=()=>{const t=j.templates.find(x=>x.id===b.dataset.t);$('sbPrompt').value=t.prompt;SB.prefill={aspect_ratio:t.ratio,duration:t.duration};applyPrefill();stale();});
+  pane.querySelectorAll('#sbTpl [data-t]').forEach(b=>b.onclick=()=>{const t=j.templates.find(x=>x.id===b.dataset.t);$('sbPrompt').value=t.prompt;SB.prefill={aspect_ratio:t.ratio,duration:t.duration};applyPrefill();stale();refreshCounters();});
   $('sbFind').onclick=()=>loadModels($('sbQ').value);$('sbQ').onkeydown=e=>{if(e.key==='Enter')loadModels($('sbQ').value);};
   $('sbModel').onchange=()=>pickModel($('sbModel').value);
   $('sbUse').onclick=()=>pickModel($('sbId').value.trim());
@@ -171,7 +149,7 @@ async function loadModels(q){
 }
 async function pickModel(id){
   if(!id)return;stale();$('sbInfo').textContent='Reading the model settings from fal...';$('sbFields').innerHTML='';
-  try{const r=await api('/api/admin/sandbox/model?id='+encodeURIComponent(id));SB.model=id;SB.info=r.model;$('sbId').value=id;drawFields();}catch(e){$('sbInfo').textContent='';msg(e.message);}
+  try{const r=await api('/api/admin/sandbox/model?id='+encodeURIComponent(id));SB.model=id;SB.info=r.model;$('sbId').value=id;drawFields();refreshCounters();}catch(e){$('sbInfo').textContent='';msg(e.message);}
 }
 function drawFields(){
   const m=SB.info,p=m.price;
@@ -182,11 +160,13 @@ function drawFields(){
     if(f.type==='boolean')return `<label><input type="checkbox" id="${id}" data-f="${f.name}" data-b="1"${f.def?' checked':''}> ${esc(f.label)}</label>`;
     if(f.type==='number'||f.type==='integer')return lab+`<input id="${id}" data-f="${f.name}" type="number"${f.min!=null?' min="'+f.min+'"':''}${f.max!=null?' max="'+f.max+'"':''} step="${f.type==='integer'?1:'any'}" placeholder="${f.def!=null?esc(f.def):''}">`;
     if(f.type==='image')return lab+`<select data-img="${id}"><option value="">Pick from library</option>${imgs.map(i=>`<option value="${esc(location.origin+i.privateLink)}">${esc(i.prompt.slice(0,50))} (${i.at.slice(0,10)})</option>`).join('')}</select><input id="${id}" data-f="${f.name}" placeholder="or paste an https image link" style="width:100%;margin-top:4px">`;
+    if(/text|prompt|lyrics|script|caption/i.test(f.name))return lab+`<textarea id="${id}" data-f="${f.name}" maxlength="2000" style="width:100%;min-height:140px;resize:vertical" placeholder="${esc(f.hint||'')}"></textarea>`;
     return lab+`<input id="${id}" data-f="${f.name}" maxlength="500" style="width:100%">`;}).join('')||'<p class="muted">This model takes only a prompt.</p>';
   $('sbFields').querySelectorAll('[data-f]').forEach(x=>x.oninput=x.onchange=stale);
   $('sbFields').querySelectorAll('[data-img]').forEach(x=>x.onchange=()=>{$(x.dataset.img).value=x.value;stale();});
-  applyPrefill();
+  applyPrefill();helpIcons($('sbFields'));counters($('sbFields'));refreshCounters();
 }
+function refreshCounters(){pane.querySelectorAll('[data-ctr]').forEach(e=>e.__ctr&&e.__ctr());}
 function applyPrefill(){
   if(!SB.prefill||!SB.info)return;
   for(const [k,v] of Object.entries(SB.prefill)){if(v==null)continue;const el=$('f_'+k);if(!el)continue;if(el.tagName==='SELECT'){const o=[...el.options].find(o=>o.value===String(v)||o.value===v+'s');if(o)el.value=o.value;}else el.value=v;}
@@ -233,5 +213,61 @@ function drawLib(){
     }catch(e){msg(e.message);}});});
 }
 function confirmBox(card,text,yes){const box=card.querySelector('.lpPick');box.innerHTML=`<div class="row" style="margin-top:6px"><b class="bad">${esc(text)}</b><button class="btn">Yes, delete</button><button class="btn sec">Cancel</button></div>`;const [y,n]=box.querySelectorAll('button');y.onclick=async()=>{try{await yes();}catch(e){msg(e.message);}};n.onclick=()=>{box.innerHTML='';};return false;}
+
+/* ---------------- Accordions, help icons, character counters ---------------- */
+const OPEN={help:['Help videos'],find:['Video finder'],lp:['Campaigns','Landing pages'],sandbox:['AI sandbox','Make something','Library']};
+const RULES=[
+ ['h3','Help videos','hv_section'],['th','YouTube link','hv_url'],['th','Title (English / Spanish)','hv_title_en'],['th','Where it shows','hv_shape'],
+ ['h3','Video finder','vf_section'],['#q','','vf_q'],['#go','','vf_go'],
+ ['h3','Campaigns','lp_campaigns'],['h3','Landing pages','lp_pages'],['#newLp','','lp_new'],['h3','Campaign tracking links','lp_links'],['#ulp','','lp_links'],['#usrc','','lp_src'],['#uex','','lp_extra'],['h3','Campaign playbook','lp_playbook'],
+ ['#lpName','','lp_name'],['#lpSlug','','lp_slug'],['#lpCamp','','lp_camp'],['#lpStatus','','lp_status'],['#lpGoal','','lp_goal'],['#lpPlan','','lp_plan'],['#lpYt','','lp_yt'],['#lpOr','','lp_orient'],
+ ['#h_en','','lp_headline'],['#h_es','','lp_headline'],['#s_en','','lp_sub'],['#s_es','','lp_sub'],['#c_en','','lp_button'],['#c_es','','lp_button'],['#n_en','','lp_note'],['#n_es','','lp_note'],['#lpSave','','lp_save'],
+ ['#b0_en,#b1_en,#b2_en,#b3_en,#b4_en,#b0_es,#b1_es,#b2_es,#b3_es,#b4_es','','lp_bullet'],
+ ['h3','AI sandbox','sb_section'],['h3','Make something','sb_make'],['h3','Running','sb_running'],['h3','Library','sb_library'],['summary b','Limits','sb_limits'],
+ ['#sbOn','','sb_on'],['#sbRun','','sb_run'],['#sbDay','','sb_day'],['#sbMon','','sb_mon'],['#sbKeep','','sb_keep'],['#sbQ','','sb_search'],['#sbModel','','sb_model'],['#sbId','','sb_modelid'],['#sbPrompt','','sb_prompt'],['#sbHelp','','sb_help'],['#sbQuote','','sb_price'],['#sbGo','','sb_run_btn'],['#sbTpl','','sb_tpl'],['#sbFields [data-f]','','sb_field']
+];
+const LABELED=['H3','TH','B'];
+function helpIcons(scope){
+  RULES.forEach(([sel,text,key])=>{
+    scope.querySelectorAll(sel).forEach(el=>{
+      const t=el.textContent.trim();
+      if(text&&t!==text&&!t.startsWith(text))return;
+      if(el.dataset.hq)return;el.dataset.hq='1';
+      const tmp=document.createElement('span');tmp.innerHTML=PMHELP.icon(key);const b=tmp.firstChild;if(!b)return;
+      if(LABELED.includes(el.tagName))el.appendChild(b);else el.insertAdjacentElement('afterend',b);
+    });
+  });
+}
+function counters(scope){
+  scope.querySelectorAll('input:not([type]),input[type=text],input[type=search],input[type=url],textarea').forEach(el=>{
+    if(el.dataset.ctr)return;
+    if(!el.maxLength||el.maxLength<0)el.maxLength=120;
+    el.dataset.ctr='1';
+    const sp=document.createElement('small');sp.className='ctr';el.insertAdjacentElement('afterend',sp);
+    const up=()=>{sp.textContent=el.value.length+' / '+el.maxLength;};
+    el.addEventListener('input',up);el.addEventListener('change',up);up();
+    el.__ctr=up;
+  });
+}
+function accordion(scope,open){
+  [...scope.children].filter(c=>c.classList&&c.classList.contains('card')).forEach(card=>{
+    const h=card.querySelector(':scope > h3');if(!h)return;
+    const d=document.createElement('details');d.className='acc';if(open.includes(h.textContent.trim()))d.open=true;
+    const sm=document.createElement('summary');sm.appendChild(h);
+    const body=document.createElement('div');body.className='accb';while(card.firstChild)body.appendChild(card.firstChild);
+    d.appendChild(sm);d.appendChild(body);card.replaceWith(d);
+  });
+}
+function enhance(scope){
+  if(tab!=='logo'&&scope===pane&&!pane.querySelector('.tools')){
+    accordion(pane,OPEN[tab]||[]);
+    const t=document.createElement('div');t.className='tools';t.innerHTML='<button class="btn sec" id="expAll">Expand all</button><button class="btn sec" id="colAll">Collapse all</button><a class="btn sec" href="/marketing-guide#'+tab+'" target="_blank" rel="noopener">How to use this page</a>';
+    pane.insertBefore(t,pane.firstChild);
+    $('expAll').onclick=()=>pane.querySelectorAll('details.acc').forEach(d=>d.open=true);
+    $('colAll').onclick=()=>pane.querySelectorAll('details.acc').forEach(d=>d.open=false);
+  }
+  helpIcons(scope);
+  if(tab==='sandbox')counters(scope);
+}
 show();
-</script></body></html>
+</script><script src="/logo-apply.js"></script></body></html>

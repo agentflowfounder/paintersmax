@@ -82,4 +82,4 @@ fetch('/api/colors').then(function(r){if(r.status===401){location.href='/login';
  $('sw').innerHTML=j.swatches.map(function(s){return '<button type="button" data-hex="'+esc(s.hex.toUpperCase())+'" data-name="'+esc(s.name)+'"><i style="background:'+esc(s.hex)+'"></i>'+esc(T(s.name))+'</button>'}).join('');
  $('surf').innerHTML=j.surfaces.map(function(k){return '<option value="'+esc(k)+'">'+esc(T(SURF[k]||k))+'</option>'}).join('');
  setColor('#BDB3A3','Greige');useLine();ready();}).catch(function(x){if(x)msg(T('Could not load.'),'bad');});
-</script><script src="/nav.js"></script></body></html>
+</script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>

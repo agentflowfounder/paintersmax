@@ -752,4 +752,4 @@ document.addEventListener('input',e=>{const t=e.target,ds=t.dataset||{};if(ds.dk
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.ci!==undefined){clauses[+t.dataset.ci][t.dataset.cf]=t.value;return;}if(t.dataset&&t.dataset.f!==undefined){lines[+t.dataset.i][t.dataset.f]=t.value;drawTotals();}else if(t.id==='discount'||t.id==='tax')drawTotals();});
 document.addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.del;if(d!==undefined&&d!==''){lines.splice(+d,1);drawLines();}});
 (async()=>{try{const id=new URLSearchParams(location.search).get('id');id?await detail(id):await list();}catch(e){if(e)$('view').innerHTML='<p class="bad">'+esc(e.message||'Could not load.')+'</p>';}})();
-</script><script src="/nav.js"></script></body></html>
+</script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>
