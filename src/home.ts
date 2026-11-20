@@ -10,6 +10,7 @@ import { dueWords, nextDue } from "./duedates.ts";
 import { loadVehicles, tripsSince, vehicleAlerts } from "./vehicles.ts";
 import { readApprovals, timeApprKey, timesheetNudges } from "./timesheet.ts";
 import { creditView } from "./credits.ts";
+import { expiringSoon } from "./starter.ts";
 import { effectivePlan, monthKey, normalizePlan } from "./usage.ts";
 import { storageLimitFor, storageUsed } from "./files.ts";
 import type { Env } from "./types.ts";
@@ -273,6 +274,11 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
       const n = full?.n ?? 0;
       if (n > 0 && view.balance === 0) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `${n} AI request${n === 1 ? "" : "s"} could not run this month because a monthly amount ran out. Add AI credits so they keep working.` });
       else if (view.balance > 0 && view.balance <= 5) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `Your AI credits are almost gone: ${view.balance} left.` });
+      else {
+        // Free credits about to run out: a nudge to use them (a free account's welcome credits are the main one).
+        const soon = expiringSoon(view.grants, todayLocal());
+        if (soon) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `${soon.credits} free AI credit${soon.credits === 1 ? "" : "s"} run out on ${soon.on}. Use them for color previews, photo reads or estimate drafts before then.` });
+      }
     }
   } catch {
     /* credits are optional */

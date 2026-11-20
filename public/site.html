@@ -80,6 +80,7 @@ canvas{max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none}
 <p id="upWhy" class="lead"></p>
 <table class="doors" id="upTable"></table>
 <p class="muted" id="upNote">You pay only the difference. Nothing on your site is lost.</p>
+<div id="upPromo" hidden style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#fff7e6;color:#5c3d00;font-size:14px"></div><label for="upCode" style="display:block;margin-top:8px">Promo code (optional)</label><input id="upCode" maxlength="24" autocomplete="off" style="text-transform:uppercase;max-width:240px">
 <div class="btns"><button class="btn" id="upGo" type="button">Upgrade now</button><button class="btn sec" type="button" onclick="document.getElementById('up').close()">Not now</button></div>
 <div id="upMsg" class="bad"></div>
 </dialog>
@@ -247,8 +248,9 @@ function openUp(why){
   const rows=S.doors.map(d=>`<tr class="${d.current?'cur':''}"><td><b>${esc(T(d.name))}</b>${d.current?' <span class="pill">'+T('Yours')+'</span>':''}</td><td>${d.limits.pages} ${T('pages')}</td><td>${d.limits.services} ${T('service pages')}</td><td>${d.limits.photos} ${T('photos')}</td><td>${d.upgradeCents&&!d.current?T('Upgrade')+' '+money(d.upgradeCents):''}</td></tr>`).join('');
   $('upTable').innerHTML=`<tr><th>${T('Door')}</th><th>${T('Pages')}</th><th>${T('Services')}</th><th>${T('Photos')}</th><th></th></tr>`+rows;
   $('upGo').textContent=T('Upgrade to')+' '+T(S.next.name)+' '+T('for')+' '+money(S.next.priceCents);
+  const pr=S.next.promo;$('upPromo').hidden=!pr;if(pr)$('upPromo').textContent=pr.name+': '+(pr.credits?pr.credits+' '+T('AI credits')+' ':'')+(pr.founding?T('and the Founding painter badge')+' ':'')+T('until')+' '+pr.endsOn;
   $('upMsg').textContent='';$('up').showModal();
-  $('upGo').onclick=async()=>{$('upGo').disabled=true;try{if(dirty)await save(true);const j=await api('/api/site',{action:'upgrade',door:S.next.door});location.href=j.url;}catch(e){$('upMsg').textContent=e?T(e.message):'';$('upGo').disabled=false;}};
+  $('upGo').onclick=async()=>{$('upGo').disabled=true;try{if(dirty)await save(true);const j=await api('/api/site',{action:'upgrade',door:S.next.door,code:$('upCode').value.trim()});location.href=j.url;}catch(e){$('upMsg').textContent=e?T(e.message):'';$('upGo').disabled=false;}};
 }
 
 // ---------- Photos: resize, adjust, strip location data, blur, describe, upload

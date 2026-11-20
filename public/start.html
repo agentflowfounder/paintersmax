@@ -1,45 +1,230 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
-<title>Start with PaintersMax</title><script src="/i18n.js"></script>
-<style>
-*{box-sizing:border-box}
-body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
-header{background:#0F1B2D;color:#fff;padding:14px 16px}header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
-main{max-width:860px;margin:0 auto;padding:20px 16px 60px}
-h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:32px;margin:6px 0 6px}
-p.lead{color:#4A5568;margin:0 0 18px}
-.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.plan{background:#fff;border:2px solid rgba(15,27,45,.1);border-radius:12px;padding:16px;cursor:pointer}
-.plan.on{border-color:#E8A33D;box-shadow:0 0 0 3px rgba(232,163,61,.25)}
-.plan h3{margin:0;font-size:18px}.price{font-size:28px;font-weight:700;margin:6px 0}.price small{font-size:14px;font-weight:500;color:#4A5568}
-.plan ul{padding-left:18px;margin:8px 0 0;font-size:14px;line-height:1.5}
-.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;margin:16px 0}
-label{display:block;font-size:14px;font-weight:600;margin:10px 0 4px}
-input{width:100%;padding:12px;border:1px solid #cfd5dc;border-radius:8px;font:inherit}
-button{margin-top:14px;width:100%;padding:14px;border-radius:8px;border:0;background:#E8A33D;color:#0F1B2D;font-weight:700;font-size:16px;cursor:pointer}
-button[disabled]{opacity:.6}#msg{color:#b42318;font-size:14px;min-height:20px;margin-top:8px}
-small{color:#4A5568}
-@media(max-width:700px){.plans{grid-template-columns:1fr}}
-</style></head><body>
-<header><b>PaintersMax</b></header>
-<main>
-<h1>Quotes, estimates and contracts in one place</h1>
-<p class="lead">Early access plans, paid monthly. Each plan also has a one-time $499 setup fee, charged with your first payment. The yearly plans on our pricing page are coming soon.</p>
-<div class="plans" id="plans">
- <div class="plan" data-p="starter"><h3>Starter</h3><div class="price">$99<small>/month</small></div><ul><li>Up to 2 services and 2 cities</li><li>Estimates, contracts, invoices</li><li>Job assistant: 60 questions a month</li></ul></div>
- <div class="plan on" data-p="basic"><h3>Basic</h3><div class="price">$199<small>/month</small></div><ul><li>Up to 5 services and 6 cities</li><li>Builder rate cards</li><li>Job assistant: 300 questions a month</li></ul></div>
- <div class="plan" data-p="pro"><h3>Pro</h3><div class="price">$349<small>/month</small></div><ul><li>Up to 15 services and 25 cities</li><li>Builder rate cards</li><li>Job assistant: 1,500 questions a month</li></ul></div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Start free | PaintersMax</title>
+<meta name="description" content="Open a free PaintersMax account in a minute: quote page, estimates, contracts, invoices and 250 AI credits. No card needed.">
+
+<link rel="canonical" href="https://paintersmax.app/start">
+<meta property="og:title" content="Start free | PaintersMax">
+<meta property="og:description" content="Open a free PaintersMax account in a minute: quote page, estimates, contracts, invoices and 250 AI credits. No card needed.">
+<meta property="og:image" content="https://paintersmax.app/img/home-exterior-1400.jpg">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/site.css">
+<style>[data-until][hidden]{display:none!important}
+.st-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:24px;align-items:start}
+.st-card{background:var(--card);border:1px solid var(--line-soft);border-radius:16px;padding:24px;margin-bottom:20px}
+.st-card h2{font-size:26px;margin-bottom:10px}.st-sub{color:var(--slate);margin:8px 0 12px}.st-fine{display:block;color:var(--muted);font-size:13px;margin-top:10px}
+.st-card label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
+.st-card input[type=text],.st-card input:not([type]),.st-card input[type=email],.st-card input[type=tel]{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
+.st-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.st-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.st-doors{border:0;margin:16px 0 4px}.st-doors legend{font-weight:600;font-size:15px;margin-bottom:6px}
+.st-door{display:flex!important;gap:10px;align-items:flex-start;font-weight:400!important;border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0!important;cursor:pointer;background:#fff}
+.st-door.on{border-color:var(--orange);box-shadow:0 0 0 3px rgba(227,150,58,.22)}.st-door input{margin-top:4px}.st-door small{display:block;color:var(--slate);margin-top:2px}.st-door s,.st-dcard s{color:var(--muted);font-weight:400}
+.st-pill{display:inline-block;margin-top:6px;background:#fff1dc;color:#6b4200;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600}
+.st-agree{display:flex!important;gap:10px;align-items:flex-start;font-weight:400!important;margin-top:16px!important}.st-agree input{margin-top:4px}.st-agree a{text-decoration:underline}
+#go{margin-top:16px;width:100%;justify-content:center;border:0;cursor:pointer;font-size:16px}#go[disabled]{opacity:.6}#msg{color:#a3261b;font-size:14px;min-height:20px;margin-top:8px}
+.st-ok{background:#eef7ee;border:1px solid #b9dcb9;border-radius:12px;padding:16px}.st-ok h3{font-size:22px;margin-bottom:6px}.st-ok p{margin-top:6px}
+.st-t{width:100%;border-collapse:collapse}.st-t td{padding:9px 0;border-bottom:1px solid var(--line-soft);vertical-align:top}.st-t td:last-child{text-align:right;white-space:nowrap}.st-t small{color:var(--muted)}
+.st-dc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.st-dcard{background:#fff;border:1px solid var(--line-soft);border-radius:12px;padding:12px}.st-dcard p{font-size:13px;color:var(--slate);margin-top:6px}.st-price{font-family:Fraunces,Georgia,serif;font-size:24px;color:var(--navy)}
+.st-lang{float:right;background:none;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
+@media(max-width:860px){.st-grid{grid-template-columns:1fr}.st-dc{grid-template-columns:1fr}}
+@media(max-width:480px){.st-two{grid-template-columns:1fr}.st-card{padding:18px}}
+</style>
+
+</head>
+<body>
+
+<div class="offer" data-from="2026-11-25" data-until="2027-01-06">
+  <div class="wrap">
+    <span><b>Booked by Spring.</b> November 25 to January 6: Launch for $299, 1,000 AI credits and a Founding member badge.</span>
+    <a href="/pricing">See the offer</a>
+  </div>
 </div>
-<div class="card"><label for="n">Company name</label><input id="n" autocomplete="organization"><label for="e">Your email</label><input id="e" type="email" autocomplete="email">
-<label style="display:flex;gap:10px;align-items:flex-start;font-weight:400;margin-top:14px"><input id="agree" type="checkbox" style="width:auto;margin-top:3px"><span>I have read and agree to the <a href="/early-access-agreement" target="_blank" rel="noopener">Early Access Agreement</a>, the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
-<button id="go">Continue to secure payment</button><div id="msg"></div><small>You will pay on Stripe's secure page. After payment, a sign-in link is emailed to you. You can cancel anytime.</small></div>
+
+<header>
+  <div class="wrap nav-row">
+    <a class="brand" href="/" aria-label="PaintersMax home"><b>PaintersMax</b><span>Bid it. Book it. Bank it.</span></a>
+    <nav aria-label="Main"><ul><li><a href="/features">Features</a></li><li><a href="/instant-quote">Instant quote</a></li><li><a href="/color-studio">Color Studio</a></li><li><a href="/pricing">Pricing</a></li><li><a href="/how-it-works">How it works</a></li><li><a href="/why-paintersmax">Why us</a></li></ul></nav>
+    <div class="nav-actions">
+      <a class="signin" href="/login">Sign in</a>
+      <a class="btn btn-orange arrow" href="/pricing">Get started</a>
+      <details class="mnav"><summary>Menu</summary><ul><li><a href="/features">Features</a></li><li><a href="/instant-quote">Instant quote</a></li><li><a href="/color-studio">Color Studio</a></li><li><a href="/pricing">Pricing</a></li><li><a href="/how-it-works">How it works</a></li><li><a href="/why-paintersmax">Why us</a></li><li><a href="/login">Sign in</a></li></ul></details>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="page-hero"><div class="wrap">
+  <span class="kicker" data-t="kicker">Start free</span>
+  <h1 data-t="h1">Your painting business, <em>free to start.</em></h1>
+  <p class="lead" data-t="lead">Your own quote page, estimates, contracts and invoices, and a listing in the painter directory. No card and no clock. Every new account also gets <b class="wc">250</b> AI credits to try the AI tools.</p>
+</div></section>
+
+<section class="block tight"><div class="wrap st-grid">
+  <div class="st-card" id="formCard">
+    <button type="button" class="st-lang" id="langBtn">Español</button><h2 data-t="formH">Open your free account</h2>
+    <div class="st-ok" id="okBox" hidden></div>
+    <form id="f" novalidate>
+      <label for="n" data-t="name">Company name</label><input id="n" autocomplete="organization" maxlength="100" required>
+      <label for="e" data-t="email">Your email</label><input id="e" type="email" autocomplete="email" maxlength="200" required>
+      <div class="st-two"><div><label for="c" data-t="city">City (optional)</label><input id="c" autocomplete="address-level2" maxlength="80"></div>
+      <div><label for="p" data-t="phone">Phone (optional)</label><input id="p" type="tel" autocomplete="tel" maxlength="30"></div></div>
+      <div class="st-hp" aria-hidden="true"><label for="w">Website</label><input id="w" tabindex="-1" autocomplete="off"></div>
+      <fieldset class="st-doors"><legend data-t="doorQ">Do you want us to build your website now?</legend>
+        <label class="st-door on"><input type="radio" name="door" value="" checked> <span><b data-t="noDoor">Not now, start free</b><small data-t="noDoorS">Pick a door later from your dashboard.</small></span></label>
+        <div id="doorOpts"></div>
+      </fieldset>
+      <div id="codeRow" hidden><label for="code" data-t="code">Promo code (optional)</label><input id="code" maxlength="24" autocomplete="off" style="text-transform:uppercase"></div>
+      <label class="st-agree"><input id="agree" type="checkbox"> <span data-t="agree" data-html>I have read and agree to the <a href="/early-access-agreement" target="_blank" rel="noopener">Early Access Agreement</a>, the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
+      <button class="btn btn-orange arrow" id="go" type="submit" data-t="go">Start free</button>
+      <div id="msg" role="alert"></div>
+      <small class="st-fine" data-t="fine">We email you a sign-in link. No password to remember. If you picked a door, you pay on Stripe's secure page next; your free account is open either way.</small>
+    </form>
+  </div>
+
+  <div>
+    <div class="st-card">
+      <h2><span data-t="buyH">What your</span> <span class="wc">250</span> <span data-t="buyH2">welcome credits can do</span></h2>
+      <p class="st-sub" data-t="buyS">Credits pay for the AI jobs. Typing, quotes, estimates, contracts and invoices are free and never use credits. Pick any mix, for example:</p>
+      <table class="st-t" id="menu"><tbody></tbody></table>
+      <p class="st-sub" id="sample"></p>
+      <p class="st-fine"><span data-t="exp">Welcome credits last</span> <b class="wd">60</b> <span data-t="exp2">days. After that, the free tools keep working, and you can add credits from $5 whenever you want.</span></p>
+    </div>
+    <div class="st-card">
+      <h2 data-t="doorH">Want a website too? Pick a door.</h2>
+      <p class="st-sub" data-t="doorS">One price a year with your website, domain and hosting included. No setup fee and no monthly bill.</p>
+      <div id="doorCards" class="st-dc"></div>
+      <p class="st-fine"><a href="/pricing" data-t="compare">Compare everything on the pricing page</a></p>
+    </div>
+  </div>
+</div></section>
 </main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div><span class="brand"><b>PaintersMax</b></span><p>The painter's business in a box. A product of AgentFlow LLC. Built by a painter, for painters.</p></div>
+      <div><h4>Product</h4><ul><li><a href="/features">Features</a></li><li><a href="/pricing">Pricing</a></li><li><a href="/how-it-works">How it works</a></li><li><a href="/why-paintersmax">Why PaintersMax</a></li></ul></div>
+      <div><h4>Try it</h4><ul><li><a href="/instant-quote">Instant quote</a></li><li><a href="/color-studio">Color Studio</a></li><li><a href="/painting-materials">Painting materials list</a></li><li><a href="/insurance-for-painters">Painter's insurance guide</a></li></ul></div>
+      <div><h4>Account</h4><ul><li><a href="/start">Get started</a></li><li><a href="/login">Sign in</a></li><li><a href="mailto:support@paintersmax.app">support@paintersmax.app</a></li><li><a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/early-access-agreement">Early access</a></li></ul></div>
+    </div>
+    <div class="foot-bottom">
+      <span>&copy; 2026 AgentFlow LLC. All rights reserved.</span>
+      <span>Bid it &middot; Book it &middot; Bank it</span>
+    </div>
+  </div>
+</footer>
+
 <script>
-let plan='basic';const $=id=>document.getElementById(id);
-document.querySelectorAll('.plan').forEach(el=>el.onclick=()=>{plan=el.dataset.p;document.querySelectorAll('.plan').forEach(x=>x.classList.toggle('on',x===el));});
-$('go').onclick=async()=>{const b=$('go');$('msg').textContent='';if(!$('agree').checked){$('msg').textContent='Please tick the box to agree before you continue.';return;}b.disabled=true;
- try{const r=await fetch('/api/checkout',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({plan,name:$('n').value,email:$('e').value,agreed:true})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw new Error(j.error||'Something went wrong.');location.href=j.url;}
- catch(e){$('msg').textContent=e.message;b.disabled=false;}};
-</script><script src="/logo-apply.js" data-public></script></body></html>
+(function () {
+  'use strict';
+  var Q = new URLSearchParams(location.search), $ = function (id) { return document.getElementById(id); };
+  var lang = 'en';
+  try { lang = Q.get('lang') === 'es' ? 'es' : Q.get('lang') === 'en' ? 'en' : localStorage.getItem('pm_lang') === 'es' ? 'es' : 'en'; } catch (e) {}
+  var ES = {
+    kicker: 'Empiece gratis', h1: 'Su negocio de pintura, <em>gratis para empezar.</em>',
+    lead: 'Su propia página de cotizaciones, presupuestos, contratos y facturas, y un perfil en el directorio de pintores. Sin tarjeta y sin plazo. Cada cuenta nueva también recibe <b class="wc">250</b> créditos de IA para probar las herramientas de IA.',
+    formH: 'Abra su cuenta gratis', name: 'Nombre de la compañía', email: 'Su correo electrónico', city: 'Ciudad (opcional)', phone: 'Teléfono (opcional)',
+    doorQ: '¿Quiere que le hagamos su sitio web ahora?', noDoor: 'Ahora no, empezar gratis', noDoorS: 'Elija una puerta después desde su panel.',
+    code: 'Código de promoción (opcional)',
+    agree: 'Leí y acepto el <a href="/early-access-agreement" target="_blank" rel="noopener">Acuerdo de Acceso Anticipado</a>, los <a href="/terms" target="_blank" rel="noopener">Términos de Servicio</a> y la <a href="/privacy" target="_blank" rel="noopener">Política de Privacidad</a>.',
+    go: 'Empezar gratis', fine: 'Le enviamos un enlace para entrar por correo. No hay contraseña que recordar. Si eligió una puerta, paga después en la página segura de Stripe; su cuenta gratis queda abierta de todos modos.',
+    buyH: 'Lo que pueden hacer sus', buyH2: 'créditos de bienvenida',
+    buyS: 'Los créditos pagan los trabajos de IA. Escribir, cotizaciones, presupuestos, contratos y facturas son gratis y nunca usan créditos. Elija cualquier combinación, por ejemplo:',
+    exp: 'Los créditos de bienvenida duran', exp2: 'días. Después, las herramientas gratis siguen funcionando y puede agregar créditos desde $5 cuando quiera.',
+    doorH: '¿También quiere un sitio web? Elija una puerta.', doorS: 'Un precio al año con su sitio web, dominio y hospedaje incluidos. Sin cargo de instalación y sin pago mensual.',
+    compare: 'Compare todo en la página de precios', other: 'English'
+  };
+  var W = {
+    en: { first: 'first year', then: 'then', year: 'a year', credits: 'AI credits at sign-up', founding: 'Founding painter badge', until: 'until', goDoor: 'Start free and pay for', check: 'Check your email', sent: 'We sent a sign-in link to', ready: 'Your free account is ready.', held: 'Lots of painters signed up today, so your welcome credits arrive by tomorrow morning.', got: 'welcome AI credits are in your account.', paid: 'Payment received. Check your email for your sign-in link. Your website credits are in your account.', agreeMsg: 'Please tick the box to agree before you continue.', sample: 'A busy first month (10 estimate drafts, 10 quote helps, 10 photo reads, 5 color previews, 6 website text helps and 4 logos) uses about', left: 'credits, leaving', left2: 'for whatever you need.', uses: 'times', per: 'credits each', per1: 'credit each', save: 'Promo', codeNote: 'About your code:' },
+    es: { first: 'primer año', then: 'luego', year: 'al año', credits: 'créditos de IA al inscribirse', founding: 'insignia de Pintor fundador', until: 'hasta el', goDoor: 'Empezar gratis y pagar', check: 'Revise su correo', sent: 'Enviamos un enlace para entrar a', ready: 'Su cuenta gratis está lista.', held: 'Muchos pintores se inscribieron hoy, así que sus créditos de bienvenida llegan mañana temprano.', got: 'créditos de IA de bienvenida ya están en su cuenta.', paid: 'Pago recibido. Revise su correo para el enlace de entrada. Sus créditos del sitio web ya están en su cuenta.', agreeMsg: 'Marque la casilla para aceptar antes de continuar.', sample: 'Un primer mes ocupado (10 borradores de presupuesto, 10 ayudas de cotización, 10 lecturas de fotos, 5 vistas de color, 6 ayudas de texto del sitio web y 4 logos) usa unos', left: 'créditos y le quedan', left2: 'para lo que necesite.', uses: 'veces', per: 'créditos cada uno', per1: 'crédito cada uno', save: 'Promoción', codeNote: 'Sobre su código:' }
+  };
+  var DOOR_FOR = { launch: { en: 'Solo painters and small crews', es: 'Pintores solos y equipos pequeños' }, grow: { en: 'Busy crews', es: 'Equipos ocupados' }, signature: { en: 'Companies that want to stand out', es: 'Compañías que quieren destacar' } };
+  var NAMES = { launch: 'Launch', grow: 'Grow', signature: 'Signature' };
+  var ERR_ES = { 'Enter your company name.': 'Escriba el nombre de su compañía.', 'Enter a valid email address.': 'Escriba un correo electrónico válido.', 'Something went wrong.': 'Algo salió mal.' };
+  var INFO = null, w = function (k) { return W[lang][k]; };
+  var money = function (c) { return '$' + (c % 100 ? (c / 100).toFixed(2) : String(c / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var num = function (n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); };
+
+  document.querySelectorAll('[data-t]').forEach(function (el) { el.setAttribute('data-en', el.innerHTML); });
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-t]').forEach(function (el) { var k = el.getAttribute('data-t'); el.innerHTML = lang === 'es' && ES[k] ? ES[k] : el.getAttribute('data-en'); });
+    $('langBtn').textContent = lang === 'es' ? 'English' : 'Español';
+    try { localStorage.setItem('pm_lang', lang); } catch (e) {}
+    render();
+  }
+  $('langBtn').onclick = function () { lang = lang === 'es' ? 'en' : 'es'; applyLang(); };
+
+  function promoLine(d) { return d.promo ? '<span class="st-pill">' + esc(d.promo.name) + ' ' + esc(w('until')) + ' ' + esc(d.promo.endsOn) + '</span>' : ''; }
+  function render() {
+    if (!INFO) return;
+    var wc = INFO.welcome.credits;
+    document.querySelectorAll('.wc').forEach(function (el) { el.textContent = wc; });
+    document.querySelectorAll('.wd').forEach(function (el) { el.textContent = INFO.welcome.days; });
+    $('menu').querySelector('tbody').innerHTML = INFO.menu.rows.map(function (r) { return '<tr><td>' + esc(lang === 'es' ? r.es : r.en) + '<br><small>' + r.cost + ' ' + esc(r.cost === 1 ? w('per1') : w('per')) + '</small></td><td><b>' + r.uses + '</b> ' + esc(w('uses')) + '</td></tr>'; }).join('');
+    $('sample').textContent = w('sample') + ' ' + INFO.menu.sample.credits + ' ' + w('left') + ' ' + INFO.menu.sample.left + ' ' + w('left2');
+    var cur = (document.querySelector('input[name=door]:checked') || {}).value || pre;
+    $('doorOpts').innerHTML = INFO.doors.map(function (d) {
+      return '<label class="st-door"><input type="radio" name="door" value="' + d.door + '"' + (cur === d.door ? ' checked' : '') + '> <span><b>' + NAMES[d.door] + ' &middot; ' + money(d.cents) + ' ' + esc(w('first')) + '</b>' + (d.cents < d.listCents ? ' <s>' + money(d.listCents) + '</s>' : '') +
+        '<small>' + esc(DOOR_FOR[d.door][lang]) + '. ' + num(d.credits) + ' ' + esc(w('credits')) + (d.promo && d.promo.founding ? ', ' + esc(w('founding')) : '') + '.</small>' + promoLine(d) + '</span></label>';
+    }).join('');
+    $('doorCards').innerHTML = INFO.doors.map(function (d) {
+      return '<div class="st-dcard"><b>' + NAMES[d.door] + '</b><div class="st-price">' + money(d.cents) + (d.cents < d.listCents ? ' <s>' + money(d.listCents) + '</s>' : '') + '</div><small>' + esc(w('first')) + '</small><p>' + num(d.credits) + ' ' + esc(w('credits')) + (d.promo && d.promo.founding ? '<br>' + esc(w('founding')) : '') + '</p>' + promoLine(d) + '</div>';
+    }).join('');
+    wireDoors();
+  }
+  function wireDoors() {
+    var radios = document.querySelectorAll('input[name=door]');
+    var sync = function () {
+      radios.forEach(function (r) { r.closest('.st-door').classList.toggle('on', r.checked); });
+      var v = (document.querySelector('input[name=door]:checked') || {}).value || '';
+      $('codeRow').hidden = !v;
+      $('go').textContent = v ? w('goDoor') + ' ' + NAMES[v] : (lang === 'es' ? ES.go : 'Start free');
+    };
+    radios.forEach(function (r) { r.onchange = sync; });
+    sync();
+  }
+  var MAP = { starter: 'launch', basic: 'grow', pro: 'signature' };
+  var pre = MAP[Q.get('plan')] || MAP[Q.get('door')] || (NAMES[Q.get('door')] ? Q.get('door') : '');
+  if (Q.get('code')) $('code').value = Q.get('code');
+
+  function done(html) { $('okBox').innerHTML = html; $('okBox').hidden = false; $('f').hidden = true; $('okBox').scrollIntoView({ block: 'center' }); }
+  if (Q.get('paid') === '1') done('<h3>' + esc(w('check')) + '</h3><p>' + esc(w('paid')) + '</p>');
+
+  var bid = '';
+  try { bid = localStorage.getItem('pm_bid') || ''; if (!bid) { bid = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('pm_bid', bid); } } catch (e) {}
+  $('f').onsubmit = function (ev) {
+    ev.preventDefault();
+    var b = $('go'); $('msg').textContent = '';
+    if (!$('agree').checked) { $('msg').textContent = w('agreeMsg'); return; }
+    b.disabled = true;
+    var door = (document.querySelector('input[name=door]:checked') || {}).value || '';
+    fetch('/api/start/free', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: $('n').value, email: $('e').value, city: $('c').value, phone: $('p').value, website: $('w').value, door: door, code: $('code').value, lang: lang, lp: Q.get('lp') || '', src: Q.get('utm_source') || '', browserId: bid, agreed: true }) })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || 'Something went wrong.'); return j; }); })
+      .then(function (j) {
+        if (j.checkout) { location.href = j.checkout; return; }
+        var extra = j.welcome ? (j.welcome.status === 'held' ? '<p>' + esc(w('held')) + '</p>' : j.welcome.status === 'granted' ? '<p><b>' + j.welcome.credits + '</b> ' + esc(w('got')) + '</p>' : '') : '';
+        done('<h3>' + esc(w('check')) + '</h3><p>' + esc(w('ready')) + ' ' + esc(w('sent')) + ' <b>' + esc(j.email || $('e').value) + '</b>.</p>' + extra);
+      })
+      .catch(function (e) { var m = e && e.message ? e.message : 'Something went wrong.'; $('msg').textContent = lang === 'es' && ERR_ES[m] ? ERR_ES[m] : m; b.disabled = false; });
+  };
+
+  fetch('/api/starter').then(function (r) { return r.json(); }).then(function (j) { INFO = j; render(); }).catch(function () {});
+  applyLang();
+})();
+</script>
+
+<script>
+(function () {
+  var today = new Date(Date.now() - 6 * 3600 * 1000).toISOString().slice(0, 10);
+  var force = /[?&]offer=1\b/.test(location.search);
+  document.querySelectorAll('[data-until]').forEach(function (el) { el.hidden = !(force || (today >= el.getAttribute('data-from') && today <= el.getAttribute('data-until'))); });
+})();
+</script>
+<script src="/logo-apply.js" data-public></script></body>
+</html>

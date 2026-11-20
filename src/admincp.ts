@@ -11,6 +11,7 @@ import { addLesson, contactCounts, contactsCsv, importContacts, loadContacts, lo
 import {
   allSubs, applyOutreach, applyRenewed, applySubEdit, DOOR_LABELS, DOOR_PRICES, DOORS, isDoor, loadDoor, loadSub, PAID_DOORS, readSub, renewalCentsFor, setDoor, subKey, subState, subTotals,
 } from "./subscriptions.ts";
+import { creditMenu, loadStarter, saveStarter, STARTER_COSTS, STARTER_DEFAULTS, starterStats } from "./starter.ts";
 import { FEATURES, monthKey, usageSummary, type Feature } from "./usage.ts";
 import type { Env } from "./types.ts";
 
@@ -163,6 +164,10 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
     };
   }
   if (q.get("credits") === "1") return { area: "credits", data: await creditsOverview(env, q.get("month") ?? "") };
+  if (q.get("starter") === "1") {
+    const [settings, stats] = await Promise.all([loadStarter(env), starterStats(env, today)]);
+    return { area: "credits", data: { settings, defaults: STARTER_DEFAULTS, stats, menu: creditMenu(settings.welcomeCredits), costs: STARTER_COSTS } };
+  }
   if (q.get("research") === "1") {
     const markets = await loadMarkets(env);
     const withCounts = await Promise.all(markets.map(async (m) => ({ ...m, counts: contactCounts(await loadContacts(env, m.id)) })));
@@ -203,7 +208,7 @@ export const ACT_AREAS: Record<string, Area> = {
   client_note: "clients", client_flags: "clients",
   door_set: "subscriptions", sub_set: "subscriptions", sub_renewed: "subscriptions", sub_outreach: "subscriptions",
   promo_save: "promos", promo_active: "promos",
-  envelopes_set: "credits", bundle_apply: "credits",
+  envelopes_set: "credits", bundle_apply: "credits", starter_set: "credits",
   market_save: "research", market_lesson: "research", contact_save: "research", contacts_import: "research",
   feedback_reply: "feedback",
   quickreply_save: "feedback",
@@ -270,6 +275,12 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
       if (!r.ok) return fail(r.error);
       forgetClientModel(co.id);
       return { ok: true, companyId: co.id, data: { envelopes: r.value }, detail: { enabled: r.value.enabled, painter: r.value.painterCanEdit, caps: r.value.caps, model: r.value.textModel } };
+    }
+    case "starter_set": {
+      const r = await saveStarter(env, b.settings);
+      if (!r.ok) return fail(r.error);
+      const v = await loadStarter(env);
+      return { ok: true, data: { settings: v }, detail: `on ${v.on} welcome ${v.welcomeCredits}/${v.welcomeDays}d cap ${v.dailyCap}/day visitor ${v.perVisitorDaily}` };
     }
     case "bundle_apply": {
       // Grant a bundle of credits and, if given, point them at envelopes in one step.

@@ -27,6 +27,7 @@ export interface Promo {
   value: number; // percent (1-100) or dollars off, ignored for "floor"
   bonusCredits: number;
   founding: boolean; // gives the Founding badge
+  auto: boolean; // applies at a door's checkout without typing a code (one running season offer, like Booked by Spring)
   startsOn: string;
   endsOn: string;
   maxUses: number; // 0 = no limit
@@ -60,6 +61,7 @@ export function readPromo(p: any): Promo | null {
     value: n(p.value, p.kind === "percent" ? 100 : 10000),
     bonusCredits: n(p.bonusCredits, 5000),
     founding: p.founding === true,
+    auto: p.auto === true,
     startsOn: p.startsOn,
     endsOn: p.endsOn,
     maxUses: n(p.maxUses, 100000),

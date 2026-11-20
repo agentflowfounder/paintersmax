@@ -31,6 +31,7 @@ a{color:#0F1B2D}
 <div id="body" style="display:none">
 <div id="thanks" class="note" style="display:none;margin-bottom:14px">Thank you. Your credits show up here within a minute.</div>
 <div class="card" id="bal"></div>
+<div class="card" id="can" hidden></div>
 <div class="card" id="allow"></div>
 <div class="card" id="buy"></div>
 <div class="card scroll"><b id="mt"></b><table style="margin-top:6px"><thead><tr><th>What</th><th class="r">Used</th><th class="r">Monthly amount</th><th class="r">Paid with credits</th><th class="r">Credits per use</th></tr></thead><tbody id="rows"></tbody></table></div>
@@ -46,6 +47,13 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){retur
 function usd(c){var n=c/100;return '$'+(n%1===0?n:n.toFixed(2));}
 var D=null;
 var SRC={allowance:'allowance credits',topup:'top-up credits',welcome:'welcome credits',door:'sign-up credits',promo:'promotion credits',reward:'earned credits',admin:'added credits',pack:'pack credits'};
+var MENU=null;
+fetch('/api/starter').then(function(r){return r.json();}).then(function(j){MENU=j.menu.rows;if(D)drawCan(D.balance);}).catch(function(){});
+function drawCan(bal){
+ if(!MENU||!(bal>0)){$('can').hidden=true;return;}
+ $('can').hidden=false;
+ $('can').innerHTML='<b>'+T('What your credits can do')+'</b><div class="muted">'+T('Pick any mix. Typing, quotes, estimates, contracts and invoices never use credits.')+'</div><table style="margin-top:6px"><tbody>'+MENU.map(function(r){return '<tr><td>'+esc(T(r.en))+'</td><td class="r"><b>'+Math.floor(bal/r.cost)+'</b> '+T('times')+'</td></tr>';}).join('')+'</tbody></table>';
+}
 function draw(d){
  D=d;
  var b='<div class="muted">'+T('Credits left')+'</div><div class="big">'+d.balance+'</div>';
@@ -54,6 +62,7 @@ function draw(d){
  if(d.grants&&d.grants.length>1)b+='<div class="muted" style="margin-top:6px">'+d.grants.map(function(g){return g.left+' '+T(SRC[g.source]||'credits')+(g.source==='topup'?'':' ('+T('until')+' '+esc(DT(g.expiresOn))+')')}).join(' &middot; ')+'</div>';
  if(d.canManageBilling)b+='<div style="margin-top:10px"><button class="ghost" id="manage">'+T('Manage billing')+'</button></div>';
  $('bal').innerHTML=b;
+ drawCan(d.balance);
  var al='<b>'+T('Monthly allowance')+'</b><div class="muted">'+T('Credits every month, charged to your card. Unused credits roll over for two months. Change or cancel any time.')+'</div>';
  if(d.allowance&&d.allowance.status==='past_due')al+='<div class="note" style="margin-top:8px">'+T('Your last allowance payment did not go through. Update your card under Manage billing so next month\'s credits arrive.')+'</div>';
  al+='<div class="opt">'+d.allowances.map(function(a){var cur=d.allowance&&d.allowance.id===a.id;return '<div class="o'+(cur?' cur':'')+'"><div class="p">'+usd(a.priceCents)+'<span class="muted" style="font-size:14px">/'+T('month')+'</span></div><div class="c">'+a.credits+' '+T('credits a month')+'</div>'+(cur?'<span class="ok">'+T('Your allowance')+'</span>':d.forSale?'<button data-allow="'+esc(a.id)+'">'+T(d.allowance?'Switch to this':'Choose')+'</button>':'<span class="muted">'+T('Payments are not open yet.')+'</span>')+'</div>'}).join('')+'</div>';

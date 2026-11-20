@@ -196,7 +196,27 @@
         '<h3>Credits added this month, by source</h3>' + (Object.keys(v.granted).length ? '<table class="t"><tbody>' + Object.keys(v.granted).map(function (k) { return '<tr><td>' + esc(T(k)) + '</td><td>' + v.granted[k] + '</td></tr>'; }).join('') + '</tbody></table>' : '<small>None.</small>') +
         '<p><small>Real AI cost per client and per tool needs the provider cost log, which comes in stage 2.</small></p></div>';
       $('cu_m').onchange = function () { CACHE.month = this.value; creditsLoad(); };
+      starterLoad();
     }).catch(function (x) { $('cu_box').textContent = x ? x.message : ''; });
+  }
+
+  // ------------------------------------------------------------- starter campaign (free sign-ups and welcome credits)
+  function starterLoad() {
+    var box = $('st_box');
+    if (!box) { box = document.createElement('div'); box.id = 'st_box'; $('cu_box').parentNode.insertBefore(box, $('cu_box')); }
+    api('/api/admin?starter=1').then(function (v) {
+      var s = v.settings, c = v.costs, worst = Math.round(s.dailyCap * s.welcomeCredits * c.worstCentsPerCredit), typical = Math.round(s.dailyCap * c.typicalCentsPerAccount);
+      box.innerHTML = '<div class="card"><h3>Starter campaign: free sign-ups and welcome credits</h3><small>Every new account gets the welcome credits once. Public sign-ups over the daily ceiling still open at once; their credits wait and are added the next morning (6 AM). Accounts you create here are never held.</small>' +
+        '<div class="tiles" style="margin-top:12px"><div class="tile"><b>' + v.stats.today + ' / ' + s.dailyCap + '</b><span>Welcome grants today</span></div><div class="tile"><b>' + v.stats.held + '</b><span>Waiting for tomorrow</span></div><div class="tile"><b>' + v.stats.byDay.reduce(function (n, x) { return n + x.count; }, 0) + '</b><span>Last 14 days</span></div></div>' +
+        '<div class="row"><div><label>Welcome credits</label><input id="st_n" inputmode="numeric" value="' + s.welcomeCredits + '"></div><div><label>They last (days)</label><input id="st_d" inputmode="numeric" value="' + s.welcomeDays + '"></div><div><label>Daily ceiling (accounts)</label><input id="st_cap" inputmode="numeric" value="' + s.dailyCap + '"></div><div><label>Sign-ups per device a day</label><input id="st_v" inputmode="numeric" value="' + s.perVisitorDaily + '"></div></div>' +
+        '<label class="chk"><input type="checkbox" id="st_on"' + (s.on ? ' checked' : '') + '> <span>Give welcome credits to new accounts</span></label>' +
+        '<p><small><span>At today\'s AI prices (checked</span> ' + esc(c.checkedOn) + '<span>), a full day at the ceiling costs about</span> <b>' + money(typical) + '</b> <span>in a normal week and at most</span> <b>' + money(worst) + '</b> <span>if every credit went to color previews. Text costs double on 2027-01-01 when the Gemini Flash price changes.</span></small></p>' +
+        '<p><small><span>Defaults:</span> ' + v.defaults.welcomeCredits + ' <span>credits</span>, ' + v.defaults.welcomeDays + ' <span>days</span>, ' + v.defaults.dailyCap + ' <span>a day</span>.</small></p>' +
+        '<div><button class="btn" id="st_save"' + dis('credits') + '>Save starter settings</button></div></div>';
+      $('st_save').onclick = function () {
+        post({ action: 'starter_set', settings: { on: $('st_on').checked, welcomeCredits: Number($('st_n').value), welcomeDays: Number($('st_d').value), dailyCap: Number($('st_cap').value), perVisitorDaily: Number($('st_v').value) } }).then(function () { ok('Saved.'); starterLoad(); }).catch(bad);
+      };
+    }).catch(function (x) { box.textContent = x ? x.message : ''; });
   }
 
   // ------------------------------------------------------------- promotions
@@ -211,11 +231,11 @@
         '<div class="g3"><div><label>Price</label><select id="pf_kind">' + opts(KIND, 'floor') + '</select></div><div><label>Percent or dollars off</label><input id="pf_val" inputmode="decimal" placeholder="0"></div><div><label>For</label><select id="pf_for">' + opts({ signup: 'Sign-ups', renewal: 'Renewals', both: 'Sign-ups and renewals' }, 'signup') + '</select></div>' +
         '<div><label>Starts</label><input id="pf_start" type="date"></div><div><label>Ends</label><input id="pf_end" type="date"></div><div><label>Most uses (0 = no limit)</label><input id="pf_max" inputmode="numeric" value="0"></div>' +
         '<div><label>Bonus credits' + (lim ? ' (up to ' + lim + ')' : '') + '</label><input id="pf_bonus" inputmode="numeric" value="0"' + (lim ? '' : ' disabled') + '></div></div>' +
-        '<div><label>Doors</label>' + ['launch', 'grow', 'signature'].map(function (k) { return '<label class="chk"><input type="checkbox" data-pd="' + k + '" checked> <span>' + doorName(k) + '</span></label>'; }).join('') + '<label class="chk"><input type="checkbox" id="pf_found"> <span>Gives the Founding badge</span></label><label class="chk"><input type="checkbox" id="pf_on" checked> <span>On</span></label></div>' +
+        '<div><label>Doors</label>' + ['launch', 'grow', 'signature'].map(function (k) { return '<label class="chk"><input type="checkbox" data-pd="' + k + '" checked> <span>' + doorName(k) + '</span></label>'; }).join('') + '<label class="chk"><input type="checkbox" id="pf_found"> <span>Gives the Founding badge</span></label><label class="chk"><input type="checkbox" id="pf_auto"> <span>Applies by itself at checkout (no code needed)</span></label><label class="chk"><input type="checkbox" id="pf_on" checked> <span>On</span></label></div>' +
         '<div><button class="btn" id="pf_save"' + dis('promos') + '>Save promotion</button> <button class="btn gray" id="pf_new">New</button></div></div>' +
         '<div class="card"><h3>Promotions</h3>' + (v.promos.length ? '<div class="scroll"><table class="t"><thead><tr><th>Code</th><th>Dates</th><th>Price with the code</th><th>Uses</th><th></th></tr></thead><tbody>' + v.promos.map(function (p) {
           return '<tr><td><b>' + esc(p.code) + '</b> ' + (p.live ? pill(T('live'), 'green') : p.active ? pill(T('not in its dates'), '') : pill(T('off'), 'red')) + '<br>' + esc(p.name) + '<br><small>' + esc(T(CHANNEL[p.channel])) + ' &middot; ' + esc(p.reason) + '</small></td>' +
-            '<td>' + esc(d(p.startsOn)) + '<br>' + esc(d(p.endsOn)) + '</td><td><small>' + Object.keys(p.prices).filter(function (k) { return p.doors.indexOf(k) >= 0; }).map(function (k) { return doorName(k) + ': ' + (p.appliesTo !== 'renewal' ? money(p.prices[k].signup) : '') + (p.appliesTo === 'both' ? ' / ' : '') + (p.appliesTo !== 'signup' ? money(p.prices[k].renewal) : ''); }).join('<br>') + (p.bonusCredits ? '<br>+ <b>' + p.bonusCredits + '</b> <span>credits</span>' : '') + (p.founding ? '<br>' + esc(T('Founding painter')) : '') + '</small></td>' +
+            '<td>' + esc(d(p.startsOn)) + '<br>' + esc(d(p.endsOn)) + '</td><td><small>' + Object.keys(p.prices).filter(function (k) { return p.doors.indexOf(k) >= 0; }).map(function (k) { return doorName(k) + ': ' + (p.appliesTo !== 'renewal' ? money(p.prices[k].signup) : '') + (p.appliesTo === 'both' ? ' / ' : '') + (p.appliesTo !== 'signup' ? money(p.prices[k].renewal) : ''); }).join('<br>') + (p.bonusCredits ? '<br>+ <b>' + p.bonusCredits + '</b> <span>credits</span>' : '') + (p.founding ? '<br>' + esc(T('Founding painter')) : '') + (p.auto ? '<br>' + esc(T('Applies by itself')) : '') + '</small></td>' +
             '<td>' + p.uses + (p.maxUses ? ' / ' + p.maxUses : '') + '</td><td><button class="btn sm gray" data-pe="' + esc(p.code) + '">Edit</button> <button class="btn sm ' + (p.active ? 'red' : '') + '" data-pa="' + esc(p.code) + '" data-on="' + (p.active ? '0' : '1') + '"' + dis('promos') + '>' + (p.active ? 'Turn off' : 'Turn on') + '</button></td></tr>';
         }).join('') + '</tbody></table></div>' : '<small>No promotions yet.</small>') + '<p><small>The sign-up and renewal checkout will read these codes when the yearly doors go on sale.</small></p></div>';
       var fill = function (p) {
@@ -223,13 +243,13 @@
         $('pf_title').textContent = T(p ? 'Edit promotion' : 'New promotion');
         $('pf_code').value = p ? p.code : ''; $('pf_code').disabled = !!p; $('pf_name').value = p ? p.name : ''; $('pf_reason').value = p ? p.reason : ''; $('pf_ch').value = p ? p.channel : 'season';
         $('pf_kind').value = p ? p.kind : 'floor'; $('pf_val').value = p ? p.value : ''; $('pf_for').value = p ? p.appliesTo : 'signup'; $('pf_start').value = p ? p.startsOn : ''; $('pf_end').value = p ? p.endsOn : '';
-        $('pf_max').value = p ? p.maxUses : 0; $('pf_bonus').value = p ? p.bonusCredits : 0; $('pf_found').checked = !!(p && p.founding); $('pf_on').checked = p ? p.active : true;
+        $('pf_max').value = p ? p.maxUses : 0; $('pf_bonus').value = p ? p.bonusCredits : 0; $('pf_found').checked = !!(p && p.founding); $('pf_auto').checked = !!(p && p.auto); $('pf_on').checked = p ? p.active : true;
         [].forEach.call(document.querySelectorAll('[data-pd]'), function (i) { i.checked = !p || p.doors.indexOf(i.getAttribute('data-pd')) >= 0; });
       };
       $('pf_new').onclick = function () { fill(null); };
       $('pf_save').onclick = function () {
         var doors = [].filter.call(document.querySelectorAll('[data-pd]'), function (i) { return i.checked; }).map(function (i) { return i.getAttribute('data-pd'); });
-        post({ action: 'promo_save', isNew: !PEDIT, promo: { code: $('pf_code').value, name: $('pf_name').value, reason: $('pf_reason').value, channel: $('pf_ch').value, kind: $('pf_kind').value, value: Number($('pf_val').value) || 0, appliesTo: $('pf_for').value, startsOn: $('pf_start').value, endsOn: $('pf_end').value, maxUses: Number($('pf_max').value) || 0, bonusCredits: Number($('pf_bonus').value) || 0, founding: $('pf_found').checked, active: $('pf_on').checked, doors: doors } })
+        post({ action: 'promo_save', isNew: !PEDIT, promo: { code: $('pf_code').value, name: $('pf_name').value, reason: $('pf_reason').value, channel: $('pf_ch').value, kind: $('pf_kind').value, value: Number($('pf_val').value) || 0, appliesTo: $('pf_for').value, startsOn: $('pf_start').value, endsOn: $('pf_end').value, maxUses: Number($('pf_max').value) || 0, bonusCredits: Number($('pf_bonus').value) || 0, founding: $('pf_found').checked, auto: $('pf_auto').checked, active: $('pf_on').checked, doors: doors } })
           .then(function () { ok('Promotion saved.'); PEDIT = null; promosLoad(); }).catch(bad);
       };
       [].forEach.call(document.querySelectorAll('[data-pe]'), function (b) { b.onclick = function () { fill(CACHE.promos.filter(function (p) { return p.code === b.getAttribute('data-pe'); })[0]); window.scrollTo(0, 0); }; });

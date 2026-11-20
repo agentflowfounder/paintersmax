@@ -207,7 +207,7 @@ export async function grantDoorCredits(env: Env, c: number, i: { door: string; p
 }
 
 /** Adds a grant. The same grant id is never added twice (a payment can be reported more than once). */
-export async function grantCredits(env: Env, c: number, i: { id: string; credits: number; source: GrantSource; note?: string }, today: string): Promise<{ ok: boolean; added: boolean; error?: string }> {
+export async function grantCredits(env: Env, c: number, i: { id: string; credits: number; source: GrantSource; note?: string; days?: number }, today: string): Promise<{ ok: boolean; added: boolean; error?: string }> {
   const credits = Math.round(Number(i.credits));
   if (!Number.isFinite(credits) || credits < 1 || credits > 100000) return { ok: false, added: false, error: "Enter a number of credits between 1 and 100,000." };
   const grants = await loadGrants(env, c);
@@ -218,7 +218,7 @@ export async function grantCredits(env: Env, c: number, i: { id: string; credits
     amount = Math.min(credits, freeRoom(grants, today));
     if (amount < 1) return { ok: true, added: false, error: "This account already received the most free credits allowed in its first 90 days." };
   }
-  grants.push({ id: i.id.slice(0, 80), credits: amount, on: today, expiresOn: addDaysIso(today, EXPIRY_DAYS[i.source] ?? CREDIT_EXPIRY_DAYS), source: i.source, note: (i.note ?? "").slice(0, 100) });
+  grants.push({ id: i.id.slice(0, 80), credits: amount, on: today, expiresOn: addDaysIso(today, i.days && i.days > 0 ? Math.min(3650, Math.round(i.days)) : EXPIRY_DAYS[i.source] ?? CREDIT_EXPIRY_DAYS), source: i.source, note: (i.note ?? "").slice(0, 100) });
   await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')").bind(creditsKey(c), JSON.stringify({ grants })).run();
   return { ok: true, added: true };
 }
