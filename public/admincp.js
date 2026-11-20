@@ -6,7 +6,7 @@
   var T = window.pmT || function (s) { return s; };
   var ME = null, CACHE = {};
   var TABS = [
-    ['clients', 'Clients', 'clients'], ['subs', 'Subscriptions', 'subscriptions'], ['credits', 'Credits', 'credits'], ['promos', 'Promotions', 'promos'],
+    ['clients', 'Clients', 'clients'], ['subs', 'Subscriptions', 'subscriptions'], ['credits', 'Credits', 'credits'], ['starter', 'Starter campaign', 'credits'], ['promos', 'Promotions', 'promos'],
     ['research', 'Research', 'research'], ['feedback', 'Feedback', 'feedback'], ['domains', 'Domains', 'domains'], ['sites', 'Websites', 'sites'],
     ['content', 'Help guide', 'content'], ['settings', 'Settings', 'settings'], ['security', 'Team and audit log', 'security'],
   ];
@@ -196,14 +196,12 @@
         '<h3>Credits added this month, by source</h3>' + (Object.keys(v.granted).length ? '<table class="t"><tbody>' + Object.keys(v.granted).map(function (k) { return '<tr><td>' + esc(T(k)) + '</td><td>' + v.granted[k] + '</td></tr>'; }).join('') + '</tbody></table>' : '<small>None.</small>') +
         '<p><small>Real AI cost per client and per tool needs the provider cost log, which comes in stage 2.</small></p></div>';
       $('cu_m').onchange = function () { CACHE.month = this.value; creditsLoad(); };
-      starterLoad();
     }).catch(function (x) { $('cu_box').textContent = x ? x.message : ''; });
   }
 
   // ------------------------------------------------------------- starter campaign (free sign-ups and welcome credits)
   function starterLoad() {
     var box = $('st_box');
-    if (!box) { box = document.createElement('div'); box.id = 'st_box'; $('cu_box').parentNode.insertBefore(box, $('cu_box')); }
     api('/api/admin?starter=1').then(function (v) {
       var s = v.settings, c = v.costs, worst = Math.round(s.dailyCap * s.welcomeCredits * c.worstCentsPerCredit), typical = Math.round(s.dailyCap * c.typicalCentsPerAccount);
       box.innerHTML = '<div class="card"><h3>Starter campaign: free sign-ups and welcome credits</h3><small>Every new account gets the welcome credits once. Public sign-ups over the daily ceiling still open at once; their credits wait and are added the next morning (6 AM). Accounts you create here are never held.</small>' +
@@ -247,6 +245,14 @@
         [].forEach.call(document.querySelectorAll('[data-pd]'), function (i) { i.checked = !p || p.doors.indexOf(i.getAttribute('data-pd')) >= 0; });
       };
       $('pf_new').onclick = function () { fill(null); };
+      if (!v.promos.some(function (p) { return p.code === 'BOOKEDBYSPRING'; })) {
+        var bs = document.createElement('div'); bs.className = 'card'; bs.innerHTML = '<h3>Booked by Spring is not set up yet</h3><small>One click creates it: floor price on every door, 1,000 bonus credits, the Founding badge, applies by itself at checkout, 2026-11-25 to 2027-01-06. You can edit or turn it off afterward.</small><div><button class="btn" id="pf_bbs"' + dis('promos') + '>Create Booked by Spring</button></div>';
+        $('pr_box').insertBefore(bs, $('pr_box').firstChild);
+        $('pf_bbs').onclick = function () {
+          post({ action: 'promo_save', isNew: true, promo: { code: 'BOOKEDBYSPRING', name: 'Booked by Spring', reason: 'Holiday sign-up offer: floor price and 1,000 credits', channel: 'season', kind: 'floor', value: 0, appliesTo: 'signup', startsOn: '2026-11-25', endsOn: '2027-01-06', maxUses: 0, bonusCredits: Math.min(1000, lim || 0), founding: true, auto: true, active: true, doors: ['launch', 'grow', 'signature'] } })
+            .then(function () { ok('Promotion saved.'); promosLoad(); }).catch(bad);
+        };
+      }
       $('pf_save').onclick = function () {
         var doors = [].filter.call(document.querySelectorAll('[data-pd]'), function (i) { return i.checked; }).map(function (i) { return i.getAttribute('data-pd'); });
         post({ action: 'promo_save', isNew: !PEDIT, promo: { code: $('pf_code').value, name: $('pf_name').value, reason: $('pf_reason').value, channel: $('pf_ch').value, kind: $('pf_kind').value, value: Number($('pf_val').value) || 0, appliesTo: $('pf_for').value, startsOn: $('pf_start').value, endsOn: $('pf_end').value, maxUses: Number($('pf_max').value) || 0, bonusCredits: Number($('pf_bonus').value) || 0, founding: $('pf_found').checked, auto: $('pf_auto').checked, active: $('pf_on').checked, doors: doors } })
@@ -438,6 +444,7 @@
     client: clientLoad,
     subs: subsLoad,
     credits: function () { creditsLoad(); if (typeof load === 'function') load(); },
+    starter: starterLoad,
     promos: promosLoad,
     research: researchLoad,
     feedback: feedbackLoad,
@@ -455,5 +462,12 @@
     $('me_role').textContent = T(ROLES[me.role] || me.role);
     window.addEventListener('hashchange', route);
     route();
-  }).catch(function (x) { document.querySelector('main').innerHTML = '<div class="card">' + esc(x && x.message === 'Not found.' ? T('You do not have access to this page.') : x ? x.message : '') + '</div>'; });
+  }).catch(function (x) {
+    var main = document.querySelector('main');
+    if (!(x && x.message === 'Not found.')) { main.innerHTML = '<div class="card">' + esc(x ? x.message : '') + '</div>'; return; }
+    main.innerHTML = '<div class="card"><h3>' + esc(T('You do not have access to this page.')) + '</h3><p id="na_who"></p></div>';
+    fetch('/api/me', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
+      $('na_who').innerHTML = u ? esc(T('You are signed in as')) + ' <b>' + esc(u.email) + '</b> (' + esc(u.company || '') + '). ' + esc(T('The admin pages open only with the PaintersMax owner login, or a team login the owner added. Sign out, then sign in with that email.')) + ' <a href="/login">' + esc(T('Sign in')) + '</a>' : esc(T('Sign in first, then open this address again.')) + ' <a href="/login">' + esc(T('Sign in')) + '</a>';
+    }).catch(function () {});
+  });
 })();

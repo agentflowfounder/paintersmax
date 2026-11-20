@@ -38,6 +38,10 @@
     nav.innerHTML = MAIN.map(link).join('') +
       '<span id="pm_more"><button type="button" class="pmn" id="pm_mb" aria-haspopup="true" aria-expanded="false"' + (moreOn ? ' style="background:#E8A33D;color:#0F1B2D"' : '') + '>' + T('More') + ' &#9662;</button><div id="pm_menu" role="menu">' + MORE.map(link).join('') + '</div></span>';
     header.parentNode.insertBefore(nav, header.nextSibling);
+    // Admin logins get an Admin link in the More menu (everyone else never sees it).
+    fetch('/api/me', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
+      if (u && u.admin) { var m = document.getElementById('pm_menu'); if (m) m.insertAdjacentHTML('beforeend', link(['/admin', 'Admin'])); }
+    }).catch(function () {});
     var btn = document.getElementById('pm_mb'), menu = document.getElementById('pm_menu');
     var close = function () { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
     btn.addEventListener('click', function (e) { e.stopPropagation(); var o = menu.classList.toggle('open'); btn.setAttribute('aria-expanded', String(o)); });
