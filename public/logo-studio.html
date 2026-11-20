@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Logo studio - PaintersMax</title>
+<style>
+*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}header a{color:#E8A33D;font-size:14px;text-decoration:none;margin-left:12px}
+main{max-width:1000px;margin:0 auto;padding:16px 16px 70px}h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0 4px}.muted{color:#4A5568;font-size:14px}
+.btn{padding:8px 12px;border-radius:8px;border:0;font:inherit;font-weight:700;cursor:pointer;background:#E8A33D;color:#0F1B2D;text-decoration:none;display:inline-block;font-size:13px}.btn.sec{background:#eceae4}.btn[disabled]{opacity:.5;cursor:default}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:12px;background:#eceae4}.pill.live{background:#d9f3e3;color:#0a7a3d}#msg{min-height:22px;font-size:14px;margin:6px 0}.ok{color:#0a7a3d}.bad{color:#b42318}
+</style></head><body>
+<header><div><b>PaintersMax</b> Logo studio</div><div><a href="/marketing-guide#logo" target="_blank" rel="noopener">How to use the Logo studio</a><a href="/dashboard">Home</a></div></header>
+<main>
+<h1>Your logo</h1>
+<p class="muted">Design a logo in minutes, or upload the one you already have. Save up to 4 and choose one to use everywhere: your documents, emails, customer portal, website and browser tab.</p>
+<div id="msg" role="status"></div>
+<div id="root">Loading...</div>
+</main>
+<script src="/pmlogo.js"></script><script src="/pmhelp.js"></script><script src="/marketing-help.js"></script><script src="/logostudio.js"></script>
+<script>
+function msg(t,ok){var m=document.getElementById('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
+PMLogoStudio.mount(document.getElementById('root'),{admin:false,msg:msg});
+</script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>

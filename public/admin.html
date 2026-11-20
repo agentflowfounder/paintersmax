@@ -166,4 +166,4 @@ document.addEventListener('change',async e=>{if(e.target.name!=='am')return;try{
 $('am_go').onclick=async()=>{const q=$('am_q').value.trim();if(!q){msg('Type a question to test.');return;}$('am_go').disabled=true;$('am_out').innerHTML='Asking both...';try{const {answers}=await api('/api/admin',{action:'aimodel_test',question:q});$('am_out').innerHTML='<div class="row">'+answers.map(a=>`<div style="flex:1;min-width:240px"><b>${a.provider==='haiku'?'Claude Haiku':'Gemini'}</b> <small>${a.ok?a.ms+' ms, about '+a.tokens+' tokens':'did not answer'}</small><div style="white-space:pre-wrap;font-size:14px;margin-top:4px">${esc(a.text)}</div></div>`).join('')+'</div>';}catch(x){if(x)$('am_out').textContent=x.message;}$('am_go').disabled=false;};
 </script>
 <script src="/admincp.js"></script>
-</body></html>
+<script src="/logo-apply.js"></script></body></html>

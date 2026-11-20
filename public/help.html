@@ -111,4 +111,4 @@ $('find').addEventListener('input',()=>{clearTimeout(timer);const v=$('find').va
  const h=decodeURIComponent(location.hash.slice(1));if(h&&LIB.articles.some(a=>a.id===h))openArticle(h);
  }catch(e){if(e)$('err').textContent=e.message;}})();
 window.addEventListener('hashchange',()=>{const h=decodeURIComponent(location.hash.slice(1));if(LIB&&h&&LIB.articles.some(a=>a.id===h))openArticle(h);});
-</script><script src="/nav.js"></script></body></html>
+</script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>

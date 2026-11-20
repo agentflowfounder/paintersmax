@@ -54,13 +54,15 @@
       '<path d="M58 28 A16 16 0 0 1 72 42" fill="none" stroke="' + accent + '" stroke-width="6" stroke-linecap="round"/><path d="M58 14 A30 30 0 0 1 86 42" fill="none" stroke="' + accent + '" stroke-width="6" stroke-linecap="round"/>';
   }
 
+  function clean(v, max, d) { v = typeof v === 'string' ? v.replace(/[<>&"]/g, '').trim().slice(0, max) : ''; return v || d; }
   function opts(o) {
     o = o || {};
     return {
       concept: CONCEPTS.indexOf(o.concept) >= 0 ? o.concept : DEFAULTS.concept,
       shape: SHAPES.indexOf(o.shape) >= 0 ? o.shape : DEFAULTS.shape,
       primary: hex(o.primary, DEFAULTS.primary), accent: hex(o.accent, DEFAULTS.accent), ink: hex(o.ink, DEFAULTS.ink), text: hex(o.text, DEFAULTS.text),
-      slogan: o.slogan !== false, mono: !!o.mono
+      slogan: o.slogan !== false, mono: !!o.mono,
+      name: clean(o.name, 40, NAME), sloganText: clean(o.sloganText, 50, SLOGAN)
     };
   }
 
@@ -74,15 +76,17 @@
   }
   function icon(o, size) {
     size = size || 512;
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="' + size + '" height="' + size + '" role="img" aria-label="' + NAME + '">' + iconInner(o) + '</svg>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="' + size + '" height="' + size + '" role="img" aria-label="' + opts(o).name + '">' + iconInner(o) + '</svg>';
   }
-  /** Icon plus the name and, when on, the slogan. */
+  /** Icon plus the name and, when on, the slogan. The width follows the text, so long names still fit. */
   function lockup(o) {
-    var c = opts(o), text = c.mono ? '#000000' : c.text, w = c.slogan ? 470 : 400, h = 120;
-    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" role="img" aria-label="' + NAME + '">' +
+    var c = opts(o), text = c.mono ? '#000000' : c.text, h = 120;
+    var size = Math.min(46, Math.floor(330 / (c.name.length * 0.62)));
+    var w = Math.ceil(Math.max(128 + c.name.length * size * 0.62 + 20, c.slogan ? 130 + c.sloganText.length * 11.5 + 20 : 0));
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" role="img" aria-label="' + c.name + '">' +
       '<g transform="translate(10 10) scale(1)">' + iconInner(o) + '</g>' +
-      '<text x="128" y="' + (c.slogan ? 66 : 74) + '" font-family="Arial Black, Helvetica, Arial, sans-serif" font-weight="900" font-size="46" fill="' + text + '">' + NAME + '</text>' +
-      (c.slogan ? '<text x="130" y="96" font-family="Helvetica, Arial, sans-serif" font-weight="600" font-size="19" letter-spacing="1.5" fill="' + (c.mono ? '#000000' : c.accent) + '">' + SLOGAN + '</text>' : '') +
+      '<text x="128" y="' + (c.slogan ? 66 : 74) + '" font-family="Arial Black, Helvetica, Arial, sans-serif" font-weight="900" font-size="' + size + '" fill="' + text + '">' + c.name + '</text>' +
+      (c.slogan ? '<text x="130" y="96" font-family="Helvetica, Arial, sans-serif" font-weight="600" font-size="19" letter-spacing="1.5" fill="' + (c.mono ? '#000000' : c.accent) + '">' + c.sloganText + '</text>' : '') +
       '</svg>';
   }
   var api = { CONCEPTS: CONCEPTS, SHAPES: SHAPES, SLOGAN: SLOGAN, NAME: NAME, DEFAULTS: DEFAULTS, opts: opts, icon: icon, lockup: lockup };

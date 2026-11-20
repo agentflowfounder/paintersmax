@@ -25,8 +25,8 @@ const legacy = (id: string, name: string, cls: TemplateConfig["class"], en: stri
 
 /** id -> version -> config. */
 export const TEMPLATE_VERSIONS: Record<string, Record<string, TemplateConfig>> = {
-  classic: { "1.0.0": legacy("classic", "Classic", "basic", "Simple and clear. Navy header, white pages.", "Simple y claro. Encabezado azul marino, páginas blancas.") },
-  bold: { "1.0.0": legacy("bold", "Bold", "premium", "Dark gradient banner and larger type.", "Portada oscura con degradado y letra más grande.") },
+  classic: { "1.0.0": legacy("classic", "Classic", "free", "Simple and clear. Navy header, white pages. On Free it is one page with five tabs.", "Simple y claro. Encabezado azul marino, páginas blancas. En Gratis es una página con cinco pestañas.") },
+  bold: { "1.0.0": legacy("bold", "Bold", "free", "Dark gradient banner and larger type. On Free it is one page with five tabs.", "Portada oscura con degradado y letra más grande. En Gratis es una página con cinco pestañas.") },
   "sunset-sand": { "1.0.0": sunsetSand },
 };
 

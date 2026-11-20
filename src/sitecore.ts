@@ -18,14 +18,15 @@ export const DOOR_NAMES: Record<Door, string> = { free: "Free", launch: "Launch"
 
 export interface Limits { pages: number; services: number; photos: number }
 
-/** Pages include the 5 core pages. Free can build and preview a full Launch-size draft but cannot publish it. */
+/** Pages include the 5 core pages. Free builds a full Launch-size draft and publishes it as one page with five tabs on a free template. */
 export const DOOR_LIMITS: Record<Door, Limits> = {
   free: { pages: 5, services: 3, photos: 30 },
   launch: { pages: 5, services: 3, photos: 30 },
   grow: { pages: 10, services: 6, photos: 75 },
   signature: { pages: 15, services: 10, photos: 150 },
 };
-export const canPublish = (door: Door) => door !== "free";
+/** Every door may publish. Free publishes only a free-class template (checked with the template list). */
+export const canPublish = (_door: Door) => true;
 
 /** The floor prices (what a promotion lands on). The upgrade notice charges the difference between two floors. */
 export const DOOR_FLOOR_CENTS: Record<Door, number> = { free: 0, launch: 29900, grow: 39900, signature: 49900 };

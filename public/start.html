@@ -42,4 +42,4 @@ document.querySelectorAll('.plan').forEach(el=>el.onclick=()=>{plan=el.dataset.p
 $('go').onclick=async()=>{const b=$('go');$('msg').textContent='';if(!$('agree').checked){$('msg').textContent='Please tick the box to agree before you continue.';return;}b.disabled=true;
  try{const r=await fetch('/api/checkout',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({plan,name:$('n').value,email:$('e').value,agreed:true})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.url)throw new Error(j.error||'Something went wrong.');location.href=j.url;}
  catch(e){$('msg').textContent=e.message;b.disabled=false;}};
-</script></body></html>
+</script><script src="/logo-apply.js" data-public></script></body></html>

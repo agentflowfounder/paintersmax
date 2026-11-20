@@ -19,9 +19,9 @@ details summary{cursor:pointer;font-weight:600;font-size:14px;margin-top:8px}tab
 </style></head><body>
 <header><div><b>PaintersMax</b> Website templates</div><div><a href="/sites-admin">Client websites</a><a href="/marketing-admin">Marketing studio</a><a href="/admin">Admin</a></div></header>
 <main>
-<p class="muted">Turn templates on or off, choose which doors may publish with each one, rename them, set the order clients see, add a picker image, roll back to an older version, and preview any template with any client's content. Free clients preview every template that is on and never publish. A template a client uses is never deleted: turning it off only hides it from new choices. Every change is written to the audit log.</p>
+<p class="muted">Turn templates on or off, choose which doors may publish with each one, rename them, set the order clients see, add a picker image, roll back to an older version, and preview any template with any client's content. Free clients preview every template that is on, and publish only the Free-tier templates (Classic and Bold) as one page with tabs. A template a client uses is never deleted: turning it off only hides it from new choices. Every change is written to the audit log.</p>
 <div id="msg" role="status"></div>
-<div id="ai"></div><div id="body">Loading...</div>
+<div id="packs"></div><div id="ai"></div><div id="body">Loading...</div>
 </main>
 <script>
 const $=id=>document.getElementById(id);
@@ -30,7 +30,7 @@ const T=s=>(window.pmT?pmT(s):s);
 function msg(t,ok){$('msg').textContent=t?T(t):'';$('msg').className=ok?'ok':'bad';}
 async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
 const DOORS=[['launch','Launch'],['grow','Grow'],['signature','Signature']];
-const CLASS={basic:'Basic (Launch and up)',standard:'Standard (Grow and up)',premium:'Premium (Signature)'};
+const CLASS={free:'Free tier (every door; one page with tabs on Free)',basic:'Basic (Launch and up)',standard:'Standard (Grow and up)',premium:'Premium (Signature)'};
 let D=null;
 // ---------- Zip of default photos: read in the browser, one upload per photo space
 async function readZip(file){
@@ -77,15 +77,24 @@ async function loadAi(){try{const j=await api('/api/site/image-ai/settings');con
 ${ro?'':`<div class="row" style="margin-top:10px"><button class="btn" type="button" id="aiSave">${T('Save')}</button></div>`}</div>`;
   if($('aiSave'))$('aiSave').onclick=async()=>{try{await api('/api/site/image-ai/settings',{enabled:$('aiOn').checked,dailyCap:parseInt($('aiCap').value,10),draftModel:$('aiDm').value.trim(),qualityModel:$('aiQm').value.trim()});msg('Saved.',true);await loadAi();}catch(e){if(e)msg(e.message);}};
  }catch(e){}}
-async function load(){loadAi();try{D=await api('/api/site/templates/admin');}catch(e){if(e)$('body').textContent=e.message;return;}render();}
+const EXAMPLE={format:'paintersmax-template-pack',id:'warm-oak',name:'Warm Oak',tier:'basic',base:'sunset-sand',description:{en:'Warm oak and cream, quiet and photo-led.',es:'Roble cálido y crema, tranquilo y con fotos.'},inspiration:'Original palette by PaintersMax.',license:'Original. Fonts under the SIL Open Font License.',tokens:{'c-brand':'#8a5a2b','c-accent':'#c9a26a'},fonts:{display:'Marcellus',body:'Inter'}};
+const EXAMPLE_FREE={format:'paintersmax-template-pack',id:'harbor-free',name:'Harbor',tier:'free',base:'classic',description:{en:'Deep blue header with a warm accent.',es:'Encabezado azul profundo con acento cálido.'},palette:{dark:'#12263f',bg:'#f5f6f8',accent:'#e0953a'}};
+async function loadPacks(){try{const j=await api('/api/site/templates/packs');
+  $('packs').innerHTML=`<div class="card"><h3>Add or delete templates for each tier</h3><p class="muted">Upload a template pack (a small JSON file, never code) to add a look to the Free, Basic (Launch and up), Standard (Grow and up) or Premium (Signature) tier. Free packs re-skin the one-page Classic or Bold layout (a dark color, a page color, an accent). Paid packs re-skin the Sunset Sand layout (colors and fonts). A brand-new layout needs code and a deploy. Uploaded: <b>${j.packs.length}</b> of ${j.max}.</p>
+${j.canChange?`<div class="row"><input type="file" id="packFile" accept="application/json,.json" style="max-width:320px"><button class="btn sec" type="button" id="exPaid">Download paid example</button><button class="btn sec" type="button" id="exFree">Download free example</button></div>`:''}</div>`;
+  const dl=(o,n)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(o,null,2)],{type:'application/json'}));a.download=n;a.click();};
+  if($('exPaid')){$('exPaid').onclick=()=>dl(EXAMPLE,'template-pack-paid-example.json');$('exFree').onclick=()=>dl(EXAMPLE_FREE,'template-pack-free-example.json');
+   $('packFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const txt=await f.text();await api('/api/site/templates/packs',{action:'add',pack:txt});msg('Template uploaded. It is on for its tier; open it below to set the picker image and doors.',true);await load();}catch(err){msg(err.message||'Upload failed.');}e.target.value='';};}
+ }catch(e){}}
+async function load(){loadAi();loadPacks();try{D=await api('/api/site/templates/admin');}catch(e){if(e)$('body').textContent=e.message;return;}render();}
 function render(){
   const ro=!D.canChange;
   $('body').innerHTML=D.templates.map(t=>`<div class="card" data-id="${esc(t.id)}"><div class="grid"><div>${t.thumbUrl?`<img class="thumb" src="${esc(t.thumbUrl)}?v=${esc(t.updatedOn||'')}" alt="">`:`<div class="thumb">${esc(t.name)}</div>`}
 ${ro?'':`<label for="th_${esc(t.id)}">${T('Picker image (WebP, PNG or JPG, under 1 MB)')}</label><input type="file" id="th_${esc(t.id)}" accept="image/webp,image/png,image/jpeg" data-thumb>`}</div>
-<div><h3>${esc(t.name)} <span class="pill ${t.enabled?'ok':'off'}">${T(t.enabled?'On':'Off')}</span> <span class="pill">${esc(T(CLASS[t.class]||t.class))}</span>${t.legacy?` <span class="pill">${T('First builder look')}</span>`:''}</h3>
+<div><h3>${esc(t.name)} <span class="pill ${t.enabled?'ok':'off'}">${T(t.enabled?'On':'Off')}</span> <span class="pill">${esc(T(CLASS[t.class]||t.class))}</span>${t.legacy?` <span class="pill">${T('First builder look')}</span>`:''}${t.pack?` <span class="pill">Uploaded pack</span>`:''}</h3>
 <p class="muted"><b>${T('Slug')}:</b> ${esc(t.slug)} &middot; <b>${T('Version in use')}:</b> ${esc(t.version)}${t.version!==t.latest?` (${T('newest is')} ${esc(t.latest)})`:''}${t.updatedOn?` &middot; ${T('Changed')} ${esc(t.updatedOn)}`:''}</p>
 <div class="row"><label style="margin:0"><input type="checkbox" data-en${t.enabled?' checked':''}${ro?' disabled':''}> ${T('On (clients can choose it)')}</label></div>
-<label>${T('Doors that may publish with it')}</label><div class="row">${DOORS.map(([d,n])=>`<label style="margin:0;font-weight:500"><input type="checkbox" data-door="${d}"${t.doors.includes(d)?' checked':''}${ro?' disabled':''}> ${T(n)}</label>`).join('')}<span class="muted">${T('Free previews every template that is on.')}</span></div>
+<label>${T('Doors that may publish with it')}</label><div class="row">${(t.class==='free'?[['free','Free']]:[]).concat(DOORS).map(([d,n])=>`<label style="margin:0;font-weight:500"><input type="checkbox" data-door="${d}"${t.doors.includes(d)?' checked':''}${ro?' disabled':''}> ${T(n)}</label>`).join('')}<span class="muted">${T('Free previews every template that is on.')}</span></div>
 <div class="row"><div><label for="nm_${esc(t.id)}">${T('Name clients see')}</label><input id="nm_${esc(t.id)}" data-name maxlength="40" value="${esc(t.name)}"${ro?' disabled':''}></div><div><label for="so_${esc(t.id)}">${T('Order (low first)')}</label><input id="so_${esc(t.id)}" data-sort type="number" min="0" max="999" value="${t.sort}" style="width:90px"${ro?' disabled':''}></div>
 <div><label for="vr_${esc(t.id)}">${T('Version')}</label><select id="vr_${esc(t.id)}" data-ver${ro?' disabled':''}><option value="">${T('Newest')} (${esc(t.latest)})</option>${t.versions.map(v=>`<option value="${esc(v)}"${t.version===v&&t.version!==t.latest?' selected':''}>${esc(v)}</option>`).join('')}</select></div></div>
 <label for="nt_${esc(t.id)}">${T('Admin note')}</label><input id="nt_${esc(t.id)}" data-note maxlength="200" value="${esc(t.note)}" style="width:100%"${ro?' disabled':''}>
@@ -93,6 +102,7 @@ ${ro?'':`<div class="row" style="margin-top:10px"><button class="btn" type="butt
 <div class="row" style="margin-top:10px"><label style="margin:0" for="pv_${esc(t.id)}">${T('Preview with client')}</label><select id="pv_${esc(t.id)}" data-pvc><option value="">${T('Your own sample company')}</option>${allClients().map(c=>`<option value="${c.companyId}">${esc(c.name)}</option>`).join('')}</select><input data-pvid placeholder="${T('or client id')}" style="width:110px" inputmode="numeric"><button class="btn sec" type="button" data-pv>${T('Open preview')}</button></div>
 <details><summary>${T('Clients using it')} (${t.clients.length})</summary>${t.clients.length?`<table><tr><th>${T('Client')}</th><th>${T('Draft')}</th><th>${T('Live')}</th><th></th></tr>${t.clients.map(c=>`<tr><td>${esc(c.name)} <small class="muted">#${c.companyId}</small></td><td>${c.draft?'&#10003;':''}</td><td>${c.live?'&#10003;':''}</td><td><a href="/site?as=${c.companyId}">${T('Open editor')}</a></td></tr>`).join('')}</table>`:`<p class="muted">${T('No client uses it yet.')}</p>`}</details>
 <details><summary>${T('Default photos')} (${(t.slots||[]).filter(x=>x.has).length}/${(t.slots||[]).length})</summary><p class="muted">${T('Visitors see these until the painter adds their own photo for that space. Use only images you may use on client sites. WebP, PNG or JPG, under 3 MB each. Before and after photos have no default.')}</p>${ro?'':`<div class="row" style="margin:8px 0"><label for="zp_${esc(t.id)}" style="margin:0">${T('Upload a zip of all photos')}</label><input type="file" id="zp_${esc(t.id)}" accept=".zip,application/zip" data-zip></div><pre class="muted" data-ziplog style="white-space:pre-wrap;font-size:12px"></pre>`}<div class="dslots">${(t.slots||[]).map(x=>`<div class="dslot" data-slot="${esc(x.slot)}">${x.has?`<img src="${esc(x.url)}?v=${esc(t.updatedOn||'')}" alt="">`:`<div class="dph"></div>`}<b>${esc(x.slot)}</b><small class="muted">${x.w} &times; ${x.h} (${esc(x.ratio)})</small>${ro?'':`<input type="file" accept="image/webp,image/png,image/jpeg" data-dfile aria-label="${esc(x.slot)}">${x.has?`<button class="btn sec sm" type="button" data-drm>${T('Remove')}</button>`:''}`}</div>`).join('')}</div></details>
+${t.pack&&!ro?`<div class="row" style="margin-top:8px"><button class="btn sec" type="button" data-delpack>Delete this uploaded template</button><span class="muted">Clients using it keep their content and are drawn with Classic until they pick again.</span></div>`:''}
 <details><summary>${T('Inspiration and license')}</summary><p class="muted"><b>${T('Inspiration')}:</b> ${esc(t.inspiration)}</p><p class="muted"><b>${T('License')}:</b> ${esc(t.license)}</p></details>
 </div></div></div>`).join('');
   [].forEach.call(document.querySelectorAll('.card[data-id]'),c=>{
@@ -105,6 +115,7 @@ ${ro?'':`<div class="row" style="margin-top:10px"><button class="btn" type="butt
         msg('Saved.',true);await load();
       }catch(e){if(e)msg(e.message);}
     };
+    if(q('[data-delpack]'))q('[data-delpack]').onclick=async()=>{const t=D.templates.find(x=>x.id===id);if(!confirm('Delete '+t.name+'? '+t.clients.length+' client(s) use it. Their content stays; they are drawn with Classic until they pick another template.'))return;try{await api('/api/site/templates/packs',{action:'delete',id});msg('Template deleted.',true);await load();}catch(e){if(e)msg(e.message);}};
     if(q('[data-thumb]'))q('[data-thumb]').onchange=async e=>{const f=e.target.files[0];if(!f)return;const fd=new FormData();fd.append('id',id);fd.append('file',f);
       try{const r=await fetch('/api/site/templates/thumb',{method:'POST',body:fd});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Upload failed.');msg('Picker image saved.',true);await load();}catch(err){msg(err.message);}};
     if(q('[data-zip]'))q('[data-zip]').onchange=async e=>{const f=e.target.files[0];if(!f)return;const t=D.templates.find(x=>x.id===id);await uploadZip(id,t.slots||[],f,q('[data-ziplog]'));msg('Zip finished. Reload to see the photos.',true);};
@@ -118,4 +129,4 @@ ${ro?'':`<div class="row" style="margin-top:10px"><button class="btn" type="butt
 function allClients(){const m=new Map();D.templates.forEach(t=>t.clients.forEach(c=>m.set(c.companyId,c)));return [...m.values()].sort((a,b)=>a.name.localeCompare(b.name));}
 load();
 </script>
-</body></html>
+<script src="/logo-apply.js"></script></body></html>

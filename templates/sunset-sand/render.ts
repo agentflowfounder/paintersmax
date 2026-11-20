@@ -33,11 +33,14 @@ function videoUrl(x: X): string {
   return /^https:\/\/(www\.)?(youtube\.com|youtu\.be|vimeo\.com)\/[^\s"'<>]+$/i.test(v) ? v : "";
 }
 
+/** A saved PaintersMax logo set has a wide logo (full.png) and a square icon (icon.png). Headers and tab icons want the square one. */
+const iconOf = (url?: string) => (url ? url.replace(/\/full\.png(\?|$)/, "/icon.png$1") : "");
+
 function header(x: X, nav: { label: string; href: string; on: boolean }[]) {
   const c = x.company;
   const b = x.site.business;
   const logo = x.theme.logo ? x.site.photos.find((p) => p.id === x.theme.logo) : null;
-  const mark = logo ? `<img class="pm-logo-img" src="${e(x.photoSrc(logo.id))}" alt="" width="36" height="36">` : c.logoUrl ? `<img class="pm-logo-img" src="${e(c.logoUrl)}" alt="" width="36" height="36">` : "";
+  const mark = logo ? `<img class="pm-logo-img" src="${e(x.photoSrc(logo.id))}" alt="" width="36" height="36">` : c.logoUrl ? `<img class="pm-logo-img" src="${e(iconOf(c.logoUrl))}" alt="" width="36" height="36">` : "";
   const links = nav.map((n) => `<a href="${e(n.href)}"${n.on ? ' aria-current="page"' : ""}>${e(n.label)}</a>`).join("");
   const dl = nav.map((n) => `<a class="dl" href="${e(n.href)}">${e(n.label)}</a>`).join("");
   return `<a class="skip" href="#main-content">${e(t(x, "skip"))}</a>
@@ -259,7 +262,7 @@ export function render(x: X): string {
 <title>${e(title)}</title><meta name="description" content="${e(desc)}"><link rel="canonical" href="${e(canonical)}">
 ${x.preview ? '<meta name="robots" content="noindex">' : ""}${p.kind === "home" && site.gscToken ? `<meta name="google-site-verification" content="${e(site.gscToken)}">` : ""}
 ${x.preview ? "" : `<link rel="alternate" hreflang="${x.uiLang}" href="${e(canonical)}"><link rel="alternate" hreflang="${e(t(x, "langCode"))}" href="${e(absUrl(x.origin, x.langHref))}">`}
-<link rel="icon" href="${e((x.theme.logo && site.photos.some((q) => q.id === x.theme.logo) ? x.photoSrc(x.theme.logo) : "") || x.company.logoUrl || favicon(brand, x.company.name))}">
+<link rel="icon" href="${e((x.theme.logo && site.photos.some((q) => q.id === x.theme.logo) ? x.photoSrc(x.theme.logo) : "") || iconOf(x.company.logoUrl) || favicon(brand, x.company.name))}">
 <meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${e(canonical)}">${ogPhoto ? `<meta property="og:image" content="${e(x.origin.replace(/\/$/, "") + x.photoSrc(ogPhoto))}">` : ""}
 <meta name="theme-color" content="${e(brand)}">
 ${fh ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${e(fh)}">` : ""}

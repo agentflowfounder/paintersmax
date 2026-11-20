@@ -21,6 +21,8 @@ const DOORS: Door[] = ["free", "launch", "grow", "signature"];
 export const NO_DEFAULT_SLOTS = ["BA-BEFORE", "BA-AFTER"];
 
 const PAID: Door[] = ["launch", "grow", "signature"];
+/** The doors a template may list: Free is allowed only for free-class templates (checked in readRegistry). */
+const ALL_DOORS: Door[] = ["free", "launch", "grow", "signature"];
 
 export interface TemplateOverride {
   enabled?: boolean;
@@ -53,7 +55,7 @@ export function readRegistry(raw: unknown): Registry {
     if (!o || typeof o !== "object") continue;
     const r: TemplateOverride = {};
     if (typeof o.enabled === "boolean") r.enabled = o.enabled;
-    if (Array.isArray(o.doors)) r.doors = PAID.filter((d) => o.doors.includes(d));
+    if (Array.isArray(o.doors)) r.doors = ALL_DOORS.filter((d) => o.doors.includes(d) && (d !== "free" || !!configOf(id)?.class && configOf(id)!.class === "free"));
     if (s(o.name, 40)) r.name = s(o.name, 40);
     if (/^site-templates\/[a-z0-9-]{1,40}\/[a-z0-9]{6,40}\.(webp|png|jpg)$/.test(s(o.thumb, 120))) r.thumb = s(o.thumb, 120);
     if (o.slotImages && typeof o.slotImages === "object") {
@@ -81,7 +83,7 @@ export interface TemplateEntry {
   version: string; // the version sites draw with now
   latest: string;
   versions: string[];
-  doors: Door[]; // paid doors that may publish with it
+  doors: Door[]; // doors that may publish with it (Free only for free-class templates)
   enabled: boolean;
   thumb: string | null; // R2 key
   sort: number;
@@ -89,6 +91,7 @@ export interface TemplateEntry {
   inspiration: string;
   license: string;
   legacy: boolean;
+  pack: boolean; // an uploaded template pack (admin can delete it)
   note: string;
   updatedOn: string | null;
 }
@@ -104,15 +107,15 @@ export function entries(reg: Registry): TemplateEntry[] {
     return {
       id, slug: id, name: o.name ?? cfg.name, class: cfg.class, version, latest, versions: Object.keys(TEMPLATE_VERSIONS[id]),
       doors: o.doors ?? CLASS_DOORS[cfg.class], enabled: o.enabled ?? true, thumb: o.thumb ?? null, sort: o.sort ?? DEFAULT_SORT[id] ?? 50,
-      description: cfg.description, inspiration: cfg.inspiration, license: cfg.license, legacy: !!cfg.legacy, note: o.note ?? "", updatedOn: o.updatedOn ?? null,
+      description: cfg.description, inspiration: cfg.inspiration, license: cfg.license, legacy: !!cfg.legacy, pack: !!cfg.pack, note: o.note ?? "", updatedOn: o.updatedOn ?? null,
     };
   }).sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name));
 }
 
 export const entryOf = (reg: Registry, id: string) => entries(reg).find((t) => t.id === id) ?? null;
 
-/** Paid doors publish with templates whose door list includes them. Free never publishes. */
-export const canPublishWith = (reg: Registry, id: string, door: Door) => door !== "free" && !!entryOf(reg, id)?.doors.includes(door);
+/** A door publishes with the templates whose door list includes it. Free publishes only free-class templates (Classic and Bold, and uploaded free templates). */
+export const canPublishWith = (reg: Registry, id: string, door: Door) => !!entryOf(reg, id)?.doors.includes(door);
 
 /**
  * What the picker shows a painter for each template:
@@ -125,8 +128,8 @@ export function pickerList(reg: Registry, door: Door, current: string) {
   return entries(reg)
     .filter((t) => t.enabled || t.id === current)
     .map((t) => {
-      const lowest = PAID.find((d) => t.doors.includes(d)) ?? "signature";
-      const state: "use" | "preview" | "locked" = door === "free" ? "preview" : t.doors.includes(door) ? "use" : "locked";
+      const lowest = ALL_DOORS.find((d) => t.doors.includes(d)) ?? "signature";
+      const state: "use" | "preview" | "locked" = t.doors.includes(door) ? "use" : door === "free" ? "preview" : "locked";
       return { id: t.id, name: t.name, class: t.class, description: t.description, thumb: t.thumb ? `/site-template-thumb/${t.id}` : null, state, lowestDoor: lowest, current: t.id === current, legacy: t.legacy };
     });
 }
@@ -136,7 +139,7 @@ export function mayChoose(reg: Registry, id: string, door: Door, current: string
   if (id === current) return true;
   const t = entryOf(reg, id);
   if (!t || !t.enabled) return false;
-  return door === "free" || t.doors.includes(door);
+  return door === "free" || t.doors.includes(door); // Free may look at any enabled template; it publishes only free ones
 }
 
 // ------------------------------------------------------------------ drawing a page
@@ -162,8 +165,9 @@ export function renderWithTemplate(base: RenderCtx, o: ThemeOpts): string {
   const id = o.templateOverride && TEMPLATE_VERSIONS[o.templateOverride] ? o.templateOverride : base.site.template;
   const version = o.reg[id]?.version ?? latestVersion(id);
   const cfg = configOf(id, version);
-  const draw = cfg ? RENDERERS[`${cfg.id}@${cfg.version}`] : undefined;
-  if (!cfg || cfg.legacy || !draw) return renderSitePage({ ...base, site: { ...base.site, template: cfg?.legacy ? id : "classic" } });
+  const baseCfg = cfg?.pack ? configOf(cfg.pack.base) : cfg;
+  const draw = cfg ? RENDERERS[`${cfg.id}@${cfg.version}`] ?? (baseCfg ? RENDERERS[`${baseCfg.id}@${baseCfg.version}`] : undefined) : undefined;
+  if (!cfg || cfg.legacy || !draw) return renderSitePage({ ...base, onePage: o.door === "free", look: cfg?.pack ? { bold: cfg.pack.base === "bold", ...cfg.pack.palette } : undefined, site: { ...base.site, template: cfg?.legacy ? id : "classic" } });
   const ctx: ThemeRenderCtx = {
     ...base,
     cfg,
@@ -173,7 +177,7 @@ export function renderWithTemplate(base: RenderCtx, o: ThemeOpts): string {
     door: o.door,
     balance: o.balance,
     mapsKey: cfg.mapsMode === "worker-key" ? (o.mapsKey ?? "") : "",
-    assetBase: `/templates/${cfg.id}/${cfg.version}/`,
+    assetBase: `/templates/${baseCfg!.id}/${baseCfg!.version}/`,
     platformBase: "/templates/_platform/1.0.0/",
     leadEndpoint: "/api/lead",
     defaults: Object.fromEntries(Object.keys(o.reg[id]?.slotImages ?? {}).map((slot) => [slot, `/site-template-image/${id}/${slot}`])),

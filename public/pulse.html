@@ -66,4 +66,4 @@ function draw(d){
  $('msg').style.display='none';$('body').style.display='';
 }
 fetch('/api/pulse?lang='+(window.PM_LANG==='es'?'es':'en')).then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});}).then(draw).catch(function(x){if(x){$('msg').className='bad';$('msg').textContent=T(x.message);}});
-</script><script src="/nav.js"></script></body></html>
+</script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>
