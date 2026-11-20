@@ -2102,5 +2102,20 @@
     [/^Bonus credits \(up to (\d+)\)$/, function (a, n) { return 'Créditos extra (hasta ' + n + ')'; }],
   ]);
 
+  pmI18n.add({
+    'AI Studio': 'Estudio de IA', 'Where PaintersMax\'s picture tools live: show a customer a new color, make your logo, and fill your website with pictures. Each tool says what it costs before you start. A failed AI use never costs credits.': 'Aquí viven las herramientas de imágenes de PaintersMax: muéstrele a un cliente un color nuevo, haga su logotipo y llene su sitio web con fotos. Cada herramienta dice su costo antes de empezar. Un uso de IA fallido nunca cuesta créditos.',
+    'Color Studio on my website': 'Estudio de color en mi sitio web', 'Logo studio': 'Estudio de logotipo',
+    'Visitors try paint colors on a sample room on your own website, and can ask you for a free estimate. Uses no credits.': 'Los visitantes prueban colores de pintura en un cuarto de muestra en su propio sitio web y pueden pedirle un presupuesto gratis. No usa créditos.',
+    'Design up to 4 logo sets and choose one to use everywhere: estimates, emails, fliers, your website and the browser tab. Uploading a logo you already have is always free.': 'Diseñe hasta 4 juegos de logotipo y elija uno para usar en todas partes: presupuestos, correos, volantes, su sitio web y la pestaña del navegador. Subir un logotipo que ya tiene siempre es gratis.',
+    'Website pictures': 'Fotos del sitio web', 'Pick an empty photo space on your website and the tool makes a picture for it. Marked as AI and never shown as your own work. Before-and-after spaces always need your real photos.': 'Elija un espacio de foto vacío en su sitio web y la herramienta hace una foto para ese espacio. Se marca como hecha con IA y nunca se muestra como su propio trabajo. Los espacios de antes y después siempre necesitan sus fotos reales.',
+    'Open Color preview': 'Abrir vista previa de color', 'Open Website': 'Abrir sitio web', 'Open Logo studio': 'Abrir estudio de logotipo',
+    'It is a preview or a draft, not a color match or a finished photo. Test paint samples on the wall and check colors with the paint store.': 'Es una vista previa o un borrador, no una coincidencia de color exacta ni una foto terminada. Pruebe muestras de pintura en la pared y confirme los colores con la tienda de pintura.',
+    'Checking your website...': 'Revisando su sitio web...', 'Available to add on your website. No credits used.': 'Disponible para agregar a su sitio web. No usa créditos.', 'Upgrade from Free to add this to your website.': 'Mejore desde el plan Gratis para agregar esto a su sitio web.',
+    'Not included in your plan.': 'No incluido en su plan.', 'Uses AI credits:': 'Usa créditos de IA:', 'each.': 'cada uno.', 'a month on your plan, then': 'al mes en su plan, luego', 'credits each.': 'créditos cada uno.',
+    'Not turned on yet. Ask to turn it on from your website editor.': 'Aún no está activado. Pídalo activar desde el editor de su sitio web.',
+    'Draft:': 'Borrador:', 'credit.': 'crédito.', 'Quality:': 'Calidad:', 'credits.': 'créditos.', 'Up to': 'Hasta', 'a day.': 'al día.',
+    'Running a campaign?': '¿Va a hacer una campaña?', 'A campaign is one offer sent through a few channels for a set time: print, past-customer emails and reviews, all made here.': 'Una campaña es una sola oferta enviada por varios canales durante un tiempo fijo: impresos, correos a clientes anteriores y reseñas, todo hecho aquí.', 'See the 5 steps': 'Ver los 5 pasos',
+  });
+
   pmI18n.start();
 })();

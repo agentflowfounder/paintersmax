@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>AI Studio - PaintersMax</title><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+main{max-width:860px;margin:0 auto;padding:16px 12px 60px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+p.lead{color:#4A5568;margin-top:0}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media(max-width:620px){.grid{grid-template-columns:1fr}}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.card h2{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:19px;margin:0}
+.muted{color:#4A5568;font-size:14px;margin:0}
+.cost{font-size:13px;font-weight:600;color:#0F1B2D}
+.lock{font-size:13px;color:#b42318;font-weight:600}
+button,.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 14px;background:#E8A33D;color:#0F1B2D;cursor:pointer;text-decoration:none;display:inline-block;align-self:flex-start}
+.btn.s{background:#eceae4}
+a{color:#0F1B2D}
+.note{background:#fff8e6;border-left:4px solid #E8A33D;padding:8px 10px;border-radius:6px;font-size:13px;margin-top:0}
+</style></head><body>
+<header><div><b>PaintersMax</b> AI Studio</div><div></div></header>
+<main><div data-help="ai-studio" style="margin:6px 0"></div>
+<h1>AI Studio</h1>
+<p class="lead">Where PaintersMax's picture tools live: show a customer a new color, make your logo, and fill your website with pictures. Each tool says what it costs before you start. A failed AI use never costs credits.</p>
+<div class="grid">
+ <div class="card">
+  <h2>Color preview</h2>
+  <p class="muted">Show a customer a new color on their own photo of the room or house. Not stored in PaintersMax.</p>
+  <p class="cost" id="c_color">Loading cost...</p>
+  <a class="btn" href="/colors">Open Color preview</a>
+ </div>
+ <div class="card">
+  <h2>Color Studio on my website</h2>
+  <p class="muted">Visitors try paint colors on a sample room on your own website, and can ask you for a free estimate. Uses no credits.</p>
+  <p class="cost" id="c_cs">Checking your website...</p>
+  <a class="btn s" href="/site">Open Website</a>
+ </div>
+ <div class="card">
+  <h2>Logo studio</h2>
+  <p class="muted">Design up to 4 logo sets and choose one to use everywhere: estimates, emails, fliers, your website and the browser tab. Uploading a logo you already have is always free.</p>
+  <p class="cost" id="c_logo">Loading cost...</p>
+  <a class="btn" href="/logo-studio">Open Logo studio</a>
+ </div>
+ <div class="card">
+  <h2>Website pictures</h2>
+  <p class="muted">Pick an empty photo space on your website and the tool makes a picture for it. Marked as AI and never shown as your own work. Before-and-after spaces always need your real photos.</p>
+  <p class="cost" id="c_img">Checking your website...</p>
+  <a class="btn s" href="/site">Open Website</a>
+ </div>
+</div>
+<div class="note" style="margin-top:14px" id="note">It is a preview or a draft, not a color match or a finished photo. Test paint samples on the wall and check colors with the paint store.</div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+var T=window.pmT||function(s){return s};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+fetch('/api/credits').then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json();}).then(function(j){
+ var byFeature={};(j.features||[]).forEach(function(f){byFeature[f.feature]=f;});
+ function line(f){var u=byFeature[f];if(!u)return T('Not included in your plan.');if(u.limit===0)return T('Uses AI credits:')+' '+u.creditCost+' '+T('each.');return u.limit+' '+T('a month on your plan, then')+' '+u.creditCost+' '+T('credits each.');}
+ $('c_color').textContent=line('color_repaint');
+ $('c_logo').textContent=line('logo_design');
+}).catch(function(e){if(e){$('c_color').textContent=T('Could not load.');$('c_logo').textContent=T('Could not load.');}});
+fetch('/api/site').then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){
+ $('c_cs').textContent=(j.door&&j.door!=='free')?T('Available to add on your website. No credits used.'):T('Upgrade from Free to add this to your website.');
+ $('c_img').textContent=j.imageAi&&j.imageAi.on?(T('Draft:')+' '+j.imageAi.draftCredits+' '+T('credit.')+' '+T('Quality:')+' '+j.imageAi.qualityCredits+' '+T('credits.')+' '+T('Up to')+' '+j.imageAi.dailyCap+' '+T('a day.')):T('Not turned on yet. Ask to turn it on from your website editor.');
+}).catch(function(e){if(e){$('c_cs').textContent=T('Could not load.');$('c_img').textContent=T('Could not load.');}});
+</script><script src="/nav.js"></script><script src="/logo-apply.js"></script><script src="/pmhelp.js"></script></body></html>
