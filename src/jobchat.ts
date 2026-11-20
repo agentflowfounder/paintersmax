@@ -116,7 +116,7 @@ export async function handleJobChat(request: Request, env: Env): Promise<Respons
   const used = await consume(env, company, feature);
   if (!used.allowed) {
     const msg = used.reason === "kill_switch" ? "The assistant is paused right now. Try again soon."
-      : used.reason === "not_in_plan" ? (mode === "quick" ? "The assistant is not included in your plan." : "Detailed and deep answers are on the Starter plan and up.")
+      : used.reason === "not_in_plan" ? (mode === "quick" ? "The assistant is not included in your plan." : "Detailed and deep answers are on the Launch plan and up.")
       : mode === "quick" ? "You have used this month's quick answers." : mode === "quote" ? "You have used this month's Quote helper answers. Quick answers still work, and your allowance starts over next month." : `You have used this month's ${mode} answers. Quick answers still work.`;
     return json({ error: msg, code: used.reason }, 429);
   }
