@@ -14,7 +14,7 @@ export type PageKind = "home" | "services" | "gallery" | "about" | "contact" | "
 export type Lang = "en" | "es";
 export type Txt = { en: string; es: string };
 
-/** free: every door, one page with tabs on Free. basic: Launch and up. standard: Grow and up. premium: Signature. Free may preview every template but publishes only the free ones. */
+/** free: every door, one page with tabs on Free. basic: Local Pro and up. standard: Contractor and up. premium: Commercial. Free may preview every template but publishes only the free ones. */
 export type TemplateClass = "free" | "basic" | "standard" | "premium";
 export const CLASS_DOORS: Record<TemplateClass, Door[]> = {
   free: ["free", "launch", "grow", "signature"],

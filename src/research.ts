@@ -57,7 +57,7 @@ export const contactsKey = (marketId: string) => `research:c:${marketId}`;
 const MAX_MARKETS = 60;
 export const MAX_CONTACTS = 3000;
 
-/** No site and few reviews: Launch buyers. Fifty reviews or more: Grow or Signature. */
+/** No site and few reviews: Local Pro buyers. Fifty reviews or more: Contractor or Commercial. */
 export function suggestDoor(website: string, reviews: number | null): SuggestedDoor {
   if ((reviews ?? 0) >= 150) return "signature";
   if ((reviews ?? 0) >= 50) return "grow";

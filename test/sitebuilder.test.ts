@@ -35,7 +35,7 @@ test("first draft: 5 core pages plus one page per service, within the door", () 
   const s = draft();
   const u = usageOf(s);
   assert.equal(u.pages, 5);
-  assert.equal(u.services, 3); // 4 trades, Launch allows 3
+  assert.equal(u.services, 3); // 4 trades, Local Pro allows 3
   assert.equal(s.pages[0].kind, "home");
   assert.ok(s.pages[0].seoTitle.length <= 60);
   assert.match(s.pages[0].blocks.map((b) => (b.type === "text" ? b.body : "")).join(" "), /Insured/);
@@ -189,14 +189,14 @@ test("Spanish strings for the new screens load and translate", () => {
   vm.runInContext(readFileSync(new URL("../public/i18n-site.js", import.meta.url), "utf8"), ctx);
   const T = ctx.pmT as (s: string) => string;
   assert.equal(T("Save draft"), "Guardar borrador");
-  assert.equal(T("Your Launch site can have 5 pages."), "Su sitio Launch puede tener 5 páginas.");
+  assert.equal(T("Your Local Pro site can have 5 pages."), "Su sitio Local Pro puede tener 5 páginas.");
   assert.equal(T("At least 150 words of real text (now 12)"), "Al menos 150 palabras de texto real (ahora 12)");
   // Every T('...') string in the new pages has a Spanish version.
   for (const f of ["../public/site.html", "../public/sites-admin.html", "../public/templates-admin.html"]) {
     const src = readFileSync(new URL(f, import.meta.url), "utf8");
     for (const m of src.matchAll(/T\('((?:[^'\\]|\\.)*)'\)/g)) {
       const s = m[1].replace(/\\'/g, "'");
-      assert.ok(T(s) !== s || /^(Grow|Launch|Signature|Google Search Console|exterior|interior|Search Console)$/.test(s), `missing Spanish: ${s}`);
+      assert.ok(T(s) !== s || /^(Contractor|Local Pro|Commercial|Google Search Console|exterior|interior|Search Console)$/.test(s), `missing Spanish: ${s}`);
     }
   }
 });

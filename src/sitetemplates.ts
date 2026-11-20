@@ -8,8 +8,8 @@ import { CLASS_DOORS, cleanTheme, emptyTheme, type Door, type Lang, type Templat
  * The template library: which templates exist (templates/configs.ts) plus admin's choices for each one, kept in
  * app_settings under REGISTRY_KEY (no database change):
  *   enabled   off = hidden from the picker for new choices. Sites already using it keep working (never deleted).
- *   doors     which paid doors may publish with it (default from its class: basic = Launch+, standard = Grow+,
- *             premium = Signature). Free previews every enabled template and never publishes.
+ *   doors     which paid doors may publish with it (default from its class: basic = Local Pro+, standard = Contractor+,
+ *             premium = Commercial). Free previews every enabled template and never publishes.
  *   name, thumb (R2 key), sort, note
  *   version   pinned version (a rollback). Empty = newest.
  * Every change is written to the admin audit log by the API (sitetemplatesapi.ts).

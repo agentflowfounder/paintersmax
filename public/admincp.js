@@ -10,7 +10,7 @@
     ['research', 'Research', 'research'], ['feedback', 'Feedback', 'feedback'], ['domains', 'Domains', 'domains'], ['sites', 'Websites', 'sites'],
     ['content', 'Help guide', 'content'], ['settings', 'Settings', 'settings'], ['security', 'Team and audit log', 'security'],
   ];
-  var DOOR = { free: 'Free', launch: 'Launch', grow: 'Grow', signature: 'Signature' };
+  var DOOR = { free: 'Free', launch: 'Local Pro', grow: 'Contractor', signature: 'Commercial' };
   var doorName = function (k) { return k === 'free' ? esc(T('Free')) : '<span translate="no">' + esc(DOOR[k] || k) + '</span>'; };
   var doorOpts = function (cur) { return Object.keys(DOOR).map(function (k) { return '<option value="' + k + '"' + (k === cur ? ' selected' : '') + (k === 'free' ? '' : ' translate="no"') + '>' + esc(k === 'free' ? T('Free') : DOOR[k]) + '</option>'; }).join(''); };
   var STATE = { free: 'Free', paid: 'Paid', due_60: 'Renews in 60 days', due_30: 'Renews in 30 days', missed: 'Missed renewal', cancelled: 'Cancelled', refunded: 'Refunded' };
@@ -206,6 +206,7 @@
       var s = v.settings, c = v.costs, worst = Math.round(s.dailyCap * s.welcomeCredits * c.worstCentsPerCredit), typical = Math.round(s.dailyCap * c.typicalCentsPerAccount);
       box.innerHTML = '<div class="card"><h3>Starter campaign: free sign-ups and welcome credits</h3><small>Every new account gets the welcome credits once. Public sign-ups over the daily ceiling still open at once; their credits wait and are added the next morning (6 AM). Accounts you create here are never held.</small>' +
         '<div class="tiles" style="margin-top:12px"><div class="tile"><b>' + v.stats.today + ' / ' + s.dailyCap + '</b><span>Welcome grants today</span></div><div class="tile"><b>' + v.stats.held + '</b><span>Waiting for tomorrow</span></div><div class="tile"><b>' + v.stats.byDay.reduce(function (n, x) { return n + x.count; }, 0) + '</b><span>Last 14 days</span></div></div>' +
+        '<h4>How new painters heard about us</h4>' + (Object.keys(v.stats.heard || {}).length ? '<table class="t"><tbody>' + Object.keys(v.stats.heard).sort(function (a, b) { return v.stats.heard[b] - v.stats.heard[a]; }).map(function (k) { return '<tr><td>' + esc(k) + '</td><td>' + v.stats.heard[k] + '</td></tr>'; }).join('') + '</tbody></table>' : '<small>No answers yet.</small>') +
         '<div class="row"><div><label>Welcome credits</label><input id="st_n" inputmode="numeric" value="' + s.welcomeCredits + '"></div><div><label>They last (days)</label><input id="st_d" inputmode="numeric" value="' + s.welcomeDays + '"></div><div><label>Daily ceiling (accounts)</label><input id="st_cap" inputmode="numeric" value="' + s.dailyCap + '"></div><div><label>Sign-ups per device a day</label><input id="st_v" inputmode="numeric" value="' + s.perVisitorDaily + '"></div></div>' +
         '<label class="chk"><input type="checkbox" id="st_on"' + (s.on ? ' checked' : '') + '> <span>Give welcome credits to new accounts</span></label>' +
         '<p><small><span>At today\'s AI prices (checked</span> ' + esc(c.checkedOn) + '<span>), a full day at the ceiling costs about</span> <b>' + money(typical) + '</b> <span>in a normal week and at most</span> <b>' + money(worst) + '</b> <span>if every credit went to color previews. Text costs double on 2027-01-01 when the Gemini Flash price changes.</span></small></p>' +

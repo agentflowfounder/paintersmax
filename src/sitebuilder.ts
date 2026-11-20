@@ -245,7 +245,7 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
     await setKv(env, draftKey(co.id), JSON.stringify(r.site));
     if (a.viewAs) await audit(env, co.id, by, action === "publish" ? "save and publish" : "save");
     if (action === "save") return json({ ok: true, site: r.site, usage: usageOf(r.site), checks: Object.fromEntries(r.site.pages.map((p) => [p.id, seoChecks(r.site, p)])), blockers: publishBlockers(r.site), themeInfo: themeInfo(r.site.template, reg, door, null), canPublishTemplate: canPublishWith(reg, r.site.template, door) });
-    if (!canPublish(door)) return json({ error: "Publishing comes with the Launch door. Your draft is saved.", over: "publish", upgrade: doorInfo(door, rec).next }, 402);
+    if (!canPublish(door)) return json({ error: "Publishing comes with the Local Pro door. Your draft is saved.", over: "publish", upgrade: doorInfo(door, rec).next }, 402);
     if (!canPublishWith(reg, r.site.template, door)) {
       const t = entryOf(reg, r.site.template);
       const need = t?.doors[0];

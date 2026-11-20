@@ -29,8 +29,8 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const T=s=>(window.pmT?pmT(s):s);
 function msg(t,ok){$('msg').textContent=t?T(t):'';$('msg').className=ok?'ok':'bad';}
 async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
-const DOORS=[['launch','Launch'],['grow','Grow'],['signature','Signature']];
-const CLASS={free:'Free tier (every door; one page with tabs on Free)',basic:'Basic (Launch and up)',standard:'Standard (Grow and up)',premium:'Premium (Signature)'};
+const DOORS=[['launch','Local Pro'],['grow','Contractor'],['signature','Commercial']];
+const CLASS={free:'Free tier (every door; one page with tabs on Free)',basic:'Basic (Local Pro and up)',standard:'Standard (Contractor and up)',premium:'Premium (Commercial)'};
 let D=null;
 // ---------- Zip of default photos: read in the browser, one upload per photo space
 async function readZip(file){
@@ -80,7 +80,7 @@ ${ro?'':`<div class="row" style="margin-top:10px"><button class="btn" type="butt
 const EXAMPLE={format:'paintersmax-template-pack',id:'warm-oak',name:'Warm Oak',tier:'basic',base:'sunset-sand',description:{en:'Warm oak and cream, quiet and photo-led.',es:'Roble cálido y crema, tranquilo y con fotos.'},inspiration:'Original palette by PaintersMax.',license:'Original. Fonts under the SIL Open Font License.',tokens:{'c-brand':'#8a5a2b','c-accent':'#c9a26a'},fonts:{display:'Marcellus',body:'Inter'}};
 const EXAMPLE_FREE={format:'paintersmax-template-pack',id:'harbor-free',name:'Harbor',tier:'free',base:'classic',description:{en:'Deep blue header with a warm accent.',es:'Encabezado azul profundo con acento cálido.'},palette:{dark:'#12263f',bg:'#f5f6f8',accent:'#e0953a'}};
 async function loadPacks(){try{const j=await api('/api/site/templates/packs');
-  $('packs').innerHTML=`<div class="card"><h3>Add or delete templates for each tier</h3><p class="muted">Upload a template pack (a small JSON file, never code) to add a look to the Free, Basic (Launch and up), Standard (Grow and up) or Premium (Signature) tier. Free packs re-skin the one-page Classic or Bold layout (a dark color, a page color, an accent). Paid packs re-skin the Sunset Sand layout (colors and fonts). A brand-new layout needs code and a deploy. Uploaded: <b>${j.packs.length}</b> of ${j.max}.</p>
+  $('packs').innerHTML=`<div class="card"><h3>Add or delete templates for each tier</h3><p class="muted">Upload a template pack (a small JSON file, never code) to add a look to the Free, Basic (Local Pro and up), Standard (Contractor and up) or Premium (Commercial) tier. Free packs re-skin the one-page Classic or Bold layout (a dark color, a page color, an accent). Paid packs re-skin the Sunset Sand layout (colors and fonts). A brand-new layout needs code and a deploy. Uploaded: <b>${j.packs.length}</b> of ${j.max}.</p>
 ${j.canChange?`<div class="row"><input type="file" id="packFile" accept="application/json,.json" style="max-width:320px"><button class="btn sec" type="button" id="exPaid">Download paid example</button><button class="btn sec" type="button" id="exFree">Download free example</button></div>`:''}</div>`;
   const dl=(o,n)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(o,null,2)],{type:'application/json'}));a.download=n;a.click();};
   if($('exPaid')){$('exPaid').onclick=()=>dl(EXAMPLE,'template-pack-paid-example.json');$('exFree').onclick=()=>dl(EXAMPLE_FREE,'template-pack-free-example.json');

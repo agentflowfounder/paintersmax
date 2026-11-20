@@ -7,18 +7,18 @@ import { cleanOrient, parseYouTube, type Orient } from "./ytcore.ts";
  * Website builder: the rules and the data shape, with no database or network code (so it is easy to test).
  *
  * Every painter's website is one JSON document. The painter edits a draft; Publish copies the draft to the live copy.
- * The door (Free, Launch, Grow, Signature) decides how many pages, service pages and photos the site may have.
+ * The door (Free, Local Pro, Contractor, Commercial) decides how many pages, service pages and photos the site may have.
  * Home, Services, Gallery, About and Contact come with every door and count as the first 5 pages.
  * Tabs live inside a page and never count as pages, so they are the way to add content without hitting the limit.
  */
 
 export type Door = "free" | "launch" | "grow" | "signature";
 export const DOORS: Door[] = ["free", "launch", "grow", "signature"];
-export const DOOR_NAMES: Record<Door, string> = { free: "Free", launch: "Launch", grow: "Grow", signature: "Signature" };
+export const DOOR_NAMES: Record<Door, string> = { free: "Free", launch: "Local Pro", grow: "Contractor", signature: "Commercial" };
 
 export interface Limits { pages: number; services: number; photos: number }
 
-/** Pages include the 5 core pages. Free builds a full Launch-size draft and publishes it as one page with five tabs on a free template. */
+/** Pages include the 5 core pages. Free builds a full Local Pro-size draft and publishes it as one page with five tabs on a free template. */
 export const DOOR_LIMITS: Record<Door, Limits> = {
   free: { pages: 5, services: 3, photos: 30 },
   launch: { pages: 5, services: 3, photos: 30 },
@@ -33,7 +33,7 @@ export const DOOR_FLOOR_CENTS: Record<Door, number> = { free: 0, launch: 29900, 
 /** List prices approved 2026-11-14 (shown crossed out next to the floor on the sign-up page). */
 export const DOOR_LIST_CENTS: Record<Door, number> = { free: 0, launch: 39900, grow: 54900, signature: 69900 };
 
-/** Until the four doors have their own column, a door follows the AI plan: Starter = Launch, Basic = Grow, Pro = Signature. */
+/** Until the four doors have their own column, a door follows the AI plan: Starter = Local Pro, Basic = Contractor, Pro = Commercial. */
 export const PLAN_DOOR: Record<Plan, Door> = { free: "free", starter: "launch", basic: "grow", pro: "signature" };
 export const DOOR_PLAN: Record<Door, Plan> = { free: "free", launch: "starter", grow: "basic", signature: "pro" };
 
@@ -233,7 +233,7 @@ export function cleanSite(rawInput: any, limits: Limits, door: Door, now = new D
     if (!seenCore.has(k)) pages.push({ id: newId(), kind: k, slug: CORE_SLUGS[k], nav: CORE_NAV[k], seoTitle: "", seoDesc: "", headline: "", intro: "", blocks: [] });
   }
   // A site shows weather for at most 2 places. Later ones are dropped, so the limit holds however the page was edited.
-  let weatherLeft = door === "grow" || door === "signature" ? MAX_WEATHER_PLACES : 0; // weather comes with the Grow door and up
+  let weatherLeft = door === "grow" || door === "signature" ? MAX_WEATHER_PLACES : 0; // weather comes with the Contractor door and up
   for (const pg of pages) pg.blocks = pg.blocks.filter((bl) => bl.type !== "weather" || (bl.place && weatherLeft-- > 0));
   // Home first, then the order the painter chose.
   pages.sort((a, b) => (a.kind === "home" ? -1 : b.kind === "home" ? 1 : 0));

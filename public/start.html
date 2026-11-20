@@ -18,7 +18,7 @@
 .st-card{background:var(--card);border:1px solid var(--line-soft);border-radius:16px;padding:24px;margin-bottom:20px}
 .st-card h2{font-size:26px;margin-bottom:10px}.st-sub{color:var(--slate);margin:8px 0 12px}.st-fine{display:block;color:var(--muted);font-size:13px;margin-top:10px}
 .st-card label{display:block;font-size:14px;font-weight:600;margin:12px 0 4px}
-.st-card input[type=text],.st-card input:not([type]),.st-card input[type=email],.st-card input[type=tel]{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
+.st-card input[type=text],.st-card input:not([type]),.st-card input[type=email],.st-card input[type=tel],.st-card select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
 .st-h3{font-size:16px;margin:18px 0 4px}.st-more{margin-top:14px}.st-more summary{cursor:pointer;font-weight:600}.req{color:#a3261b;font-weight:700}.st-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.st-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .st-doors{border:0;margin:16px 0 4px}.st-doors legend{font-weight:600;font-size:15px;margin-bottom:6px}
 .st-door{display:flex!important;gap:10px;align-items:flex-start;font-weight:400!important;border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0!important;cursor:pointer;background:#fff}
@@ -39,7 +39,7 @@
 
 <div class="offer" data-from="2026-11-25" data-until="2027-01-06">
   <div class="wrap">
-    <span><b>Booked by Spring.</b> November 25 to January 6: Launch for $299, 1,000 AI credits and a Founding member badge.</span>
+    <span><b>Booked by Spring.</b> November 25 to January 6: Local Pro for $299, 1,000 AI credits and a Founding member badge.</span>
     <a href="/pricing">See the offer</a>
   </div>
 </div>
@@ -72,6 +72,7 @@
       <label for="e" data-t="email">Your email</label><input id="e" type="email" autocomplete="email" maxlength="200" required>
       <div class="st-two"><div><label for="c" data-t="city">City <span class="req" aria-hidden="true">*</span></label><input id="c" autocomplete="address-level2" maxlength="80" required list="cityList" placeholder="Dallas, TX"><datalist id="cityList"></datalist></div>
       <div><label for="p" data-t="phone">Phone <span class="req" aria-hidden="true">*</span></label><input id="p" type="tel" inputmode="tel" autocomplete="tel" maxlength="14" required placeholder="(555) 123-4567"></div></div>
+      <label for="h" data-t="heard">How did you hear about us?</label><select id="h"><option value="" data-t="hPick">Choose one (optional)</option><option value="google" data-t="hGoogle">Google search</option><option value="facebook" data-t="hFacebook">Facebook or Instagram</option><option value="youtube" data-t="hYoutube">YouTube</option><option value="friend" data-t="hFriend">A friend or customer</option><option value="painter" data-t="hPainter">Another painter</option><option value="truck" data-t="hTruck">A truck, flyer or sign</option><option value="supplier" data-t="hSupplier">A paint store or supplier</option><option value="other" data-t="hOther">Somewhere else</option></select>
       <div class="st-hp" aria-hidden="true"><label for="w">Website</label><input id="w" tabindex="-1" autocomplete="off"></div>
       <fieldset class="st-doors"><legend data-t="doorQ">Want a website that brings you customers?</legend>
         <label class="st-door on"><input type="radio" name="door" value="" checked> <span><b data-t="noDoor">Not now, start free</b><small data-t="noDoorS">Add your website any time from your dashboard.</small></span></label>
@@ -139,7 +140,7 @@
     code: 'Código de promoción (opcional)',
     agree: 'Leí y acepto el <a href="/early-access-agreement" target="_blank" rel="noopener">Acuerdo de Acceso Anticipado</a>, los <a href="/terms" target="_blank" rel="noopener">Términos de Servicio</a> y la <a href="/privacy" target="_blank" rel="noopener">Política de Privacidad</a>.',
     go: 'Empezar gratis', fine: 'Le enviamos un enlace para entrar por correo. No hay contraseña que recordar. Si eligió una puerta, paga después en la página segura de Stripe; su cuenta gratis queda abierta de todos modos.',
-    buyH: 'Lo que le dan sus', buyH2: 'créditos de bienvenida', seasonH: 'Las temporadas fuertes usan más', allTools: 'Ver cada herramienta de IA y su costo',
+    heard: '¿Cómo se enteró de nosotros?', hPick: 'Elija una (opcional)', hGoogle: 'Búsqueda en Google', hFacebook: 'Facebook o Instagram', hYoutube: 'YouTube', hFriend: 'Un amigo o cliente', hPainter: 'Otro pintor', hTruck: 'Un camión, volante o letrero', hSupplier: 'Una tienda de pintura o proveedor', hOther: 'Otro lugar', buyH: 'Lo que le dan sus', buyH2: 'créditos de bienvenida', seasonH: 'Las temporadas fuertes usan más', allTools: 'Ver cada herramienta de IA y su costo',
     buyS: 'Escribir, cotizaciones, presupuestos, contratos, facturas, listas de pendientes y garantías son gratis y nunca usan créditos. Los créditos pagan solo la ayuda de IA. Este es un trabajo real, de principio a fin:',
     exp: 'Los créditos de bienvenida duran', exp2: 'días. Después, las herramientas gratis siguen funcionando y puede agregar créditos desde $5 cuando quiera.',
     doorH: 'Que lo encuentren, le coticen y le paguen: agregue su sitio web.', doorS: 'Un sitio web profesional que le trae clientes, recibe solicitudes de cotización, genera confianza y se conecta con sus presupuestos. Dominio y hospedaje incluidos. Un precio al año, sin cargo de instalación y sin pago mensual.',
@@ -149,8 +150,8 @@
     en: { first: 'first year', then: 'then', year: 'a year', credits: 'AI credits at sign-up', founding: 'Founding painter badge', until: 'until', goDoor: 'Start free and pay for', check: 'Check your email', sent: 'We sent a sign-in link to', ready: 'Your free account is ready.', held: 'Lots of painters signed up today, so your welcome credits arrive by tomorrow morning.', got: 'welcome AI credits are in your account.', paid: 'Payment received. Check your email for your sign-in link. Your website credits are in your account.', agreeMsg: 'Please tick the box to agree before you continue.', jobs: 'That is about', jobs2: 'complete jobs on your welcome credits (each uses', perMonth: 'credits), or about', perMonth2: 'jobs a month', credits1: 'credits', credit1: 'credit', season: 'credits in a busy stretch', cityHint: 'Enter your city.', phoneHint: 'Enter a phone number with 10 digits.', sample: 'A busy first month (10 estimate drafts, 10 quote helps, 10 photo reads, 5 color previews, 6 website text helps and 4 logos) uses about', left: 'credits, leaving', left2: 'for whatever you need.', uses: 'times', per: 'credits each', per1: 'credit each', save: 'Promo', codeNote: 'About your code:' },
     es: { first: 'primer año', then: 'luego', year: 'al año', credits: 'créditos de IA al inscribirse', founding: 'insignia de Pintor fundador', until: 'hasta el', goDoor: 'Empezar gratis y pagar', check: 'Revise su correo', sent: 'Enviamos un enlace para entrar a', ready: 'Su cuenta gratis está lista.', held: 'Muchos pintores se inscribieron hoy, así que sus créditos de bienvenida llegan mañana temprano.', got: 'créditos de IA de bienvenida ya están en su cuenta.', paid: 'Pago recibido. Revise su correo para el enlace de entrada. Sus créditos del sitio web ya están en su cuenta.', agreeMsg: 'Marque la casilla para aceptar antes de continuar.', jobs: 'Eso son unos', jobs2: 'trabajos completos con sus créditos de bienvenida (cada uno usa', perMonth: 'créditos), o unos', perMonth2: 'trabajos al mes', credits1: 'créditos', credit1: 'crédito', season: 'créditos en una temporada fuerte', cityHint: 'Escriba su ciudad.', phoneHint: 'Escriba un teléfono de 10 dígitos.', sample: 'Un primer mes ocupado (10 borradores de presupuesto, 10 ayudas de cotización, 10 lecturas de fotos, 5 vistas de color, 6 ayudas de texto del sitio web y 4 logos) usa unos', left: 'créditos y le quedan', left2: 'para lo que necesite.', uses: 'veces', per: 'créditos cada uno', per1: 'crédito cada uno', save: 'Promoción', codeNote: 'Sobre su código:' }
   };
-  var DOOR_FOR = { launch: { en: 'Solo painters and small crews', es: 'Pintores solos y equipos pequeños' }, grow: { en: 'Busy crews', es: 'Equipos ocupados' }, signature: { en: 'Companies that want to stand out', es: 'Compañías que quieren destacar' } };
-  var NAMES = { launch: 'Launch', grow: 'Grow', signature: 'Signature' };
+  var DOOR_FOR = { launch: { en: 'Solo painters and small crews (2 to 6)', es: 'Pintores solos y equipos pequeños (2 a 6)' }, grow: { en: 'Established local crews that want quality leads', es: 'Equipos locales establecidos que quieren buenos clientes' }, signature: { en: 'Commercial and enterprise contractors', es: 'Contratistas comerciales y empresas' } };
+  var NAMES = { launch: 'Local Pro', grow: 'Contractor', signature: 'Commercial' };
   var ERR_ES = { 'Enter your company name.': 'Escriba el nombre de su compañía.', 'Enter a valid email address.': 'Escriba un correo electrónico válido.', 'Enter your city.': 'Escriba su ciudad.', 'Enter a phone number with 10 digits.': 'Escriba un teléfono de 10 dígitos.', 'Something went wrong.': 'Algo salió mal.' };
   var INFO = null, w = function (k) { return W[lang][k]; };
   var money = function (c) { return '$' + (c % 100 ? (c / 100).toFixed(2) : String(c / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
@@ -229,7 +230,7 @@
     if (!$('agree').checked) { $('msg').textContent = w('agreeMsg'); return; }
     b.disabled = true;
     var door = (document.querySelector('input[name=door]:checked') || {}).value || '';
-    fetch('/api/start/free', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: $('n').value, email: $('e').value, city: $('c').value, phone: $('p').value, website: $('w').value, door: door, code: $('code').value, lang: lang, lp: Q.get('lp') || '', src: Q.get('utm_source') || '', browserId: bid, agreed: true }) })
+    fetch('/api/start/free', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: $('n').value, email: $('e').value, city: $('c').value, phone: $('p').value, website: $('w').value, heard: $('h').value, door: door, code: $('code').value, lang: lang, lp: Q.get('lp') || '', src: Q.get('utm_source') || '', browserId: bid, agreed: true }) })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || 'Something went wrong.'); return j; }); })
       .then(function (j) {
         if (j.checkout) { location.href = j.checkout; return; }
