@@ -12,6 +12,7 @@ export interface ProgressFacts {
   cityPagePublished: number;
   leads: number;
   estimatesSent: number;
+  jobs?: number; // jobs started (any stage)
 }
 
 export interface ProgressStep {
@@ -34,6 +35,7 @@ export interface Progress {
 export function buildProgress(f: ProgressFacts): Progress {
   const steps: ProgressStep[] = [
     { key: "company", label: "Add your company info", why: "It goes on every estimate and contract, so you only type it once.", link: "/app", cta: "Add company info", done: f.companyInfo },
+    { key: "draft", label: "Try your first AI estimate draft", why: "Describe a job in your own words and the AI builds the estimate. It costs 1 of your free credits.", link: "/jobs", cta: "Start a job", done: (f.jobs ?? 0) > 0 },
     { key: "services", label: "Choose your services", why: "Your price list and quote page follow the work you actually do.", link: "/app", cta: "Choose services", done: f.services > 0 },
     { key: "cities", label: "Pick the cities you serve", why: "Each city can get its own page on your website.", link: "/app", cta: "Pick cities", done: f.cities > 0 },
     { key: "prices", label: "Set your prices", why: "Estimates fill in for you from your price list. You can change any number.", link: "/app", cta: "Set prices", done: f.rateCards > 0 },

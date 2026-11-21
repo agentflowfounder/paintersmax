@@ -246,6 +246,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     cityPagePublished: cp.n ?? 0,
     leads: lc.n ?? 0,
     estimatesSent: es.n ?? 0,
+    jobs: (await env.DB.prepare("SELECT COUNT(*) AS n FROM jobs WHERE company_id = ?").bind(c).first<{ n: number }>().catch(() => null))?.n ?? 0,
   });
 
   // Gentle nudges: at most two, each from a real fact, each snoozable.

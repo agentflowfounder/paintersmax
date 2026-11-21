@@ -27,11 +27,12 @@ export interface StarterSettings {
   welcomeDays: number;
   dailyCap: number; // public sign-ups that get welcome credits the same day
   perVisitorDaily: number; // free sign-ups one visitor (network address + browser) may make in a day
+  weeklySummary: boolean; // the Monday sign-ups email to the owner (on by default; it only goes to the owner)
   day3Email: boolean; // the day-3 "try your first estimate draft" email (off until the owner switches it on)
 }
 export const STARTER_KEY = "starter";
 export const HELD_KEY = "starterheld";
-export const STARTER_DEFAULTS: StarterSettings = { on: true, welcomeCredits: 250, welcomeDays: 60, dailyCap: 150, perVisitorDaily: 3, day3Email: false };
+export const STARTER_DEFAULTS: StarterSettings = { on: true, welcomeCredits: 250, welcomeDays: 60, dailyCap: 150, perVisitorDaily: 3, weeklySummary: true, day3Email: false };
 const MAX_HELD = 5000;
 
 const clampInt = (v: unknown, min: number, max: number, dflt: number) => {
@@ -47,6 +48,7 @@ export function readStarter(raw: unknown): StarterSettings {
     welcomeDays: clampInt(r.welcomeDays, 7, 365, d.welcomeDays),
     dailyCap: clampInt(r.dailyCap, 1, 5000, d.dailyCap),
     perVisitorDaily: clampInt(r.perVisitorDaily, 1, 20, d.perVisitorDaily),
+    weeklySummary: r.weeklySummary !== false,
     day3Email: r.day3Email === true,
   };
 }
@@ -354,7 +356,20 @@ export async function signupsThisWeek(env: Env, today: string) {
   const t = tallySignups(rows, today, 7);
   const ids = t.latest.map((r) => r.companyId);
   const names = ids.length ? (await env.DB.prepare(`SELECT id, name FROM companies WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all<{ id: number; name: string }>()).results ?? [] : [];
-  return { ...t, latest: t.latest.map((r) => ({ ...r, name: names.find((n) => n.id === r.companyId)?.name ?? "" })) };
+  const emails = ids.length ? (await env.DB.prepare(`SELECT company_id AS id, email FROM users WHERE company_id IN (${ids.map(() => "?").join(",")}) ORDER BY id`).bind(...ids).all<{ id: number; email: string }>()).results ?? [] : [];
+  const extra = new Map(blobs.map((b) => [Number(b.key.slice(7)), b.value as any]));
+  return {
+    ...t,
+    latest: t.latest.map((r) => ({
+      ...r,
+      name: names.find((n) => n.id === r.companyId)?.name ?? "",
+      email: emails.find((e) => e.id === r.companyId)?.email ?? "",
+      phone: typeof extra.get(r.companyId)?.phone === "string" ? extra.get(r.companyId).phone : "",
+      city: typeof extra.get(r.companyId)?.city === "string" ? extra.get(r.companyId).city : "",
+      lang: extra.get(r.companyId)?.lang === "es" ? "es" : "en",
+      msg: welcomeReply({ company: names.find((n) => n.id === r.companyId)?.name ?? "your company", city: typeof extra.get(r.companyId)?.city === "string" ? extra.get(r.companyId).city : "", es: extra.get(r.companyId)?.lang === "es" }),
+    })),
+  };
 }
 
 /**
@@ -364,4 +379,11 @@ export async function signupsThisWeek(env: Env, today: string) {
 export function firstDraftNudge(o: { jobs: number; balance: number; ageDays: number }): string | null {
   if (o.jobs > 0 || o.balance < 6 || o.ageDays > 14) return null;
   return `You have ${o.balance} free AI credits and no jobs yet. Start a job and let the AI build your first estimate draft (1 credit).`;
+}
+
+/** The pre-written first message the owner sends a new painter (email or text). Plain words, no promises about price. */
+export function welcomeReply(o: { company: string; city: string; es: boolean }): { subject: string; body: string } {
+  const where = o.city ? (o.es ? ` en ${o.city}` : ` in ${o.city}`) : "";
+  if (o.es) return { subject: "Bienvenido a PaintersMax", body: `Hola, gracias por abrir la cuenta de ${o.company}${where} en PaintersMax. ¿Qué trabajo le gustaría cotizar primero? Puedo ayudarle a empezar. Responda aquí o llámeme cuando guste.\n\nPaintersMax` };
+  return { subject: "Welcome to PaintersMax", body: `Hi, thanks for opening the ${o.company} account${where} on PaintersMax. What is the first job you would like to quote? I am glad to help you get started. Reply here or call me any time.\n\nPaintersMax` };
 }
