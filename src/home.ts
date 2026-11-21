@@ -10,7 +10,7 @@ import { dueWords, nextDue } from "./duedates.ts";
 import { loadVehicles, tripsSince, vehicleAlerts } from "./vehicles.ts";
 import { readApprovals, timeApprKey, timesheetNudges } from "./timesheet.ts";
 import { creditView } from "./credits.ts";
-import { expiringSoon } from "./starter.ts";
+import { expiringSoon, firstDraftNudge } from "./starter.ts";
 import { effectivePlan, monthKey, normalizePlan } from "./usage.ts";
 import { storageLimitFor, storageUsed } from "./files.ts";
 import type { Env } from "./types.ts";
@@ -278,6 +278,12 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
         // Free credits about to run out: a nudge to use them (a free account's welcome credits are the main one).
         const soon = expiringSoon(view.grants, todayLocal());
         if (soon) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `${soon.credits} free AI credit${soon.credits === 1 ? "" : "s"} run out on ${soon.on}. Use them for color previews, photo reads or estimate drafts before then.` });
+        else {
+          const jobs = await env.DB.prepare("SELECT COUNT(*) AS n FROM jobs WHERE company_id = ?").bind(c).first<{ n: number }>();
+          const made = Date.parse((co.createdAt ?? "").replace(" ", "T") + "Z");
+          const nudge = firstDraftNudge({ jobs: jobs?.n ?? 0, balance: view.balance, ageDays: Number.isFinite(made) ? Math.floor((Date.now() - made) / 86400000) : 99 });
+          if (nudge) attention.push({ type: "credits", link: "/jobs", snooze: "credits", text: nudge });
+        }
       }
     }
   } catch {

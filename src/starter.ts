@@ -356,3 +356,12 @@ export async function signupsThisWeek(env: Env, today: string) {
   const names = ids.length ? (await env.DB.prepare(`SELECT id, name FROM companies WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all<{ id: number; name: string }>()).results ?? [] : [];
   return { ...t, latest: t.latest.map((r) => ({ ...r, name: names.find((n) => n.id === r.companyId)?.name ?? "" })) };
 }
+
+/**
+ * Home reminder for a new account that has credits but has not started a job yet (first two weeks): the in-app
+ * partner of the day-3 email. Returns the text, or null when it does not apply.
+ */
+export function firstDraftNudge(o: { jobs: number; balance: number; ageDays: number }): string | null {
+  if (o.jobs > 0 || o.balance < 6 || o.ageDays > 14) return null;
+  return `You have ${o.balance} free AI credits and no jobs yet. Start a job and let the AI build your first estimate draft (1 credit).`;
+}
