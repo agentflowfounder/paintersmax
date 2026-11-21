@@ -60,7 +60,20 @@
   }
 
   // ------------------------------------------------------------- clients
+  // A tap-to-call link: digits only in the link, the number as typed on screen.
+  function telLink(ph) { var dg = String(ph || '').replace(/[^0-9+]/g, ''); return dg.replace(/\D/g, '').length >= 7 ? '<a class="lk" href="tel:' + esc(dg) + '">&#9742; ' + esc(T('Call this painter')) + '</a> <small>' + esc(ph) + '</small>' : ''; }
+  function signupsCard() {
+    api('/api/admin?signups=1').then(function (v) {
+      var list = function (a, f) { return a.length ? a.map(function (x) { return '<tr><td>' + esc(f ? f(x.name) : x.name) + '</td><td>' + x.count + '</td></tr>'; }).join('') : '<tr><td><small>None yet.</small></td><td></td></tr>'; };
+      var DN = { free: 'Free', launch: 'Local Pro', grow: 'Contractor', signature: 'Commercial' };
+      $('su_box').innerHTML = '<div class="card"><h3>Sign-ups this week</h3><div class="tiles"><div class="tile"><b>' + v.total + '</b><span>New accounts, last 7 days</span></div>' +
+        v.perDay.map(function (x) { return '<div class="tile"><b>' + x.count + '</b><span>' + esc(x.day.slice(5)) + '</span></div>'; }).join('') + '</div>' +
+        '<div class="g3"><div><h4>By source</h4><table class="t"><tbody>' + list(v.bySource) + '</tbody></table></div><div><h4>By tier picked</h4><table class="t"><tbody>' + list(v.byDoor, function (n) { return DN[n] || n; }) + '</tbody></table></div><div><h4>How they heard</h4><table class="t"><tbody>' + list(v.byHeard) + '</tbody></table></div></div>' +
+        (v.latest.length ? '<h4>Newest</h4><small>' + v.latest.map(function (r) { return '<a class="lk" href="#client/' + r.companyId + '">' + esc(r.name || ('#' + r.companyId)) + '</a> (' + esc(r.on.slice(5)) + ')'; }).join(' &middot; ') + '</small>' : '') + '</div>';
+    }).catch(function () { $('su_box').textContent = ''; });
+  }
   function clientsLoad() {
+    signupsCard();
     api('/api/admin?clients=1').then(function (v) {
       CACHE.clients = v.clients;
       $('cl_box').innerHTML = '<div class="g4"><div><label>Search</label><input id="cl_q" placeholder="Name, email or slug"></div>' +
@@ -79,7 +92,7 @@
     $('cl_list').innerHTML = '<small><b>' + rows.length + '</b> <span>of</span> <b>' + CACHE.clients.length + '</b> <span>clients</span></small>' +
       '<table class="t"><thead><tr><th>Client</th><th>Door</th><th>Status</th><th>Renews</th><th>Jobs</th><th>Leads</th><th>Last sign-in</th></tr></thead><tbody>' +
       rows.map(function (c) {
-        return '<tr><td><a class="lk" href="#client/' + c.id + '">' + esc(c.name) + '</a><br><small>' + esc(c.owners || T('no login yet')) + '</small><br>' + c.flags.map(function (f) { return pill(T(FLAG[f]), f === 'at_risk' || f === 'do_not_contact' ? 'red' : 'gold'); }).join('') + '</td>' +
+        return '<tr><td><a class="lk" href="#client/' + c.id + '">' + esc(c.name) + '</a><br><small>' + esc(c.owners || T('no login yet')) + '</small>' + (c.phone ? '<br>' + telLink(c.phone) : '') + '<br>' + c.flags.map(function (f) { return pill(T(FLAG[f]), f === 'at_risk' || f === 'do_not_contact' ? 'red' : 'gold'); }).join('') + '</td>' +
           '<td>' + doorName(c.door) + '</td><td>' + pill(T(STATE[c.state]), STATE_PILL[c.state]) + '</td><td>' + esc(d(c.renewsOn)) + '</td><td>' + c.jobs + '</td><td>' + c.leads + '</td><td>' + esc(d(c.lastSignIn)) + '</td></tr>';
       }).join('') + '</tbody></table>';
   }
@@ -91,7 +104,7 @@
   }
   function clientDraw(v) {
     var c = v.company, s = v.subscription, e = v.envelopes;
-    var h = '<p><a class="lk" href="#clients">&larr; <span>All clients</span></a></p><h2>' + esc(c.name) + '</h2><p><small>' + esc(c.slug) + ' &middot; <span>Joined</span> ' + esc(d(c.createdAt)) + ' &middot; <span>Client number</span> ' + c.id + '</small></p>';
+    var h = '<p><a class="lk" href="#clients">&larr; <span>All clients</span></a></p><h2>' + esc(c.name) + '</h2><p><small>' + esc(c.slug) + ' &middot; <span>Joined</span> ' + esc(d(c.createdAt)) + ' &middot; <span>Client number</span> ' + c.id + '</small>' + (v.phone ? '<br>' + telLink(v.phone) : '') + '</p>';
     // Summary
     h += '<div class="tiles"><div class="tile"><b>' + doorName(v.door) + '</b><span>Door</span></div><div class="tile"><b>' + esc(T(STATE[v.state])) + '</b><span>Status</span></div>' +
       '<div class="tile"><b>' + v.credits.balance + '</b><span>Credits left</span></div><div class="tile"><b>' + (v.counts.leads || 0) + '</b><span>Leads</span></div><div class="tile"><b>' + (v.counts.jobs || 0) + '</b><span>Jobs</span></div></div>';
@@ -209,11 +222,12 @@
         '<h4>How new painters heard about us</h4>' + (Object.keys(v.stats.heard || {}).length ? '<table class="t"><tbody>' + Object.keys(v.stats.heard).sort(function (a, b) { return v.stats.heard[b] - v.stats.heard[a]; }).map(function (k) { return '<tr><td>' + esc(k) + '</td><td>' + v.stats.heard[k] + '</td></tr>'; }).join('') + '</tbody></table>' : '<small>No answers yet.</small>') +
         '<div class="row"><div><label>Welcome credits</label><input id="st_n" inputmode="numeric" value="' + s.welcomeCredits + '"></div><div><label>They last (days)</label><input id="st_d" inputmode="numeric" value="' + s.welcomeDays + '"></div><div><label>Daily ceiling (accounts)</label><input id="st_cap" inputmode="numeric" value="' + s.dailyCap + '"></div><div><label>Sign-ups per device a day</label><input id="st_v" inputmode="numeric" value="' + s.perVisitorDaily + '"></div></div>' +
         '<label class="chk"><input type="checkbox" id="st_on"' + (s.on ? ' checked' : '') + '> <span>Give welcome credits to new accounts</span></label>' +
+        '<label class="chk"><input type="checkbox" id="st_d3"' + (s.day3Email ? ' checked' : '') + '> <span>Send the day-3 email ("Try your first estimate draft") at 9 AM Texas time</span></label>' +
         '<p><small><span>At today\'s AI prices (checked</span> ' + esc(c.checkedOn) + '<span>), a full day at the ceiling costs about</span> <b>' + money(typical) + '</b> <span>in a normal week and at most</span> <b>' + money(worst) + '</b> <span>if every credit went to color previews. Text costs double on 2027-01-01 when the Gemini Flash price changes.</span></small></p>' +
         '<p><small><span>Defaults:</span> ' + v.defaults.welcomeCredits + ' <span>credits</span>, ' + v.defaults.welcomeDays + ' <span>days</span>, ' + v.defaults.dailyCap + ' <span>a day</span>.</small></p>' +
         '<div><button class="btn" id="st_save"' + dis('credits') + '>Save starter settings</button></div></div>';
       $('st_save').onclick = function () {
-        post({ action: 'starter_set', settings: { on: $('st_on').checked, welcomeCredits: Number($('st_n').value), welcomeDays: Number($('st_d').value), dailyCap: Number($('st_cap').value), perVisitorDaily: Number($('st_v').value) } }).then(function () { ok('Saved.'); starterLoad(); }).catch(bad);
+        post({ action: 'starter_set', settings: { on: $('st_on').checked, welcomeCredits: Number($('st_n').value), welcomeDays: Number($('st_d').value), dailyCap: Number($('st_cap').value), perVisitorDaily: Number($('st_v').value), day3Email: $('st_d3').checked } }).then(function () { ok('Saved.'); starterLoad(); }).catch(bad);
       };
     }).catch(function (x) { box.textContent = x ? x.message : ''; });
   }

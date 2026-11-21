@@ -11,7 +11,7 @@ import { addLesson, contactCounts, contactsCsv, importContacts, loadContacts, lo
 import {
   allSubs, applyOutreach, applyRenewed, applySubEdit, DOOR_LABELS, DOOR_PRICES, DOORS, isDoor, loadDoor, loadSub, PAID_DOORS, readSub, renewalCentsFor, setDoor, subKey, subState, subTotals,
 } from "./subscriptions.ts";
-import { creditMenu, loadStarter, saveStarter, STARTER_COSTS, STARTER_DEFAULTS, starterStats } from "./starter.ts";
+import { creditMenu, loadStarter, saveStarter, signupsThisWeek, STARTER_COSTS, STARTER_DEFAULTS, starterStats } from "./starter.ts";
 import { FEATURES, monthKey, usageSummary, type Feature } from "./usage.ts";
 import type { Env } from "./types.ts";
 
@@ -66,6 +66,7 @@ export async function clientPage(env: Env, actor: AdminActor, id: unknown, today
   ]);
   const st = subState(door, sub, today);
   return {
+    phone: (await companyPhones(env)).get(c) ?? "",
     company: { id: c, slug: co.slug, name: co.name, plan: co.plan, createdAt: co.createdAt, stripeCustomer: !!co.customerId, stripeSubscription: !!co.subscriptionId },
     users: users.results,
     counts,
@@ -86,6 +87,18 @@ export async function clientPage(env: Env, actor: AdminActor, id: unknown, today
 }
 
 /** The client list with door, state and flags, for the Clients tab. */
+/** Each painter's phone: the number in their business profile, or the one they gave at sign-up. */
+export async function companyPhones(env: Env): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  for (const b of await blobsWithPrefix(env, "signup:", 10000)) {
+    const ph = (b.value as any)?.phone;
+    if (typeof ph === "string" && ph) out.set(Number(b.key.slice(7)), ph);
+  }
+  const rows = await env.DB.prepare("SELECT company_id AS id, json_extract(data, '$.company.phone') AS phone FROM company_profiles").all<{ id: number; phone: string | null }>();
+  for (const r of rows.results ?? []) if (r.phone) out.set(r.id, r.phone);
+  return out;
+}
+
 export async function clientList(env: Env, today: string) {
   const rows = await env.DB.prepare(
     `SELECT c.id, c.slug, c.name, c.plan, c.created_at AS createdAt,
@@ -95,9 +108,10 @@ export async function clientList(env: Env, today: string) {
             (SELECT MAX(s.created_at) FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.company_id = c.id) AS lastSignIn
        FROM companies c ORDER BY c.id`,
   ).all<any>();
+  const phones = await companyPhones(env);
   const subs = new Map((await allSubs(env, today)).map((s) => [s.companyId, s]));
   const flags = new Map((await blobsWithPrefix(env, "admnote:", 10000)).map((r) => [Number(r.key.slice(8)), readNotes(r.value).flags]));
-  return (rows.results ?? []).map((r) => ({ ...r, door: subs.get(r.id)?.door ?? "free", state: subs.get(r.id)?.state ?? "free", renewsOn: subs.get(r.id)?.renewsOn ?? "", flags: flags.get(r.id) ?? [] }));
+  return (rows.results ?? []).map((r) => ({ ...r, phone: phones.get(r.id) ?? "", door: subs.get(r.id)?.door ?? "free", state: subs.get(r.id)?.state ?? "free", renewsOn: subs.get(r.id)?.renewsOn ?? "", flags: flags.get(r.id) ?? [] }));
 }
 
 /** Credit use across every client for one month: by tool, by envelope, the top clients and what was granted. */
@@ -147,6 +161,7 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
   const q = url.searchParams;
   if (q.get("me") === "1") return { area: "clients", data: { email: actor.email, role: actor.role, see: PERMS[actor.role].see, change: PERMS[actor.role].change, limits: ROLE_LIMITS[actor.role] } };
   if (q.has("client")) return { area: "clients", data: await clientPage(env, actor, q.get("client"), today) };
+  if (q.get("signups") === "1") return { area: "clients", data: await signupsThisWeek(env, today) };
   if (q.get("clients") === "1") return { area: "clients", data: { clients: await clientList(env, today), flags: FLAGS, doors: DOORS } };
   if (q.get("subs") === "1") {
     const rows = await allSubs(env, today);

@@ -1873,7 +1873,7 @@
     "Your plan includes a monthly amount of AI help, like the help chat, receipt and photo reads, and color previews. If one of them runs out, credits keep it going until the month starts over.": "Su plan incluye una cantidad mensual de ayuda de IA, como el chat de ayuda, la lectura de recibos y fotos, y las vistas previas de color. Si una se acaba, los créditos la mantienen funcionando hasta que empiece el mes.",
     "Thank you. Your credits show up here within a minute.": "Gracias. Sus créditos aparecen aquí en un minuto.",
     "Monthly amount": "Cantidad mensual", "Used": "Usado", "Paid with credits": "Pagado con créditos", "Credits per use": "Créditos por uso",
-    "Credits left": "Créditos disponibles", "About": "Unos", "full jobs left": "trabajos completos restantes", "credits each, from estimate to invoice": "créditos cada uno, del presupuesto a la factura", "can be used until": "se pueden usar hasta",
+    "Credits left": "Créditos disponibles", "About": "Unos", "Call this painter": "Llamar a este pintor", "full jobs left": "trabajos completos restantes", "credits each, from estimate to invoice": "créditos cada uno, del presupuesto a la factura", "can be used until": "se pueden usar hasta",
     "Credits come with a paid plan.": "Los créditos vienen con un plan de pago.", "You have no credits right now.": "Ahora no tiene créditos.",
     "Your free trial has the Basic monthly amounts. Credits start once you choose a plan.": "Su prueba gratis tiene las cantidades mensuales del plan Basic. Los créditos empiezan cuando elija un plan.",
     "Add credits": "Agregar créditos", "Choose a paid plan to add credits.": "Elija un plan de pago para agregar créditos.", "credits": "créditos",
