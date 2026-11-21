@@ -30,11 +30,44 @@ export function readCookie(header: string | null, name: string): string | null {
   return null;
 }
 
-/** Step 1: user types their email. Always answers the same way so nobody can probe which emails exist. */
-export async function requestLoginLink(env: Env, origin: string, rawEmail: unknown): Promise<void> {
+/**
+ * The sign-in email, in the painter's language. The first one after a free sign-up is also the welcome email.
+ * The Spanish subject keeps "enlace de acceso" so it leaves from the login@ address (email.ts ownerSender).
+ */
+export function loginEmail(link: string, o: { lang: "en" | "es"; welcome?: { company: string; credits: number } | null }): { subject: string; text: string } {
+  const w = o.welcome;
+  if (o.lang === "es") {
+    const intro = w ? `Bienvenido a PaintersMax. La cuenta de ${w.company} ya está abierta${w.credits > 0 ? ` con ${w.credits} créditos de IA de regalo` : ""}.\n\n` : "";
+    return {
+      subject: w ? "Bienvenido a PaintersMax: su enlace de acceso" : "Su enlace de acceso a PaintersMax",
+      text: `${intro}Toque el enlace para entrar (funciona una vez y por ${LOGIN_MINUTES} minutos):\n\n${link}\n\nSi usted no lo pidió, ignore este correo.\n\nPaintersMax`,
+    };
+  }
+  const intro = w ? `Welcome to PaintersMax. The ${w.company} account is open${w.credits > 0 ? ` with ${w.credits} free AI credits` : ""}.\n\n` : "";
+  return {
+    subject: w ? "Welcome to PaintersMax: your sign-in link" : "Your PaintersMax sign-in link",
+    text: `${intro}Click to sign in (valid ${LOGIN_MINUTES} minutes, works once):\n\n${link}\n\nIf you didn't ask for this, ignore this email.\n\nPaintersMax`,
+  };
+}
+
+/** The language the painter chose (setup profile), English when unknown. */
+async function userLang(env: Env, companyId: number): Promise<"en" | "es"> {
+  const row = await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(companyId).first<{ data: string }>().catch(() => null);
+  try {
+    return JSON.parse(row?.data ?? "{}")?.language?.ui === "es" ? "es" : "en";
+  } catch {
+    return "en";
+  }
+}
+
+/**
+ * Step 1: user types their email. Always answers the same way so nobody can probe which emails exist.
+ * `lang` wins when given (the sign-up form or the sign-in page language); otherwise the painter's saved language.
+ */
+export async function requestLoginLink(env: Env, origin: string, rawEmail: unknown, o: { lang?: unknown; welcome?: { company: string; credits: number } | null } = {}): Promise<void> {
   const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase().slice(0, 200) : "";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
-  const user = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first<{ id: number }>();
+  const user = await env.DB.prepare("SELECT id, company_id AS companyId FROM users WHERE email = ?").bind(email).first<{ id: number; companyId: number }>();
   if (!user) return;
 
   const recent = await env.DB.prepare(
@@ -50,12 +83,9 @@ export async function requestLoginLink(env: Env, origin: string, rawEmail: unkno
     .run();
 
   const link = `${origin}/api/auth/verify?token=${token}`;
-  const result = await sendLeadEmail(
-    env,
-    email,
-    "Your PaintersMax sign-in link",
-    `Click to sign in (valid ${LOGIN_MINUTES} minutes, works once):\n\n${link}\n\nIf you didn't ask for this, ignore this email.`,
-  );
+  const lang = o.lang === "es" || o.lang === "en" ? o.lang : await userLang(env, user.companyId);
+  const m = loginEmail(link, { lang, welcome: o.welcome ?? null });
+  const result = await sendLeadEmail(env, email, m.subject, m.text);
   // Local development only: print the link when no email key is set.
   if (result === "skipped" && env.DEV_LOG_LINKS === "1") console.log("DEV LOGIN LINK:", link);
 }

@@ -25,7 +25,7 @@ const q=new URLSearchParams(location.search).get('error');if(q&&MSG[q]){const e=
 fetch('/api/auth/config').then(r=>r.json()).then(c=>{if(c.google)document.getElementById('g').style.display='block';}).catch(()=>{});
 document.getElementById('f').addEventListener('submit',async e=>{
   e.preventDefault();
-  await fetch('/api/auth/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value})});
+  await fetch('/api/auth/request',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value,lang:(function(){try{return localStorage.getItem('pm_lang')}catch(e){return null}})()})});
   e.target.style.display='none'; document.getElementById('done').style.display='block';
 });
 </script><script src="/logo-apply.js" data-public></script></body></html>

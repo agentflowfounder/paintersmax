@@ -78,11 +78,11 @@ export async function handleFreeSignup(request: Request, env: Env): Promise<Resp
     return json({ error: "This device has opened the most free accounts allowed today. Write to support@paintersmax.app if you need another." }, 429);
   }
 
-  const r = await provisionClient(env, origin, { name: i.name, email: i.email, plan: "free" }, { capped: true });
+  const r = await provisionClient(env, origin, { name: i.name, email: i.email, plan: "free" }, { capped: true, sendLink: false });
   if (!r.ok) return json({ error: r.error }, 400);
   if (!r.created) {
     // The email already has an account: send a fresh sign-in link and give the same answer (it never says who has an account).
-    await requestLoginLink(env, origin, i.email).catch((err) => console.error("signup link failed", String(err)));
+    await requestLoginLink(env, origin, i.email, { lang: i.lang }).catch((err) => console.error("signup link failed", String(err)));
     return json(done);
   }
   const today = todayLocal();
@@ -94,6 +94,8 @@ export async function handleFreeSignup(request: Request, env: Env): Promise<Resp
   const prof = sanitizeProfile({ company: { legalName: i.name, phone: i.phone, email: i.email, city: where.city, state: where.state }, language: { ui: i.lang, crewDocs: i.lang } }, "free");
   await env.DB.prepare("INSERT INTO company_profiles (company_id, data, setup_step, completed, updated_at) VALUES (?, ?, 'start', 0, datetime('now')) ON CONFLICT(company_id) DO NOTHING").bind(r.companyId, JSON.stringify(prof)).run().catch((err) => console.error("signup profile failed", String(err)));
   await creditCheckout(env, request).catch(() => {});
+  // The welcome email carries the first sign-in link, in the language picked on the form.
+  await requestLoginLink(env, origin, i.email, { lang: i.lang, welcome: { company: i.name, credits: r.welcome?.status === "granted" ? r.welcome.credits : 0 } }).catch((err) => console.error("welcome link failed", String(err)));
 
   const welcome = r.welcome ? { credits: r.welcome.credits, status: r.welcome.status, expiresOn: r.welcome.expiresOn } : null;
   if (!i.door || !env.STRIPE_SECRET_KEY) return json({ ...done, welcome, door: i.door, checkout: null });
