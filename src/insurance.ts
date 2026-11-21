@@ -334,7 +334,7 @@ export async function handleInsurance(request: Request, env: Env): Promise<Respo
     const used = await consume(env, company, "ai_assistant");
     if (!used.allowed) return json({ error: used.reason === "monthly_limit" ? "You have used this month's assistant questions. Upgrade your plan for more." : "The assistant is not available right now.", code: used.reason }, 429);
     const system = `${ASK_SYSTEM}${b.language === "es" ? "\nAlways answer in Spanish." : ""}\n\n<policy>\nSummary: ${row.summary}\n\nText:\n${row.policy_text.slice(0, ASK_TEXT)}\n</policy>`;
-    const reply = await complete(env, system, [...sanitizeHistory(b.history), { role: "user", content: question }], company.id);
+    const reply = await complete(env, system, [...sanitizeHistory(b.history), { role: "user", content: question }], company.id, "insurance_chat");
     if (!reply) {
       await refund(env, company, "ai_assistant");
       return json({ error: "The assistant could not answer right now. Please try again in a minute." }, 503);

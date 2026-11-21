@@ -133,7 +133,7 @@ export async function handleAdmin(request: Request, env: Env): Promise<Response>
   const view = await adminView(env, actor, url, today);
   if (view) {
     if (!can(actor.role, view.area, "see")) return json({ error: "Your role cannot see this." }, 403);
-    if ("csv" in view) return new Response(view.csv, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${view.filename}"`, "cache-control": "no-store" } });
+    if ("csv" in view) return new Response(view.csv, { headers: { "content-type": view.type ? `${view.type}; charset=utf-8` : "text/csv; charset=utf-8", "content-disposition": `attachment; filename="${view.filename}"`, "cache-control": "no-store" } });
     if (view.data === null) return json({ error: "Not found." }, 404);
     return json(view.data);
   }

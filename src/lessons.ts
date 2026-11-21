@@ -140,7 +140,7 @@ export async function handleLessons(request: Request, env: Env): Promise<Respons
       }
     }).filter(Boolean).join("\n");
     const data = [ctx, wos.length ? `Work and change orders:\n${wos.map((w) => `- ${w.kind === "change_order" ? "CO" : "WO"}-${w.number} ${w.title} (${w.status})`).join("\n")}` : "", finds ? `Approved photo findings:\n${finds}` : "", chat ? `Questions the painter asked the assistant:\n${chat}` : ""].filter(Boolean).join("\n\n").slice(0, 9000);
-    const out = await complete(env, `${LESSON_PROMPT}\n\n<job_data>\n${data}\n</job_data>`, [{ role: "user", content: "Write the lessons learned note." }], c);
+    const out = await complete(env, `${LESSON_PROMPT}\n\n<job_data>\n${data}\n</job_data>`, [{ role: "user", content: "Write the lessons learned note." }], c, "lesson");
     let draft: any = null;
     try {
       draft = out ? JSON.parse(out.replace(/^```json\s*|```$/g, "")) : null;

@@ -221,7 +221,7 @@ export async function handleDemo(request: Request, env: Env, store: CounterStore
     if (scope) return limitedAnswer(scope);
     const history = sanitizeHistory(b?.history).slice(-6);
     const lang = b?.lang === "es" ? "\nThe visitor chose Spanish. Answer in Spanish and sign as Maistro." : "";
-    const out = await completeEx(env, CHAT_SYSTEM + lang, [...history, { role: "user", content: message }], { maxTokens: 350 });
+    const out = await completeEx(env, CHAT_SYSTEM + lang, [...history, { role: "user", content: message }], { maxTokens: 350, tool: "demo_chat" });
     if (!out) return json({ error: "BP is taking a short break. Please try again in a minute, or email support@paintersmax.app." }, 503);
     return json({ reply: out.text.slice(0, 1500) });
   }
