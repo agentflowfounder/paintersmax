@@ -1057,7 +1057,8 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     }
     // Retired 2026-11: the old monthly plans. It only points to /start now (see stripe.ts).
     if (pathname === "/api/checkout") return handleCheckout(request, env);
-    if (pathname === "/api/stripe/webhook") {
+    // The Stripe dashboard destination was created as /api/stripe-webhook (hyphen); both addresses work.
+    if (pathname === "/api/stripe/webhook" || pathname === "/api/stripe-webhook") {
       try {
         return await handleStripeWebhook(request, env);
       } catch (err) {
