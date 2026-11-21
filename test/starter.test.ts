@@ -35,7 +35,7 @@ test("settings: defaults are 250 credits for 60 days, 150 a day; bad values are 
   assert.equal(STARTER_DEFAULTS.welcomeCredits, 250);
   assert.equal(STARTER_DEFAULTS.welcomeDays, 60);
   const s = readStarter({ welcomeCredits: 99999, welcomeDays: 1, dailyCap: -5, perVisitorDaily: "x", on: false });
-  assert.deepEqual(s, { on: false, welcomeCredits: 1500, welcomeDays: 7, dailyCap: 1, perVisitorDaily: 3 });
+  assert.deepEqual(s, { on: false, welcomeCredits: 1500, welcomeDays: 7, dailyCap: 1, perVisitorDaily: 3, day3Email: false });
 });
 
 test("credit menu: 250 credits, what each tool gives, and a busy first month leaves most of them", () => {
@@ -186,4 +186,35 @@ test("sign-up: where they heard, and city split for the wizard", () => {
   assert.equal((readSignup({ ...base, heard: "google" }) as any).heard, "google");
   assert.equal((readSignup({ ...base, heard: "a billboard" }) as any).heard, "other");
   assert.equal((readSignup({ ...base }) as any).heard, "");
+});
+
+test("sign-ups this week: tally by source, tier and how they heard", async () => {
+  const { tallySignups } = await import("../src/starter.ts");
+  const rows = [
+    { companyId: 1, on: "2026-11-20", src: "facebook", lp: "", door: "free", heard: "google" },
+    { companyId: 2, on: "2026-11-20", src: "", lp: "spring", door: "grow", heard: "" },
+    { companyId: 3, on: "2026-11-18", src: "facebook", lp: "", door: "free", heard: "friend" },
+    { companyId: 4, on: "2026-11-01", src: "old", lp: "", door: "free", heard: "" },
+  ];
+  const t = tallySignups(rows, "2026-11-20", 7);
+  assert.equal(t.total, 3);
+  assert.deepEqual(t.bySource[0], { name: "facebook", count: 2 });
+  assert.deepEqual(t.byDoor.find((x) => x.name === "grow"), { name: "grow", count: 1 });
+  assert.equal(t.byHeard.find((x) => x.name === "not answered")?.count, 1);
+  assert.equal(t.perDay.length, 7);
+  assert.equal(t.perDay[6].count, 2);
+  assert.equal(t.latest[0].companyId >= 1, true);
+});
+
+test("day-3 email: due list, wording and off by default", async () => {
+  const { day3Due, day3Email } = await import("../src/day3email.ts");
+  assert.equal(STARTER_DEFAULTS.day3Email, false);
+  assert.equal(readStarter({ day3Email: true }).day3Email, true);
+  const rows = [{ companyId: 1, on: "2026-11-17" }, { companyId: 2, on: "2026-11-19" }, { companyId: 3, on: "2026-11-10" }, { companyId: 4, on: "2026-11-16" }];
+  assert.deepEqual(day3Due(rows, new Set([4]), "2026-11-20"), [1]);
+  const en = day3Email({ es: false, company: "Rose City", credits: 250, expiresOn: "2027-01-19", hasJob: false });
+  assert.equal(en.subject, "Try your first estimate draft");
+  assert.match(en.body, /250 welcome credits/);
+  assert.match(en.body, /no tips/);
+  assert.equal(day3Email({ es: true, company: "Rose City", credits: 200, expiresOn: "", hasJob: true }).subject, "Siguiente paso: lea una foto del trabajo");
 });

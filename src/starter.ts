@@ -1,6 +1,6 @@
 import { CREDIT_COST, DOOR_CREDITS, grantCredits, grantDoorCredits } from "./credits.ts";
 import { addDaysIso } from "./dates.ts";
-import { readBlob, updateBlob, writeBlob } from "./kv.ts";
+import { blobsWithPrefix, readBlob, updateBlob, writeBlob } from "./kv.ts";
 import { loadPromos, normCode, promoPrice, redeemPromo, type Promo } from "./promos.ts";
 import { upgradeCents, type Door } from "./sitecore.ts";
 import { readSub, subKey, type PaidDoor, type SubRecord } from "./subscriptions.ts";
@@ -27,10 +27,11 @@ export interface StarterSettings {
   welcomeDays: number;
   dailyCap: number; // public sign-ups that get welcome credits the same day
   perVisitorDaily: number; // free sign-ups one visitor (network address + browser) may make in a day
+  day3Email: boolean; // the day-3 "try your first estimate draft" email (off until the owner switches it on)
 }
 export const STARTER_KEY = "starter";
 export const HELD_KEY = "starterheld";
-export const STARTER_DEFAULTS: StarterSettings = { on: true, welcomeCredits: 250, welcomeDays: 60, dailyCap: 150, perVisitorDaily: 3 };
+export const STARTER_DEFAULTS: StarterSettings = { on: true, welcomeCredits: 250, welcomeDays: 60, dailyCap: 150, perVisitorDaily: 3, day3Email: false };
 const MAX_HELD = 5000;
 
 const clampInt = (v: unknown, min: number, max: number, dflt: number) => {
@@ -46,6 +47,7 @@ export function readStarter(raw: unknown): StarterSettings {
     welcomeDays: clampInt(r.welcomeDays, 7, 365, d.welcomeDays),
     dailyCap: clampInt(r.dailyCap, 1, 5000, d.dailyCap),
     perVisitorDaily: clampInt(r.perVisitorDaily, 1, 20, d.perVisitorDaily),
+    day3Email: r.day3Email === true,
   };
 }
 export const loadStarter = (env: Env) => readBlob(env, STARTER_KEY, readStarter);
@@ -315,4 +317,42 @@ export async function afterDoorPaid(env: Env, c: number, i: { door: PaidDoor; pa
     await writeBlob(env, key, { ...cur, founding: true });
   }
   return { credits, promo: promo?.code ?? "", founding };
+}
+
+/* ---------- sign-ups this week (Admin > Clients) ---------- */
+
+export interface SignupRow { companyId: number; on: string; src: string; lp: string; door: string; heard: string }
+/** Counts of the sign-ups in the last `days` days (today included), by source, by door picked and by "how did you hear". */
+export function tallySignups(rows: SignupRow[], today: string, days = 7) {
+  const from = addDaysIso(today, -(days - 1));
+  const inRange = rows.filter((r) => r.on >= from && r.on <= today);
+  const count = (key: (r: SignupRow) => string) => {
+    const m = new Map<string, number>();
+    for (const r of inRange) m.set(key(r), (m.get(key(r)) ?? 0) + 1);
+    return [...m.entries()].map(([name, n]) => ({ name, count: n })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  };
+  const perDay = Array.from({ length: days }, (_, i) => addDaysIso(today, -(days - 1 - i))).map((day) => ({ day, count: inRange.filter((r) => r.on === day).length }));
+  return {
+    total: inRange.length,
+    perDay,
+    bySource: count((r) => r.src || r.lp || "direct"),
+    byDoor: count((r) => r.door || "free"),
+    byHeard: count((r) => r.heard || "not answered"),
+    latest: [...inRange].sort((a, b) => b.on.localeCompare(a.on) || b.companyId - a.companyId).slice(0, 8),
+  };
+}
+
+export async function signupsThisWeek(env: Env, today: string) {
+  const blobs = await blobsWithPrefix(env, "signup:", 5000);
+  const rows: SignupRow[] = [];
+  for (const b of blobs) {
+    const v = b.value as any;
+    const id = Number(b.key.slice(7));
+    if (!Number.isFinite(id) || typeof v?.on !== "string") continue;
+    rows.push({ companyId: id, on: v.on, src: typeof v.src === "string" ? v.src : "", lp: typeof v.lp === "string" ? v.lp : "", door: typeof v.door === "string" ? v.door : "free", heard: typeof v.heard === "string" ? v.heard : "" });
+  }
+  const t = tallySignups(rows, today, 7);
+  const ids = t.latest.map((r) => r.companyId);
+  const names = ids.length ? (await env.DB.prepare(`SELECT id, name FROM companies WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all<{ id: number; name: string }>()).results ?? [] : [];
+  return { ...t, latest: t.latest.map((r) => ({ ...r, name: names.find((n) => n.id === r.companyId)?.name ?? "" })) };
 }
