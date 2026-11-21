@@ -1,6 +1,6 @@
 import { creditView } from "./credits.ts";
 import { sendLeadEmail } from "./email.ts";
-import { addDaysIso, friendlyDate, todayLocal } from "./dates.ts";
+import { addDaysIso, todayLocal, usDate } from "./dates.ts";
 import { blobsWithPrefix, readBlob, writeBlob } from "./kv.ts";
 import { loadStarter } from "./starter.ts";
 import type { Env } from "./types.ts";
@@ -13,8 +13,7 @@ import type { Env } from "./types.ts";
  */
 
 export function day3Email(o: { es: boolean; company: string; credits: number; expiresOn: string; hasJob: boolean }): { subject: string; body: string } {
-  const lang = o.es ? "es" : "en";
-  const until = o.expiresOn ? friendlyDate(o.expiresOn, lang) : "";
+  const until = o.expiresOn && o.expiresOn < addDaysIso(todayLocal(), 1500) ? usDate(o.expiresOn) : "";
   const url = "https://paintersmax.app/dashboard";
   if (o.es) {
     const body = o.hasJob

@@ -124,7 +124,8 @@ export const TEXT_ORDERS: Record<TextDefault, Provider[]> = {
   gemini: ["gemini", "openai", "anthropic"],
   haiku: ["haiku", "gemini", "openai", "anthropic"],
 };
-export const readTextDefault = (raw: unknown): TextDefault => ((raw as any)?.default === "haiku" ? "haiku" : "gemini");
+/** Haiku answers the everyday text tools unless the owner picked Gemini in /admin (Rogelio, 2026-11-20). With no Claude key the order falls back to Gemini. */
+export const readTextDefault = (raw: unknown): TextDefault => ((raw as any)?.default === "gemini" ? "gemini" : "haiku");
 let textDefaultCache: { at: number; value: TextDefault } | null = null;
 /** Reads the setting at most once a minute per running instance. */
 export async function textDefault(env: Env, now = Date.now()): Promise<TextDefault> {

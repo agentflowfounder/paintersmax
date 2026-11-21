@@ -39,18 +39,19 @@ function dbEnv(extra: Record<string, unknown> = {}) {
   return { DB, ...extra } as any;
 }
 
-test("text default: Gemini unless admin chose Haiku; the choice is read from app_settings and cached briefly", async () => {
-  assert.equal(readTextDefault(null), "gemini");
+test("text default: Haiku unless admin chose Gemini; the choice is read from app_settings and cached briefly", async () => {
+  assert.equal(readTextDefault(null), "haiku");
   assert.equal(readTextDefault({ default: "haiku" }), "haiku");
-  assert.equal(readTextDefault({ default: "gpt" }), "gemini");
+  assert.equal(readTextDefault({ default: "gpt" }), "haiku");
+  assert.equal(readTextDefault({ default: "gemini" }), "gemini");
   assert.deepEqual(TEXT_ORDERS.haiku[0], "haiku");
   const env = dbEnv();
-  assert.equal(await textDefault(env, 1_000), "gemini");
-  await setTextDefault(env, "haiku"); // clears the cache
-  assert.equal(await textDefault(env, 2_000), "haiku");
+  assert.equal(await textDefault(env, 1_000), "haiku");
+  await setTextDefault(env, "gemini"); // clears the cache
+  assert.equal(await textDefault(env, 2_000), "gemini");
   await env.DB.prepare("DELETE FROM app_settings WHERE key = ?").bind("aimodel").run();
-  assert.equal(await textDefault(env, 3_000), "haiku"); // still cached
-  assert.equal(await textDefault(env, 3_000 + 61_000), "gemini"); // cache expired
+  assert.equal(await textDefault(env, 3_000), "gemini"); // still cached
+  assert.equal(await textDefault(env, 3_000 + 61_000), "haiku"); // cache expired, back to the Haiku default
 });
 
 test("completeEx asks Haiku first when that is the default, with the small Claude model, and falls back to Gemini", async () => {

@@ -4,7 +4,7 @@ import { pastDueKey } from "./stripe.ts";
 import { trialDaysLeft } from "./usage.ts";
 import { buildProgress } from "./progress.ts";
 import { buildNudges, SNOOZE_DAYS } from "./nudges.ts";
-import { addDaysIso, friendlyDate, todayLocal } from "./dates.ts";
+import { addDaysIso, friendlyDate, todayLocal, usDate } from "./dates.ts";
 import { evaluate, gateHome, loadAdmin, loadFacts, loadSettings, TYPE_RULE } from "./notices.ts";
 import { dueWords, nextDue } from "./duedates.ts";
 import { loadVehicles, tripsSince, vehicleAlerts } from "./vehicles.ts";
@@ -278,7 +278,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
       else {
         // Free credits about to run out: a nudge to use them (a free account's welcome credits are the main one).
         const soon = expiringSoon(view.grants, todayLocal());
-        if (soon) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `${soon.credits} free AI credit${soon.credits === 1 ? "" : "s"} run out on ${soon.on}. Use them for color previews, photo reads or estimate drafts before then.` });
+        if (soon) attention.push({ type: "credits", link: "/credits", snooze: "credits", text: `${soon.credits} free AI credit${soon.credits === 1 ? "" : "s"} run out on ${usDate(soon.on)}. Use them for color previews, photo reads or estimate drafts before then.` });
         else {
           const jobs = await env.DB.prepare("SELECT COUNT(*) AS n FROM jobs WHERE company_id = ?").bind(c).first<{ n: number }>();
           const made = Date.parse((co.createdAt ?? "").replace(" ", "T") + "Z");

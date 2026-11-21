@@ -41,15 +41,15 @@
 
   // ---- Shared helpers for every app page: friendly dates and the little "?" help bubbles ----
   // Dates are stored as YYYY-MM-DD (so they sort and export cleanly) and shown the way people read them.
-  // pmDate('2026-11-13') -> "Fri, Nov 13, 2026"    pmDate('2026-11-09', 'long') -> "November 9, 2026"    pmDate('2026-11-09', 'month') -> "November 2026"
+  // pmDate('2026-11-13') -> "11/13/2026" (month/day/year, both languages)    pmDate('2026-11-09', 'long') -> "November 9, 2026"    pmDate('2026-11-09', 'month') -> "November 2026"
   window.pmDate = function (s, mode) {
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s || ''));
     if (!m) return s == null ? '' : String(s);
     var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
     if (isNaN(d.getTime())) return String(s);
-    var o = mode === 'long' ? { month: 'long', day: 'numeric', year: 'numeric' } : mode === 'month' ? { month: 'long', year: 'numeric' } : { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+    var o = mode === 'long' ? { month: 'long', day: 'numeric', year: 'numeric' } : mode === 'month' ? { month: 'long', year: 'numeric' } : { month: '2-digit', day: '2-digit', year: 'numeric' };
     o.timeZone = 'UTC';
-    try { return new Intl.DateTimeFormat(lang === 'es' ? 'es-US' : 'en-US', o).format(d); } catch (e) { return String(s); }
+    try { return new Intl.DateTimeFormat(lang === 'es' && mode ? 'es-US' : 'en-US', o).format(d); } catch (e) { return String(s); }
   };
   // pmHelp('Plain words explaining the box') -> a "?" button that opens the explanation right under it.
   window.pmHelp = function (text) {

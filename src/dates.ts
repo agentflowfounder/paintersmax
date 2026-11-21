@@ -26,6 +26,12 @@ export function friendlyDate(iso: string, lang: "en" | "es" = "en"): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString(lang === "es" ? "es-US" : "en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 }
 
+/** "11/20/2026" (month/day/year) for what painters and visitors read. Stored dates stay YYYY-MM-DD. */
+export function usDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? ""));
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : String(iso ?? "");
+}
+
 /** "10:00 AM" for a stored HH:MM. */
 export function friendlyTime(hhmm: string): string {
   const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(hhmm ?? "");
