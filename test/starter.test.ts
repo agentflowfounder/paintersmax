@@ -218,3 +218,11 @@ test("day-3 email: due list, wording and off by default", async () => {
   assert.match(en.body, /no tips/);
   assert.equal(day3Email({ es: true, company: "Rose City", credits: 200, expiresOn: "", hasJob: true }).subject, "Siguiente paso: lea una foto del trabajo");
 });
+
+test("home: first estimate draft reminder only for new accounts with credits and no jobs", async () => {
+  const { firstDraftNudge } = await import("../src/starter.ts");
+  assert.match(firstDraftNudge({ jobs: 0, balance: 250, ageDays: 3 }) ?? "", /first estimate draft/);
+  assert.equal(firstDraftNudge({ jobs: 1, balance: 250, ageDays: 3 }), null);
+  assert.equal(firstDraftNudge({ jobs: 0, balance: 3, ageDays: 3 }), null);
+  assert.equal(firstDraftNudge({ jobs: 0, balance: 250, ageDays: 30 }), null);
+});
