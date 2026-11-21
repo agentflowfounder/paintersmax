@@ -70,7 +70,7 @@ test("library: default door split and admin overrides", () => {
 
 test("blocks: the feature ladder (door, credits, coming soon)", () => {
   assert.equal(blockState("instant_quote", "launch", 0).state, "on");
-  assert.equal(blockState("instant_quote", "free", 0).state, "on"); // Free previews like Launch
+  assert.equal(blockState("instant_quote", "free", 0).state, "on"); // Free previews like Local Pro
   assert.deepEqual(blockState("weather", "launch", 10), { state: "upgrade", door: "grow" });
   assert.equal(blockState("weather", "grow", 10).state, "on");
   assert.equal(blockState("color_studio_ai", "grow", 10).state, "soon");

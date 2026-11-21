@@ -62,7 +62,7 @@ export type BlockState =
   | { state: "soon" }; // not built yet
 
 /**
- * What a block does for this painter. Free drafts preview like Launch (Free never publishes).
+ * What a block does for this painter. Free drafts preview like Local Pro (Free never publishes).
  * `balance` is the painter's AI credits; pass null when unknown (treated as enough, the endpoint checks again).
  */
 export function blockState(key: BlockKey, door: Door, balance: number | null): BlockState {
@@ -81,7 +81,7 @@ export const visibleToVisitors = (s: BlockState) => s.state === "on";
 export function blockCardText(key: BlockKey, s: BlockState, lang: Lang): { title: string; body: string; action: string; href: string } | null {
   const def = BLOCKS[key];
   const es = lang === "es";
-  const doorName = (d: Door) => ({ free: "Free", launch: "Launch", grow: "Grow", signature: "Signature" })[d];
+  const doorName = (d: Door) => ({ free: "Free", launch: "Local Pro", grow: "Contractor", signature: "Commercial" })[d];
   if (s.state === "upgrade") return { title: def.name[lang], body: es ? `${def.what.es} Viene con la puerta ${doorName(s.door)}.` : `${def.what.en} Comes with the ${doorName(s.door)} door.`, action: es ? "Ver mejoras" : "See upgrades", href: "/site?upgrade=1" };
   if (s.state === "topup") return { title: def.name[lang], body: es ? `Usa ${s.need} créditos de IA por uso. Le quedan ${s.balance}.` : `Uses ${s.need} AI credits per use. You have ${s.balance}.`, action: es ? "Agregar créditos" : "Add credits", href: "/credits" };
   if (s.state === "soon") return { title: def.name[lang], body: es ? `${def.what.es} Muy pronto.` : `${def.what.en} Coming soon.`, action: "", href: "" };

@@ -220,7 +220,8 @@ export async function starterStats(env: Env, today: string) {
     for (const r of rows.results ?? []) counts.set(r.period, r.count);
   }
   const held = await readBlob(env, HELD_KEY, readHeld);
-  return { today: counts.get(today) ?? 0, held: held.length, byDay: days.map((d) => ({ day: d, count: counts.get(d) ?? 0 })) };
+  const heard = await readBlob(env, "heardstats", (raw: any) => (raw && typeof raw.counts === "object" && raw.counts ? (raw.counts as Record<string, number>) : {}));
+  return { today: counts.get(today) ?? 0, held: held.length, byDay: days.map((d) => ({ day: d, count: counts.get(d) ?? 0 })), heard };
 }
 
 /* ---------- promotions that apply by themselves ---------- */

@@ -2,7 +2,8 @@ import { provisionClient } from "./admin.ts";
 import { requestLoginLink } from "./auth.ts";
 import { todayLocal } from "./dates.ts";
 import { visitorKey } from "./guard.ts";
-import { writeBlob } from "./kv.ts";
+import { updateBlob, writeBlob } from "./kv.ts";
+import { sanitizeProfile } from "./profile.ts";
 import { cleanSlug, cleanTag, creditCheckout } from "./landing.ts";
 import { upgradeCheckoutForm } from "./sitebuilder.ts";
 import { doorCharge, loadStarter, pickPromo } from "./starter.ts";
@@ -23,7 +24,7 @@ import type { Env } from "./types.ts";
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-/** Old landing pages pass the old plan names; they map to the doors (Starter = Launch, Basic = Grow, Pro = Signature). */
+/** Old landing pages pass the old plan names; they map to the doors (Starter = Local Pro, Basic = Contractor, Pro = Commercial). */
 export function doorFromInput(v: unknown): PaidDoor | null {
   const m: Record<string, PaidDoor> = { starter: "launch", basic: "grow", pro: "signature" };
   if (typeof v !== "string") return null;
@@ -31,7 +32,14 @@ export function doorFromInput(v: unknown): PaidDoor | null {
   return isPaidDoor(d) ? d : null;
 }
 
-export interface SignupInput { name: string; email: string; city: string; phone: string; lang: "en" | "es"; door: PaidDoor | null; code: string; lp: string; src: string; robot: boolean }
+/** The answers to "How did you hear about us?" (the page sends one of these; anything else is stored as "other"). */
+export const HEARD = ["google", "facebook", "youtube", "friend", "painter", "truck", "supplier", "other"] as const;
+/** "Tyler, TX" becomes city Tyler and state TX; with no state the whole text is the city. */
+export function splitCity(v: string): { city: string; state: string } {
+  const m = /^(.*?),\s*([A-Za-z]{2})$/.exec(v.trim());
+  return m ? { city: m[1].trim(), state: m[2].toUpperCase() } : { city: v.trim(), state: "" };
+}
+export interface SignupInput { heard: string; name: string; email: string; city: string; phone: string; lang: "en" | "es"; door: PaidDoor | null; code: string; lp: string; src: string; robot: boolean }
 export function readSignup(b: any): SignupInput | { error: string } {
   const s = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
   const name = s(b?.name, 100);
@@ -44,6 +52,7 @@ export function readSignup(b: any): SignupInput | { error: string } {
   if (!city) return { error: "Enter your city." };
   if (phone.replace(/\D/g, "").length < 10) return { error: "Enter a phone number with 10 digits." };
   return {
+    heard: (HEARD as readonly string[]).includes(s(b?.heard, 20)) ? s(b?.heard, 20) : s(b?.heard, 20) ? "other" : "",
     name, email, city, phone,
     lang: b?.lang === "es" ? "es" : "en", door: doorFromInput(b?.door), code: s(b?.code, 24), lp: cleanSlug(b?.lp), src: cleanTag(b?.src), robot: !!s(b?.website, 200),
   };
@@ -78,7 +87,12 @@ export async function handleFreeSignup(request: Request, env: Env): Promise<Resp
   }
   const today = todayLocal();
   // Where the sign-up came from, for the campaign report (no database change: signup:<companyId>).
-  await writeBlob(env, `signup:${r.companyId}`, { on: today, lp: i.lp, src: i.src, door: i.door ?? "free", city: i.city, phone: i.phone, lang: i.lang }).catch(() => {});
+  await writeBlob(env, `signup:${r.companyId}`, { on: today, lp: i.lp, src: i.src, door: i.door ?? "free", city: i.city, phone: i.phone, lang: i.lang, heard: i.heard }).catch(() => {});
+  if (i.heard) await updateBlob(env, "heardstats", (raw: any) => ({ counts: raw && typeof raw.counts === "object" && raw.counts ? (raw.counts as Record<string, number>) : {} }), (cur) => ({ value: { counts: { ...cur.counts, [i.heard]: (Number(cur.counts[i.heard]) || 0) + 1 } } })).catch(() => {});
+  // Fill in the setup wizard: the painter should not type their company, phone and city again.
+  const where = splitCity(i.city);
+  const prof = sanitizeProfile({ company: { legalName: i.name, phone: i.phone, email: i.email, city: where.city, state: where.state }, language: { ui: i.lang, crewDocs: i.lang } }, "free");
+  await env.DB.prepare("INSERT INTO company_profiles (company_id, data, setup_step, completed, updated_at) VALUES (?, ?, 'start', 0, datetime('now')) ON CONFLICT(company_id) DO NOTHING").bind(r.companyId, JSON.stringify(prof)).run().catch((err) => console.error("signup profile failed", String(err)));
   await creditCheckout(env, request).catch(() => {});
 
   const welcome = r.welcome ? { credits: r.welcome.credits, status: r.welcome.status, expiresOn: r.welcome.expiresOn } : null;

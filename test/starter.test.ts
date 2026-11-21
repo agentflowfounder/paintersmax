@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { creditView } from "../src/credits.ts";
 import { addDaysIso } from "../src/dates.ts";
-import { doorFromInput, readSignup } from "../src/freesignup.ts";
+import { doorFromInput, readSignup, splitCity } from "../src/freesignup.ts";
 import { readPromo } from "../src/promos.ts";
 import { afterDoorPaid, autoPromoFor, creditMenu, doorCharge, expiringSoon, grantWelcome, readStarter, releaseHeldWelcome, saveStarter, STARTER_DEFAULTS, starterStats } from "../src/starter.ts";
 
@@ -177,4 +177,13 @@ test("door checkout form carries the charged amount and the promotion code for t
   const g = upgradeCheckoutForm("https://paintersmax.app", { companyId: 5, email: "a@b.co", from: "launch", to: "grow" });
   assert.equal(g.get("line_items[0][price_data][unit_amount]"), "10000");
   assert.equal(g.get("metadata[promo]"), null);
+});
+
+test("sign-up: where they heard, and city split for the wizard", () => {
+  assert.deepEqual(splitCity("Tyler, TX"), { city: "Tyler", state: "TX" });
+  assert.deepEqual(splitCity("Longview"), { city: "Longview", state: "" });
+  const base = { name: "x", email: "a@b.co", city: "Tyler", phone: "9035550142" };
+  assert.equal((readSignup({ ...base, heard: "google" }) as any).heard, "google");
+  assert.equal((readSignup({ ...base, heard: "a billboard" }) as any).heard, "other");
+  assert.equal((readSignup({ ...base }) as any).heard, "");
 });

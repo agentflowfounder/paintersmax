@@ -134,7 +134,7 @@ function meters(){
   if($('seeUp'))$('seeUp').onclick=()=>openUp(null);
   const st=$('pubState');
   st.textContent=S.publishedAt?(T('Published')+' '+(window.pmDate?pmDate(S.publishedAt.slice(0,10)):S.publishedAt.slice(0,10))+(dirty||S.changed?' · '+T('Draft has changes'):'')):T('Not published yet');
-  $('pubBtn').textContent=T(S.canPublish?'Publish':'Publish (needs Launch)');
+  $('pubBtn').textContent=T(S.canPublish?'Publish':'Publish (needs Local Pro)');
 }
 function tabsUi(){[].forEach.call(document.querySelectorAll('#tabs button'),b=>{b.setAttribute('aria-selected',String(b.dataset.t===tab));b.onclick=()=>{tab=b.dataset.t;render();};});}
 function render(){meters();tabsUi();({pages:rPages,biz:rBiz,look:rLook,reviews:rReviews,dir:rDir,preview:rPreview})[tab]();}
@@ -174,7 +174,7 @@ function rPages(){
   [].forEach.call(document.querySelectorAll('[data-mv]'),b=>b.onclick=()=>{const i=ps.indexOf(p),j=i+Number(b.dataset.mv);if(j<1||j>=ps.length)return;ps.splice(i,1);ps.splice(j,0,p);touch();render();});
   if($('delPage'))$('delPage').onclick=()=>{if(!confirm('Remove this page? Its words are deleted when you save.'))return;S.site.pages=ps.filter(x=>x.id!==p.id);cur=S.site.pages[0].id;touch();render();};
   $('addPage').onclick=()=>addPage('custom');$('addSvc').onclick=()=>addPage('service');
-  $('addBlock').onclick=()=>{if(p.blocks.length>=12)return msg('A page can have 12 sections.');const t=$('newBlock').value;const b={id:nid(),type:t,heading:''};if(t==='text')b.body='';if(t==='photos')b.photos=[];if(t==='tabs')b.tabs=[{id:nid(),label:T('Tab 1'),body:''}];if(t==='cta'){b.body='';b.action='quote';}if(t==='video'){b.yt='';b.orient='wide';b.kind='intro';b.caption='';}if(t==='weather'){if(!['grow','signature'].includes(S.door))return msg(T('Painting weather comes with the Grow door and up.'));if(S.site.pages.reduce((n,q)=>n+q.blocks.filter(x=>x.type==='weather').length,0)>=2)return msg(T('A site can show weather for 2 places.'));b.place=[S.site.business.city,S.site.business.state].filter(Boolean).join(', ');}p.blocks.push(b);touch();rBlocks(p);};
+  $('addBlock').onclick=()=>{if(p.blocks.length>=12)return msg('A page can have 12 sections.');const t=$('newBlock').value;const b={id:nid(),type:t,heading:''};if(t==='text')b.body='';if(t==='photos')b.photos=[];if(t==='tabs')b.tabs=[{id:nid(),label:T('Tab 1'),body:''}];if(t==='cta'){b.body='';b.action='quote';}if(t==='video'){b.yt='';b.orient='wide';b.kind='intro';b.caption='';}if(t==='weather'){if(!['grow','signature'].includes(S.door))return msg(T('Painting weather comes with the Contractor door and up.'));if(S.site.pages.reduce((n,q)=>n+q.blocks.filter(x=>x.type==='weather').length,0)>=2)return msg(T('A site can show weather for 2 places.'));b.place=[S.site.business.city,S.site.business.state].filter(Boolean).join(', ');}p.blocks.push(b);touch();rBlocks(p);};
   rBlocks(p);
 }
 function rBlocks(p){
@@ -244,7 +244,7 @@ function openUp(why){
   if(!S.next){msg('You have the biggest door. Ask us if you need more.');return;}
   const u=usage(),L=S.limits;
   $('upT').textContent=why?(why==='pages'?`${u.pages} ${T('of')} ${L.pages} ${T('pages')}`:why==='services'?`${u.services} ${T('of')} ${L.services} ${T('service pages')}`:why==='photos'?`${u.photos} ${T('of')} ${L.photos} ${T('photos')}`:why==='template'?T('More templates'):T('Publish your site')):T('Compare the doors');
-  $('upWhy').textContent=why==='template'?T('This template comes with a higher door. Your content moves with you.'):why==='publish'?T('Publishing your website comes with the Launch door. Your draft is saved and nothing is lost.'):why?T('Your door is full. The next door gives you more room right away.'):T('Here is what each door gives. Nothing is hidden.');
+  $('upWhy').textContent=why==='template'?T('This template comes with a higher door. Your content moves with you.'):why==='publish'?T('Publishing your website comes with the Local Pro door. Your draft is saved and nothing is lost.'):why?T('Your door is full. The next door gives you more room right away.'):T('Here is what each door gives. Nothing is hidden.');
   const rows=S.doors.map(d=>`<tr class="${d.current?'cur':''}"><td><b>${esc(T(d.name))}</b>${d.current?' <span class="pill">'+T('Yours')+'</span>':''}</td><td>${d.limits.pages} ${T('pages')}</td><td>${d.limits.services} ${T('service pages')}</td><td>${d.limits.photos} ${T('photos')}</td><td>${d.upgradeCents&&!d.current?T('Upgrade')+' '+money(d.upgradeCents):''}</td></tr>`).join('');
   $('upTable').innerHTML=`<tr><th>${T('Door')}</th><th>${T('Pages')}</th><th>${T('Services')}</th><th>${T('Photos')}</th><th></th></tr>`+rows;
   $('upGo').textContent=T('Upgrade to')+' '+T(S.next.name)+' '+T('for')+' '+money(S.next.priceCents);
@@ -420,7 +420,7 @@ ${f('gbpUrl','Link to your Google Business Profile reviews (optional)',300,'http
 // ---------- Look: template, colors, fonts, sections, menu, logo, photo spaces, words, links
 function themeOf(){const id=S.site.template;S.site.themes=S.site.themes||{};const t=S.site.themes[id]||(S.site.themes[id]={});
   t.tokens=t.tokens||{};t.fonts=t.fonts||{};t.sections=t.sections||[];t.menu=t.menu||[];t.slots=t.slots||{};t.pairs=t.pairs||[];t.legal=t.legal||{privacy:'',terms:''};t.texts=t.texts||{};t.logo=t.logo||'';t.focus=t.focus||{};t.heroWord=t.heroWord||'';return t;}
-const DOORN={launch:'Launch',grow:'Grow',signature:'Signature'};
+const DOORN={launch:'Local Pro',grow:'Contractor',signature:'Commercial'};
 const photoUrl=id=>`/site-photo/${S.company.id}/${id}`;
 function photoChoice(cur,onPick,allowNone){
   const d=document.createElement('dialog');
@@ -554,7 +554,7 @@ async function rDir(){
 <p>${T('Your cities:')} ${D.cities.length?D.cities.map(c=>`<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.name)}, ${esc(c.state)}</a>`).join(' &middot; '):T('none yet. Add them in Estimating Setup.')}</p>
 <p>${T('Leads from PainterSelect today:')} <b>${D.leadsToday} ${T('of')} ${D.cap}</b> &middot; ${T('All time:')} <b>${D.leadsTotal}</b>${D.founding?' &middot; <span class="pill warn">'+T('Founding painter')+'</span>':''}</p>
 <label class="switch"><input type="checkbox" id="opt"${D.optOut?'':' checked'}> ${T('Show me on PainterSelect and send me its leads')}</label></div>`
-  :`<div class="card"><h3>${T('Your PainterSelect profile')}</h3><p>${T('A member profile on PainterSelect, with the leads from your city pages, comes with the Launch door and up.')}</p><button class="btn" type="button" id="dirUp">${T('See the doors')}</button></div>`;
+  :`<div class="card"><h3>${T('Your PainterSelect profile')}</h3><p>${T('A member profile on PainterSelect, with the leads from your city pages, comes with the Local Pro door and up.')}</p><button class="btn" type="button" id="dirUp">${T('See the doors')}</button></div>`;
   if($('opt'))$('opt').onchange=async e=>{try{await api('/api/dir/me',{optOut:!e.target.checked});msg('Saved.',true);}catch(er){if(er)msg(er.message);}};
   if($('dirUp'))$('dirUp').onclick=()=>openUp(null);
 }

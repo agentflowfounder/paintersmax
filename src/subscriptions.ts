@@ -35,7 +35,7 @@ export const DOOR_PRICES: Record<PaidDoor, DoorPrices> = {
   grow: { signupFloor: 39900, signupList: 54900, renewalFloor: 24900, renewalList: 32900 },
   signature: { signupFloor: 49900, signupList: 69900, renewalFloor: 29900, renewalList: 39900 },
 };
-export const DOOR_LABELS: Record<Door, string> = { free: "Free", launch: "Launch", grow: "Grow", signature: "Signature" };
+export const DOOR_LABELS: Record<Door, string> = { free: "Free", launch: "Local Pro", grow: "Contractor", signature: "Commercial" };
 
 /** Refunds: full within 14 days, less $20 for the domain (approved 2026-11-14). */
 export const REFUND_DAYS = 14;

@@ -41,7 +41,7 @@ test("weather: forecast converts to F and mph and marks painting days", () => {
 
 import { cleanSite, DOOR_LIMITS, firstDraft, MAX_WEATHER_PLACES } from "../src/sitecore.ts";
 
-test("site: videos keep a real id and a shape; weather is limited to 2 places and needs Grow", () => {
+test("site: videos keep a real id and a shape; weather is limited to 2 places and needs Contractor", () => {
   const base: any = firstDraft({ name: "Test Painting", phone: "", email: "", trades: ["interior"], cities: ["Tyler, TX"], lang: "en" } as any, (DOOR_LIMITS as any).grow);
   assert.ok(base);
   const home = base.pages.find((p: any) => p.kind === "home");
