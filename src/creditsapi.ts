@@ -1,7 +1,7 @@
 import { getSessionUser } from "./auth.ts";
 import { ALLOWANCES, CREDIT_COST, TOPUPS, allowanceById, creditView, loadAllowance, topUpById, type Allowance, type TopUp } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
-import { stripeApi } from "./stripe.ts";
+import { payerFields, stripeApi } from "./stripe.ts";
 import { effectivePlan, normalizePlan, trialDaysLeft, usageSummary, type Feature } from "./usage.ts";
 import type { Env } from "./types.ts";
 
@@ -16,10 +16,10 @@ export const FEATURE_LABELS: Record<Feature, string> = {
 };
 
 /** The Stripe Checkout form for one top-up (a single payment, not a subscription). */
-export function topUpCheckoutForm(origin: string, i: { companyId: number; email: string; topUp: TopUp }): URLSearchParams {
+export function topUpCheckoutForm(origin: string, i: { companyId: number; email: string; topUp: TopUp; customerId?: string | null }): URLSearchParams {
   const f = new URLSearchParams();
   f.set("mode", "payment");
-  f.set("customer_email", i.email);
+  payerFields(f, i.email, i.customerId);
   f.set("success_url", `${origin}/credits?bought=1`);
   f.set("cancel_url", `${origin}/credits`);
   f.set("line_items[0][quantity]", "1");
@@ -92,7 +92,7 @@ export async function handleCredits(request: Request, env: Env): Promise<Respons
     if (b?.action === "topup") {
       const t = topUpById(b.id);
       if (!t) return json({ error: "Choose a top-up." }, 400);
-      const s = await stripeApi(env, "checkout/sessions", topUpCheckoutForm(origin, { companyId: co.id, email: user.email, topUp: t }));
+      const s = await stripeApi(env, "checkout/sessions", topUpCheckoutForm(origin, { companyId: co.id, email: user.email, topUp: t, customerId: co.customerId }));
       return json({ url: s.url });
     }
     if (b?.action === "allowance") {
