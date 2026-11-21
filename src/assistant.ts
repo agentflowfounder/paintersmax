@@ -1,3 +1,4 @@
+import { approxTokens, logAiCall } from "./ailog.ts";
 import { clientTextModel } from "./envelopes.ts";
 import { briefText, cleanBrief } from "./jobbrief.ts";
 import type { Env } from "./types.ts";
@@ -195,21 +196,31 @@ const CALLERS = { gemini: viaGemini, openai: viaOpenAI, anthropic: viaAnthropic,
 export async function ask(env: Env, jobContext: string | null, history: Turn[], question: string, language: "en" | "es" = "en", companyId?: number): Promise<string | null> {
   const base = language === "es" ? `${SYSTEM_PROMPT}\n\nAlways answer in Spanish, even if the question is in English.` : SYSTEM_PROMPT;
   const system = jobContext ? `${base}\n\n<job_data>\n${jobContext}\n</job_data>` : base;
-  return complete(env, system, [...history, { role: "user", content: question }], companyId);
+  return complete(env, system, [...history, { role: "user", content: question }], companyId, "wizard_chat");
 }
 
 export type Provider = "gemini" | "openai" | "anthropic" | "haiku";
 
 /** Runs a prompt through providers that have a key, in the order given (default: the text default chosen in /admin, then the rest). Returns the text and which provider answered. */
-export async function completeEx(env: Env, system: string, turns: Turn[], opts: { prefer?: Provider[]; maxTokens?: number; companyId?: number } = {}): Promise<{ text: string; provider: Provider } | null> {
+export function modelFor(env: Env, p: Provider): string {
+  return p === "gemini" ? geminiModel(env) : p === "haiku" ? fastAnthropicModel(env) : p === "anthropic" ? env.MODEL_ANTHROPIC ?? "claude-sonnet-5-5" : env.MODEL_OPENAI ?? "gpt-4.1-mini";
+}
+
+export async function completeEx(env: Env, system: string, turns: Turn[], opts: { prefer?: Provider[]; maxTokens?: number; companyId?: number; tool?: string } = {}): Promise<{ text: string; provider: Provider; model: string; tool: string } | null> {
   // A client can have its own text model, chosen by admin (envelopes.ts); otherwise the platform default applies.
   const own = !opts.prefer && opts.companyId ? await clientTextModel(env, opts.companyId).catch(() => null) : null;
   for (const p of opts.prefer ?? TEXT_ORDERS[own ?? (await textDefault(env))]) {
     if (!keyFor(env, p)) continue;
+    const t0 = Date.now();
+    const tool = opts.tool || "text";
+    const model = modelFor(env, p);
+    const tokensIn = approxTokens(system) + turns.reduce((n, t) => n + approxTokens(t.content), 0);
     try {
       const out = (await CALLERS[p](env, system, turns, opts.maxTokens)).trim();
-      if (out) return { text: out, provider: p };
+      await logAiCall(env, { tool, model, ms: Date.now() - t0, tokensIn, tokensOut: approxTokens(out), ok: !!out });
+      if (out) return { text: out, provider: p, model, tool };
     } catch (err) {
+      await logAiCall(env, { tool, model, ms: Date.now() - t0, tokensIn, tokensOut: 0, ok: false });
       console.error("assistant provider failed", p, String(err));
     }
   }
@@ -217,8 +228,8 @@ export async function completeEx(env: Env, system: string, turns: Turn[], opts: 
 }
 
 /** Runs a prompt through each provider that has a key, cheapest first. Returns null when none works. */
-export async function complete(env: Env, system: string, turns: Turn[], companyId?: number): Promise<string | null> {
-  return (await completeEx(env, system, turns, { companyId }))?.text ?? null;
+export async function complete(env: Env, system: string, turns: Turn[], companyId?: number, tool?: string): Promise<string | null> {
+  return (await completeEx(env, system, turns, { companyId, tool }))?.text ?? null;
 }
 
 export const COVER_PROMPT = [

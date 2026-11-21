@@ -68,12 +68,12 @@ test("completeEx asks Haiku first when that is the default, with the small Claud
   }) as any;
   try {
     const a = await completeEx(env, "sys", [{ role: "user", content: "q" }]);
-    assert.deepEqual(a, { text: "haiku says hi", provider: "haiku" });
+    assert.deepEqual(a, { text: "haiku says hi", provider: "haiku", model: DEFAULT_FAST_ANTHROPIC_MODEL, tool: "text" });
     assert.deepEqual(calls, [`anthropic:${DEFAULT_FAST_ANTHROPIC_MODEL}`]);
     // Haiku fails: Gemini answers next.
     globalThis.fetch = (async (url: any) => (String(url).startsWith("http://ant.test") ? new Response("nope", { status: 529 }) : new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "gemini says hi" }] } }] }), { status: 200 }))) as any;
     const b = await completeEx(env, "sys", [{ role: "user", content: "q" }]);
-    assert.deepEqual(b, { text: "gemini says hi", provider: "gemini" });
+    assert.deepEqual(b, { text: "gemini says hi", provider: "gemini", model: "gemini-3.8-flash", tool: "text" });
   } finally {
     globalThis.fetch = realFetch;
   }
