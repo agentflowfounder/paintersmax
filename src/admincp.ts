@@ -11,7 +11,7 @@ import { addLesson, contactCounts, contactsCsv, importContacts, loadContacts, lo
 import {
   allSubs, applyOutreach, applyRenewed, applySubEdit, DOOR_LABELS, DOOR_PRICES, DOORS, isDoor, loadDoor, loadSub, PAID_DOORS, readSub, renewalCentsFor, setDoor, subKey, subState, subTotals,
 } from "./subscriptions.ts";
-import { creditMenu, loadStarter, saveStarter, signupsThisWeek, STARTER_COSTS, STARTER_DEFAULTS, starterStats } from "./starter.ts";
+import { creditMenu, firstWeeksReport, loadStarter, saveStarter, signupsThisWeek, STARTER_COSTS, STARTER_DEFAULTS, starterStats } from "./starter.ts";
 import { FEATURES, monthKey, usageSummary, type Feature } from "./usage.ts";
 import type { Env } from "./types.ts";
 
@@ -180,8 +180,8 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
   }
   if (q.get("credits") === "1") return { area: "credits", data: await creditsOverview(env, q.get("month") ?? "") };
   if (q.get("starter") === "1") {
-    const [settings, stats] = await Promise.all([loadStarter(env), starterStats(env, today)]);
-    return { area: "credits", data: { settings, defaults: STARTER_DEFAULTS, stats, menu: creditMenu(settings.welcomeCredits), costs: STARTER_COSTS } };
+    const [settings, stats, firstWeeks] = await Promise.all([loadStarter(env), starterStats(env, today), firstWeeksReport(env, today)]);
+    return { area: "credits", data: { settings, defaults: STARTER_DEFAULTS, stats, firstWeeks, menu: creditMenu(settings.welcomeCredits), costs: STARTER_COSTS } };
   }
   if (q.get("research") === "1") {
     const markets = await loadMarkets(env);

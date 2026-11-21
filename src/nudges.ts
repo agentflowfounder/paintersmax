@@ -50,6 +50,9 @@ export function buildNudges(f: NudgeFacts, snoozed: Record<string, string>, now 
   const cadence = DOWNLOAD_REMINDER_DAYS[f.plan ?? "free"] ?? 90;
   if (f.month !== undefined && f.month >= 1 && f.month <= 4 && f.downloadedThisTaxYear === false) {
     all.push({ key: "tax_season", link: "/records", text: "Tax season: download your year-end records (expenses, mileage, crew hours and the 1099 list) for your accountant." });
+  } else if (f.month !== undefined && [3, 5, 8, 12].includes(f.month)) {
+    // Estimated tax payments are usually due about the 15th of April, June, September and January: the month before is the time to read in receipts.
+    all.push({ key: "quarter_taxes", link: "/records", text: "Quarterly tax time is close (estimated payments are usually due around the 15th of April, June, September and January). Read in this quarter's receipts and bank statements on Records so your numbers are ready for your accountant." });
   } else if ((f.daysSinceDownload ?? 0) >= cadence) {
     all.push({ key: "download_records", link: "/records", text: f.plan === "pro" ? "Your monthly records summary is ready to download. Your data stays safe here, and a copy on your computer is a good habit." : "It has been a while since you downloaded your records. Download them and free up storage. Your data stays safe here either way." });
   }

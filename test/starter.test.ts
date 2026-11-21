@@ -35,7 +35,7 @@ test("settings: defaults are 250 credits for 60 days, 150 a day; bad values are 
   assert.equal(STARTER_DEFAULTS.welcomeCredits, 250);
   assert.equal(STARTER_DEFAULTS.welcomeDays, 60);
   const s = readStarter({ welcomeCredits: 99999, welcomeDays: 1, dailyCap: -5, perVisitorDaily: "x", on: false });
-  assert.deepEqual(s, { on: false, welcomeCredits: 1500, welcomeDays: 7, dailyCap: 1, perVisitorDaily: 3, weeklySummary: true, day3Email: false });
+  assert.deepEqual(s, { on: false, welcomeCredits: 1500, welcomeDays: 7, dailyCap: 1, perVisitorDaily: 3, founders: 100, weeklySummary: true, day3Email: false });
 });
 
 test("credit menu: 250 credits, what each tool gives, and a busy first month leaves most of them", () => {
@@ -56,7 +56,7 @@ test("credit menu: 250 credits, what each tool gives, and a busy first month lea
 
 test("welcome credits use the admin settings", async () => {
   const { env } = realEnv();
-  await saveStarter(env, { welcomeCredits: 100, welcomeDays: 30 });
+  await saveStarter(env, { welcomeCredits: 100, welcomeDays: 30, founders: 0 });
   const r = await grantWelcome(env, 7, T, { capped: false });
   assert.equal(r.status, "granted");
   const v = await creditView(env, 7, T);
@@ -238,4 +238,28 @@ test("owner Monday summary and the pre-written welcome reply", async () => {
   assert.equal(readStarter(null).weeklySummary, true);
   assert.match(welcomeReply({ company: "Rose City", city: "Tyler, TX", es: false }).body, /Rose City account in Tyler, TX/);
   assert.equal(welcomeReply({ company: "Rose City", city: "", es: true }).subject, "Bienvenido a PaintersMax");
+});
+
+test("founders: the first N accounts keep welcome credits with no end date, later ones expire", async () => {
+  const { env } = realEnv();
+  await saveStarter(env, { welcomeCredits: 100, welcomeDays: 30, founders: 2 });
+  const a = await grantWelcome(env, 21, T, { capped: false });
+  assert.equal(a.founder, true);
+  assert.equal(a.expiresOn, "");
+  assert.ok((await creditView(env, 21, T)).grants[0].expiresOn > addDaysIso(T, 3000));
+  await grantWelcome(env, 22, T, { capped: false });
+  const c = await grantWelcome(env, 23, T, { capped: false });
+  assert.equal(c.founder, undefined);
+  assert.equal((await creditView(env, 23, T)).grants[0].expiresOn, addDaysIso(T, 30));
+  const { foundersLeft, loadStarter } = await import("../src/starter.ts");
+  assert.equal(await foundersLeft(env, await loadStarter(env)), 0);
+});
+
+test("first two weeks: credits per job against the planning number", async () => {
+  const { firstWeeksMath } = await import("../src/starter.ts");
+  const r = firstWeeksMath({ accounts: 10, withJobs: 4, jobs: 8, creditsByTool: [{ feature: "estimate_draft", credits: 40 }, { feature: "photo_analysis", credits: 80 }] }, 11);
+  assert.equal(r.creditsUsed, 120);
+  assert.equal(r.perJob, 15);
+  assert.equal(r.verdict, "above plan");
+  assert.equal(firstWeeksMath({ accounts: 1, withJobs: 0, jobs: 0, creditsByTool: [] }, 11).verdict, "no jobs yet");
 });

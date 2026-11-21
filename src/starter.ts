@@ -27,12 +27,13 @@ export interface StarterSettings {
   welcomeDays: number;
   dailyCap: number; // public sign-ups that get welcome credits the same day
   perVisitorDaily: number; // free sign-ups one visitor (network address + browser) may make in a day
+  founders: number; // the first N sign-ups keep their welcome credits with no end date (0 = nobody)
   weeklySummary: boolean; // the Monday sign-ups email to the owner (on by default; it only goes to the owner)
   day3Email: boolean; // the day-3 "try your first estimate draft" email (off until the owner switches it on)
 }
 export const STARTER_KEY = "starter";
 export const HELD_KEY = "starterheld";
-export const STARTER_DEFAULTS: StarterSettings = { on: true, welcomeCredits: 250, welcomeDays: 60, dailyCap: 150, perVisitorDaily: 3, weeklySummary: true, day3Email: false };
+export const STARTER_DEFAULTS: StarterSettings = { on: true, welcomeCredits: 250, welcomeDays: 60, dailyCap: 150, perVisitorDaily: 3, founders: 100, weeklySummary: true, day3Email: false };
 const MAX_HELD = 5000;
 
 const clampInt = (v: unknown, min: number, max: number, dflt: number) => {
@@ -48,6 +49,7 @@ export function readStarter(raw: unknown): StarterSettings {
     welcomeDays: clampInt(r.welcomeDays, 7, 365, d.welcomeDays),
     dailyCap: clampInt(r.dailyCap, 1, 5000, d.dailyCap),
     perVisitorDaily: clampInt(r.perVisitorDaily, 1, 20, d.perVisitorDaily),
+    founders: clampInt(r.founders, 0, 1000, d.founders),
     weeklySummary: r.weeklySummary !== false,
     day3Email: r.day3Email === true,
   };
@@ -176,17 +178,32 @@ export function readHeld(raw: unknown): HeldEntry[] {
 }
 
 const welcomeId = (c: number) => `welcome:${c}`;
-const giveWelcome = (env: Env, c: number, s: StarterSettings, today: string) =>
-  grantCredits(env, c, { id: welcomeId(c), credits: s.welcomeCredits, source: "welcome", note: "Welcome credits", days: s.welcomeDays }, today);
+export const FOUNDERS_KEY = "founders";
+const readFounders = (raw: unknown): number[] => (Array.isArray((raw as any)?.ids) ? (raw as any).ids.filter((n: unknown) => Number.isInteger(n)) : []);
+/** How many founder places are left (the first N accounts keep their welcome credits with no end date). */
+export async function foundersLeft(env: Env, s: StarterSettings): Promise<number> {
+  return Math.max(0, s.founders - (await readBlob(env, FOUNDERS_KEY, readFounders)).length);
+}
+/** Takes a founder place for this account if one is left (the same account never takes two). */
+async function takeFounderPlace(env: Env, c: number, s: StarterSettings): Promise<boolean> {
+  if (s.founders < 1) return false;
+  const r = await updateBlob(env, FOUNDERS_KEY, (raw) => ({ ids: readFounders(raw) }), (cur) => (cur.ids.includes(c) ? { value: cur } : cur.ids.length >= s.founders ? { value: cur } : { value: { ids: [...cur.ids, c] } }));
+  return r.ok && r.value.ids.includes(c);
+}
+const giveWelcome = async (env: Env, c: number, s: StarterSettings, today: string) => {
+  const founder = await takeFounderPlace(env, c, s);
+  const r = await grantCredits(env, c, { id: welcomeId(c), credits: s.welcomeCredits, source: "welcome", note: founder ? "Welcome credits (founder, no end date)" : "Welcome credits", days: founder ? 3650 : s.welcomeDays }, today);
+  return { ...r, founder };
+};
 
 /**
  * Welcome credits for a new company. `capped` is true for public sign-ups: they count against the daily ceiling, and
  * over it the company waits on the held list for the next morning run. Returns what happened, for the sign-up answer.
  */
-export async function grantWelcome(env: Env, c: number, today: string, o: { capped: boolean }): Promise<{ status: "granted" | "held" | "off"; credits: number; expiresOn: string }> {
+export async function grantWelcome(env: Env, c: number, today: string, o: { capped: boolean }): Promise<{ status: "granted" | "held" | "off"; credits: number; expiresOn: string; founder?: boolean }> {
   const s = await loadStarter(env);
   if (!s.on || s.welcomeCredits < 1) return { status: "off", credits: 0, expiresOn: "" };
-  const expiresOn = addDaysIso(today, s.welcomeDays);
+  let expiresOn = addDaysIso(today, s.welcomeDays);
   if (o.capped) {
     const master = await masterId(env);
     if (master && !(await takeDaySlot(env, master, today, s.dailyCap))) {
@@ -194,8 +211,9 @@ export async function grantWelcome(env: Env, c: number, today: string, o: { capp
       return { status: "held", credits: s.welcomeCredits, expiresOn: "" };
     }
   }
-  await giveWelcome(env, c, s, today);
-  return { status: "granted", credits: s.welcomeCredits, expiresOn };
+  const g = await giveWelcome(env, c, s, today);
+  if (g.founder) expiresOn = "";
+  return { status: "granted", credits: s.welcomeCredits, expiresOn, ...(g.founder ? { founder: true } : {}) };
 }
 
 /** The morning run: adds held welcome credits, oldest first, up to today's ceiling. Returns how many were added. */
@@ -244,7 +262,7 @@ export async function handleStarterPublic(env: Env, today: string): Promise<Resp
     const price = promoPrice(d, "signup", promo, today);
     return { door: d, cents: price.cents, listCents: price.listCents, credits: promo && promo.bonusCredits > 0 ? promo.bonusCredits : DOOR_CREDITS, promo: promo ? { name: promo.name, endsOn: promo.endsOn, founding: promo.founding } : null };
   });
-  return new Response(JSON.stringify({ welcome: { credits, days: s.welcomeDays }, menu: creditMenu(credits, s.welcomeDays), doorMenu: creditMenu(DOOR_CREDITS, 90), doors }), {
+  return new Response(JSON.stringify({ welcome: { credits, days: s.welcomeDays, founderPlacesLeft: s.on ? await foundersLeft(env, s) : 0 }, menu: creditMenu(credits, s.welcomeDays), doorMenu: creditMenu(DOOR_CREDITS, 90), doors }), {
     headers: { "content-type": "application/json", "cache-control": "public, max-age=300" },
   });
 }
@@ -386,4 +404,24 @@ export function welcomeReply(o: { company: string; city: string; es: boolean }):
   const where = o.city ? (o.es ? ` en ${o.city}` : ` in ${o.city}`) : "";
   if (o.es) return { subject: "Bienvenido a PaintersMax", body: `Hola, gracias por abrir la cuenta de ${o.company}${where} en PaintersMax. ¿Qué trabajo le gustaría cotizar primero? Puedo ayudarle a empezar. Responda aquí o llámeme cuando guste.\n\nPaintersMax` };
   return { subject: "Welcome to PaintersMax", body: `Hi, thanks for opening the ${o.company} account${where} on PaintersMax. What is the first job you would like to quote? I am glad to help you get started. Reply here or call me any time.\n\nPaintersMax` };
+}
+
+/** Pure maths for the first-two-weeks report: real credits used against the 11-credit planning number for one job. */
+export function firstWeeksMath(o: { accounts: number; withJobs: number; jobs: number; creditsByTool: { feature: string; credits: number }[] }, planPerJob: number) {
+  const creditsUsed = o.creditsByTool.reduce((n, t) => n + t.credits, 0);
+  const perJob = o.jobs > 0 ? Math.round((creditsUsed / o.jobs) * 10) / 10 : null;
+  return { ...o, creditsUsed, perJob, planPerJob, verdict: perJob === null ? "no jobs yet" : perJob > planPerJob * 1.25 ? "above plan" : perJob < planPerJob * 0.75 ? "below plan" : "near plan" };
+}
+
+/** Admin: how the accounts opened in the last 14 days really use credits (this month's counters), per job. */
+export async function firstWeeksReport(env: Env, today: string) {
+  const from = addDaysIso(today, -13);
+  const ids = (await blobsWithPrefix(env, "signup:", 5000)).filter((b) => typeof (b.value as any)?.on === "string" && (b.value as any).on >= from).map((b) => Number(b.key.slice(7))).filter((n) => Number.isFinite(n)).slice(0, 500);
+  const plan = creditCycle(250, 60).perJob;
+  if (!ids.length) return firstWeeksMath({ accounts: 0, withJobs: 0, jobs: 0, creditsByTool: [] }, plan);
+  const q = ids.map(() => "?").join(",");
+  const jobs = (await env.DB.prepare(`SELECT company_id AS c, COUNT(*) AS n FROM jobs WHERE company_id IN (${q}) GROUP BY company_id`).bind(...ids).all<{ c: number; n: number }>()).results ?? [];
+  const used = (await env.DB.prepare(`SELECT feature, SUM(count) AS n FROM usage_counters WHERE company_id IN (${q}) AND feature LIKE '%:credit' GROUP BY feature`).bind(...ids).all<{ feature: string; n: number }>()).results ?? [];
+  const creditsByTool = used.map((u) => ({ feature: u.feature.split(":")[0], credits: (Number(u.n) || 0) * ((CREDIT_COST as Record<string, number>)[u.feature.split(":")[0]] ?? 1) })).filter((t) => t.credits > 0).sort((a, b) => b.credits - a.credits);
+  return firstWeeksMath({ accounts: ids.length, withJobs: jobs.length, jobs: jobs.reduce((n, j) => n + Number(j.n), 0), creditsByTool }, plan);
 }

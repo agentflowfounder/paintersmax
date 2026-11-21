@@ -45,3 +45,8 @@ test("storage and download reminders", () => {
   assert.equal(buildNudges({ ...b, plan: "basic", month: 2, downloadedThisTaxYear: true }, {}).length, 0);
   assert.equal(buildNudges({ ...b, plan: "pro", storagePercent: 90, daysSinceDownload: 40, month: 6 }, {}).length, 2); // limited to two
 });
+
+test("nudges: the month before a quarterly tax date points at Records", () => {
+  assert.equal(buildNudges({ ...{ tradesWithoutPrices: [], staleDraftEstimates: 0, cityDraftPages: 0, commercialBidUnused: false }, plan: "free", month: 8 }, {})[0].key, "quarter_taxes");
+  assert.equal(buildNudges({ ...{ tradesWithoutPrices: [], staleDraftEstimates: 0, cityDraftPages: 0, commercialBidUnused: false }, plan: "free", month: 6 }, {}).some((x) => x.key === "quarter_taxes"), false);
+});
