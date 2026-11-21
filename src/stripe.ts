@@ -1,4 +1,3 @@
-import { creditCheckout } from "./landing.ts";
 import { getSessionUser } from "./auth.ts";
 import { provisionClient } from "./admin.ts";
 import { allowanceById, allowanceByPrice, companyOfAllowanceSub, grantCredits, loadAllowance, saveAllowance, topUpById } from "./credits.ts";
@@ -10,9 +9,6 @@ import type { Env } from "./types.ts";
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 
-/** Monthly prices in cents and the one-time setup fee. Change here to change what Checkout charges. */
-export const PLAN_PRICES: Record<Exclude<Plan, "free">, number> = { starter: 9900, basic: 19900, pro: 34900 };
-export const SETUP_FEE_CENTS = 49900;
 const PLAN_RANK: Record<Plan, number> = { free: 0, starter: 1, basic: 2, pro: 3 };
 
 export const stripeApi = async (env: Env, path: string, form: URLSearchParams) => {
@@ -26,48 +22,42 @@ export const stripeApi = async (env: Env, path: string, form: URLSearchParams) =
   return j;
 };
 
-/** The form body for a subscription Checkout with a one-time setup fee. Prices are defined inline, so nothing has to be created in the Stripe dashboard first. */
-export function checkoutForm(origin: string, i: { plan: Exclude<Plan, "free">; name: string; email: string }): URLSearchParams {
-  const f = new URLSearchParams();
-  f.set("mode", "subscription");
-  f.set("customer_email", i.email);
-  f.set("success_url", `${origin}/welcome`);
-  f.set("cancel_url", `${origin}/start`);
-  f.set("allow_promotion_codes", "true");
-  f.set("line_items[0][quantity]", "1");
-  f.set("line_items[0][price_data][currency]", "usd");
-  f.set("line_items[0][price_data][unit_amount]", String(PLAN_PRICES[i.plan]));
-  f.set("line_items[0][price_data][recurring][interval]", "month");
-  f.set("line_items[0][price_data][product_data][name]", `PaintersMax ${i.plan[0].toUpperCase()}${i.plan.slice(1)} plan`);
-  f.set("line_items[1][quantity]", "1");
-  f.set("line_items[1][price_data][currency]", "usd");
-  f.set("line_items[1][price_data][unit_amount]", String(SETUP_FEE_CENTS));
-  f.set("line_items[1][price_data][product_data][name]", "One-time setup fee");
-  f.set("metadata[plan]", i.plan);
-  f.set("metadata[company_name]", i.name);
-  f.set("subscription_data[metadata][plan]", i.plan);
-  return f;
+/**
+ * Who pays a one-time Checkout. A painter who already has a Stripe customer pays as that customer; anyone else gets
+ * one made (customer_creation=always). Without it Stripe makes a "guest" payment with no customer, so the Billing
+ * button has nothing to open and the yearly renewal has no saved customer.
+ */
+export function payerFields(f: URLSearchParams, email: string, customerId?: string | null) {
+  if (customerId) f.set("customer", customerId);
+  else {
+    f.set("customer_email", email);
+    f.set("customer_creation", "always");
+  }
 }
 
-/** POST /api/checkout (public): starts a Stripe Checkout for a new client. Returns the Stripe page address. */
-export async function handleCheckout(request: Request, env: Env): Promise<Response> {
-  if (request.method !== "POST") return json({ error: "Not found." }, 404);
-  if (!env.STRIPE_SECRET_KEY) return json({ error: "Sign-up is not open yet." }, 503);
-  let b: any;
-  try {
-    b = await request.json();
-  } catch {
-    return json({ error: "Invalid JSON." }, 400);
-  }
-  const plan = b?.plan;
-  if (plan !== "starter" && plan !== "basic" && plan !== "pro") return json({ error: "Choose a plan." }, 400);
-  const name = typeof b?.name === "string" ? b.name.trim().slice(0, 100) : "";
-  const email = typeof b?.email === "string" ? b.email.trim().toLowerCase().slice(0, 200) : "";
-  if (!name) return json({ error: "Enter your company name." }, 400);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Enter a valid email." }, 400);
-  await creditCheckout(env, request).catch(() => {}); // credits the landing page this visitor came from
-  const session = await stripeApi(env, "checkout/sessions", checkoutForm(new URL(request.url).origin, { plan, name, email }));
-  return json({ url: session.url });
+/**
+ * POST /api/checkout: the old sign-up that sold the retired $99/$199/$349 monthly plans plus a $499 setup fee.
+ * Those plans went away on 2026-11-14 and no page links here any more, so it now only points to the free sign-up
+ * (/start), where the doors and the running promotion are sold. Old subscriptions keep working through the webhook below.
+ */
+export async function handleCheckout(_request: Request, _env: Env): Promise<Response> {
+  return json({ error: "This sign-up page has moved. Start free at paintersmax.app/start.", moved: "/start" }, 410);
+}
+
+/** The subscription an invoice belongs to. Stripe moved it from invoice.subscription to invoice.parent.subscription_details.subscription in API version 2025-03-31; both are read. */
+export function invoiceSubscription(o: any): string | null {
+  const v = o?.subscription ?? o?.parent?.subscription_details?.subscription;
+  return typeof v === "string" ? v : typeof v?.id === "string" ? v.id : null;
+}
+
+/**
+ * Checkout can finish before the money arrives (a bank payment): Stripe then sends checkout.session.completed with
+ * payment_status "unpaid" and, days later, checkout.session.async_payment_succeeded. One-time payments are applied on that
+ * second event the same way as a card payment. Subscriptions are handled on completion as before.
+ */
+export function effectiveType(event: any): string {
+  const t = String(event?.type ?? "");
+  return t === "checkout.session.async_payment_succeeded" && event?.data?.object?.mode === "payment" ? "checkout.session.completed" : t;
 }
 
 const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -127,7 +117,8 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
   if (seen) return json({ ok: true, duplicate: true });
 
   const obj = event.data?.object ?? {};
-  if (event.type === "checkout.session.completed" && obj.mode === "subscription" && obj.metadata?.kind !== "allowance") {
+  const type = effectiveType(event);
+  if (type === "checkout.session.completed" && obj.mode === "subscription" && obj.metadata?.kind !== "allowance") {
     const plan = normalizePlan(obj.metadata?.plan);
     const email = obj.customer_details?.email || obj.customer_email;
     const r = await provisionClient(env, new URL(request.url).origin, { name: obj.metadata?.company_name, email, plan });
@@ -141,19 +132,19 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
     await env.DB.prepare("UPDATE companies SET plan = ?, stripe_customer_id = ?, stripe_subscription_id = ? WHERE id = ?")
       .bind(newPlan, typeof obj.customer === "string" ? obj.customer : null, typeof obj.subscription === "string" ? obj.subscription : null, r.companyId)
       .run();
-  } else if (event.type === "checkout.session.completed" && obj.mode === "payment" && obj.metadata?.kind === "topup" && obj.payment_status === "paid") {
+  } else if (type === "checkout.session.completed" && obj.mode === "payment" && obj.metadata?.kind === "topup" && obj.payment_status === "paid") {
     // A top-up was paid for. The size comes from our own list, never from the message. The same payment is added once.
     const t = topUpById(obj.metadata?.topup);
     const cid = Number(obj.metadata?.company_id);
     const co = t && Number.isInteger(cid) ? await env.DB.prepare("SELECT id FROM companies WHERE id = ?").bind(cid).first() : null;
     if (t && co && typeof obj.id === "string") await grantCredits(env, cid, { id: `stripe:${obj.id}`, credits: t.credits, source: "topup", note: `Top-up of ${t.credits}` }, todayLocal());
     if (co && typeof obj.customer === "string") await env.DB.prepare("UPDATE companies SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?").bind(obj.customer, cid).run();
-  } else if (event.type === "checkout.session.completed" && obj.mode === "payment" && obj.metadata?.kind === "site_upgrade" && obj.payment_status === "paid") {
+  } else if (type === "checkout.session.completed" && obj.mode === "payment" && obj.metadata?.kind === "site_upgrade" && obj.payment_status === "paid") {
     // A one-click website upgrade was paid. The door comes from our own list; it can only go up.
     const cid = Number(obj.metadata?.company_id);
     if (Number.isInteger(cid)) await applyPaidUpgrade(env, cid, obj.metadata?.door, typeof obj.id === "string" ? obj.id : undefined, { promoCode: typeof obj.metadata?.promo === "string" ? obj.metadata.promo : "", paidCents: Number(obj.amount_total) || 0 });
     if (Number.isInteger(cid) && typeof obj.customer === "string") await env.DB.prepare("UPDATE companies SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?").bind(obj.customer, cid).run();
-  } else if (event.type === "checkout.session.completed" && obj.mode === "subscription" && obj.metadata?.kind === "allowance") {
+  } else if (type === "checkout.session.completed" && obj.mode === "subscription" && obj.metadata?.kind === "allowance") {
     // A monthly allowance started. The first month's credits are added now; later months arrive with each paid invoice (below).
     const a = allowanceById(obj.metadata?.allowance);
     const cid = Number(obj.metadata?.company_id);
@@ -164,9 +155,9 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       await grantCredits(env, cid, { id: `stripe:${obj.id}`, credits: a.credits, source: "allowance", note: `Monthly allowance (${a.credits})` }, today);
       if (typeof obj.customer === "string") await env.DB.prepare("UPDATE companies SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?").bind(obj.customer, cid).run();
     }
-  } else if ((event.type === "invoice.paid" || event.type === "invoice.payment_succeeded") && typeof obj.subscription === "string" && obj.billing_reason === "subscription_cycle") {
+  } else if ((type === "invoice.paid" || type === "invoice.payment_succeeded") && invoiceSubscription(obj) && obj.billing_reason === "subscription_cycle") {
     // A renewal of a monthly allowance: add that month's credits once per invoice. The size follows what was paid, so a changed allowance pays out correctly.
-    const cid = await companyOfAllowanceSub(env, obj.subscription);
+    const cid = await companyOfAllowanceSub(env, invoiceSubscription(obj)!);
     const rec = cid ? await loadAllowance(env, cid) : null;
     const a = allowanceByPrice(obj.amount_paid) ?? (rec ? allowanceById(rec.allowanceId) : null);
     if (cid && rec && a && typeof obj.id === "string") {
@@ -175,20 +166,20 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
       await saveAllowance(env, cid, { ...rec, allowanceId: a.id, status: "active", lastGrantOn: today });
     }
     if (typeof obj.customer === "string") await setPastDue(env, "stripe_customer_id", obj.customer, false);
-  } else if ((event.type === "customer.subscription.deleted" || (event.type === "customer.subscription.updated" && ["unpaid", "canceled", "incomplete_expired"].includes(obj.status))) && typeof obj.id === "string" && obj.metadata?.kind === "allowance") {
+  } else if ((type === "customer.subscription.deleted" || (type === "customer.subscription.updated" && ["unpaid", "canceled", "incomplete_expired"].includes(obj.status))) && typeof obj.id === "string" && obj.metadata?.kind === "allowance") {
     // An allowance ended. Credits already added stay until they expire; no new ones arrive.
     const cid = await companyOfAllowanceSub(env, obj.id);
     const rec = cid ? await loadAllowance(env, cid) : null;
     if (cid && rec) await saveAllowance(env, cid, { ...rec, status: "ended" });
-  } else if (event.type === "customer.subscription.deleted" && typeof obj.id === "string") {
+  } else if (type === "customer.subscription.deleted" && typeof obj.id === "string") {
     await env.DB.prepare("UPDATE companies SET plan = 'free' WHERE stripe_subscription_id = ?").bind(obj.id).run();
     await setPastDue(env, "stripe_subscription_id", obj.id, false);
-  } else if (event.type === "customer.subscription.updated" && typeof obj.id === "string" && ["unpaid", "canceled", "incomplete_expired"].includes(obj.status)) {
+  } else if (type === "customer.subscription.updated" && typeof obj.id === "string" && ["unpaid", "canceled", "incomplete_expired"].includes(obj.status)) {
     // Stripe gave up collecting: drop to the free plan. (past_due alone keeps access while Stripe retries the card.)
     await env.DB.prepare("UPDATE companies SET plan = 'free' WHERE stripe_subscription_id = ?").bind(obj.id).run();
-  } else if (event.type === "invoice.payment_failed" && typeof obj.customer === "string") {
+  } else if (type === "invoice.payment_failed" && typeof obj.customer === "string") {
     await setPastDue(env, "stripe_customer_id", obj.customer, true);
-  } else if ((event.type === "invoice.paid" || event.type === "invoice.payment_succeeded") && typeof obj.customer === "string") {
+  } else if ((type === "invoice.paid" || type === "invoice.payment_succeeded") && typeof obj.customer === "string") {
     await setPastDue(env, "stripe_customer_id", obj.customer, false);
   }
   await env.DB.prepare("INSERT OR IGNORE INTO stripe_events (id, type) VALUES (?, ?)").bind(event.id, String(event.type).slice(0, 80)).run();
