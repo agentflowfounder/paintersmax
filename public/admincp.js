@@ -69,7 +69,12 @@
       $('su_box').innerHTML = '<div class="card"><h3>Sign-ups this week</h3><div class="tiles"><div class="tile"><b>' + v.total + '</b><span>New accounts, last 7 days</span></div>' +
         v.perDay.map(function (x) { return '<div class="tile"><b>' + x.count + '</b><span>' + esc(x.day.slice(5)) + '</span></div>'; }).join('') + '</div>' +
         '<div class="g3"><div><h4>By source</h4><table class="t"><tbody>' + list(v.bySource) + '</tbody></table></div><div><h4>By tier picked</h4><table class="t"><tbody>' + list(v.byDoor, function (n) { return DN[n] || n; }) + '</tbody></table></div><div><h4>How they heard</h4><table class="t"><tbody>' + list(v.byHeard) + '</tbody></table></div></div>' +
-        (v.latest.length ? '<h4>Newest</h4><small>' + v.latest.map(function (r) { return '<a class="lk" href="#client/' + r.companyId + '">' + esc(r.name || ('#' + r.companyId)) + '</a> (' + esc(r.on.slice(5)) + ')'; }).join(' &middot; ') + '</small>' : '') + '</div>';
+        (v.latest.length ? '<h4>Newest</h4><table class="t"><tbody>' + v.latest.map(function (r) {
+          var m = r.msg || {}, tx = encodeURIComponent(m.body || '');
+          return '<tr><td><a class="lk" href="#client/' + r.companyId + '">' + esc(r.name || ('#' + r.companyId)) + '</a><br><small>' + esc(r.city || '') + ' &middot; ' + esc(r.on.slice(5)) + '</small></td><td>' +
+            (r.email ? '<a class="lk" href="mailto:' + esc(r.email) + '?subject=' + encodeURIComponent(m.subject || '') + '&body=' + tx + '">' + esc(T('Reply by email')) + '</a> ' : '') +
+            (r.phone ? '<a class="lk" href="sms:' + esc(String(r.phone).replace(/[^0-9+]/g, '')) + '?&body=' + tx + '">' + esc(T('Reply by text')) + '</a> ' + telLink(r.phone) : '') + '</td></tr>';
+        }).join('') + '</tbody></table>' : '') + '</div>';
     }).catch(function () { $('su_box').textContent = ''; });
   }
   function clientsLoad() {
@@ -222,12 +227,13 @@
         '<h4>How new painters heard about us</h4>' + (Object.keys(v.stats.heard || {}).length ? '<table class="t"><tbody>' + Object.keys(v.stats.heard).sort(function (a, b) { return v.stats.heard[b] - v.stats.heard[a]; }).map(function (k) { return '<tr><td>' + esc(k) + '</td><td>' + v.stats.heard[k] + '</td></tr>'; }).join('') + '</tbody></table>' : '<small>No answers yet.</small>') +
         '<div class="row"><div><label>Welcome credits</label><input id="st_n" inputmode="numeric" value="' + s.welcomeCredits + '"></div><div><label>They last (days)</label><input id="st_d" inputmode="numeric" value="' + s.welcomeDays + '"></div><div><label>Daily ceiling (accounts)</label><input id="st_cap" inputmode="numeric" value="' + s.dailyCap + '"></div><div><label>Sign-ups per device a day</label><input id="st_v" inputmode="numeric" value="' + s.perVisitorDaily + '"></div></div>' +
         '<label class="chk"><input type="checkbox" id="st_on"' + (s.on ? ' checked' : '') + '> <span>Give welcome credits to new accounts</span></label>' +
+        '<label class="chk"><input type="checkbox" id="st_ws"' + (s.weeklySummary ? ' checked' : '') + '> <span>Email me the sign-ups summary every Monday at 8 AM Texas time</span></label>' +
         '<label class="chk"><input type="checkbox" id="st_d3"' + (s.day3Email ? ' checked' : '') + '> <span>Send the day-3 email ("Try your first estimate draft") at 9 AM Texas time</span></label>' +
         '<p><small><span>At today\'s AI prices (checked</span> ' + esc(c.checkedOn) + '<span>), a full day at the ceiling costs about</span> <b>' + money(typical) + '</b> <span>in a normal week and at most</span> <b>' + money(worst) + '</b> <span>if every credit went to color previews. Text costs double on 2027-01-01 when the Gemini Flash price changes.</span></small></p>' +
         '<p><small><span>Defaults:</span> ' + v.defaults.welcomeCredits + ' <span>credits</span>, ' + v.defaults.welcomeDays + ' <span>days</span>, ' + v.defaults.dailyCap + ' <span>a day</span>.</small></p>' +
         '<div><button class="btn" id="st_save"' + dis('credits') + '>Save starter settings</button></div></div>';
       $('st_save').onclick = function () {
-        post({ action: 'starter_set', settings: { on: $('st_on').checked, welcomeCredits: Number($('st_n').value), welcomeDays: Number($('st_d').value), dailyCap: Number($('st_cap').value), perVisitorDaily: Number($('st_v').value), day3Email: $('st_d3').checked } }).then(function () { ok('Saved.'); starterLoad(); }).catch(bad);
+        post({ action: 'starter_set', settings: { on: $('st_on').checked, welcomeCredits: Number($('st_n').value), welcomeDays: Number($('st_d').value), dailyCap: Number($('st_cap').value), perVisitorDaily: Number($('st_v').value), day3Email: $('st_d3').checked, weeklySummary: $('st_ws').checked } }).then(function () { ok('Saved.'); starterLoad(); }).catch(bad);
       };
     }).catch(function (x) { box.textContent = x ? x.message : ''; });
   }

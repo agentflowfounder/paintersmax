@@ -35,7 +35,7 @@ test("settings: defaults are 250 credits for 60 days, 150 a day; bad values are 
   assert.equal(STARTER_DEFAULTS.welcomeCredits, 250);
   assert.equal(STARTER_DEFAULTS.welcomeDays, 60);
   const s = readStarter({ welcomeCredits: 99999, welcomeDays: 1, dailyCap: -5, perVisitorDaily: "x", on: false });
-  assert.deepEqual(s, { on: false, welcomeCredits: 1500, welcomeDays: 7, dailyCap: 1, perVisitorDaily: 3, day3Email: false });
+  assert.deepEqual(s, { on: false, welcomeCredits: 1500, welcomeDays: 7, dailyCap: 1, perVisitorDaily: 3, weeklySummary: true, day3Email: false });
 });
 
 test("credit menu: 250 credits, what each tool gives, and a busy first month leaves most of them", () => {
@@ -225,4 +225,17 @@ test("home: first estimate draft reminder only for new accounts with credits and
   assert.equal(firstDraftNudge({ jobs: 1, balance: 250, ageDays: 3 }), null);
   assert.equal(firstDraftNudge({ jobs: 0, balance: 3, ageDays: 3 }), null);
   assert.equal(firstDraftNudge({ jobs: 0, balance: 250, ageDays: 30 }), null);
+});
+
+test("owner Monday summary and the pre-written welcome reply", async () => {
+  const { summaryEmail } = await import("../src/weeklysummary.ts");
+  const { welcomeReply } = await import("../src/starter.ts");
+  const m = summaryEmail({ total: 2, bySource: [{ name: "facebook", count: 2 }], byDoor: [{ name: "grow", count: 1 }, { name: "free", count: 1 }], byHeard: [] }, 3);
+  assert.equal(m.subject, "PaintersMax: 2 new accounts last week");
+  assert.match(m.body, /Contractor: 1/);
+  assert.match(m.body, /waiting for tomorrow: 3/);
+  assert.equal(readStarter({ weeklySummary: false }).weeklySummary, false);
+  assert.equal(readStarter(null).weeklySummary, true);
+  assert.match(welcomeReply({ company: "Rose City", city: "Tyler, TX", es: false }).body, /Rose City account in Tyler, TX/);
+  assert.equal(welcomeReply({ company: "Rose City", city: "", es: true }).subject, "Bienvenido a PaintersMax");
 });
