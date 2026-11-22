@@ -65,7 +65,7 @@ export async function rateAiAnswer(env: Env, r: { tool: string; model: string; r
   }
 }
 
-export interface ScoreRow { tool: string; model: string; calls: number; ok: number; errorPct: number; avgMs: number; tokensIn: number; tokensOut: number; costCents: number | null; costPerCallCents: number | null; up: number; down: number; thumbsUpPct: number | null; reasons: Record<string, number> }
+export interface ScoreRow { quality: number | null; qn: number; wins: number; tool: string; model: string; calls: number; ok: number; errorPct: number; avgMs: number; tokensIn: number; tokensOut: number; costCents: number | null; costPerCallCents: number | null; up: number; down: number; thumbsUpPct: number | null; reasons: Record<string, number> }
 
 /** Folds the counters into one row per tool and model. Pure, so it can be tested. */
 export function foldScorecard(rows: { feature: string; n: number }[]): ScoreRow[] {
@@ -86,7 +86,7 @@ export function foldScorecard(rows: { feature: string; n: number }[]): ScoreRow[
     const costCents = price ? Math.round((((o.in ?? 0) * price[0] + (o.out ?? 0) * price[1]) / 1_000_000) * 100 * 100) / 100 : null;
     const reasons: Record<string, number> = {};
     for (const key of Object.keys(o)) if (key.startsWith("down_")) reasons[key.slice(5)] = o[key];
-    out.push({ tool, model, calls, ok, errorPct: calls ? Math.round(((calls - ok) / calls) * 1000) / 10 : 0, avgMs: calls ? Math.round((o.ms ?? 0) / calls) : 0, tokensIn: o.in ?? 0, tokensOut: o.out ?? 0, costCents, costPerCallCents: costCents !== null && calls ? Math.round((costCents / calls) * 1000) / 1000 : null, up, down, thumbsUpPct: up + down ? Math.round((up / (up + down)) * 100) : null, reasons });
+    out.push({ quality: o.qn ? Math.round((o.qsum / o.qn) * 10) / 10 : null, qn: o.qn ?? 0, wins: o.win ?? 0, tool, model, calls, ok, errorPct: calls ? Math.round(((calls - ok) / calls) * 1000) / 10 : 0, avgMs: calls ? Math.round((o.ms ?? 0) / calls) : 0, tokensIn: o.in ?? 0, tokensOut: o.out ?? 0, costCents, costPerCallCents: costCents !== null && calls ? Math.round((costCents / calls) * 1000) / 1000 : null, up, down, thumbsUpPct: up + down ? Math.round((up / (up + down)) * 100) : null, reasons });
   }
   return out.sort((a, b) => b.calls - a.calls);
 }
@@ -105,4 +105,21 @@ export async function aiToday(env: Env, today: string) {
   const sum = (f: (r: ScoreRow) => number) => rows.reduce((n, r) => n + f(r), 0);
   const calls = sum((r) => r.calls);
   return { calls, errors: calls - sum((r) => r.ok), costCents: Math.round(sum((r) => r.costCents ?? 0) * 100) / 100, unpriced: rows.some((r) => r.costCents === null), killSwitch: env.AI_KILL_SWITCH === "1", slow: rows.filter((r) => r.avgMs > 8000).map((r) => `${r.tool}/${r.model}`) };
+}
+
+/** A 1 to 5 quality score the owner gave in a blind side-by-side test (win = this answer was picked best). */
+export async function recordQuality(env: Env, r: { tool: string; model: string; score: number; win: boolean }): Promise<boolean> {
+  try {
+    const master = await masterId(env);
+    if (!master) return false;
+    const score = Math.min(5, Math.max(1, Math.round(r.score)));
+    const day = dayKey();
+    await add(env, master, r.tool, r.model, "qsum", score, day);
+    await add(env, master, r.tool, r.model, "qn", 1, day);
+    if (r.win) await add(env, master, r.tool, r.model, "win", 1, day);
+    return true;
+  } catch (err) {
+    console.error("ai quality failed", String(err));
+    return false;
+  }
 }

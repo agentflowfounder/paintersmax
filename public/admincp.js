@@ -240,15 +240,15 @@
   }
 
   // ------------------------------------------------------------- AI health and model scorecard
+  var secs = function (ms) { return (ms / 1000).toFixed(1) + 's'; };
   function aiHealthLoad() {
     var box = $('ah_box');
     var cents = function (c) { return c === null || c === undefined ? 'n/a' : '$' + (c / 100).toFixed(c >= 100 ? 2 : 3); };
-    var secs = function (ms) { return (ms / 1000).toFixed(1) + 's'; };
     var WHY = { wrong: 'not correct', unclear: 'unclear', too_long: 'too long', too_short: 'too short', other: 'other' };
     var table = function (rows) {
       if (!rows.length) return '<p><small>' + esc(T('No AI calls recorded in this period yet.')) + '</small></p>';
-      return '<div class="scroll"><table class="t"><thead><tr><th>Tool</th><th>Model</th><th>Calls</th><th>Errors</th><th>Avg time</th><th>Cost</th><th>Per call</th><th>&#128077;</th><th>&#128078;</th><th>Rated up</th><th>Why down</th></tr></thead><tbody>' + rows.map(function (r) {
-        return '<tr><td>' + esc(r.tool) + '</td><td>' + esc(r.model) + '</td><td>' + r.calls + '</td><td>' + (r.calls - r.ok) + ' (' + r.errorPct + '%)</td><td>' + secs(r.avgMs) + '</td><td>' + cents(r.costCents) + '</td><td>' + cents(r.costPerCallCents) + '</td><td>' + r.up + '</td><td>' + r.down + '</td><td>' + (r.thumbsUpPct === null ? '-' : r.thumbsUpPct + '%') + '</td><td><small>' + Object.keys(r.reasons).map(function (k) { return esc(WHY[k] || k) + ' ' + r.reasons[k]; }).join(', ') + '</small></td></tr>';
+      return '<div class="scroll"><table class="t"><thead><tr><th>Tool</th><th>Model</th><th>Calls</th><th>Errors</th><th>Avg time</th><th>Cost</th><th>Per call</th><th>&#128077;</th><th>&#128078;</th><th>Rated up</th><th>Why down</th><th>Your score</th><th>Blind wins</th></tr></thead><tbody>' + rows.map(function (r) {
+        return '<tr><td>' + esc(r.tool) + '</td><td>' + esc(r.model) + '</td><td>' + r.calls + '</td><td>' + (r.calls - r.ok) + ' (' + r.errorPct + '%)</td><td>' + secs(r.avgMs) + '</td><td>' + cents(r.costCents) + '</td><td>' + cents(r.costPerCallCents) + '</td><td>' + r.up + '</td><td>' + r.down + '</td><td>' + (r.thumbsUpPct === null ? '-' : r.thumbsUpPct + '%') + '</td><td><small>' + Object.keys(r.reasons).map(function (k) { return esc(WHY[k] || k) + ' ' + r.reasons[k]; }).join(', ') + '</small></td><td>' + (r.quality === null ? '-' : r.quality + ' / 5 (' + r.qn + ')') + '</td><td>' + r.wins + '</td></tr>';
       }).join('') + '</tbody></table></div>';
     };
     api('/api/admin?aihealth=1').then(function (v) {
@@ -260,9 +260,36 @@
         '<div class="tile"><b>' + (t.killSwitch ? 'ON' : 'Off') + '</b><span>AI kill switch' + (t.killSwitch ? ': AI is paused for everyone' : '') + '</span></div></div>' +
         (t.slow.length ? '<p><small><b>Slow today (over 8 seconds on average):</b> ' + esc(t.slow.join(', ')) + '</small></p>' : '<p><small>Nothing slow today.</small></p>') +
         '<p><small>Costs are estimates from the prices on file and the size of each request. Your provider dashboards are the real bill. Set the spending alerts there too.</small></p></div>' +
+        '<div class="card"><h3>Daily AI spend alert</h3><p><small>Email me at 50%, 80% and 100% of this estimated daily spend. It only warns; it does not pause the AI.</small></p><div class="row"><div><label>Daily limit (dollars)</label><input id="ah_lim" inputmode="decimal" value="' + (v.alert.dailyCents / 100) + '"></div><div><button class="btn" id="ah_lim_save">Save limit</button></div></div></div>' +
+        '<div class="card" id="bl_card"></div>' +
         '<div class="card"><h3>Model scorecard: last 7 days</h3>' + table(v.week) + '</div>' +
         '<div class="card"><h3>Model scorecard: last 30 days</h3>' + table(v.month) + '<p><small>A model becomes the default for a tool only after about 30 rated answers and a cost check.</small></p></div>';
+      $('ah_lim_save').onclick = function () { post({ action: 'ai_alert_set', dailyDollars: Number($('ah_lim').value) }).then(function () { ok('Saved.'); }).catch(bad); };
+      blindDraw(v);
     }).catch(function (x) { box.textContent = x ? x.message : ''; });
+  }
+
+  // Blind side-by-side test: the same question to every model with a key, answers shown as A, B, C without names, you score each 1 to 5.
+  function blindDraw(v) {
+    var c = $('bl_card'), open = v.blindOpen[0];
+    var head = '<h3>Blind model test</h3><p><small>Type one real question. Every model with a key answers; you see the answers as A, B, C without names and give each a score from 1 (poor) to 5 (great). The names appear after you save. Scores feed the scorecard below.</small></p>';
+    if (open) {
+      c.innerHTML = head + '<p><b>' + esc(open.question) + '</b> <small>(' + esc(open.tool) + ')</small></p>' + open.answers.map(function (a) {
+        return '<div class="card" style="margin:8px 0"><b>' + esc(a.label) + '</b><div style="white-space:pre-wrap;margin:6px 0">' + esc(a.text) + '</div><label>Score <select data-bs="' + esc(a.label) + '"><option value="">Choose</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label></div>';
+      }).join('') + '<div id="bl_out"></div><button class="btn" id="bl_save">Save scores and reveal models</button>';
+      $('bl_save').onclick = function () {
+        var scores = {}, all = true;
+        [].forEach.call(c.querySelectorAll('[data-bs]'), function (e) { if (!e.value) all = false; scores[e.getAttribute('data-bs')] = Number(e.value); });
+        if (!all) { bad({ message: 'Give every answer a score.' }); return; }
+        post({ action: 'blind_pick', id: open.id, scores: scores }).then(function (r) {
+          $('bl_out').innerHTML = '<table class="t"><tbody>' + r.reveal.map(function (x) { return '<tr><td>' + esc(x.label) + '</td><td>' + esc(x.model) + '</td><td>' + secs(x.ms) + '</td><td>' + x.score + ' / 5</td></tr>'; }).join('') + '</tbody></table><p><small>Saved to the scorecard.</small></p>';
+          ok('Saved.');
+        }).catch(bad);
+      };
+      return;
+    }
+    c.innerHTML = head + '<div class="row"><div><label>Question</label><input id="bl_q" maxlength="500" placeholder="For example: How many gallons for a 12x14 bedroom, walls and ceiling?"></div><div><label>Counts toward</label><select id="bl_t">' + v.blindTools.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select></div></div><button class="btn" id="bl_go">Ask all models</button>';
+    $('bl_go').onclick = function () { $('bl_go').disabled = true; post({ action: 'blind_run', question: $('bl_q').value, tool: $('bl_t').value }).then(function () { aiHealthLoad(); }).catch(function (x) { $('bl_go').disabled = false; bad(x); }); };
   }
 
   // ------------------------------------------------------------- promotions

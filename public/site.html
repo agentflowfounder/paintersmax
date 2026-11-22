@@ -57,7 +57,7 @@ canvas{max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none}
 <h2>Your website</h2>
 <p class="lead">Edit your pages, add your own photos, and publish when it looks right. Changes stay a draft until you tap Publish. Typing is free; the AI writing help uses credits.</p>
 <div class="meters" id="meters"></div>
-<div id="msg" role="status"></div>
+<div id="msg" role="status"></div><div id="ai_th"></div>
 <div class="tabs" role="tablist" id="tabs">
 <button type="button" role="tab" data-t="pages" aria-selected="true">Pages</button>
 <button type="button" role="tab" data-t="biz" aria-selected="false">Business details</button>
@@ -236,7 +236,7 @@ async function aiWrite(field,el,set){
   const ask=prompt(T('What should the AI do? (for example: make it shorter, mention cabinets, more friendly). Uses 1 AI credit.'),'');
   if(ask===null)return;
   msg('Writing...',true);
-  try{const j=await api('/api/site',{action:'write',field,text:el.value,ask,page:page().nav});el.value=j.text;set(j.text);touch();msg('Done. Check the new text, then save.',true);}catch(e){if(e)msg(e.message);}
+  try{const j=await api('/api/site',{action:'write',field,text:el.value,ask,page:page().nav});el.value=j.text;set(j.text);touch();msg('Done. Check the new text, then save.',true);if($('ai_th')&&window.pmThumbs)$('ai_th').innerHTML=window.pmThumbs(j.ai);}catch(e){if(e)msg(e.message);}
 }
 
 // ---------- Upgrade notice
@@ -583,5 +583,5 @@ $('pubBtn').onclick=async()=>{
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
 load();
 </script>
-<script src="/nav.js"></script>
+<script src="/aithumbs.js"></script><script src="/nav.js"></script>
 <script src="/helpvideo.js" defer></script><script src="/logo-apply.js"></script></body></html>

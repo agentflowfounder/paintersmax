@@ -533,7 +533,7 @@ function coachDraw(r){const b=$('bf_coach');if(!b)return;const T=window.pmT||(q=
  if(r.assumptions&&r.assumptions.length)h+=L(`I made these assumptions. Please confirm them: ${r.assumptions.join('; ')}.`);
  if(r.questions&&r.questions.length)h+=`<li>${esc(T('Good questions to ask '+nm+' before you send:'))}<ul>${r.questions.map(q=>'<li>'+esc(q)+'</li>').join('')}</ul></li>`;
  h+=L('Not sure about the total? Tap "Get a second opinion on my price". The Quote helper builds its own price without your price list, then compares the two and coaches you if you have been bidding too low or too high.');
- b.innerHTML=`<div class="coach"><b>${esc(T('Here is what I did'))}</b><ul>${h}</ul></div>`;}
+ b.innerHTML=`<div class="coach"><b>${esc(T('Here is what I did'))}</b><ul>${h}</ul>${window.pmThumbs?'<div>'+window.pmThumbs(r.ai)+'</div>':''}</div>`;}
 async function bfOpinion(){if(!J)return;openAcc('help');const el=$('acc_help');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
  const q=$('as_in');if(q&&!q.value.trim())q.value='Please build your own quote for this job and compare it with my estimate. Tell me if I am too low or too high.';
  setTimeout(()=>{if(typeof askNow==='function')askNow($('as_in').value,'quote');},200);}
@@ -756,4 +756,4 @@ document.addEventListener('input',e=>{const t=e.target,ds=t.dataset||{};if(ds.dk
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.ci!==undefined){clauses[+t.dataset.ci][t.dataset.cf]=t.value;return;}if(t.dataset&&t.dataset.f!==undefined){lines[+t.dataset.i][t.dataset.f]=t.value;drawTotals();}else if(t.id==='discount'||t.id==='tax')drawTotals();});
 document.addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.del;if(d!==undefined&&d!==''){lines.splice(+d,1);drawLines();}});
 (async()=>{try{const id=new URLSearchParams(location.search).get('id');id?await detail(id):await list();}catch(e){if(e)$('view').innerHTML='<p class="bad">'+esc(e.message||'Could not load.')+'</p>';}})();
-</script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>
+</script><script src="/aithumbs.js"></script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>

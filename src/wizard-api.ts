@@ -366,7 +366,7 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
     // The code prices the quantities from the painter's own list. The AI never sets a price.
     const priced = card ? draftLines(card.method, cardData, ai.quantities, job.trade).map((l) => ({ description: l.description, qty: l.qty, unit: l.unit, unitPrice: l.unitCents / 100 })) : [];
     const extra = ai.extraLines.map((l) => ({ description: l.description, qty: l.qty, unit: l.unit, unitPrice: 0, needsPrice: true }));
-    return json({ scope: ai.scope, lines: [...priced, ...extra], pricedCount: priced.length, needsPriceCount: extra.length, inclusions: ai.inclusions, exclusions: ai.exclusions, assumptions: ai.assumptions, questions: ai.questions, hasPriceList: !!card });
+    return json({ scope: ai.scope, lines: [...priced, ...extra], pricedCount: priced.length, needsPriceCount: extra.length, inclusions: ai.inclusions, exclusions: ai.exclusions, assumptions: ai.assumptions, questions: ai.questions, hasPriceList: !!card, ai: out ? { tool: out.tool, model: out.model } : undefined });
   }
 
   const est = sanitizeEstimate(b?.estimate);
