@@ -15,7 +15,16 @@ export const SAMPLES_KEY = "samplesetting";
 export const SAMPLE_TAG = "sample";
 export const SAMPLE_NOTE = "[sample]";
 
-export const readSamplesSetting = (raw: unknown): { on: boolean } => ({ on: (raw as any)?.on !== false });
+/** The English sample texts an admin may change. Anything left empty keeps the built-in text. Every title keeps the word "Sample". */
+export interface SampleText { customer: string; job: string; worker: string; note: string }
+const cl = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+/** Makes sure a name still says Sample, so a painter can always tell sample rows from their own. */
+export const keepSample = (v: string) => (/sample/i.test(v) ? v : `Sample: ${v}`).slice(0, 120);
+export const readSamplesSetting = (raw: unknown): { on: boolean; text: SampleText } => {
+  const t = ((raw as any)?.text ?? {}) as Record<string, unknown>;
+  const pick = (k: keyof SampleText, n: number, guard = false) => { const x = cl(t[k], n); return x && guard ? keepSample(x) : x; };
+  return { on: (raw as any)?.on !== false, text: { customer: pick("customer", 100, true), job: pick("job", 100, true), worker: pick("worker", 100, true), note: pick("note", 300) } };
+};
 export const samplesOn = (env: Env) => readBlob(env, SAMPLES_KEY, readSamplesSetting).then((s) => s.on);
 
 const COPY = {
@@ -28,7 +37,15 @@ export async function seedSamples(env: Env, companyId: number, lang: "en" | "es"
   if (!(await samplesOn(env))) return { seeded: false };
   const has = await env.DB.prepare("SELECT (SELECT COUNT(*) FROM jobs WHERE company_id = ?) AS j, (SELECT COUNT(*) FROM customers WHERE company_id = ?) AS c").bind(companyId, companyId).first<{ j: number; c: number }>();
   if (has && (has.j > 0 || has.c > 0)) return { seeded: false };
-  const t = COPY[lang === "es" ? "es" : "en"];
+  const t = { ...COPY[lang === "es" ? "es" : "en"] };
+  if (lang !== "es") {
+    // Admin-edited English texts (Admin > Settings). Spanish accounts keep the built-in Spanish samples.
+    const o = (await readBlob(env, SAMPLES_KEY, readSamplesSetting)).text;
+    if (o.customer) t.customer = o.customer;
+    if (o.job) t.job = o.job;
+    if (o.worker) t.worker = o.worker;
+    if (o.note) t.note = o.note;
+  }
   const cust = await env.DB.prepare("INSERT INTO customers (company_id, name, email, phone, tags, notes) VALUES (?, ?, NULL, NULL, ?, ?)").bind(companyId, t.customer, SAMPLE_TAG, t.note).run();
   const customerId = Number(cust.meta.last_row_id);
   const prop = await env.DB.prepare("INSERT INTO properties (company_id, customer_id, label, address, city, state, kind) VALUES (?, ?, ?, '123 Sample Street', '', '', 'residential')").bind(companyId, customerId, t.property).run();
@@ -96,4 +113,4 @@ export async function handleSamples(request: Request, env: Env): Promise<Respons
   return json({ count: await sampleCount(env, user.companyId) });
 }
 
-export const saveSamplesSetting = (env: Env, on: boolean) => writeBlob(env, SAMPLES_KEY, { on });
+export const saveSamplesSetting = (env: Env, on: boolean, text?: unknown) => writeBlob(env, SAMPLES_KEY, { on, text: readSamplesSetting({ text }).text });

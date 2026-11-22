@@ -83,3 +83,15 @@ test("tier demo sites build, publish and stay out of client counts", async () =>
   await buildTierDemo(e, TIER_DEMOS[0], "2026-11-23T00:00:00Z");
   assert.equal(e.db.prepare("SELECT COUNT(*) AS n FROM companies WHERE slug LIKE 'demo-%'").get().n, 2);
 });
+
+test("admin-edited sample text is used, always keeps the word Sample, and Spanish keeps its own", async () => {
+  const e = env();
+  e.db.exec("INSERT INTO companies (id, slug, name) VALUES (21, 'a', 'A'), (22, 'b', 'B')");
+  await saveSamplesSetting(e, true, { customer: "Pat Lee", job: "Kitchen cabinets", worker: "Sample Crew Lead", note: "Hello" });
+  await seedSamples(e, 21, "en");
+  assert.equal(e.db.prepare("SELECT name FROM customers WHERE company_id = 21").get().name, "Sample: Pat Lee");
+  assert.equal(e.db.prepare("SELECT title FROM jobs WHERE company_id = 21").get().title, "Sample: Kitchen cabinets");
+  assert.equal(e.db.prepare("SELECT name FROM workers WHERE company_id = 21").get().name, "Sample Crew Lead");
+  await seedSamples(e, 22, "es");
+  assert.match(e.db.prepare("SELECT name FROM customers WHERE company_id = 22").get().name, /ejemplo/i);
+});

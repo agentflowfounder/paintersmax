@@ -315,8 +315,8 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
       return { ok: true, companyId: co.id, data: { envelopes: r.value }, detail: { enabled: r.value.enabled, painter: r.value.painterCanEdit, caps: r.value.caps, model: r.value.textModel } };
     }
     case "samples_set": {
-      await saveSamplesSetting(env, b.on !== false);
-      return { ok: true, data: { on: b.on !== false }, detail: `sample content for new accounts ${b.on !== false ? "on" : "off"}` };
+      await saveSamplesSetting(env, b.on !== false, b.text);
+      return { ok: true, data: await readBlob(env, SAMPLES_KEY, readSamplesSetting), detail: `sample content for new accounts ${b.on !== false ? "on" : "off"}` };
     }
     case "ai_alert_set": {
       const dollars = Number(b.dailyDollars);
