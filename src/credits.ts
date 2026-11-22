@@ -1,4 +1,5 @@
 import { addDaysIso } from "./dates.ts";
+import { updateBlob } from "./kv.ts";
 import type { Env } from "./types.ts";
 import type { Feature } from "./usage.ts";
 
@@ -210,17 +211,26 @@ export async function grantDoorCredits(env: Env, c: number, i: { door: string; p
 export async function grantCredits(env: Env, c: number, i: { id: string; credits: number; source: GrantSource; note?: string; days?: number }, today: string): Promise<{ ok: boolean; added: boolean; error?: string }> {
   const credits = Math.round(Number(i.credits));
   if (!Number.isFinite(credits) || credits < 1 || credits > 100000) return { ok: false, added: false, error: "Enter a number of credits between 1 and 100,000." };
-  const grants = await loadGrants(env, c);
-  if (grants.some((g) => g.id === i.id)) return { ok: true, added: false };
-  if (grants.length >= MAX_GRANTS) return { ok: false, added: false, error: "Too many credit records on this account." };
-  let amount = credits;
-  if (FREE_SOURCES.includes(i.source)) {
-    amount = Math.min(credits, freeRoom(grants, today));
-    if (amount < 1) return { ok: true, added: false, error: "This account already received the most free credits allowed in its first 90 days." };
-  }
-  grants.push({ id: i.id.slice(0, 80), credits: amount, on: today, expiresOn: addDaysIso(today, i.days && i.days > 0 ? Math.min(3650, Math.round(i.days)) : EXPIRY_DAYS[i.source] ?? CREDIT_EXPIRY_DAYS), source: i.source, note: (i.note ?? "").slice(0, 100) });
-  await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')").bind(creditsKey(c), JSON.stringify({ grants })).run();
-  return { ok: true, added: true };
+  // Compare-and-swap: if two payments land at the same moment, the second one re-reads and adds to the first one's result,
+  // so neither grant is lost. The same grant id is still never added twice.
+  const res = await updateBlob<{ grants: Grant[] }, { added: boolean; error?: string }>(
+    env,
+    creditsKey(c),
+    (raw) => ({ grants: readGrants(raw) }),
+    ({ grants }) => {
+      if (grants.some((g) => g.id === i.id)) return { value: { grants }, result: { added: false } };
+      if (grants.length >= MAX_GRANTS) return { error: "Too many credit records on this account." };
+      let amount = credits;
+      if (FREE_SOURCES.includes(i.source)) {
+        amount = Math.min(credits, freeRoom(grants, today));
+        if (amount < 1) return { value: { grants }, result: { added: false, error: "This account already received the most free credits allowed in its first 90 days." } };
+      }
+      const next = [...grants, { id: i.id.slice(0, 80), credits: amount, on: today, expiresOn: addDaysIso(today, i.days && i.days > 0 ? Math.min(3650, Math.round(i.days)) : EXPIRY_DAYS[i.source] ?? CREDIT_EXPIRY_DAYS), source: i.source, note: (i.note ?? "").slice(0, 100) }];
+      return { value: { grants: next }, result: { added: true } };
+    },
+  );
+  if (!res.ok) return { ok: false, added: false, error: res.error };
+  return { ok: true, added: !!res.result?.added, ...(res.result?.error ? { error: res.result.error } : {}) };
 }
 
 /** Where a company's monthly allowance stands. Kept in app_settings (no migration): allow:<companyId>. */

@@ -515,8 +515,25 @@
     more(true);
   }
 
+  // Needs attention: AI failures, failed payments, stuck sites.
+  function exceptionsLoad() {
+    var box = $('ex_box'); if (!box) return;
+    api('/api/admin?exceptions=1').then(function (v) {
+      box.innerHTML = v.items.length ? v.items.map(function (i) {
+        return '<div style="border-top:1px solid #eee;padding:8px 0">' + pill(i.severity === 'high' ? 'Act now' : 'Look soon', i.severity === 'high' ? 'red' : 'gold') + ' <b>' + esc(i.title) + '</b><div><small>' + esc(i.detail) + '</small>' + (i.companyId ? ' <a href="#client/' + i.companyId + '">Open client</a>' : '') + '</div></div>';
+      }).join('') : '<p style="margin:0">Nothing needs attention right now. No failing AI tools, missed payments or stuck websites.</p>';
+    }).catch(function (x) { box.textContent = x ? x.message : ''; });
+  }
+  function samplesLoad() {
+    var box = $('sm_box'); if (!box) return;
+    api('/api/admin?samples=1').then(function (v) {
+      box.innerHTML = '<label class="sw"><input type="checkbox" id="sm_on" ' + (v.on ? 'checked' : '') + '> Add a sample customer, job, estimate and employee to every new account</label>' + '<div class="row"><div><label>Sample customer name</label><input id="sm_c" maxlength="100" value="' + esc(v.text.customer) + '" placeholder="Sample Customer (Maria Garcia)"></div><div><label>Sample job title</label><input id="sm_j" maxlength="100" value="' + esc(v.text.job) + '" placeholder="Sample: Living room and hallway repaint"></div><div><label>Sample employee</label><input id="sm_w" maxlength="100" value="' + esc(v.text.worker) + '" placeholder="Sample Painter (Alex)"></div></div><label>Note on the sample customer</label><input id="sm_n" maxlength="300" value="' + esc(v.text.note) + '"><p><small>Leave a box empty to keep the built-in text. Names always keep the word Sample. Spanish accounts keep the built-in Spanish samples. Changes apply to accounts created after you save.</small></p>' + '<p><small>Sample rows are marked "Sample" and each painter can clear them with one button on their dashboard. Turning this off only affects accounts created after you save.</small></p><div><button class="btn" id="sm_save"' + dis('settings') + '>Save</button></div>';
+      $('sm_save').onclick = function () { post({ action: 'samples_set', on: $('sm_on').checked, text: { customer: $('sm_c').value, job: $('sm_j').value, worker: $('sm_w').value, note: $('sm_n').value } }).then(function () { ok('Saved.'); }).catch(bad); };
+    }).catch(function (x) { box.textContent = x ? x.message : ''; });
+  }
+
   var LOAD = {
-    clients: function () { clientsLoad(); if (typeof load === 'function') load(); },
+    clients: function () { clientsLoad(); exceptionsLoad(); if (typeof load === 'function') load(); },
     client: clientLoad,
     subs: subsLoad,
     credits: function () { creditsLoad(); if (typeof load === 'function') load(); },
@@ -527,7 +544,7 @@
     feedback: feedbackLoad,
     domains: function () { heldLoad(); if (typeof load === 'function') load(); },
     content: function () { if (typeof hLoad === 'function') hLoad(); },
-    settings: function () { ['tkLoad', 'mkLoad', 'mLoad', 'ntLoad', 'amLoad'].forEach(function (f) { if (typeof window[f] === 'function') window[f](); }); },
+    settings: function () { samplesLoad(); ['tkLoad', 'mkLoad', 'mLoad', 'ntLoad', 'amLoad'].forEach(function (f) { if (typeof window[f] === 'function') window[f](); }); },
     security: securityLoad,
   };
 

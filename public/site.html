@@ -243,12 +243,14 @@ async function aiWrite(field,el,set){
 }
 
 // ---------- Upgrade notice
+// Example sites for each door (built by an admin in Admin > Websites; dfwpainters.pro is the Commercial example).
+function exLink(name){const u={'Local Pro':'https://demo-local-pro.paintersmax.app/','Contractor':'https://demo-contractor.paintersmax.app/','Commercial':'https://dfwpainters.pro/'}[name];return u?`<br><a href="${u}" target="_blank" rel="noopener">${T('See an example')}</a>`:'';}
 function openUp(why){
   if(!S.next){msg('You have the biggest door. Ask us if you need more.');return;}
   const u=usage(),L=S.limits;
   $('upT').textContent=why?(why==='pages'?`${u.pages} ${T('of')} ${L.pages} ${T('pages')}`:why==='services'?`${u.services} ${T('of')} ${L.services} ${T('service pages')}`:why==='photos'?`${u.photos} ${T('of')} ${L.photos} ${T('photos')}`:why==='template'?T('More templates'):T('Publish your site')):T('Compare the doors');
   $('upWhy').textContent=why==='template'?T('This template comes with a higher door. Your content moves with you.'):why==='publish'?T('Publishing your website comes with the Local Pro door. Your draft is saved and nothing is lost.'):why?T('Your door is full. The next door gives you more room right away.'):T('Here is what each door gives. Nothing is hidden.');
-  const rows=S.doors.map(d=>`<tr class="${d.current?'cur':''}"><td><b>${esc(T(d.name))}</b>${d.current?' <span class="pill">'+T('Yours')+'</span>':''}</td><td>${d.limits.pages} ${T('pages')}</td><td>${d.limits.services} ${T('service pages')}</td><td>${d.limits.photos} ${T('photos')}</td><td>${d.upgradeCents&&!d.current?T('Upgrade')+' '+money(d.upgradeCents):''}</td></tr>`).join('');
+  const rows=S.doors.map(d=>`<tr class="${d.current?'cur':''}"><td><b>${esc(T(d.name))}</b>${d.current?' <span class="pill">'+T('Yours')+'</span>':''}</td><td>${d.limits.pages} ${T('pages')}</td><td>${d.limits.services} ${T('service pages')}</td><td>${d.limits.photos} ${T('photos')}</td><td>${d.upgradeCents&&!d.current?T('Upgrade')+' '+money(d.upgradeCents):''}${exLink(d.name)}</td></tr>`).join('');
   $('upTable').innerHTML=`<tr><th>${T('Door')}</th><th>${T('Pages')}</th><th>${T('Services')}</th><th>${T('Photos')}</th><th></th></tr>`+rows;
   $('upGo').textContent=T('Upgrade to')+' '+T(S.next.name)+' '+T('for')+' '+money(S.next.priceCents);
   const pr=S.next.promo;$('upPromo').hidden=!pr;if(pr)$('upPromo').textContent=pr.name+': '+(pr.credits?pr.credits+' '+T('AI credits')+' ':'')+(pr.founding?T('and the Founding painter badge')+' ':'')+T('until')+' '+pr.endsOn;

@@ -203,7 +203,7 @@ export interface SubRow {
 /** Every client's door and subscription, for the Subscriptions tab and the client list. */
 export async function allSubs(env: Env, today: string): Promise<SubRow[]> {
   const cos = await env.DB.prepare(
-    "SELECT c.id, c.name, c.slug, c.plan, (SELECT email FROM users WHERE company_id = c.id ORDER BY id LIMIT 1) AS email FROM companies c ORDER BY c.id",
+    "SELECT c.id, c.name, c.slug, c.plan, (SELECT email FROM users WHERE company_id = c.id ORDER BY id LIMIT 1) AS email FROM companies c WHERE c.slug NOT LIKE 'demo-%' ORDER BY c.id",
   ).all<{ id: number; name: string; slug: string; plan: string; email: string | null }>();
   const doors = new Map((await blobsWithPrefix(env, "sitedoor:", 10000)).map((r) => [Number(r.key.slice(9)), r.value]));
   const subs = new Map((await blobsWithPrefix(env, "sub:", 10000)).map((r) => [Number(r.key.slice(4)), readSub(r.value)]));
