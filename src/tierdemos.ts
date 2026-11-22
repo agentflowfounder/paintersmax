@@ -1,5 +1,6 @@
 import { cleanSite, DOOR_LIMITS, DOOR_NAMES, firstDraft, limitsFor, publishBlockers, readDoorRecord, type Door } from "./sitecore.ts";
 import { DOOR_PLAN } from "./sitecore.ts";
+import { readBlob, writeBlob } from "./kv.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -47,3 +48,27 @@ export async function buildTierDemo(env: Env, d: (typeof TIER_DEMOS)[number], pu
 }
 
 export const tierDemoLabel = (d: (typeof TIER_DEMOS)[number]) => `${DOOR_NAMES[d.door]} example (${DOOR_LIMITS[d.door].pages} pages)`;
+
+/** What the demos are built from. When any of it changes (door limits, the demo definitions, the template), the demos are rebuilt. */
+export const TIER_DEMO_SIG_KEY = "tierdemos:sig";
+export const tierDemoSignature = () => JSON.stringify({ limits: DOOR_LIMITS, demos: TIER_DEMOS, template: "sunset-sand", v: 1 });
+
+/** Builds every tier demo and remembers what they were built from. */
+export async function buildAllTierDemos(env: Env, publishedAt: string) {
+  const out = [];
+  for (const d of TIER_DEMOS) out.push(await buildTierDemo(env, d, publishedAt));
+  if (out.every((o) => o.ok)) await writeBlob(env, TIER_DEMO_SIG_KEY, { sig: tierDemoSignature(), at: publishedAt });
+  return out;
+}
+
+/**
+ * Daily check (09:00 UTC run): when the door limits or demo definitions changed since the demos were built, rebuild them
+ * so they always show what each door really gives. Does nothing until an admin has built the demos once.
+ */
+export async function syncTierDemos(env: Env, now = new Date().toISOString()): Promise<"none" | "same" | "rebuilt" | "failed"> {
+  const last = await readBlob(env, TIER_DEMO_SIG_KEY, (raw: any) => (typeof raw?.sig === "string" ? (raw.sig as string) : ""));
+  if (!last) return "none";
+  if (last === tierDemoSignature()) return "same";
+  const out = await buildAllTierDemos(env, now);
+  return out.every((o) => o.ok) ? "rebuilt" : "failed";
+}

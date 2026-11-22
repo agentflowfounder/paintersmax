@@ -21,7 +21,7 @@ import { CREDIT_COST } from "./credits.ts";
 import { BLOCKS, blockState, type BlockKey } from "./siteblocks.ts";
 import { FONT_CHOICES, isFont, SOCIAL_KINDS } from "./sitetheme.ts";
 import { refreshPacks } from "./sitepacks.ts";
-import { buildTierDemo, isDemoSlug, TIER_DEMOS } from "./tierdemos.ts";
+import { buildAllTierDemos, isDemoSlug, TIER_DEMOS } from "./tierdemos.ts";
 import { canPublishWith, entries, entryOf, mayChoose, pickerList, readRegistry, REGISTRY_KEY, renderWithTemplate, uiLangOf, type Registry } from "./sitetemplates.ts";
 import { creditView } from "./credits.ts";
 import { activeGrow, advance, growthOffer, stepsCents, GROW_STEPS } from "./growth.ts";
@@ -628,8 +628,7 @@ export async function handleSiteAdmin(request: Request, env: Env): Promise<Respo
       return json({ error: "Invalid JSON." }, 400);
     }
     if (b?.action === "tier_demos") {
-      const out = [];
-      for (const d of TIER_DEMOS) out.push(await buildTierDemo(env, d, new Date().toISOString()));
+      const out = await buildAllTierDemos(env, new Date().toISOString());
       await audit(env, 0, `admin ${user.email}`, "tier demo sites", out.map((o) => `${o.slug}:${o.ok ? "ok" : o.error}`).join(", "));
       return json({ ok: out.every((o) => o.ok), results: out, origins: await Promise.all(TIER_DEMOS.map((d) => siteOrigin(env, d.slug))) });
     }
