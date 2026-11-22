@@ -3,7 +3,7 @@ import { provisionClient } from "./admin.ts";
 import { allowanceById, allowanceByPrice, companyOfAllowanceSub, grantCredits, loadAllowance, saveAllowance, topUpById } from "./credits.ts";
 import { todayLocal } from "./dates.ts";
 import { normalizePlan, type Plan } from "./usage.ts";
-import { applyPaidUpgrade } from "./sitebuilder.ts";
+import { applyGrowthSteps, applyPaidUpgrade } from "./sitebuilder.ts";
 import type { Env } from "./types.ts";
 
 const json = (data: unknown, status = 200) =>
@@ -143,6 +143,11 @@ export async function handleStripeWebhook(request: Request, env: Env): Promise<R
     // A one-click website upgrade was paid. The door comes from our own list; it can only go up.
     const cid = Number(obj.metadata?.company_id);
     if (Number.isInteger(cid)) await applyPaidUpgrade(env, cid, obj.metadata?.door, typeof obj.id === "string" ? obj.id : undefined, { promoCode: typeof obj.metadata?.promo === "string" ? obj.metadata.promo : "", paidCents: Number(obj.amount_total) || 0 });
+    if (Number.isInteger(cid) && typeof obj.customer === "string") await env.DB.prepare("UPDATE companies SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?").bind(obj.customer, cid).run();
+  } else if (type === "checkout.session.completed" && obj.mode === "payment" && obj.metadata?.kind === "site_grow" && obj.payment_status === "paid") {
+    // Steps toward the next door were paid (pay-as-you-grow). The door comes from our own list and can only go up.
+    const cid = Number(obj.metadata?.company_id);
+    if (Number.isInteger(cid) && typeof obj.id === "string") await applyGrowthSteps(env, cid, obj.metadata?.door, obj.metadata?.steps, obj.id, Number(obj.amount_total) || 0);
     if (Number.isInteger(cid) && typeof obj.customer === "string") await env.DB.prepare("UPDATE companies SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?").bind(obj.customer, cid).run();
   } else if (type === "checkout.session.completed" && obj.mode === "subscription" && obj.metadata?.kind === "allowance") {
     // A monthly allowance started. The first month's credits are added now; later months arrive with each paid invoice (below).

@@ -26,8 +26,8 @@ export const normalizePlan = (v: unknown): Plan => (v === "starter" || v === "ba
 export const monthKey = (d = new Date()) => d.toISOString().slice(0, 7);
 export const dayKey = (d = new Date()) => d.toISOString().slice(0, 10);
 
-/** New free companies get a trial: Basic-level limits for the first 14 days. Basic (not Pro) keeps worst-case AI cost small. */
-export const TRIAL_DAYS = 14;
+/** New free companies get a trial: Basic-level limits for the first 30 days (Rogelio, 2026-11-22; was 14). Basic (not Pro) keeps worst-case AI cost small. */
+export const TRIAL_DAYS = 30;
 export const TRIAL_PLAN: Plan = "basic";
 
 /** Whole days left in a free company's trial (0 when it is over or does not apply). */

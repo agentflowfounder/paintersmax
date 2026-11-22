@@ -1,4 +1,5 @@
 import { configOf, TEMPLATE_IDS } from "../templates/configs.ts";
+import { activeGrow, extraRoom, readGrow, type GrowRec } from "./growth.ts";
 import { cleanSocial, cleanTheme, SITE_SCHEMA, upgradeSite, type SocialLink, type Theme } from "./sitetheme.ts";
 import type { Plan } from "./usage.ts";
 import { cleanOrient, parseYouTube, type Orient } from "./ytcore.ts";
@@ -48,7 +49,7 @@ export const DEFAULT_TEMPLATE = "sunset-sand";
 export const isTemplateId = (t: string) => TEMPLATE_IDS.includes(t);
 
 /** A door plus any limits admin set by hand (for a trade group deal or a founder). Override never lowers a door. */
-export interface DoorRecord { door?: Door; override?: Partial<Limits>; note?: string }
+export interface DoorRecord { door?: Door; override?: Partial<Limits>; note?: string; grow?: GrowRec }
 
 export function readDoorRecord(raw: unknown): DoorRecord {
   try {
@@ -65,6 +66,8 @@ export function readDoorRecord(raw: unknown): DoorRecord {
       }
       if (Object.keys(ov).length) out.override = ov;
     }
+    const gr = readGrow((j as any).grow);
+    if (gr) out.grow = gr;
     if (typeof (j as any).note === "string" && (j as any).note.trim()) out.note = (j as any).note.trim().slice(0, 120);
     return out;
   } catch {
@@ -79,7 +82,16 @@ export function doorFor(plan: Plan, rec: DoorRecord): Door {
 export function limitsFor(door: Door, rec: DoorRecord): Limits {
   const base = DOOR_LIMITS[door];
   const o = rec.override ?? {};
-  return { pages: Math.max(base.pages, o.pages ?? 0), services: Math.max(base.services, o.services ?? 0), photos: Math.max(base.photos, o.photos ?? 0) };
+  // Steps bought toward the next door (growth.ts) add room on top of the door.
+  const g = activeGrow(door, rec.grow);
+  const x = g ? extraRoom(door, g.steps) : { pages: 0, services: 0, photos: 0, cities: 0 };
+  return { pages: Math.max(base.pages + x.pages, o.pages ?? 0), services: Math.max(base.services + x.services, o.services ?? 0), photos: Math.max(base.photos + x.photos, o.photos ?? 0) };
+}
+
+/** Extra cities a painter has bought toward the next door (added to the plan's city cap). */
+export function extraCities(door: Door, rec: DoorRecord): number {
+  const g = activeGrow(door, rec.grow);
+  return g ? extraRoom(door, g.steps).cities : 0;
 }
 
 // ------------------------------------------------------------------ the site document

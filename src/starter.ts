@@ -138,7 +138,7 @@ export function creditMenu(credits: number, days = 60): { rows: MenuRow[]; sampl
 
 /**
  * Free credits (welcome, sign-up, promotion) that run out within `days`, for the Home reminder. Paid credits are left out:
- * top-ups do not expire during early access and allowances roll over on their own.
+ * top-ups last 12 months and allowances roll over on their own.
  */
 export function expiringSoon(rows: { source: string; left: number; expired: boolean; expiresOn: string }[], today: string, days = 7): { credits: number; on: string } | null {
   const until = addDaysIso(today, days);
@@ -274,13 +274,15 @@ export async function handleStarterPublic(env: Env, today: string): Promise<Resp
  * (Booked by Spring and others; promoPrice never goes under the floor). Between paid doors it stays the difference
  * of the floors, as before.
  */
-export function doorCharge(from: Door, to: PaidDoor, promo: Promo | null, today: string): { cents: number; listCents: number; promoApplied: boolean } {
+export function doorCharge(from: Door, to: PaidDoor, promo: Promo | null, today: string, creditCents = 0): { cents: number; listCents: number; promoApplied: boolean } {
   if (from === "free") {
     const p = promoPrice(to, "signup", promo, today);
     return { cents: p.cents, listCents: p.listCents, promoApplied: p.applied };
   }
-  const cents = upgradeCents(from, to);
-  return { cents, listCents: cents, promoApplied: false };
+  // Steps bought toward this door (growth.ts) count toward its price.
+  const full = upgradeCents(from, to);
+  const cents = creditCents > 0 ? Math.max(100, full - creditCents) : full;
+  return { cents, listCents: full, promoApplied: false };
 }
 
 /**

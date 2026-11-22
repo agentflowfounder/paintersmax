@@ -10,7 +10,7 @@ import type { Feature } from "./usage.ts";
  *  - Heavier uses cost more than one credit (a photo render costs more than a chat question).
  *  - Credits come in grants. How long a grant lasts depends on where it came from (see EXPIRY_DAYS):
  *      allowance  the monthly credits of a $19 / $39 / $79 allowance; unused ones roll over for two months
- *      topup      credits bought one at a time ($5 to $100); they do not expire during early access
+ *      topup      credits bought one at a time ($5 to $100); they last 12 months from the day they are bought
  *      welcome    the credits every new company starts with (250, 60 days)
  *      door       the first payment of a paid door (500, 90 days), unless the purchase carried a promotion
  *      promo      a promotion's credits (Booked by Spring and others, 90 days); they REPLACE door credits, never add to them
@@ -30,7 +30,7 @@ export const CREDIT_EXPIRY_DAYS = 90;
 
 export type GrantSource = "pack" | "admin" | "allowance" | "topup" | "welcome" | "door" | "promo" | "reward";
 const SOURCES: GrantSource[] = ["pack", "admin", "allowance", "topup", "welcome", "door", "promo", "reward"];
-/** How many days a grant can be used, by where it came from. Top-ups are kept for ten years, which is "no expiry" for early access. */
+/** How many days a grant can be used, by where it came from. Top-ups last 12 months (Rogelio, 2026-11-22), which limits unused balances. */
 /** Every new company, free or paid, starts with these credits once (Rogelio, 2026-11-15: 250 for 60 days). */
 export const WELCOME_CREDITS = 250;
 export const WELCOME_EXPIRY_DAYS = 60;
@@ -40,7 +40,7 @@ export const DOOR_CREDITS = 500;
 export const FREE_CREDIT_CAP = 1500;
 export const FREE_CAP_DAYS = 90;
 const FREE_SOURCES: GrantSource[] = ["welcome", "door", "promo", "reward"];
-export const EXPIRY_DAYS: Record<GrantSource, number> = { pack: 90, admin: 90, allowance: 90, topup: 3650, welcome: WELCOME_EXPIRY_DAYS, door: 90, promo: 90, reward: 180 };
+export const EXPIRY_DAYS: Record<GrantSource, number> = { pack: 90, admin: 90, allowance: 90, topup: 365, welcome: WELCOME_EXPIRY_DAYS, door: 90, promo: 90, reward: 180 };
 
 /** A monthly allowance: a Stripe subscription that adds credits every month. Prices approved 2026-11-14. */
 export interface Allowance { id: string; priceCents: number; credits: number }

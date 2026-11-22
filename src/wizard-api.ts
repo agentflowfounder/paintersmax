@@ -1,5 +1,6 @@
 import { coiLink, coverageFor, loadSummary } from "./insurance.ts";
 import { getSessionUser } from "./auth.ts";
+import { extraCitiesFor } from "./sitebuilder.ts";
 import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } from "./profile.ts";
 import { consume, normalizePlan, refund } from "./usage.ts";
 import { ask, buildJobContext, completeEx, draftCoverNote, sanitizeHistory } from "./assistant.ts";
@@ -48,7 +49,7 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
     } catch {
       return json({ error: "Invalid JSON." }, 400);
     }
-    const profile = sanitizeProfile(body?.profile, company.plan);
+    const profile = sanitizeProfile(body?.profile, company.plan, await extraCitiesFor(env, company.id, company.plan));
     const step = typeof body?.setupStep === "string" ? body.setupStep.replace(/[^a-z_]/g, "").slice(0, 30) || "start" : "start";
     await env.DB.prepare(
       `INSERT INTO company_profiles (company_id, data, setup_step, completed, updated_at) VALUES (?, ?, ?, ?, datetime('now'))
@@ -70,7 +71,7 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
   return json({
     company: company.name,
     plan,
-    caps: PROFILE_CAPS[plan],
+    caps: { ...PROFILE_CAPS[plan], cities: PROFILE_CAPS[plan].cities + (await extraCitiesFor(env, company.id, company.plan)) },
     profile: parse(row?.data),
     setupStep: row?.setup_step ?? "start",
     completed: row?.completed === 1,

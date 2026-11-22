@@ -50,6 +50,7 @@ canvas{max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none}
 .srow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;border-bottom:1px solid #eceae4;padding:6px 0}.srow .btns{margin-left:auto}
 .mrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}.mrow input{flex:1;min-width:140px}.mrow select{width:auto}
 .pslot{display:grid;grid-template-columns:120px 1fr;gap:12px;align-items:start;border-bottom:1px solid #eceae4;padding:10px 0}.pslot img,.pslot-ph{width:120px;height:90px;object-fit:cover;border-radius:8px}.pslot-ph{display:grid;place-content:center;text-align:center;border:2px dashed #cfd5dc;font-size:12px;background:#faf8f4}
+#up table.doors{display:block;overflow-x:auto}
 </style></head><body>
 <header><div><b>PaintersMax</b> Website</div><div><a href="/dashboard">Home</a></div></header>
 <main><div data-help="site-start" style="margin:6px 0"></div>
@@ -80,6 +81,7 @@ canvas{max-width:100%;border-radius:8px;cursor:crosshair;touch-action:none}
 <p id="upWhy" class="lead"></p>
 <table class="doors" id="upTable"></table>
 <p class="muted" id="upNote">You pay only the difference. Nothing on your site is lost.</p>
+<div id="upGrow" hidden style="margin-top:10px;padding:12px;border:1px solid #d8dde6;border-radius:10px"></div>
 <div id="upPromo" hidden style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#fff7e6;color:#5c3d00;font-size:14px"></div><label for="upCode" style="display:block;margin-top:8px">Promo code (optional)</label><input id="upCode" maxlength="24" autocomplete="off" style="text-transform:uppercase;max-width:240px">
 <div class="btns"><button class="btn" id="upGo" type="button">Upgrade now</button><button class="btn sec" type="button" onclick="document.getElementById('up').close()">Not now</button></div>
 <div id="upMsg" class="bad"></div>
@@ -123,6 +125,7 @@ async function load(){
   if(S.viewAs){$('va').hidden=false;$('va').textContent=T('Admin view: you are editing the site of')+' '+S.company.name+'. '+T('Every change is written to the audit log.');}
   if(!cur||!S.site.pages.some(p=>p.id===cur))cur=S.site.pages[0].id;
   if(new URLSearchParams(location.search).get('upgrade'))setTimeout(()=>openUp(null),0);
+  if(new URLSearchParams(location.search).get('grown'))msg('Thank you. Your steps are being added; refresh in a minute if the new room does not show yet.',true);
   if(new URLSearchParams(location.search).get('upgraded'))msg('Thank you. Your upgrade is being applied; refresh in a minute if the new limits do not show yet.',true);
   render();
 }
@@ -249,6 +252,11 @@ function openUp(why){
   $('upTable').innerHTML=`<tr><th>${T('Door')}</th><th>${T('Pages')}</th><th>${T('Services')}</th><th>${T('Photos')}</th><th></th></tr>`+rows;
   $('upGo').textContent=T('Upgrade to')+' '+T(S.next.name)+' '+T('for')+' '+money(S.next.priceCents);
   const pr=S.next.promo;$('upPromo').hidden=!pr;if(pr)$('upPromo').textContent=pr.name+': '+(pr.credits?pr.credits+' '+T('AI credits')+' ':'')+(pr.founding?T('and the Founding painter badge')+' ':'')+T('until')+' '+pr.endsOn;
+  const gw=$('upGrow'),g=S.grow;gw.hidden=!g;
+  if(g){const a=g.next.adds,parts=[];const pl=(n,one,many)=>'+'+n+' '+T(n===1?one:many);if(a.pages)parts.push(pl(a.pages,'page','pages'));if(a.services)parts.push(pl(a.services,'service page','service pages'));if(a.photos)parts.push(pl(a.photos,'photo','photos'));if(a.cities)parts.push(pl(a.cities,'city','cities'));
+    const dots=Array.from({length:5},(_,i)=>i<g.done?'●':'○').join(' ');
+    gw.innerHTML=`<b>${T('Not ready for the next door? Grow a little at a time.')}</b><div class="muted" style="margin:4px 0">${T('Everything you pay counts toward')} ${esc(T(g.toName))}. ${T('Five steps add up to the same price as upgrading at once.')}</div><div><span style="font-size:18px;letter-spacing:3px">${dots}</span> <small>${T('Step')} ${g.next.step} ${T('of')} 5</small></div><div style="margin:4px 0">${esc(parts.join(', '))}</div>${g.done?`<div class="muted">${T('Paid so far')} ${money(g.paidCents)}</div>`:''}<div class="btns"><button class="btn sec" id="upStep" type="button">${T('Add step')} ${g.next.step} ${T('for')} ${money(g.next.cents)}</button></div>`;
+    $('upStep').onclick=async()=>{$('upStep').disabled=true;try{if(dirty)await save(true);const j=await api('/api/site',{action:'grow',steps:1});location.href=j.url;}catch(e){$('upMsg').textContent=e?T(e.message):'';$('upStep').disabled=false;}};}
   $('upMsg').textContent='';$('up').showModal();
   $('upGo').onclick=async()=>{$('upGo').disabled=true;try{if(dirty)await save(true);const j=await api('/api/site',{action:'upgrade',door:S.next.door,code:$('upCode').value.trim()});location.href=j.url;}catch(e){$('upMsg').textContent=e?T(e.message):'';$('upGo').disabled=false;}};
 }

@@ -4,7 +4,7 @@ import type { Env } from "./types.ts";
 /**
  * Commercial bids: Free and Starter cannot save one, Basic gets ONE free try (to taste it and win a job), Pro is unlimited.
  * The try counts commercial jobs that already have an estimate. A job that already has its own estimate can always be edited and sent.
- * The 14-day free trial counts as Basic.
+ * The 30-day free trial counts as Basic.
  */
 export const COMMERCIAL_LIMIT: Record<Plan, number> = { free: 0, starter: 0, basic: 1, pro: Number.POSITIVE_INFINITY };
 
