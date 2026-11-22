@@ -3,6 +3,7 @@ import type { Env } from "./types.ts";
 /** Tables that hold sign-in secrets. They are never put in a backup file. */
 export const SKIP_TABLES = /^(sessions|login_tokens|_cf_.*|sqlite_.*|d1_migrations)$/;
 const ROW_CAP = 50000;
+export const LAST_BACKUP_KEY = "lastbackup";
 
 /**
  * A plain JSON copy of the database for the owner to keep. Sign-in tables are left out,

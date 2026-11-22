@@ -257,17 +257,18 @@ export async function draftCoverNote(env: Env, input: { company: string; custome
 }
 
 /** Runs one question through Gemini and through Haiku, for the side-by-side test in /admin. Each answer carries its time and a rough token count. */
-export async function sideBySide(env: Env, question: string): Promise<{ provider: Provider; text: string; ms: number; tokens: number; ok: boolean }[]> {
+export async function sideBySide(env: Env, question: string, providers: Provider[] = ["gemini", "haiku"]): Promise<{ provider: Provider; model: string; text: string; ms: number; tokens: number; ok: boolean }[]> {
   const system = `${SYSTEM_PROMPT}\n\n<job_data>\nCompany: Tyler Painters (sample). Job: interior repaint, 3 bedrooms, walls and ceilings, two coats.\n</job_data>`;
   const run = async (p: Provider) => {
     const t0 = Date.now();
-    if (!keyFor(env, p)) return { provider: p, text: "No key for this provider.", ms: 0, tokens: 0, ok: false };
+    const model = modelFor(env, p);
+    if (!keyFor(env, p)) return { provider: p, model, text: "No key for this provider.", ms: 0, tokens: 0, ok: false };
     try {
       const text = (await CALLERS[p](env, system, [{ role: "user", content: question }], 600)).trim();
-      return { provider: p, text, ms: Date.now() - t0, tokens: Math.round((system.length + question.length + text.length) / 4), ok: !!text };
+      return { provider: p, model, text, ms: Date.now() - t0, tokens: Math.round((system.length + question.length + text.length) / 4), ok: !!text };
     } catch (err) {
-      return { provider: p, text: String(err), ms: Date.now() - t0, tokens: 0, ok: false };
+      return { provider: p, model, text: String(err), ms: Date.now() - t0, tokens: 0, ok: false };
     }
   };
-  return Promise.all([run("gemini"), run("haiku")]);
+  return Promise.all(providers.map(run));
 }

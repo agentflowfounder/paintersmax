@@ -344,7 +344,7 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
       return json({ error: "The AI could not write right now. Your credits were not used. Try again in a minute." }, 503);
     }
     if (a.viewAs) await audit(env, co.id, by, "AI write", field);
-    return json({ ok: true, text: out.text.replace(/^["']|["']$/g, "").slice(0, field === "seoTitle" ? 70 : field === "seoDesc" ? 170 : 6000) });
+    return json({ ok: true, ai: { tool: out.tool, model: out.model }, text: out.text.replace(/^["']|["']$/g, "").slice(0, field === "seoTitle" ? 70 : field === "seoDesc" ? 170 : 6000) });
   }
   if (action === "restyle") {
     // AI help with the look: suggests colors and fonts for the template in use. It only proposes; the painter applies or ignores it. Costs the same credits as AI text help.

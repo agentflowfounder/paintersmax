@@ -5,9 +5,11 @@ import { listDomains } from "./domains.ts";
 import { envelopeUse, forgetClientModel, FEATURE_GROUP, GROUP_LABELS, GROUPS, loadEnvelopes, saveEnvelopes } from "./envelopes.ts";
 import { adminFeedbackAct, adminFeedbackList, feedbackForCompany, saveQuick } from "./feedback.ts";
 import { decideHeld, domainQueue, loadHeld, saveHeld } from "./helddomains.ts";
-import { blobsWithPrefix, readBlob, str, updateBlob } from "./kv.ts";
+import { blobsWithPrefix, readBlob, str, updateBlob, writeBlob } from "./kv.ts";
+import { ALERT_KEY, readAlert } from "./aialert.ts";
+import { BLIND_KEY, BLIND_TOOLS, readBlind, runBlindTest, scoreBlindTest } from "./blindtest.ts";
 import { aiScorecard, aiToday } from "./ailog.ts";
-import { databaseBackup } from "./backup.ts";
+import { databaseBackup, LAST_BACKUP_KEY } from "./backup.ts";
 import { CHANNELS, loadPromos, normCode, promoPrice, promoUses, savePromo, setPromoActive, validatePromo } from "./promos.ts";
 import { addLesson, contactCounts, contactsCsv, importContacts, loadContacts, loadMarkets, OUTREACH_STATUSES, saveContact, saveMarket } from "./research.ts";
 import {
@@ -164,6 +166,7 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
   if (q.get("backup") === "1") {
     if (actor.role !== "owner") return { area: "security", data: null };
     const b = await databaseBackup(env, today);
+    await writeBlob(env, LAST_BACKUP_KEY, { on: today }).catch(() => {});
     await logAudit(env, actor, "backup_download", { companyId: null, detail: b.filename });
     return { area: "security", csv: b.json, filename: b.filename, type: "application/json" };
   }
@@ -190,7 +193,9 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
   if (q.get("aihealth") === "1") {
     const back = (n: number) => new Date(Date.parse(`${today}T00:00:00Z`) - n * 86400000).toISOString().slice(0, 10);
     const [now, week, month] = await Promise.all([aiToday(env, today), aiScorecard(env, back(6)), aiScorecard(env, back(29))]);
-    return { area: "credits", data: { today: now, week, month, from: { week: back(6), month: back(29) } } };
+    const [alert, blind] = await Promise.all([readBlob(env, ALERT_KEY, readAlert), readBlob(env, BLIND_KEY, readBlind)]);
+    const open = blind.filter((t) => !t.scored).slice(-1).map((t) => ({ id: t.id, tool: t.tool, question: t.question, answers: t.answers.map((a) => ({ label: a.label, text: a.text })) }));
+    return { area: "credits", data: { today: now, week, month, from: { week: back(6), month: back(29) }, alert: { dailyCents: alert.dailyCents }, blindTools: BLIND_TOOLS, blindOpen: open } };
   }
   if (q.get("starter") === "1") {
     const [settings, stats, firstWeeks] = await Promise.all([loadStarter(env), starterStats(env, today), firstWeeksReport(env, today)]);
@@ -242,6 +247,7 @@ export const ACT_AREAS: Record<string, Area> = {
   quickreply_save: "feedback",
   held_save: "domains", held_decide: "domains",
   team_set: "security",
+  ai_alert_set: "credits", blind_run: "credits", blind_pick: "credits",
 };
 
 export async function adminAct(env: Env, actor: AdminActor, b: any, today: string): Promise<ActResult> {
@@ -303,6 +309,20 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
       if (!r.ok) return fail(r.error);
       forgetClientModel(co.id);
       return { ok: true, companyId: co.id, data: { envelopes: r.value }, detail: { enabled: r.value.enabled, painter: r.value.painterCanEdit, caps: r.value.caps, model: r.value.textModel } };
+    }
+    case "ai_alert_set": {
+      const dollars = Number(b.dailyDollars);
+      if (!Number.isFinite(dollars) || dollars < 1 || dollars > 10000) return fail("Enter a daily limit from 1 to 10000 dollars.");
+      await writeBlob(env, ALERT_KEY, { ...(await readBlob(env, ALERT_KEY, readAlert)), dailyCents: Math.round(dollars * 100) });
+      return { ok: true, detail: `daily AI spend alert $${dollars}` };
+    }
+    case "blind_run": {
+      const r = await runBlindTest(env, String(b.question ?? ""), String(b.tool ?? ""));
+      return r.ok ? { ok: true, data: { id: r.id, answers: r.answers }, detail: `blind test ${r.id}` } : fail(r.error);
+    }
+    case "blind_pick": {
+      const r = await scoreBlindTest(env, String(b.id ?? ""), b.scores);
+      return r.ok ? { ok: true, data: { reveal: r.reveal }, detail: `blind test scored ${String(b.id).slice(0, 12)}` } : fail(r.error);
     }
     case "starter_set": {
       const r = await saveStarter(env, b.settings);

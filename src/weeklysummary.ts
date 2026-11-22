@@ -1,5 +1,6 @@
 import { sendLeadEmail } from "./email.ts";
 import { todayLocal } from "./dates.ts";
+import { LAST_BACKUP_KEY } from "./backup.ts";
 import { readBlob, writeBlob } from "./kv.ts";
 import { HELD_KEY, loadStarter, readHeld, signupsThisWeek } from "./starter.ts";
 import type { Env } from "./types.ts";
@@ -19,6 +20,15 @@ export function summaryEmail(t: { total: number; bySource: { name: string; count
   };
 }
 
+/** One closing line for the Monday email: when the owner last downloaded a database backup. */
+export async function backupLine(env: Env, today: string): Promise<string> {
+  const last = await readBlob(env, LAST_BACKUP_KEY, (raw: any) => (typeof raw?.on === "string" ? raw.on : ""));
+  const ago = last ? Math.floor((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${last}T00:00:00Z`)) / 86400000) : -1;
+  if (ago < 0) return "\n\nDatabase backup: none downloaded yet. Admin > Team and audit log > Database backup.";
+  if (ago > 7) return `\n\nDatabase backup: last downloaded ${ago} days ago. Please download a new one in Admin > Team and audit log.`;
+  return `\n\nDatabase backup: last downloaded ${ago} day${ago === 1 ? "" : "s"} ago.`;
+}
+
 /** Cron (Mondays, 8 AM Texas time). Returns true when the email went out. */
 export async function sendWeeklySummary(env: Env, now: number = Date.now()): Promise<boolean> {
   if (!env.RESEND_API_KEY) return false;
@@ -32,6 +42,7 @@ export async function sendWeeklySummary(env: Env, now: number = Date.now()): Pro
   const t = await signupsThisWeek(env, today);
   const held = (await readBlob(env, HELD_KEY, readHeld)).length;
   const m = summaryEmail(t, held);
+  m.body += await backupLine(env, today);
   let sent = false;
   for (const o of owners) if ((await sendLeadEmail(env, o.email, m.subject, m.body)) === "sent") sent = true;
   if (sent) await writeBlob(env, "weeklysent", { on: today });
