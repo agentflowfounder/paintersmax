@@ -55,8 +55,10 @@ export interface Profile {
 }
 
 /** Keeps only valid, size-limited values. Anything unexpected is dropped, never stored. */
-export function sanitizeProfile(input: any, plan: string): Profile {
-  const caps = PROFILE_CAPS[normalizePlan(plan)];
+export function sanitizeProfile(input: any, plan: string, extraCities = 0): Profile {
+  const base = PROFILE_CAPS[normalizePlan(plan)];
+  // Cities bought toward the next door (growth.ts) raise the city cap.
+  const caps = { ...base, cities: base.cities + Math.max(0, Math.round(extraCities)) };
   const c = input?.company ?? {};
   const ins = input?.insurance ?? {};
   const l = input?.labor ?? {};

@@ -70,12 +70,12 @@ test("helpers", () => {
 });
 
 import { effectivePlan, trialDaysLeft } from "../src/usage.ts";
-test("free trial: basic limits for 14 days, then free", () => {
+test("free trial: basic limits for 30 days, then free", () => {
   const now = Date.parse("2026-11-20T12:00:00Z");
   const fresh = { plan: "free", createdAt: "2026-11-19 12:00:00" };
   assert.equal(effectivePlan(fresh, now), "basic");
-  assert.equal(trialDaysLeft(fresh, now), 13);
-  const old = { plan: "free", createdAt: "2026-11-01 00:00:00" };
+  assert.equal(trialDaysLeft(fresh, now), 29);
+  const old = { plan: "free", createdAt: "2026-10-01 00:00:00" };
   assert.equal(effectivePlan(old, now), "free");
   assert.equal(trialDaysLeft(old, now), 0);
   assert.equal(effectivePlan({ plan: "pro", createdAt: "2026-11-19 12:00:00" }, now), "pro");

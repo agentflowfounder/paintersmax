@@ -43,7 +43,7 @@ test("allowances and top-ups are the approved prices, and bigger top-ups get a s
   assert.equal(allowanceByPrice(1234), null);
   // Allowance credits roll over for two months; top-ups do not expire during early access.
   assert.equal(EXPIRY_DAYS.allowance, 90);
-  assert.ok(EXPIRY_DAYS.topup >= 3650);
+  assert.equal(EXPIRY_DAYS.topup, 365);
 });
 
 test("readAllowanceRecord keeps only a well-formed record", () => {

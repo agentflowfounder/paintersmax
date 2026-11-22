@@ -10,7 +10,7 @@ import { payerFields, stripeApi } from "./stripe.ts";
 import { consume, normalizePlan, refund, type Plan } from "./usage.ts";
 import {
   blankPage, canPublish, cleanSite, DOOR_FLOOR_CENTS, DOOR_LIMITS, DOOR_LIST_CENTS, DOOR_NAMES, DOOR_PLAN, doorFor, DOORS, firstDraft, healthFlags, isDoor,
-  limitsFor, nextDoor, pageForPath, publishBlockers, readDoorRecord, seoChecks, upgradeCents, usageOf,
+  extraCities, limitsFor, nextDoor, pageForPath, publishBlockers, readDoorRecord, seoChecks, upgradeCents, usageOf,
   type Door, type DoorRecord, type Site,
 } from "./sitecore.ts";
 import { handleReviewsApi, shownReviews } from "./reviews.ts";
@@ -23,6 +23,7 @@ import { FONT_CHOICES, isFont, SOCIAL_KINDS } from "./sitetheme.ts";
 import { refreshPacks } from "./sitepacks.ts";
 import { canPublishWith, entries, entryOf, mayChoose, pickerList, readRegistry, REGISTRY_KEY, renderWithTemplate, uiLangOf, type Registry } from "./sitetemplates.ts";
 import { creditView } from "./credits.ts";
+import { activeGrow, advance, growthOffer, stepsCents, GROW_STEPS } from "./growth.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -72,6 +73,12 @@ export async function loadDoor(env: Env, companyId: number, plan: string): Promi
   const rec = readDoorRecord(await getKv(env, doorKey(companyId)));
   const door = doorFor(normalizePlan(plan), rec);
   return { door, rec, limits: limitsFor(door, rec) };
+}
+
+/** Cities the painter bought toward the next door; added to the plan's city cap (profile.ts, cities.ts). */
+export async function extraCitiesFor(env: Env, companyId: number, plan: string): Promise<number> {
+  const { door, rec } = await loadDoor(env, companyId, plan);
+  return extraCities(door, rec);
 }
 
 export async function saveDoor(env: Env, companyId: number, rec: DoorRecord) {
@@ -166,10 +173,10 @@ function doorInfo(door: Door, rec: DoorRecord, reg: Registry = {}, current = "",
   // From Free the price is the sign-up price: list, or the floor while a promotion that applies by itself is running.
   const charge = (to: Exclude<Door, "free">) => {
     const promo = door === "free" ? autoPromoFor(promos, to, today) : null;
-    return { cents: doorCharge(door, to, promo, today).cents, promo: promo ? { name: promo.name, endsOn: promo.endsOn, credits: promo.bonusCredits, founding: promo.founding } : null };
+    return { cents: doorCharge(door, to, promo, today, activeGrow(door, rec.grow)?.to === to ? rec.grow!.paidCents : 0).cents, promo: promo ? { name: promo.name, endsOn: promo.endsOn, credits: promo.bonusCredits, founding: promo.founding } : null };
   };
   return {
-    door, name: DOOR_NAMES[door], limits: limitsFor(door, rec), canPublish: canPublish(door), override: rec.override ?? null,
+    door, name: DOOR_NAMES[door], limits: limitsFor(door, rec), canPublish: canPublish(door), override: rec.override ?? null, grow: growthOffer(door, rec.grow),
     next: nd && nd !== "free" ? { door: nd, name: DOOR_NAMES[nd], limits: DOOR_LIMITS[nd], priceCents: charge(nd).cents, promo: charge(nd).promo, floorCents: DOOR_FLOOR_CENTS[nd], listCents: DOOR_LIST_CENTS[nd] } : null,
     doors: DOORS.filter((d): d is Exclude<Door, "free"> => d !== "free").map((d) => ({ door: d, name: DOOR_NAMES[d], limits: DOOR_LIMITS[d], floorCents: DOOR_FLOOR_CENTS[d], listCents: DOOR_LIST_CENTS[d], upgradeCents: DOORS.indexOf(d) > DOORS.indexOf(door) ? charge(d).cents : 0, current: d === door })),
     templates: pickerList(reg, door, current),
@@ -376,6 +383,31 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
     if (a.viewAs) await audit(env, co.id, by, "AI restyle", ask.slice(0, 80));
     return json({ ok: true, tokens, fonts });
   }
+  if (action === "grow") {
+    // Pay-as-you-grow (growth.ts): buy one or more steps toward the next door. The steps add up to its upgrade price.
+    if (a.viewAs) return json({ error: "Steps are paid by the painter." }, 400);
+    if (!env.STRIPE_SECRET_KEY) return json({ error: "Online payments are not open yet. Write to us and we will add the room by hand." }, 503);
+    const offer = growthOffer(door, rec.grow);
+    if (!offer) return json({ error: door === "free" ? "Start with Local Pro first, then grow from there." : "You have the biggest door. Ask us if you need more." }, 400);
+    const remaining = GROW_STEPS - offer.done;
+    const n = Math.min(remaining, Math.max(1, Math.round(Number(b?.steps) || 1)));
+    const cents = stepsCents(door, offer.done, n);
+    const f = new URLSearchParams();
+    f.set("mode", "payment");
+    payerFields(f, a.user.email, await stripeCustomerOf(env, co.id));
+    f.set("success_url", `${url.origin}/site?grown=1`);
+    f.set("cancel_url", `${url.origin}/site`);
+    f.set("line_items[0][quantity]", "1");
+    f.set("line_items[0][price_data][currency]", "usd");
+    f.set("line_items[0][price_data][unit_amount]", String(cents));
+    f.set("line_items[0][price_data][product_data][name]", `PaintersMax website growth: ${n} step${n === 1 ? "" : "s"} toward ${DOOR_NAMES[offer.to]}`);
+    f.set("metadata[kind]", "site_grow");
+    f.set("metadata[company_id]", String(co.id));
+    f.set("metadata[door]", offer.to);
+    f.set("metadata[steps]", String(n));
+    const s = await stripeApi(env, "checkout/sessions", f);
+    return json({ url: s.url });
+  }
   if (action === "upgrade") {
     // One-click upgrade: a one-time Stripe payment for the difference between the two doors.
     const to: unknown = b?.door ?? nextDoor(door);
@@ -386,7 +418,7 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
     const today = todayLocal();
     const pick = door === "free" ? await pickPromo(env, to, b?.code, today) : { promo: null };
     if (pick.error && b?.code) return json({ error: pick.error }, 400);
-    const charge = doorCharge(door, to, pick.promo, today);
+    const charge = doorCharge(door, to, pick.promo, today, activeGrow(door, rec.grow)?.to === to ? rec.grow!.paidCents : 0);
     const s = await stripeApi(env, "checkout/sessions", upgradeCheckoutForm(url.origin, { companyId: co.id, email: a.user.email, from: door, to, cents: charge.cents, promoCode: charge.promoApplied ? pick.promo!.code : "", customerId: await stripeCustomerOf(env, co.id) }));
     return json({ url: s.url });
   }
@@ -419,13 +451,42 @@ export async function applyPaidUpgrade(env: Env, companyId: number, to: unknown,
   const co = await companyById(env, companyId);
   if (!co) return false;
   const { door, rec } = await loadDoor(env, co.id, co.plan);
-  if (DOORS.indexOf(to) > DOORS.indexOf(door)) await saveDoor(env, co.id, { ...rec, door: to });
+  if (DOORS.indexOf(to) > DOORS.indexOf(door)) {
+    const { grow: _done, ...rest } = rec; // the steps bought toward this door are used up
+    await saveDoor(env, co.id, { ...rest, door: to });
+  }
   const plan = DOOR_PLAN[to];
   if (PLAN_RANK[plan] > PLAN_RANK[normalizePlan(co.plan)]) await env.DB.prepare("UPDATE companies SET plan = ? WHERE id = ?").bind(plan, co.id).run();
   // The new door's credits, once per company and door (the credit rules decide the amount and the free-credit cap).
   // A promotion on the payment (Booked by Spring) replaces them and may give the Founding badge; the paid year starts now.
   if (paymentId && to !== "free") await afterDoorPaid(env, co.id, { door: to, paymentId, promoCode: typeof pay.promoCode === "string" ? pay.promoCode : "", paidCents: Number(pay.paidCents) || 0 }, todayLocal()).catch((err) => console.error("door credits failed", String(err)));
   return true;
+}
+
+/**
+ * Called by the Stripe webhook when steps toward the next door are paid. Each payment is applied once. When the steps
+ * (or the money paid) reach the whole price the door moves up and the door's credits arrive, same as a one-time upgrade.
+ */
+export async function applyGrowthSteps(env: Env, companyId: number, to: unknown, steps: unknown, paymentId: string, paidCents: number): Promise<"steps" | "upgraded" | "ignored"> {
+  if (!isDoor(to) || to === "free" || !paymentId) return "ignored";
+  const co = await companyById(env, companyId);
+  if (!co) return "ignored";
+  const claimed = await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, '\"\"', datetime('now')) ON CONFLICT(key) DO NOTHING RETURNING key").bind(`growpaid:${paymentId.slice(0, 120)}`).first();
+  if (!claimed) return "ignored"; // this payment was already applied
+  const { door, rec } = await loadDoor(env, co.id, co.plan);
+  if (nextDoor(door) !== to) {
+    // The door moved on (admin change or a one-time upgrade) before this payment was reported: nothing to add.
+    console.error("growth payment for a door that is not next", companyId, door, to);
+    return "ignored";
+  }
+  const n = Math.max(1, Math.min(GROW_STEPS, Math.round(Number(steps)) || 1));
+  const r = advance(door, rec.grow, n, paidCents);
+  if (r.upgrade) {
+    await applyPaidUpgrade(env, co.id, to, paymentId, { paidCents });
+    return "upgraded";
+  }
+  await saveDoor(env, co.id, { ...rec, grow: r.grow ?? undefined });
+  return "steps";
 }
 
 /** POST /api/site/photo (multipart: file, w, h, alt, as?): adds a photo the browser already resized and cleaned. */
@@ -572,6 +633,7 @@ export async function handleSiteAdmin(request: Request, env: Env): Promise<Respo
     if (b?.action === "door") {
       if (b.door !== "auto" && !isDoor(b.door)) return json({ error: "Choose a door." }, 400);
       const next: DoorRecord = { ...rec };
+      delete next.grow; // an admin change starts the steps over
       if (b.door === "auto") delete next.door;
       else next.door = b.door;
       await saveDoor(env, co.id, next);
@@ -606,7 +668,7 @@ export async function handleSiteAdmin(request: Request, env: Env): Promise<Respo
     const live = parse(kv.get(liveKey(c.id)) ?? null);
     const u = site ? usageOf(site) : { pages: 0, services: 0, photos: 0 };
     return {
-      id: c.id, name: c.name, slug: c.slug, plan: c.plan, door, doorSet: !!rec.door, override: rec.override ?? null, note: rec.note ?? "",
+      id: c.id, name: c.name, slug: c.slug, plan: c.plan, door, doorSet: !!rec.door, override: rec.override ?? null, grow: activeGrow(door, rec.grow), note: rec.note ?? "",
       limits: lim, usage: u, publishedAt: live?.publishedAt ?? null, editedAt: site?.updatedAt ?? null,
       domain: domains.get(c.slug) ?? null, searchConsole: !!(live?.site?.gscToken || site?.gscToken),
       health: healthFlags(site, live?.publishedAt ?? null, today),
