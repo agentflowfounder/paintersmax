@@ -338,7 +338,7 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
       `Language: ${lang === "es" ? "Spanish" : "English"}.`,
       `Current text:\n<text>\n${text || "(empty)"}\n</text>`,
     ].join("\n");
-    const out = await completeEx(env, WRITE_PROMPT, [{ role: "user", content: user }], { maxTokens: 700 });
+    const out = await completeEx(env, WRITE_PROMPT, [{ role: "user", content: user }], { maxTokens: 700, tool: "site_write" });
     if (!out) {
       await refund(env, { id: co.id }, "site_write");
       return json({ error: "The AI could not write right now. Your credits were not used. Try again in a minute." }, 503);
@@ -356,7 +356,7 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
     const u = await consume(env, { id: co.id, plan: co.plan, createdAt: co.created_at }, "site_write");
     if (!u.allowed) return json({ error: u.reason === "kill_switch" ? "AI help is paused right now." : "You are out of AI credits. Add credits on the AI use and credits page.", reason: u.reason }, 402);
     const sys = `You choose colors and fonts for a house painter's website. Reply with ONLY one JSON object, no words around it: {"tokens":{<key>:"#rrggbb"},"display":"<font>","body":"<font>"}. Allowed token keys: ${cfg.tokens.map((t) => `${t.key} (${t.label.en})`).join(", ")}. Allowed fonts: ${FONT_CHOICES.map((f) => f.family).join(", ")}. Keep text readable: dark text on light backgrounds or the reverse, strong contrast. Never include other keys.`;
-    const out = await completeEx(env, sys, [{ role: "user", content: `Business: ${co.name}. The owner wants: ${ask}` }], { maxTokens: 500 });
+    const out = await completeEx(env, sys, [{ role: "user", content: `Business: ${co.name}. The owner wants: ${ask}` }], { maxTokens: 500, tool: "site_write" });
     let j: any = null;
     try {
       j = out ? JSON.parse(out.text.slice(out.text.indexOf("{"), out.text.lastIndexOf("}") + 1)) : null;

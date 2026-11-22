@@ -68,6 +68,7 @@ import { handleNotices, sendOwnerDigests } from "./notices.ts";
 import { handleColors } from "./colors.ts";
 import { handleVehicles } from "./vehicles.ts";
 import { handleSignoff } from "./signoff.ts";
+import { rateAiAnswer } from "./ailog.ts";
 import { consume, dailyCap, isFeature, refund, usageSummary } from "./usage.ts";
 import { handleSiteAdmin, handleSiteApi, handleSitePhoto, handleSitePhotoUpload, handleSitePreview, handleSiteReviews, serveTenantSite } from "./sitebuilder.ts";
 import { handleDirAdmin, handleDirClaim, handleDirectory, handleDirLead, handleDirMe } from "./directory.ts";
@@ -387,9 +388,12 @@ async function safePage(fn: () => Promise<Response | null>): Promise<Response | 
     return await fn();
   } catch (err) {
     console.error("page failed", String(err));
-    return new Response("Something went wrong. Please try again in a minute.", { status: 500, headers: { "content-type": "text/plain; charset=utf-8" } });
+    return new Response(BUSY_PAGE, { status: 503, headers: { "content-type": "text/html; charset=utf-8", "retry-after": "60", "cache-control": "no-store" } });
   }
 }
+
+/** The friendly page a visitor sees when a page cannot load right now (English and Spanish, no scripts). */
+export const BUSY_PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Back in a minute - PaintersMax</title><style>body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0;padding:48px 16px}main{max-width:460px;margin:0 auto;background:#fff;padding:28px;border-radius:8px;border:1px solid rgba(15,27,45,.1);text-align:center}h1{font-family:Newsreader,Georgia,serif;font-weight:500;margin:0 0 8px}p{color:#4A5568;line-height:1.5}a{display:inline-block;margin-top:14px;padding:12px 18px;border-radius:6px;background:#0F1B2D;color:#fff;font-weight:600;text-decoration:none}</style></head><body><main><div style="font-size:44px" aria-hidden="true">&#127912;</div><h1>We are busy for a minute</h1><p>Lots of painters are using PaintersMax right now. Nothing was lost. Please try again in about a minute.</p><p lang="es">Hay mucha gente usando PaintersMax en este momento. No se perdi&oacute; nada. Intenta de nuevo en un minuto.</p><a href="">Try again / Reintentar</a></main></body></html>`;
 
 function visitorOrigin(request: Request): string {
   const fwd = (request.headers.get("x-forwarded-host") ?? "").toLowerCase().trim();
@@ -620,6 +624,22 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
       return new Response(JSON.stringify({ ok: true }), {
         headers: { "content-type": "application/json", "set-cookie": await endSession(env, request) },
       });
+    }
+    if (pathname === "/api/ai/feedback" && request.method === "POST") {
+      const user = await getSessionUser(env, request);
+      if (!user) return json({ error: "Not signed in." }, 401);
+      let b: any;
+      try {
+        b = await request.json();
+      } catch {
+        return json({ error: "Invalid request." }, 400);
+      }
+      const tool = typeof b?.tool === "string" ? b.tool : "";
+      const model = typeof b?.model === "string" ? b.model : "";
+      if (!/^[a-z_]{2,30}$/.test(tool) || !/^[a-z0-9._-]{2,40}$/i.test(model) || (b?.rating !== "up" && b?.rating !== "down")) return json({ error: "Invalid request." }, 400);
+      if (!(await dailyCap(env, user.companyId, "aifb", 100))) return json({ ok: true });
+      await rateAiAnswer(env, { tool, model, rating: b.rating, reason: typeof b.reason === "string" ? b.reason : "" });
+      return json({ ok: true });
     }
     if (pathname === "/api/me") {
       const user = await getSessionUser(env, request);

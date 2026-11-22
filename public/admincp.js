@@ -6,7 +6,7 @@
   var T = window.pmT || function (s) { return s; };
   var ME = null, CACHE = {};
   var TABS = [
-    ['clients', 'Clients', 'clients'], ['subs', 'Subscriptions', 'subscriptions'], ['credits', 'Credits', 'credits'], ['starter', 'Starter campaign', 'credits'], ['promos', 'Promotions', 'promos'],
+    ['clients', 'Clients', 'clients'], ['subs', 'Subscriptions', 'subscriptions'], ['credits', 'Credits', 'credits'], ['starter', 'Starter campaign', 'credits'], ['aihealth', 'AI health', 'credits'], ['promos', 'Promotions', 'promos'],
     ['research', 'Research', 'research'], ['feedback', 'Feedback', 'feedback'], ['domains', 'Domains', 'domains'], ['sites', 'Websites', 'sites'],
     ['content', 'Help guide', 'content'], ['settings', 'Settings', 'settings'], ['security', 'Team and audit log', 'security'],
   ];
@@ -239,6 +239,32 @@
     }).catch(function (x) { box.textContent = x ? x.message : ''; });
   }
 
+  // ------------------------------------------------------------- AI health and model scorecard
+  function aiHealthLoad() {
+    var box = $('ah_box');
+    var cents = function (c) { return c === null || c === undefined ? 'n/a' : '$' + (c / 100).toFixed(c >= 100 ? 2 : 3); };
+    var secs = function (ms) { return (ms / 1000).toFixed(1) + 's'; };
+    var WHY = { wrong: 'not correct', unclear: 'unclear', too_long: 'too long', too_short: 'too short', other: 'other' };
+    var table = function (rows) {
+      if (!rows.length) return '<p><small>' + esc(T('No AI calls recorded in this period yet.')) + '</small></p>';
+      return '<div class="scroll"><table class="t"><thead><tr><th>Tool</th><th>Model</th><th>Calls</th><th>Errors</th><th>Avg time</th><th>Cost</th><th>Per call</th><th>&#128077;</th><th>&#128078;</th><th>Rated up</th><th>Why down</th></tr></thead><tbody>' + rows.map(function (r) {
+        return '<tr><td>' + esc(r.tool) + '</td><td>' + esc(r.model) + '</td><td>' + r.calls + '</td><td>' + (r.calls - r.ok) + ' (' + r.errorPct + '%)</td><td>' + secs(r.avgMs) + '</td><td>' + cents(r.costCents) + '</td><td>' + cents(r.costPerCallCents) + '</td><td>' + r.up + '</td><td>' + r.down + '</td><td>' + (r.thumbsUpPct === null ? '-' : r.thumbsUpPct + '%') + '</td><td><small>' + Object.keys(r.reasons).map(function (k) { return esc(WHY[k] || k) + ' ' + r.reasons[k]; }).join(', ') + '</small></td></tr>';
+      }).join('') + '</tbody></table></div>';
+    };
+    api('/api/admin?aihealth=1').then(function (v) {
+      var t = v.today;
+      box.innerHTML = '<div class="card"><h3>Today</h3><div class="tiles">' +
+        '<div class="tile"><b>' + t.calls + '</b><span>AI calls today</span></div>' +
+        '<div class="tile"><b>' + t.errors + '</b><span>Failed calls</span></div>' +
+        '<div class="tile"><b>' + cents(t.costCents) + (t.unpriced ? '+' : '') + '</b><span>Estimated AI spend' + (t.unpriced ? ' (some models have no price on file)' : '') + '</span></div>' +
+        '<div class="tile"><b>' + (t.killSwitch ? 'ON' : 'Off') + '</b><span>AI kill switch' + (t.killSwitch ? ': AI is paused for everyone' : '') + '</span></div></div>' +
+        (t.slow.length ? '<p><small><b>Slow today (over 8 seconds on average):</b> ' + esc(t.slow.join(', ')) + '</small></p>' : '<p><small>Nothing slow today.</small></p>') +
+        '<p><small>Costs are estimates from the prices on file and the size of each request. Your provider dashboards are the real bill. Set the spending alerts there too.</small></p></div>' +
+        '<div class="card"><h3>Model scorecard: last 7 days</h3>' + table(v.week) + '</div>' +
+        '<div class="card"><h3>Model scorecard: last 30 days</h3>' + table(v.month) + '<p><small>A model becomes the default for a tool only after about 30 rated answers and a cost check.</small></p></div>';
+    }).catch(function (x) { box.textContent = x ? x.message : ''; });
+  }
+
   // ------------------------------------------------------------- promotions
   var PEDIT = null;
   function promosLoad() {
@@ -441,6 +467,7 @@
         }).join('') + '</tbody></table></div>' +
         '<h3 style="margin-top:14px">Add a team member</h3><div class="g3"><div><label>Email</label><input id="tm_email" type="email"></div><div><label>Role</label><select id="tm_role">' + opts(ROLES, 'support') + '</select></div><div style="align-self:end"><button class="btn" id="tm_add" style="margin:0">Add and send a sign-in link</button></div></div>' +
         '<small>Use a work email that is not a painter\'s client login. Two-step sign-in for admins comes in stage 2.</small></div>';
+      if (ME && ME.role === 'owner') $('tm_box').insertAdjacentHTML('beforeend', '<div class="card" style="margin-top:14px"><h3>' + esc(T('Database backup')) + '</h3><p><small>' + esc(T('Downloads a copy of all client data as one file. Sign-in tables are left out. Do this before launch and every week after. Keep the file somewhere private, it holds client names and emails.')) + '</small></p><a class="btn" href="/api/admin?backup=1" download>' + esc(T('Download backup now')) + '</a></div>');
       $('tm_add').onclick = function () {
         var email = $('tm_email').value;
         post({ action: 'team_set', email: email, role: $('tm_role').value }).then(function () { return fetch('/api/auth/request', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: email }) }); }).then(function () { ok('Team member added. A sign-in link was sent.'); securityLoad(); }).catch(bad);
@@ -467,6 +494,7 @@
     subs: subsLoad,
     credits: function () { creditsLoad(); if (typeof load === 'function') load(); },
     starter: starterLoad,
+    aihealth: aiHealthLoad,
     promos: promosLoad,
     research: researchLoad,
     feedback: feedbackLoad,

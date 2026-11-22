@@ -316,7 +316,7 @@ async function articleIn(env: Env, a: Article, lang: string): Promise<{ title: s
   const key = `helptr:es:${a.id}`;
   const cached = parse(await getSetting(env, key));
   if (cached?.hash === hash && cached.title && cached.body) return { title: cached.title, body: cached.body, translated: true };
-  const out = await completeEx(env, "Translate this help article for painting contractors into clear, friendly Spanish. Keep every button and page name in English inside quotes the first time, with the Spanish meaning after it. Keep the line breaks and numbering. Return ONLY JSON: {\"title\": string, \"body\": string}.", [{ role: "user", content: JSON.stringify({ title: a.title, body: a.body }) }], { maxTokens: 1600 });
+  const out = await completeEx(env, "Translate this help article for painting contractors into clear, friendly Spanish. Keep every button and page name in English inside quotes the first time, with the Spanish meaning after it. Keep the line breaks and numbering. Return ONLY JSON: {\"title\": string, \"body\": string}.", [{ role: "user", content: JSON.stringify({ title: a.title, body: a.body }) }], { maxTokens: 1600, tool: "help_translate" });
   const j = out ? parse(out.text.replace(/^```(?:json)?\s*|\s*```$/g, "")) : null;
   if (j?.title && j?.body) {
     await putSetting(env, key, JSON.stringify({ hash, title: str(j.title, 160), body: str(j.body, 5000) }));
@@ -375,7 +375,7 @@ export async function handleHelp(request: Request, env: Env): Promise<Response> 
     return json({ error: used.reason === "kill_switch" ? "Help chat is paused right now. Try again soon, or browse the guide." : "You have used this month's help questions. You can still browse the guide.", code: used.reason, allowance: await left() }, 429);
   }
   const system = `${HELP_PROMPT}${b?.language === "es" ? "\nAnswer in Spanish." : ""}\n\nHELP ARTICLES:\n${articleBlock(good.slice(0, 3))}`;
-  const out = await completeEx(env, system, [...sanitizeHistory(b?.history), { role: "user", content: question }], { maxTokens: 700, companyId: co.id });
+  const out = await completeEx(env, system, [...sanitizeHistory(b?.history), { role: "user", content: question }], { maxTokens: 700, companyId: co.id, tool: "help_chat" });
   if (!out) {
     await refund(env, co, "help_chat");
     return json({ error: "The help assistant could not answer right now. Nothing was used from your allowance. Try the guide below.", allowance: await left() }, 503);
@@ -420,7 +420,7 @@ export async function adminHelpDismiss(env: Env, id: string): Promise<void> {
 export async function adminHelpDraft(env: Env, question: string, hint: string): Promise<{ title: string; keywords: string[]; body: string } | null> {
   const lib = await loadLibrary(env);
   const found = searchArticles(lib, question, 2);
-  const out = await completeEx(env, `You write help articles for PaintersMax, an app for painting contractors. Write a short, practical help article that answers the question in plain words, with numbered steps when it is a how-to. Only describe PaintersMax features the owner's notes or the existing articles mention, and never invent buttons or prices. Return ONLY JSON: {"title": string, "keywords": string[], "body": string}. Existing articles for style:\n${articleBlock(found)}`, [{ role: "user", content: `Question: ${question}\nOwner's notes: ${hint || "(none)"}` }], { maxTokens: 900 });
+  const out = await completeEx(env, `You write help articles for PaintersMax, an app for painting contractors. Write a short, practical help article that answers the question in plain words, with numbered steps when it is a how-to. Only describe PaintersMax features the owner's notes or the existing articles mention, and never invent buttons or prices. Return ONLY JSON: {"title": string, "keywords": string[], "body": string}. Existing articles for style:\n${articleBlock(found)}`, [{ role: "user", content: `Question: ${question}\nOwner's notes: ${hint || "(none)"}` }], { maxTokens: 900, tool: "help_article" });
   const j = out ? parse(out.text.replace(/^```(?:json)?\s*|\s*```$/g, "")) : null;
   if (!j?.title || !j?.body) return null;
   return { title: str(j.title, 120), keywords: (Array.isArray(j.keywords) ? j.keywords : []).map((k: unknown) => str(k, 40)).filter(Boolean).slice(0, 12), body: str(j.body, 4000) };

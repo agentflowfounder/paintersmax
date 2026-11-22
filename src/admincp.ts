@@ -1,4 +1,4 @@
-import { can, listAudit, PERMS, ROLE_LIMITS, setTeamRole, teamView, type AdminActor, type Area } from "./adminroles.ts";
+import { can, listAudit, logAudit, PERMS, ROLE_LIMITS, setTeamRole, teamView, type AdminActor, type Area } from "./adminroles.ts";
 import { CREDIT_COST, creditView, grantCredits } from "./credits.ts";
 import { FEATURE_LABELS } from "./creditsapi.ts";
 import { listDomains } from "./domains.ts";
@@ -6,6 +6,8 @@ import { envelopeUse, forgetClientModel, FEATURE_GROUP, GROUP_LABELS, GROUPS, lo
 import { adminFeedbackAct, adminFeedbackList, feedbackForCompany, saveQuick } from "./feedback.ts";
 import { decideHeld, domainQueue, loadHeld, saveHeld } from "./helddomains.ts";
 import { blobsWithPrefix, readBlob, str, updateBlob } from "./kv.ts";
+import { aiScorecard, aiToday } from "./ailog.ts";
+import { databaseBackup } from "./backup.ts";
 import { CHANNELS, loadPromos, normCode, promoPrice, promoUses, savePromo, setPromoActive, validatePromo } from "./promos.ts";
 import { addLesson, contactCounts, contactsCsv, importContacts, loadContacts, loadMarkets, OUTREACH_STATUSES, saveContact, saveMarket } from "./research.ts";
 import {
@@ -157,8 +159,14 @@ export async function creditsOverview(env: Env, month: string) {
 }
 
 /** Admin-facing GET views. Returns null when the query is not one of these. */
-export async function adminView(env: Env, actor: AdminActor, url: URL, today: string): Promise<{ area: Area; data: unknown } | { area: Area; csv: string; filename: string } | null> {
+export async function adminView(env: Env, actor: AdminActor, url: URL, today: string): Promise<{ area: Area; data: unknown } | { area: Area; csv: string; filename: string; type?: string } | null> {
   const q = url.searchParams;
+  if (q.get("backup") === "1") {
+    if (actor.role !== "owner") return { area: "security", data: null };
+    const b = await databaseBackup(env, today);
+    await logAudit(env, actor, "backup_download", { companyId: null, detail: b.filename });
+    return { area: "security", csv: b.json, filename: b.filename, type: "application/json" };
+  }
   if (q.get("me") === "1") return { area: "clients", data: { email: actor.email, role: actor.role, see: PERMS[actor.role].see, change: PERMS[actor.role].change, limits: ROLE_LIMITS[actor.role] } };
   if (q.has("client")) return { area: "clients", data: await clientPage(env, actor, q.get("client"), today) };
   if (q.get("signups") === "1") return { area: "clients", data: await signupsThisWeek(env, today) };
@@ -179,6 +187,11 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
     };
   }
   if (q.get("credits") === "1") return { area: "credits", data: await creditsOverview(env, q.get("month") ?? "") };
+  if (q.get("aihealth") === "1") {
+    const back = (n: number) => new Date(Date.parse(`${today}T00:00:00Z`) - n * 86400000).toISOString().slice(0, 10);
+    const [now, week, month] = await Promise.all([aiToday(env, today), aiScorecard(env, back(6)), aiScorecard(env, back(29))]);
+    return { area: "credits", data: { today: now, week, month, from: { week: back(6), month: back(29) } } };
+  }
   if (q.get("starter") === "1") {
     const [settings, stats, firstWeeks] = await Promise.all([loadStarter(env), starterStats(env, today), firstWeeksReport(env, today)]);
     return { area: "credits", data: { settings, defaults: STARTER_DEFAULTS, stats, firstWeeks, menu: creditMenu(settings.welcomeCredits), costs: STARTER_COSTS } };
