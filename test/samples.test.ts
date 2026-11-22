@@ -95,3 +95,14 @@ test("admin-edited sample text is used, always keeps the word Sample, and Spanis
   await seedSamples(e, 22, "es");
   assert.match(e.db.prepare("SELECT name FROM customers WHERE company_id = 22").get().name, /ejemplo/i);
 });
+
+test("tier demos rebuild by themselves only after they were built once and something changed", async () => {
+  const { syncTierDemos, buildAllTierDemos, TIER_DEMO_SIG_KEY } = await import("../src/tierdemos.ts");
+  const e = env();
+  assert.equal(await syncTierDemos(e), "none"); // never auto-creates
+  await buildAllTierDemos(e, "2026-11-22T00:00:00Z");
+  assert.equal(await syncTierDemos(e), "same");
+  e.db.prepare("UPDATE app_settings SET value = ? WHERE key = ?").run(JSON.stringify({ sig: "old limits" }), TIER_DEMO_SIG_KEY);
+  assert.equal(await syncTierDemos(e, "2026-12-01T00:00:00Z"), "rebuilt");
+  assert.equal(await syncTierDemos(e), "same");
+});

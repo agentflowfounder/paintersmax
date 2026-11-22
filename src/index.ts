@@ -13,6 +13,7 @@ import { handleBilling, handleCheckout, handleStripeWebhook } from "./stripe.ts"
 import { handleStripeCheck } from "./stripecheck.ts";
 import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleLang, handleProfile, handleRateCard } from "./wizard-api.ts";
 import { handleSamples } from "./samples.ts";
+import { syncTierDemos } from "./tierdemos.ts";
 import { adminActor } from "./adminroles.ts";
 import { endSession, getSessionUser, hasSessionCookie, requestLoginLink, signInLinkPage, verifyLoginLink } from "./auth.ts";
 import { crossSiteWrite, visitorKey } from "./guard.ts";
@@ -457,6 +458,7 @@ export default {
     // Once a day (the 09:00 UTC run): AI sandbox items past their keep window.
     const at = new Date(_event.scheduledTime);
     if (at.getUTCHours() === 9 && at.getUTCMinutes() < 5) ctx.waitUntil(sandboxCleanup(env).catch((err) => console.error("sandbox cleanup failed", String(err))));
+    if (at.getUTCHours() === 9 && at.getUTCMinutes() < 5) ctx.waitUntil(syncTierDemos(env).catch((err) => console.error("tier demo sync failed", String(err))));
     // Once a day (the 12:00 UTC run, 6 AM in Texas): welcome credits that waited because yesterday's sign-ups were over the ceiling.
     // Once a day (the 15:00 UTC run, 9 AM in Texas): the day-3 welcome email, when the owner has switched it on.
     if (at.getUTCHours() === 15 && at.getUTCMinutes() < 5) ctx.waitUntil(sendDay3Emails(env, _event.scheduledTime).catch((err) => console.error("day 3 emails failed", String(err))));
