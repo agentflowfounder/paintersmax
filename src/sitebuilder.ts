@@ -6,7 +6,7 @@ import { loadPromos, type Promo } from "./promos.ts";
 import { todayLocal } from "./dates.ts";
 import { coiLink, showsCustomers } from "./insurance.ts";
 import { readSettings } from "./settings.ts";
-import { stripeApi } from "./stripe.ts";
+import { payerFields, stripeApi } from "./stripe.ts";
 import { consume, normalizePlan, refund, type Plan } from "./usage.ts";
 import {
   blankPage, canPublish, cleanSite, DOOR_FLOOR_CENTS, DOOR_LIMITS, DOOR_LIST_CENTS, DOOR_NAMES, DOOR_PLAN, doorFor, DOORS, firstDraft, healthFlags, isDoor,
@@ -58,6 +58,11 @@ export const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 const PHOTO_TYPES = ["image/jpeg", "image/webp", "image/png"];
 
 interface CompanyRow { id: number; slug: string; name: string; plan: string; settings: string; notify_email: string | null; created_at: string }
+
+async function stripeCustomerOf(env: Env, id: number): Promise<string | null> {
+  const r = await env.DB.prepare("SELECT stripe_customer_id AS c FROM companies WHERE id = ?").bind(id).first<{ c: string | null }>();
+  return r?.c || null;
+}
 
 async function companyById(env: Env, id: number) {
   return env.DB.prepare("SELECT id, slug, name, plan, settings, notify_email, created_at FROM companies WHERE id = ?").bind(id).first<CompanyRow>();
@@ -382,16 +387,16 @@ export async function handleSiteApi(request: Request, env: Env, ctx?: ExecutionC
     const pick = door === "free" ? await pickPromo(env, to, b?.code, today) : { promo: null };
     if (pick.error && b?.code) return json({ error: pick.error }, 400);
     const charge = doorCharge(door, to, pick.promo, today);
-    const s = await stripeApi(env, "checkout/sessions", upgradeCheckoutForm(url.origin, { companyId: co.id, email: a.user.email, from: door, to, cents: charge.cents, promoCode: charge.promoApplied ? pick.promo!.code : "" }));
+    const s = await stripeApi(env, "checkout/sessions", upgradeCheckoutForm(url.origin, { companyId: co.id, email: a.user.email, from: door, to, cents: charge.cents, promoCode: charge.promoApplied ? pick.promo!.code : "", customerId: await stripeCustomerOf(env, co.id) }));
     return json({ url: s.url });
   }
   return json({ error: "Unknown action." }, 400);
 }
 
-export function upgradeCheckoutForm(origin: string, i: { companyId: number; email: string; from: Door; to: Door; cents?: number; promoCode?: string; successPath?: string }): URLSearchParams {
+export function upgradeCheckoutForm(origin: string, i: { companyId: number; email: string; from: Door; to: Door; cents?: number; promoCode?: string; successPath?: string; customerId?: string | null }): URLSearchParams {
   const f = new URLSearchParams();
   f.set("mode", "payment");
-  f.set("customer_email", i.email);
+  payerFields(f, i.email, i.customerId);
   f.set("success_url", `${origin}${i.successPath ?? "/site?upgraded=1"}`);
   f.set("cancel_url", `${origin}/site`);
   f.set("line_items[0][quantity]", "1");

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PLAN_PRICES, SETUP_FEE_CENTS, checkoutForm, verifyStripeSignature } from "../src/stripe.ts";
+import { handleCheckout, invoiceSubscription, payerFields, verifyStripeSignature } from "../src/stripe.ts";
 
 async function sign(secret: string, t: number, body: string) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -8,21 +8,29 @@ async function sign(secret: string, t: number, body: string) {
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-test("prices match the agreed plans", () => {
-  assert.deepEqual(PLAN_PRICES, { starter: 9900, basic: 19900, pro: 34900 });
-  assert.equal(SETUP_FEE_CENTS, 49900);
+test("the old monthly-plan checkout is retired and points to the free sign-up", async () => {
+  const r = await handleCheckout(new Request("https://x.app/api/checkout", { method: "POST", body: "{}" }), {} as any);
+  assert.equal(r.status, 410);
+  assert.equal((await r.json()).moved, "/start");
 });
 
-test("checkout form has the plan, the setup fee and the customer's details", () => {
-  const f = checkoutForm("https://x.app", { plan: "basic", name: "Bright Co", email: "a@b.co" });
-  assert.equal(f.get("mode"), "subscription");
-  assert.equal(f.get("line_items[0][price_data][unit_amount]"), "19900");
-  assert.equal(f.get("line_items[0][price_data][recurring][interval]"), "month");
-  assert.equal(f.get("line_items[1][price_data][unit_amount]"), "49900");
-  assert.equal(f.get("line_items[1][price_data][recurring][interval]"), null);
-  assert.equal(f.get("metadata[plan]"), "basic");
-  assert.equal(f.get("metadata[company_name]"), "Bright Co");
-  assert.equal(f.get("success_url"), "https://x.app/welcome");
+test("invoices: the subscription is read from the old and the new Stripe shapes", () => {
+  assert.equal(invoiceSubscription({ subscription: "sub_1" }), "sub_1");
+  assert.equal(invoiceSubscription({ parent: { subscription_details: { subscription: "sub_2" } } }), "sub_2");
+  assert.equal(invoiceSubscription({ subscription: { id: "sub_3" } }), "sub_3");
+  assert.equal(invoiceSubscription({}), null);
+});
+
+test("one-time checkouts always leave a Stripe customer behind", () => {
+  const f = new URLSearchParams();
+  payerFields(f, "a@b.co", null);
+  assert.equal(f.get("customer_email"), "a@b.co");
+  assert.equal(f.get("customer_creation"), "always");
+  const g = new URLSearchParams();
+  payerFields(g, "a@b.co", "cus_1");
+  assert.equal(g.get("customer"), "cus_1");
+  assert.equal(g.get("customer_email"), null);
+  assert.equal(g.get("customer_creation"), null);
 });
 
 test("signature check accepts a good signature and rejects bad, old or missing ones", async () => {
@@ -51,6 +59,8 @@ test("top-up and allowance checkout forms carry the approved prices and the comp
   assert.equal(t.get("metadata[kind]"), "topup");
   assert.equal(t.get("metadata[topup]"), "t20");
   assert.equal(t.get("metadata[company_id]"), "3");
+  assert.equal(t.get("customer_creation"), "always");
+  assert.equal(topUpCheckoutForm("https://x.app", { companyId: 3, email: "a@b.co", topUp: TOPUPS[2], customerId: "cus_7" }).get("customer"), "cus_7");
   const a = allowanceCheckoutForm("https://x.app", { companyId: 3, email: "a@b.co", allowance: ALLOWANCES[1], customerId: null });
   assert.equal(a.get("mode"), "subscription");
   assert.equal(a.get("customer_email"), "a@b.co");
@@ -135,4 +145,23 @@ test("webhook: an allowance adds the first month at checkout, each renewal once,
   assert.equal((await creditView(env, 3, today())).balance, 1800);
   const plan = await env.DB.prepare("SELECT plan FROM companies WHERE id = 3").first();
   assert.equal(plan.plan, "free"); // untouched: an allowance is not a plan
+});
+
+test("webhook: an allowance renewal in the new Stripe invoice shape still adds the month", async () => {
+  const env = webhookEnv();
+  await post(env, { id: "evt_n1", type: "checkout.session.completed", data: { object: { id: "cs_n1", mode: "subscription", subscription: "sub_n", customer: "cus_n", metadata: { kind: "allowance", allowance: "a19", company_id: "3" } } } });
+  assert.equal((await creditView(env, 3, today())).balance, 150);
+  await post(env, { id: "evt_n2", type: "invoice.paid", data: { object: { id: "in_n2", parent: { type: "subscription_details", subscription_details: { subscription: "sub_n" } }, customer: "cus_n", amount_paid: 1900, billing_reason: "subscription_cycle" } } });
+  assert.equal((await creditView(env, 3, today())).balance, 300);
+});
+
+test("webhook: a bank payment adds the top-up when the money arrives, not before", async () => {
+  const env = webhookEnv();
+  const obj = { id: "cs_b1", mode: "payment", customer: "cus_b", metadata: { kind: "topup", topup: "t20", company_id: "3" } };
+  await post(env, { id: "evt_b1", type: "checkout.session.completed", data: { object: { ...obj, payment_status: "unpaid" } } });
+  assert.equal((await creditView(env, 3, today())).balance, 0);
+  await post(env, { id: "evt_b2", type: "checkout.session.async_payment_succeeded", data: { object: { ...obj, payment_status: "paid" } } });
+  assert.equal((await creditView(env, 3, today())).balance, 220);
+  await post(env, { id: "evt_b3", type: "checkout.session.async_payment_succeeded", data: { object: { ...obj, payment_status: "paid" } } });
+  assert.equal((await creditView(env, 3, today())).balance, 220);
 });

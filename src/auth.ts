@@ -111,3 +111,27 @@ export async function endSession(env: Env, request: Request): Promise<string> {
   if (token) await env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(await sha256Hex(token)).run();
   return `${SESSION_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`;
 }
+
+/**
+ * The page a sign-in link opens. Opening the link does NOT use it up: the painter taps "Sign in" and that POST does.
+ * Email safety scanners (Outlook Safe Links, company virus checkers) open every link in an email before the person
+ * does; when a plain visit used the link, those scanners burned it and the painter saw "invalid or expired".
+ * Scanners do not press buttons, so the link still works when the painter taps it. English and Spanish on one page.
+ */
+export function signInLinkPage(token: string | null, state: "ready" | "bad"): Response {
+  const ok = state === "ready" && !!token && /^[0-9a-f]{64}$/.test(token);
+  const body = ok
+    ? `<h1>Sign in to PaintersMax</h1><p class="es">Iniciar sesión en PaintersMax</p>
+<form method="post" action="/api/auth/verify"><input type="hidden" name="token" value="${token}"><button type="submit">Sign in · Entrar</button></form>
+<p class="small">This link works once and for 15 minutes.<br><span class="es">Este enlace funciona una vez y por 15 minutos.</span></p>`
+    : `<h1>This sign-in link has expired</h1><p class="es">Este enlace de acceso ya no funciona</p>
+<p>Links work once and for 15 minutes. Ask for a new one and use the newest email.<br><span class="es">Los enlaces funcionan una vez y por 15 minutos. Pida uno nuevo y use el correo más reciente.</span></p>
+<p><a class="btn" href="/login">Get a new link · Pedir un enlace nuevo</a></p>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Sign in · PaintersMax</title>
+<style>body{margin:0;background:#F7F5F1;color:#0F1B2D;font:17px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+main{background:#fff;border-radius:14px;padding:28px 24px;max-width:420px;width:100%;box-shadow:0 2px 16px rgba(15,27,45,.08);text-align:center}
+h1{font-size:24px;margin:0 0 4px}.es{color:#5b6472;margin-top:0}.small{font-size:14px;color:#5b6472}
+button,.btn{display:inline-block;margin:18px 0 8px;background:#0F1B2D;color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:18px;font-weight:600;text-decoration:none;cursor:pointer;min-width:220px}</style></head>
+<body><main>${body}</main></body></html>`;
+  return new Response(html, { status: ok ? 200 : 400, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer" } });
+}

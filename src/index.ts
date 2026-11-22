@@ -12,7 +12,7 @@ import { handleAuthConfig, handleGoogleCallback, handleGoogleStart } from "./goo
 import { handleBilling, handleCheckout, handleStripeWebhook } from "./stripe.ts";
 import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleLang, handleProfile, handleRateCard } from "./wizard-api.ts";
 import { adminActor } from "./adminroles.ts";
-import { endSession, getSessionUser, hasSessionCookie, requestLoginLink, verifyLoginLink } from "./auth.ts";
+import { endSession, getSessionUser, hasSessionCookie, requestLoginLink, signInLinkPage, verifyLoginLink } from "./auth.ts";
 import { crossSiteWrite, visitorKey } from "./guard.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
@@ -534,7 +534,8 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     if (pathname === "/api/health") {
       // ?probe=1 (signed in only): one tiny photo question per AI provider, so a failing key, quota or model name shows up here.
       if (new URL(request.url).searchParams.get("probe") === "1") {
-        if (!(await getSessionUser(env, request))) return json({ error: "Sign in first, then open this address again." }, 401);
+        // Admins only: each probe makes three paid AI calls, so a painter's login must not be able to repeat it.
+        if (!(await adminActor(env, request).catch(() => null))) return json({ error: "Sign in as an admin first, then open this address again." }, 401);
         const px = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
         const result: Record<string, string> = {};
         for (const p of ["gemini", "openai", "anthropic"] as const) {
@@ -608,9 +609,16 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
       }
     }
     if (pathname === "/api/auth/verify") {
-      const result = await verifyLoginLink(env, new URL(request.url).searchParams.get("token"));
-      if (!result) return new Response("This sign-in link is invalid or expired. Please request a new one.", { status: 400 });
-      return new Response(null, { status: 302, headers: { location: "/dashboard", "set-cookie": result.cookie } });
+      // Opening the link shows a "Sign in" button; only pressing it (a POST) uses the link. See signInLinkPage.
+      if (request.method !== "POST") return signInLinkPage(new URL(request.url).searchParams.get("token"), "ready");
+      let token: string | null = null;
+      try {
+        const v = (await request.formData()).get("token");
+        token = typeof v === "string" ? v : null;
+      } catch {}
+      const result = await verifyLoginLink(env, token);
+      if (!result) return signInLinkPage(null, "bad");
+      return new Response(null, { status: 303, headers: { location: "/dashboard", "set-cookie": result.cookie } });
     }
     if (pathname === "/api/auth/logout" && request.method === "POST") {
       return new Response(JSON.stringify({ ok: true }), {
@@ -1067,19 +1075,10 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return json({ error: "Something went wrong." }, 500);
       }
     }
-    if (pathname === "/api/checkout") {
-      try {
-        if (request.method === "POST") {
-          const stop = await requireAgreement(request, env);
-          if (stop) return stop;
-        }
-        return await handleCheckout(request, env);
-      } catch (err) {
-        console.error("handleCheckout failed", String(err));
-        return json({ error: "Something went wrong." }, 500);
-      }
-    }
-    if (pathname === "/api/stripe/webhook") {
+    // Retired 2026-11: the old monthly plans. It only points to /start now (see stripe.ts).
+    if (pathname === "/api/checkout") return handleCheckout(request, env);
+    // The Stripe dashboard destination was created as /api/stripe-webhook (hyphen); both addresses work.
+    if (pathname === "/api/stripe/webhook" || pathname === "/api/stripe-webhook") {
       try {
         return await handleStripeWebhook(request, env);
       } catch (err) {
