@@ -9,6 +9,8 @@ import { blobsWithPrefix, readBlob, str, updateBlob, writeBlob } from "./kv.ts";
 import { ALERT_KEY, readAlert } from "./aialert.ts";
 import { BLIND_KEY, BLIND_TOOLS, readBlind, runBlindTest, scoreBlindTest } from "./blindtest.ts";
 import { aiScorecard, aiToday } from "./ailog.ts";
+import { exceptionList } from "./exceptions.ts";
+import { readSamplesSetting, SAMPLES_KEY, saveSamplesSetting } from "./samples.ts";
 import { databaseBackup, LAST_BACKUP_KEY } from "./backup.ts";
 import { CHANNELS, loadPromos, normCode, promoPrice, promoUses, savePromo, setPromoActive, validatePromo } from "./promos.ts";
 import { addLesson, contactCounts, contactsCsv, importContacts, loadContacts, loadMarkets, OUTREACH_STATUSES, saveContact, saveMarket } from "./research.ts";
@@ -110,7 +112,7 @@ export async function clientList(env: Env, today: string) {
             (SELECT COUNT(*) FROM jobs WHERE company_id = c.id) AS jobs,
             (SELECT COUNT(*) FROM leads WHERE company_id = c.id) AS leads,
             (SELECT MAX(s.created_at) FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.company_id = c.id) AS lastSignIn
-       FROM companies c ORDER BY c.id`,
+       FROM companies c WHERE c.slug NOT LIKE 'demo-%' ORDER BY c.id`,
   ).all<any>();
   const phones = await companyPhones(env);
   const subs = new Map((await allSubs(env, today)).map((s) => [s.companyId, s]));
@@ -189,6 +191,8 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
       },
     };
   }
+  if (q.get("exceptions") === "1") return { area: "clients", data: { items: await exceptionList(env, today) } };
+  if (q.get("samples") === "1") return { area: "settings", data: await readBlob(env, SAMPLES_KEY, readSamplesSetting) };
   if (q.get("credits") === "1") return { area: "credits", data: await creditsOverview(env, q.get("month") ?? "") };
   if (q.get("aihealth") === "1") {
     const back = (n: number) => new Date(Date.parse(`${today}T00:00:00Z`) - n * 86400000).toISOString().slice(0, 10);
@@ -246,7 +250,7 @@ export const ACT_AREAS: Record<string, Area> = {
   feedback_reply: "feedback",
   quickreply_save: "feedback",
   held_save: "domains", held_decide: "domains",
-  team_set: "security",
+  team_set: "security", samples_set: "settings",
   ai_alert_set: "credits", blind_run: "credits", blind_pick: "credits",
 };
 
@@ -309,6 +313,10 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
       if (!r.ok) return fail(r.error);
       forgetClientModel(co.id);
       return { ok: true, companyId: co.id, data: { envelopes: r.value }, detail: { enabled: r.value.enabled, painter: r.value.painterCanEdit, caps: r.value.caps, model: r.value.textModel } };
+    }
+    case "samples_set": {
+      await saveSamplesSetting(env, b.on !== false);
+      return { ok: true, data: { on: b.on !== false }, detail: `sample content for new accounts ${b.on !== false ? "on" : "off"}` };
     }
     case "ai_alert_set": {
       const dollars = Number(b.dailyDollars);

@@ -12,6 +12,7 @@ import { handleAuthConfig, handleGoogleCallback, handleGoogleStart } from "./goo
 import { handleBilling, handleCheckout, handleStripeWebhook } from "./stripe.ts";
 import { handleStripeCheck } from "./stripecheck.ts";
 import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleLang, handleProfile, handleRateCard } from "./wizard-api.ts";
+import { handleSamples } from "./samples.ts";
 import { adminActor } from "./adminroles.ts";
 import { endSession, getSessionUser, hasSessionCookie, requestLoginLink, signInLinkPage, verifyLoginLink } from "./auth.ts";
 import { crossSiteWrite, visitorKey } from "./guard.ts";
@@ -878,6 +879,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleRateCard(request, env);
       } catch (err) {
         console.error("ratecard failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/samples") {
+      try {
+        return await handleSamples(request, env);
+      } catch (err) {
+        console.error("samples failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

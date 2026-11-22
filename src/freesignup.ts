@@ -4,6 +4,7 @@ import { todayLocal } from "./dates.ts";
 import { visitorKey } from "./guard.ts";
 import { updateBlob, writeBlob } from "./kv.ts";
 import { sanitizeProfile } from "./profile.ts";
+import { seedSamples } from "./samples.ts";
 import { cleanSlug, cleanTag, creditCheckout } from "./landing.ts";
 import { upgradeCheckoutForm } from "./sitebuilder.ts";
 import { doorCharge, loadStarter, pickPromo } from "./starter.ts";
@@ -93,6 +94,7 @@ export async function handleFreeSignup(request: Request, env: Env): Promise<Resp
   const where = splitCity(i.city);
   const prof = sanitizeProfile({ company: { legalName: i.name, phone: i.phone, email: i.email, city: where.city, state: where.state }, language: { ui: i.lang, crewDocs: i.lang } }, "free");
   await env.DB.prepare("INSERT INTO company_profiles (company_id, data, setup_step, completed, updated_at) VALUES (?, ?, 'start', 0, datetime('now')) ON CONFLICT(company_id) DO NOTHING").bind(r.companyId, JSON.stringify(prof)).run().catch((err) => console.error("signup profile failed", String(err)));
+  await seedSamples(env, r.companyId, i.lang).catch((err) => console.error("signup samples failed", String(err)));
   await creditCheckout(env, request).catch(() => {});
   // The welcome email carries the first sign-in link, in the language picked on the form.
   await requestLoginLink(env, origin, i.email, { lang: i.lang, welcome: { company: i.name, credits: r.welcome?.status === "granted" ? r.welcome.credits : 0 } }).catch((err) => console.error("welcome link failed", String(err)));

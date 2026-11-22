@@ -255,6 +255,7 @@
 "Client": "Cliente",
 "Client not found.": "Cliente no encontrado.",
 "Client websites": "Sitios web de clientes",
+"Tier example sites": "Sitios de ejemplo por nivel",
 "Code added": "Código agregado",
 "Compare the doors": "Compare las puertas",
 "Computer": "Computadora",
