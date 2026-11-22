@@ -40,3 +40,18 @@ test("a bad or used sign-in link explains itself in both languages and links to 
     assert.doesNotMatch(html, /<script>/);
   }
 });
+
+import { loginEmail } from "../src/auth.ts";
+
+test("the sign-in email follows the painter's language, and the first one welcomes them", () => {
+  const en = loginEmail("https://x/l", { lang: "en" });
+  assert.equal(en.subject, "Your PaintersMax sign-in link");
+  const es = loginEmail("https://x/l", { lang: "es", welcome: { company: "Pinturas Tyler", credits: 250 } });
+  assert.match(es.subject, /enlace de acceso/);
+  assert.match(es.text, /Pinturas Tyler/);
+  assert.match(es.text, /250 créditos/);
+  assert.match(es.text, /https:\/\/x\/l/);
+  const w = loginEmail("https://x/l", { lang: "en", welcome: { company: "Bright Co", credits: 0 } });
+  assert.match(w.subject, /^Welcome/);
+  assert.doesNotMatch(w.text, /credits/);
+});

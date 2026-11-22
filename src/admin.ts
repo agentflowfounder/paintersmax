@@ -73,7 +73,7 @@ export async function provisionClient(env: Env, origin: string, input: { name: u
   });
   if (o.sendLink !== false) {
     try {
-      await requestLoginLink(env, origin, email);
+      await requestLoginLink(env, origin, email, { welcome: { company: name, credits: welcome?.status === "granted" ? welcome.credits : 0 } });
     } catch (err) {
       console.error("welcome link failed", String(err));
     }

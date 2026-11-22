@@ -10,6 +10,7 @@ import { addJobEvent, ensureCustomerAndJob, tradeFor } from "./crm.ts";
 import { handleAdmin } from "./admin.ts";
 import { handleAuthConfig, handleGoogleCallback, handleGoogleStart } from "./google.ts";
 import { handleBilling, handleCheckout, handleStripeWebhook } from "./stripe.ts";
+import { handleStripeCheck } from "./stripecheck.ts";
 import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleLang, handleProfile, handleRateCard } from "./wizard-api.ts";
 import { adminActor } from "./adminroles.ts";
 import { endSession, getSessionUser, hasSessionCookie, requestLoginLink, signInLinkPage, verifyLoginLink } from "./auth.ts";
@@ -587,7 +588,7 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         body = await request.json();
       } catch {}
       try {
-        await requestLoginLink(env, new URL(request.url).origin, body?.email);
+        await requestLoginLink(env, new URL(request.url).origin, body?.email, { lang: body?.lang });
       } catch (err) {
         console.error("login link failed", String(err));
       }
@@ -1079,6 +1080,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     }
     // Retired 2026-11: the old monthly plans. It only points to /start now (see stripe.ts).
     if (pathname === "/api/checkout") return handleCheckout(request, env);
+    if (pathname === "/api/admin/stripe-check") {
+      try {
+        return await handleStripeCheck(request, env);
+      } catch (err) {
+        console.error("stripe check failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
     // The Stripe dashboard destination was created as /api/stripe-webhook (hyphen); both addresses work.
     if (pathname === "/api/stripe/webhook" || pathname === "/api/stripe-webhook") {
       try {
