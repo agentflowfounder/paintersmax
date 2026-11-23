@@ -93,7 +93,7 @@ const QCATS=[
  ['Customers and business',['Write a short message asking a customer to approve my estimate','How do I handle a change order in the middle of a job?','How do I ask for a deposit politely?','How do I answer a customer who says my price is too high?']]];
 function assistantCard(jobId){
  if(chatJob!==jobId||chat===null){chat=[];}chatJob=jobId;
- const es=(localStorage.getItem('as_lang')||window.PM_LANG)==='es';
+ const es=window.PM_LANG==='es'; // follow the page language (the EN|ES switch), not an old pick
  return `${jobId?'':'<h3>Job assistant</h3>'}<div class="card">
  <div style="display:flex;justify-content:space-between;gap:10px;align-items:end;flex-wrap:wrap"><label for="as_in" style="margin:0">${jobId?'Ask about this job, or any painting question':'Ask any painting or business question'}</label>
  <select id="as_lang" style="width:auto;padding:6px 8px" aria-label="Language"><option value="en" ${es?'':'selected'}>English</option><option value="es" ${es?'selected':''}>Español</option></select></div>
@@ -128,7 +128,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};
  else if(ds.asave!==undefined&&ds.asave!==''){try{await api('/api/jobnote',{jobId:chatJob,text:'Assistant note: '+chat[+ds.asave].content});t.textContent='Saved';t.disabled=true;}catch(x){if(x)msg(x.message);}}
  else if(t.closest&&t.closest('#as_mic')){micToggle($('as_mic'),()=>($('as_lang')||{value:'en'}).value==='es'?'es-US':'en-US',x=>{$('as_in').value=(($('as_in').value?$('as_in').value+' ':'')+x).trim();});}
 });
-document.addEventListener('change',e=>{if(e.target.id==='as_lang'){try{localStorage.setItem('as_lang',e.target.value);}catch(x){}}});
+try{localStorage.removeItem('as_lang');}catch(x){}
 document.addEventListener('change',async e=>{if(e.target.id!=='as_cam'||!e.target.files[0])return;const f=e.target.files[0];e.target.value='';try{msg('Adding photo...',true);const b=await shrinkImg(f),fd=new FormData();fd.append('file',b);fd.append('jobId',chatJob);fd.append('kind','photo');const r=await fetch('/api/files',{method:'POST',body:fd});if(r.status===401){location.href='/login';return;}const j=await r.json().catch(()=>({}));if(!r.ok){msg(j.error||'Could not add the photo.');return;}chatFile=j.id;attDraw();msg('');if(typeof filesLoad==='function')filesLoad();$('as_in').focus();}catch(x){msg('Could not add the photo.');}});
 document.addEventListener('click',e=>{const d=e.target.dataset||{};if(d.adetach){chatFile=0;attDraw();}else if(e.target.id==='ask_fab'||(e.target.closest&&e.target.closest('#ask_fab'))){if(typeof openAcc==='function')openAcc('help');const i=$('as_in');if(i){i.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>i.focus(),350);}}});
 (function(){const b=document.createElement('button');b.id='ask_fab';b.className='btn fab';b.type='button';b.textContent='Ask';b.setAttribute('aria-label','Ask the assistant');document.body.appendChild(b);})();
