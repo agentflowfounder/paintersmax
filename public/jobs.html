@@ -67,6 +67,19 @@ details.acc[open]>summary{border-bottom:1px solid #eee}
 .np{border-color:#E8A33D!important;background:#fff8e6}
 .ed{white-space:nowrap;padding:10px 8px;font-size:14px;min-height:44px}
 @media(max-width:520px){.btn{min-height:44px}.mini{padding:8px 4px}}
+.ptabs{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;margin:0 -16px;padding-left:16px;padding-right:16px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.ptabs::-webkit-scrollbar{display:none}
+.ptab{flex:none;border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:9px 14px;font:600 14px/1 inherit;cursor:pointer;min-height:40px;color:#0F1B2D;white-space:nowrap}
+.ptab.on{background:#0F1B2D;color:#fff;border-color:#0F1B2D}.pct{display:inline-block;min-width:20px;padding:2px 6px;border-radius:99px;background:#eceae4;color:#0F1B2D;font-size:12px;margin-left:4px}.ptab.on .pct{background:#E8A33D}
+.steps{display:flex;gap:6px;overflow-x:auto;margin:0 -16px 12px;padding:2px 16px 6px;scrollbar-width:none;position:sticky;top:0;z-index:20;background:#F7F5F1}.steps::-webkit-scrollbar{display:none}
+.stepb{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:7px 12px 7px 7px;font:600 13px/1 inherit;cursor:pointer;color:#0F1B2D;min-height:38px}.stepb span{width:22px;height:22px;border-radius:50%;background:#0F1B2D;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.notefab{position:fixed;left:14px;bottom:16px;z-index:30;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.28);padding:13px 18px;font-size:16px;background:#0F1B2D;color:#fff}.notefab.on{background:#b42318}@media print{.notefab{display:none}}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%) translateY(20px);background:#0F1B2D;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:.2s;z-index:70;max-width:90vw;text-align:center;pointer-events:none}.toast.on{opacity:1;transform:translateX(-50%)}
+.fnote{border-bottom:1px solid #f0eee9;padding:8px 0}.fnote:last-child{border-bottom:0}
+.ntag{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:2px 9px;background:#eceae4}.ntag.prep{background:#fff3d6;color:#8a5a00}.ntag.wishes{background:#eef5ff;color:#1f4f8a}.ntag.site{background:#eaf6ee;color:#0a7a3d}.ntag.safety{background:#fdecea;color:#b42318}.ntag.call{background:#f1ecfa;color:#5b3a8a}.ntag.pending{background:#fff;border:1px dashed #8a5a00;color:#8a5a00}
+.crow{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0eee9}.crow input[type=color]{width:44px;height:44px;padding:2px;flex:none}
+.pal{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.sw{display:inline-flex;align-items:center;gap:6px;border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:5px 10px 5px 5px;font-size:13px;cursor:pointer;color:#0F1B2D}.sw span{width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}
+.lrow{border-bottom:1px solid #f0eee9;padding:8px 0}.lrow .l2{display:grid;grid-template-columns:50px 58px minmax(60px,1fr) 104px 26px;gap:6px;margin-top:6px;align-items:center}.lrow input,.lrow select{padding:8px}.lrow .l2 select{padding:8px 4px}.lrow .l2 button{border:0;background:none;font-size:18px;cursor:pointer;color:#b42318}
+.optck{display:flex;gap:8px;align-items:center;font-weight:400;margin:4px 0;font-size:14px}.optck input{width:auto}
 </style></head><body>
 <header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Estimating Setup</a><a href="/calendar">Calendar</a><a href="/records">Records</a><a href="/crew">Crew</a><a href="/lessons">Lessons</a><a href="/analysis">Analysis</a><a href="/builders">Builder rates</a><a href="/import">Import customers</a><a href="/materials">Materials</a><a href="/insurance">Insurance</a><a href="/dashboard">Settings and leads</a></div></header>
 <main><div id="view">Loading...</div><div id="msg"></div></main>
@@ -328,7 +341,138 @@ function micToggle(b,lang,onText){
   };
   begin();
 }
-function micInit(){const ok=window.SpeechRecognition||window.webkitSpeechRecognition;['as_mic','bf_mic'].forEach(i=>{const m=$(i);if(m&&ok)m.style.display='';});}
+function micInit(){const ok=window.SpeechRecognition||window.webkitSpeechRecognition;['as_mic','bf_mic','fn_mic'].forEach(i=>{const m=$(i);if(m&&ok)m.style.display='';});}
+// ---- Pipeline tabs: New Bids > Estimates > Jobs > Jobs Completed > Invoice > Paid > Warranty (and Lost) ----
+const TABS=[['new','New Bids','Customers who asked for a price. Call them, visit, then build the estimate.'],['estimates','Estimates','Estimates you are writing or have sent. Close them or follow up.'],['jobs','Jobs','Signed work. Take the deposit, schedule the crew, do the work.'],['completed','Jobs Completed','Work done. Get the customer sign-off and build the final invoice.'],['invoice','Invoice','Final invoice sent. Record payments as they come in.'],['paid','Paid','Paid in full.'],['warranty','Warranty','Paid jobs still inside their warranty.'],['lost','Lost','Bids the customer turned down, with the reason.']];
+let TAB=null;
+function tabPick(jobs){const h=(location.hash||'').slice(1);if(TABS.some(t=>t[0]===h))return h;let s=null;try{s=localStorage.getItem('pm_jobtab');}catch(e){}if(s&&TABS.some(t=>t[0]===s))return s;const first=TABS.find(t=>jobs.some(j=>j.bucket===t[0]));return first?first[0]:'new';}
+function tabDraw(jobs){const box=$('pl_tabs'),out=$('pl_list');if(!box||!out)return;
+ box.innerHTML=TABS.map(([k,n])=>{const c=jobs.filter(j=>j.bucket===k).length;return `<button class="ptab ${k===TAB?'on':''}" data-ptab="${k}" aria-pressed="${k===TAB}">${esc(n)} <span class="pct">${c}</span></button>`;}).join('');
+ const t=TABS.find(x=>x[0]===TAB),m=jobs.filter(j=>j.bucket===TAB);
+ out.innerHTML=`<small class="muted" style="display:block;margin:4px 0 8px">${esc(t[2])}</small>`+(m.length?`<div class="card" style="margin-top:6px">${m.map(jobRow).join('')}</div>`:`<div class="card"><p class="muted" style="margin:0">${TAB==='new'?'No new bids. Website requests appear here by themselves, or tap + New bid.':'Nothing here right now.'}</p></div>`);
+ const on=box.querySelector('.on');if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest',inline:'center'});}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-ptab]');if(!b||!window.PL)return;TAB=b.dataset.ptab;try{localStorage.setItem('pm_jobtab',TAB);}catch(x){}history.replaceState(null,'','#'+TAB);tabDraw(window.PL);});
+
+// ---- Field notes: typed or spoken at the site, kept on the phone first so nothing is lost without signal ----
+const NTAG={prep:'Surface prep',wishes:'Customer wishes',site:'Site limits',safety:'Safety',call:'Calls',general:'Other notes'};
+const QKEY='pm_noteq';
+function nq(){try{return JSON.parse(localStorage.getItem(QKEY)||'[]');}catch(e){return[];}}
+function nqSet(a){try{localStorage.setItem(QKEY,JSON.stringify(a));}catch(e){}}
+let nqBusy=false;
+async function nqFlush(){if(nqBusy||!navigator.onLine)return;const q=nq();if(!q.length)return;nqBusy=true;
+ const byJob={};q.forEach(n=>{(byJob[n.jobId]=byJob[n.jobId]||[]).push(n);});
+ for(const id of Object.keys(byJob)){try{const r=await api('/api/job',{action:'note',jobId:+id,notes:byJob[id].map(n=>({id:n.id,at:n.at,text:n.text}))});nqSet(nq().filter(n=>String(n.jobId)!==id||!byJob[id].some(x=>x.id===n.id)));if(J&&String(J.job.id)===id){J.fieldNotes=r.notes;notesDraw();}}catch(e){}}
+ nqBusy=false;notesDraw();}
+window.addEventListener('online',nqFlush);
+function noteAdd(text){text=String(text||'').trim();if(!text||!J)return;const n={jobId:J.job.id,id:'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),at:new Date().toISOString(),text};nqSet(nq().concat([n]));notesDraw();nqFlush();toast(navigator.onLine?'Note saved':'Saved on this phone. It uploads when you have signal.');}
+function toast(t){let el=$('pm_toast');if(!el){el=document.createElement('div');el.id='pm_toast';el.className='toast';el.setAttribute('role','status');document.body.appendChild(el);}el.textContent=window.pmT?window.pmT(t):t;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),2400);}
+function notesCard(){return `<div class="card"><p class="muted" style="margin-top:0">Write or say what you see, one note at a time. I sort them into prep, customer wishes, site limits and safety, and use them when I write the estimate. The round Note button at the bottom of the screen works from anywhere on this page.</p>
+ <textarea id="fn_in" rows="2" placeholder="Example: Water stain on the hall ceiling. Customer wants satin in the kitchen."></textarea>
+ <div class="btns" style="margin-top:6px"><button class="btn" data-fnadd="1">Save note</button><button type="button" class="btn sec mic" id="fn_mic" style="display:none" aria-label="Speak a note"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>Mic</button></div>
+ <div id="fn_list" style="margin-top:10px"></div></div>`;}
+function notesDraw(){const b=$('fn_list');if(!b||!J)return;const mine=nq().filter(n=>n.jobId===J.job.id);const all=(J.fieldNotes||[]).concat(mine.filter(p=>!(J.fieldNotes||[]).some(x=>x.id===p.id)).map(p=>({...p,tag:'pending'})));
+ const s=$('accs_notes');if(s)s.textContent=all.length?all.length+(all.length===1?' note':' notes')+(mine.length?' ('+mine.length+' waiting for signal)':''):'Optional';
+ if(!all.length){b.innerHTML='<small class="muted">No notes yet.</small>';sumDraw();return;}
+ b.innerHTML=all.slice().reverse().map(n=>`<div class="fnote"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="ntag ${n.tag}">${esc(n.tag==='pending'?'Waiting for signal':NTAG[n.tag]||n.tag)}</span><small class="muted">${esc(new Date(n.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))}</small></div><div style="margin:4px 0;white-space:pre-wrap">${esc(n.text)}</div>${n.tag==='pending'?'':`<div class="btns" style="margin-top:2px"><select data-fntag="${esc(n.id)}" aria-label="Group" style="width:auto;padding:6px 8px">${Object.entries(NTAG).map(([k,v])=>`<option value="${k}" ${k===n.tag?'selected':''}>${esc(v)}</option>`).join('')}</select><button class="mini" data-fndel="${esc(n.id)}">Delete</button></div>`}</div>`).join('');
+ sumDraw();}
+document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if(!J)return;
+ if(ds.fnadd){const i=$('fn_in');noteAdd(i.value);i.value='';}
+ else if(ds.fndel){if(!confirm('Delete this note?'))return;try{const r=await api('/api/job',{action:'noteDelete',jobId:J.job.id,id:ds.fndel});J.fieldNotes=r.notes;notesDraw();}catch(x){if(x)msg(x.message);}}
+ else if(t.closest&&t.closest('#fn_mic')){micToggle($('fn_mic'),()=>window.PM_LANG==='es'?'es-US':'en-US',x=>noteAdd(x));}
+ else if(t.closest&&t.closest('#note_fab')){noteFab();}});
+document.addEventListener('change',async e=>{const t=e.target;if(!J||!t.dataset||!t.dataset.fntag)return;const n=(J.fieldNotes||[]).find(x=>x.id===t.dataset.fntag);if(!n)return;try{const r=await api('/api/job',{action:'noteEdit',jobId:J.job.id,id:n.id,text:n.text,tag:t.value});J.fieldNotes=r.notes;notesDraw();}catch(x){if(x)msg(x.message);}});
+// The floating Note button: tap to talk (each sentence becomes a note), tap again to stop. Without speech, it opens the note box.
+let fabMic=null;
+function noteFab(){const f=$('note_fab');const ok=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!ok){openAcc('notes');const a=$('acc_notes');if(a)a.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>{const i=$('fn_in');if(i)i.focus();},350);return;}
+ micToggle(f,()=>window.PM_LANG==='es'?'es-US':'en-US',x=>noteAdd(x));}
+function fabHtml(){return `<button class="btn mic notefab" id="note_fab" aria-label="Speak a field note"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>Note</button>`;}
+
+// ---- The customer's request ----
+const PTIME={morning:'Morning',afternoon:'Afternoon',evening:'Evening'};
+function reqSub(d){const r=d.request;if(!r)return 'Add what the customer asked for';return [r.preferredDate?'Wants it '+dtf(r.preferredDate)+(PTIME[r.preferredTime]?' ('+PTIME[r.preferredTime].toLowerCase()+')':''):'',r.source==='manual'?'Added by you':r.source?'From '+r.source.replace(/-/g,' '):''].filter(Boolean).join(' · ')||'Customer request';}
+function reqCard(d){const r=d.request||{description:'',preferredDate:'',preferredTime:''};const j=d.job;const tel=String(j.customerPhone||'').replace(/[^\d+]/g,'');
+ return `<div class="card"><label style="margin-top:0">What the customer asked for</label><textarea id="rq_desc" rows="3" placeholder="Example: Repaint the living room and hallway. Ceilings too.">${esc(r.description)}</textarea>
+ <div class="row"><div><label>When they would like it</label><input id="rq_date" type="date" value="${esc(r.preferredDate)}"></div><div><label>Best time</label><select id="rq_time"><option value="">Any time</option>${Object.entries(PTIME).map(([k,v])=>`<option value="${k}" ${r.preferredTime===k?'selected':''}>${v}</option>`).join('')}</select></div></div>
+ <div class="btns"><button class="btn sec" data-rqsave="1">Save</button>${tel?`<a class="cbtn" href="tel:${esc(tel)}" data-rqcall="1">Call ${esc(String(j.customerName||'').split(/\s+/)[0])}</a>`:''}</div>
+ ${d.offersTrade===false?`<div class="coach" style="margin-top:12px"><b>You do not list ${esc((TRADES[j.trade]||j.trade).toLowerCase())} yet.</b><br><small>You can still bid it. To have prices fill in by themselves next time, <a href="/app">add this service in Estimating Setup</a>.</small></div>`:''}
+ <small class="muted" style="display:block;margin-top:8px">After you call, tap the Note button and say what you agreed, like the visit day or what they want done.</small></div>`;}
+document.addEventListener('click',async e=>{const ds=e.target.dataset||{};if(!J)return;
+ if(ds.rqsave){try{const r=await api('/api/job',{action:'request',jobId:J.job.id,request:{description:$('rq_desc').value,preferredDate:$('rq_date').value,preferredTime:$('rq_time').value}});J.request=r.request;const s=$('accs_req');if(s)s.textContent=reqSub(J);sumDraw();msg('Saved.',true);}catch(x){if(x)msg(x.message);}}});
+
+// ---- Colors: chosen with the customer, saved on the bid and printed on the estimate ----
+const PALS=[['Modern neutrals',[['Soft white','#F2EFE8'],['Warm greige','#CFC6B8'],['Quiet gray','#B9BCBA'],['Mushroom','#A89F91'],['Charcoal','#3E4144']]],['Historic colors',[['Parchment','#EADFC8'],['Sage green','#9CA88B'],['Barn red','#7C2E25'],['Colonial blue','#3E5A75'],['Ochre','#C49A45']]],['Accent highlights',[['Navy','#1F2F4A'],['Forest','#2F4A3A'],['Terracotta','#B8613E'],['Mustard','#D4A22C'],['Plum','#5B3A55']]]];
+let COL=[];
+function colorsCard(){return `<div class="card"><p class="muted" style="margin-top:0">Write down each color the customer picks: where it goes, the paint brand and its color code. It saves to this bid and prints on the estimate. Paint store fan decks are still the best way to match a color.</p>
+ <div id="cl_rows"></div><div class="btns"><button class="btn sec" data-cladd="1">+ Add a color</button><button class="btn" data-clsave="1">Save colors</button></div>
+ <details class="g" style="margin-top:12px"><summary>Color ideas to show the customer</summary><div class="inner">${PALS.map(([n,cs])=>`<b style="font-size:14px">${esc(n)}</b><div class="pal">${cs.map(([cn,hx])=>`<button class="sw" data-clpick="${esc(cn)}|${hx}" title="${esc(cn)}"><span style="background:${hx}"></span>${esc(cn)}</button>`).join('')}</div>`).join('')}<small class="muted">Our own color names, as ideas only. Tap one to add it, then type the brand and code of the matching paint.</small></div></details>
+ <div class="btns"><a class="btn sec" href="/colors?job=${J.job.id}">Show a color on the customer's photo</a></div></div>`;}
+function colorsDraw(){const b=$('cl_rows');if(!b)return;const s=$('accs_colors');if(s)s.textContent=COL.length?COL.length+(COL.length===1?' color':' colors'):'Optional';
+ b.innerHTML=COL.length?COL.map((c,i)=>`<div class="crow"><input type="color" data-cli="${i}" data-clf="hex" value="${esc(c.hex||'#ffffff')}" aria-label="Color"><div style="flex:1;min-width:0"><input data-cli="${i}" data-clf="where" value="${esc(c.where)}" placeholder="Where (Example: Living room walls)"><div class="row" style="grid-template-columns:1fr 1fr 1.3fr;margin-top:6px"><input data-cli="${i}" data-clf="brand" value="${esc(c.brand)}" placeholder="Brand"><input data-cli="${i}" data-clf="code" value="${esc(c.code)}" placeholder="Code"><input data-cli="${i}" data-clf="name" value="${esc(c.name)}" placeholder="Color name"></div></div><button class="mini" data-cldel="${i}" aria-label="Remove">&times;</button></div>`).join(''):'<small class="muted">No colors yet.</small>';}
+document.addEventListener('input',e=>{const ds=e.target.dataset||{};if(ds.cli!==undefined&&COL[+ds.cli]){COL[+ds.cli][ds.clf]=e.target.value;}});
+document.addEventListener('click',async e=>{const t=e.target.closest?e.target.closest('[data-clpick],[data-cladd],[data-cldel],[data-clsave]'):null;if(!t||!J)return;const ds=t.dataset;
+ if(ds.cladd!==undefined){COL.push({where:'',brand:'',code:'',name:'',hex:''});colorsDraw();}
+ else if(ds.clpick){const [n,h]=ds.clpick.split('|');COL.push({where:'',brand:'',code:'',name:n,hex:h});colorsDraw();toast('Added. Type where it goes and the paint code.');}
+ else if(ds.cldel!==undefined){COL.splice(+ds.cldel,1);colorsDraw();}
+ else if(ds.clsave!==undefined){try{const r=await api('/api/job',{action:'colors',jobId:J.job.id,colors:COL});COL=r.colors.map(c=>({...c}));J.colors=r.colors;colorsDraw();sumDraw();msg('Colors saved. They print on the estimate.',true);}catch(x){if(x)msg(x.message);}}});
+
+// ---- Project summary: everything from the visit on one screen, then build the estimate ----
+function sumCard(){return `<div class="card"><div id="sum_body"></div><div class="btns"><button class="btn" data-sumbuild="1">Build the estimate from all of this</button></div><small class="muted">I write the scope and the lines from your request, notes, job details, photo findings and colors. Your own price list sets the prices, and you can change anything before it goes out. Uses one estimate draft from your plan.</small></div>`;}
+function sumDraw(){const b=$('sum_body');if(!b||!J)return;const r=J.request,N=J.fieldNotes||[],C=J.colors||[],br=BF||{};
+ const groups=Object.keys(NTAG).map(k=>{const g=N.filter(n=>n.tag===k);return g.length?`<div style="margin:6px 0"><span class="ntag ${k}">${esc(NTAG[k])}</span><ul style="margin:4px 0 0;padding-left:18px">${g.map(n=>`<li>${esc(n.text)}</li>`).join('')}</ul></div>`:'';}).join('');
+ const photos=(typeof FL!=='undefined'&&FL&&FL.files)?FL.files.filter(f=>/^image\//.test(f.mime||f.contentType||'')).length:null;
+ const parts=[r&&r.description?`<div class="mrow"><span>Request</span><b>${esc(r.description)}</b></div>`:'',r&&r.preferredDate?`<div class="mrow"><span>Wanted by</span><b>${esc(dtf(r.preferredDate))}</b></div>`:'',br.details?`<div class="mrow"><span>Job details</span><b>${esc(br.details)}</b></div>`:'',photos!==null?`<div class="mrow"><span>Photos</span><b>${photos}</b></div>`:'',C.length?`<div class="mrow"><span>Colors</span><b>${C.map(c=>esc([c.where,[c.brand,c.code,c.name].filter(Boolean).join(' ')].filter(Boolean).join(': '))).join('<br>')}</b></div>`:''].join('');
+ b.innerHTML=(parts||groups)?parts+(groups?`<div style="margin-top:8px">${groups}</div>`:''):'<p class="muted" style="margin:0">Nothing yet. Add the request, notes, photos and colors above, then come back here.</p>';
+ const s=$('accs_sum');if(s)s.textContent=N.length||C.length||(r&&r.description)?[N.length?N.length+' notes':'',C.length?C.length+' colors':'',photos?photos+' photos':''].filter(Boolean).join(' · ')||'Ready':'Fills in as you go';}
+document.addEventListener('click',e=>{if(e.target.dataset&&e.target.dataset.sumbuild&&J){if(!$('bf_create')){msg('Open Job details first.');return;}bfCreate();}});
+
+// ---- Close the sale: yes now, wants to think, or follow up on a date ----
+function closeCard(d){const j=d.job,e=d.estimate,st=j.stage;const nm=esc(String(j.customerName||'the customer').split(/\s+/)[0]);const f=d.followUp;
+ if(!e)return `<div class="card"><p class="muted" style="margin:0">Create the estimate first. Then this is where you close the sale: the customer says yes, wants time to think, or wants a call on a date.</p></div>`;
+ const tot=e.totals?e.totals.totalCents:0,dep=e.totals&&e.totals.depositCents?e.totals.depositCents:Math.round(tot*0.3);
+ const signedLine=e.status==='signed'?`<div class="rdchip">&#10003; Estimate signed</div>`:'';
+ const yes=(st==='lead'||st==='bid')?`<div class="btns" style="margin-top:0"><button class="btn" data-clyes="1">${nm} says yes now</button><button class="btn sec" data-clthink="1">${nm} wants to think</button><button class="btn sec" data-cldate="1">Follow up on a date</button></div>
+  <div id="cl_date_box" style="display:none"><div class="row"><div><label>Follow up on</label><input id="cl_due" type="date" min="${todayL()}"></div><div style="align-self:end"><button class="btn sec" data-cldue="1">Save</button></div></div></div>
+  ${f?`<div class="next" style="margin-top:10px"><b>Follow up ${esc(dtf(f.due))}.</b> ${f.reason==='thinking'?nm+' wanted time to think.':''} ${f.sentAt?'Follow-up email sent.':''}<div class="btns" style="margin-top:6px"><button class="btn sec" data-fuwrite="1" ${j.customerEmail?'':'disabled'}>Write the follow-up email</button><button class="mini" data-fuclear="1">Clear</button></div><div id="fu_box"></div></div>`:''}`:'';
+ const yesBox=`<div id="cl_yes" style="display:${st==='contract'?'block':'none'};margin-top:12px">
+  ${st==='lead'||st==='bid'?`<b>1. Signature</b><p class="muted" style="margin:4px 0">Hand your phone to ${nm} to sign the estimate now, or mark it agreed and send the signing link later.</p>
+  <div class="btns" style="margin-top:0"><button class="btn" data-clsign="1" ${j.customerEmail?'':'disabled'}>Sign on this phone</button><button class="btn sec" data-claccept="1">Agreed, sign later</button></div>${j.customerEmail?'':'<small>Add the customer email in Edit details to sign on the phone. It is where the signed copy goes.</small>'}`:`<div class="rdchip">&#10003; The bid is now a job</div>`}
+  <b style="display:block;margin-top:14px">2. Deposit</b><div class="row"><div><label>Amount ($)</label><input id="cl_amt" inputmode="decimal" value="${(dep/100).toFixed(2)}"></div><div><label>Paid by</label><select id="cl_meth">${['cash','check','zelle','cash_app','venmo','paypal','bank_deposit','card_outside','other'].map(k=>`<option value="${k}">${esc(PMETH[k]||k)}</option>`).join('')}</select></div></div>
+  <label>Check number or last 4 digits (optional)</label><input id="cl_ref" maxlength="8" placeholder="Example: 1042">
+  <div class="btns"><button class="btn sec" data-cldep="1">Record deposit</button></div><div id="cl_rcpt"></div>
+  <small class="muted">Card payments through PaintersMax come after launch. Never type a full card or bank number here.</small>
+  <b style="display:block;margin-top:14px">3. Make it a job and schedule the crew</b><div class="row"><div><label>Start</label><input id="cl_start" type="date" value="${esc((d.request&&d.request.preferredDate)||'')}"></div><div><label>Finish</label><input id="cl_end" type="date"></div></div>
+  <div class="btns"><button class="btn" data-clsched="1">Put it on the calendar</button></div></div>`;
+ return `<div class="card">${signedLine}${yes}${yesBox}</div>`;}
+async function editEmail(title,subject,body,go){return new Promise(res=>{const w=document.createElement('div');w.className='modal';
+ w.innerHTML=`<div class="mbox" role="dialog" aria-modal="true" aria-label="${esc(title)}"><b style="font-size:17px">${esc(title)}</b><p class="muted" style="margin:4px 0 10px">Read it and change anything. Nothing goes out until you tap Send.</p><label>To</label><input readonly value="${esc(J.job.customerEmail||'')}"><label>Subject</label><input id="em_s" value="${esc(subject)}"><label>Message</label><textarea id="em_b" rows="9">${esc(body)}</textarea><div class="btns"><button class="btn" data-ok="1">${esc(go||'Send')}</button><button class="btn sec" data-x="1">Cancel</button></div></div>`;
+ const done=v=>{w.remove();res(v);};w.addEventListener('click',e=>{if(e.target.dataset&&e.target.dataset.ok)done({subject:$('em_s').value,body:$('em_b').value});else if((e.target.dataset&&e.target.dataset.x)||e.target===w)done(null);});document.body.appendChild(w);});}
+function fuText(){const j=J.job,nm=String(j.customerName||'').split(/\s+/)[0];const es=(J.estimate&&J.estimate.estimate&&J.estimate.estimate.language)==='es';
+ return es?{subject:'Seguimiento de su presupuesto',body:`Hola ${nm},\n\nQuería saber si tuvo oportunidad de revisar el presupuesto para "${j.title}". Con gusto respondo cualquier pregunta o ajusto algo.\n\nSi le parece bien, podemos apartar fechas para empezar.\n\nGracias,`}:{subject:'Following up on your estimate',body:`Hi ${nm},\n\nI wanted to check whether you had a chance to look over the estimate for "${j.title}". I am happy to answer any questions or adjust anything.\n\nIf it looks good, we can hold dates on the calendar for you.\n\nThank you,`};}
+document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if(!J)return;const id=J.job.id;
+ if(ds.clyes){const y=$('cl_yes');if(y){y.style.display='block';y.scrollIntoView({behavior:'smooth',block:'start'});}}
+ else if(ds.clthink){try{await api('/api/job',{action:'followup',jobId:id,reason:'thinking'});await detail(id);openAcc('close');msg('Saved. I will remind you on Home in 2 days, with a follow-up email ready to send.',true);}catch(x){if(x)msg(x.message);}}
+ else if(ds.cldate){const b=$('cl_date_box');if(b)b.style.display='block';}
+ else if(ds.cldue){const v=$('cl_due').value;if(!v){msg('Pick a date.');return;}try{await api('/api/job',{action:'followup',jobId:id,reason:'date',due:v});await detail(id);openAcc('close');msg('Saved. It shows on Home that day.',true);}catch(x){if(x)msg(x.message);}}
+ else if(ds.fuclear){try{await api('/api/job',{action:'followupClear',jobId:id});await detail(id);openAcc('close');}catch(x){if(x)msg(x.message);}}
+ else if(ds.fuwrite){const d0=fuText();const r=await editEmail('Follow-up email',d0.subject,d0.body,'Send');if(!r)return;try{await api('/api/job',{action:'followupSend',jobId:id,subject:r.subject,body:r.body,language:(J.estimate&&J.estimate.estimate&&J.estimate.estimate.language)||'en'});await detail(id);openAcc('close');msg('Follow-up email sent.',true);}catch(x){if(x)msg(x.message);}}
+ else if(ds.clsign){const e0=J.estimate;if(!e0)return;
+  // Open a blank tab first (phones block pop-ups that open after a wait), then point it at the signing page.
+  const w=window.open('','_blank');try{msg('');const r=await api('/api/esign',{action:'send',docId:e0.id,signerEmail:J.job.customerEmail});if(w)w.location.href=r.link;else location.href=r.link;msg('The signing page is open in a new tab. Hand the phone to the customer. When they sign, the bid becomes a job by itself. Then record the deposit below.',true);}catch(x){if(w)w.close();if(x)msg(x.message);}}
+ else if(ds.claccept){try{await api('/api/job',{action:'accept',jobId:id});await detail(id);openAcc('close');const y=$('cl_yes');if(y)y.style.display='block';msg('The bid is now a job. Record the deposit and pick the dates.',true);}catch(x){if(x)msg(x.message);}}
+ else if(ds.cldep){try{const r=await api('/api/jobpay',{action:'add',jobId:id,amount:$('cl_amt').value,method:$('cl_meth').value,ref:$('cl_ref').value,kind:'deposit'});const p=r.payments[r.payments.length-1];const pay=r.payments.filter(x=>x.kind==='deposit').pop()||p;
+   $('cl_rcpt').innerHTML=`<div class="rdchip">&#10003; Deposit recorded: ${$$(pay.cents)}</div> <button class="btn sec" data-rcpt="${esc(pay.id)}" ${J.job.customerEmail?'':'disabled'}>Email a receipt</button>`;msg('Deposit recorded.',true);if(typeof payLoad==='function')payLoad();}catch(x){if(x)msg(x.message);}}
+ else if(ds.rcpt){try{const lg=(J.estimate&&J.estimate.estimate&&J.estimate.estimate.language)||'en';const pv=await api('/api/jobpay',{action:'receipt',jobId:id,id:ds.rcpt,preview:true,language:lg});
+   if(!await checkInfo('Email the receipt',[['Subject',pv.subject],['Message',pv.body]],'Looks right, send it'))return;await api('/api/jobpay',{action:'receipt',jobId:id,id:ds.rcpt,language:lg});msg('Receipt emailed.',true);}catch(x){if(x)msg(x.message);}}
+ else if(ds.clsched){const s=$('cl_start').value,en=$('cl_end').value||s;if(!s){msg('Pick a start date.');return;}
+  try{if(J.job.stage==='lead'||J.job.stage==='bid')await api('/api/job',{action:'accept',jobId:id});await api('/api/schedule',{jobId:id,start:s,end:en,crew:[]});await detail(id);msg('On the calendar. The job is in the Jobs tab now.',true);}catch(x){if(x)msg(x.message);}}
+});
+
+// ---- Steps across the top of a bid ----
+const BSTEPS=[['req','Request'],['notes','Notes'],['type','Details'],['colors','Colors'],['sum','Summary'],['est','Estimate'],['close','Close']];
+function stepBar(){return `<nav class="steps" aria-label="Bid steps">${BSTEPS.map(([k,n],i)=>`<button class="stepb" data-stepgo="${k}"><span>${i+1}</span>${esc(n)}</button>`).join('')}</nav>`;}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-stepgo]');if(!b)return;openAcc(b.dataset.stepgo);const a=$('acc_'+b.dataset.stepgo);if(a)a.scrollIntoView({behavior:'smooth',block:'start'});});
+
 const GROUPS=[['New leads',['lead'],'Customers who asked for a quote. Build an estimate to bid on them.'],['Estimate approved',['bid:signed'],'The customer signed the estimate. Build and send the contract next.'],['Waiting on the customer',['bid','contract'],'Estimates and contracts you sent. Waiting for the customer to approve or sign.'],['In progress',['scheduled','in_progress','punch'],'Approved jobs that are scheduled or underway.'],['Completed',['invoiced','closed'],'Finished and invoiced jobs.'],['Lost',['lost'],'']];
 const COVC={likely_covered:['#e6f4ea','#0a7a3d','Insured: appears covered'],check_with_agent:['#fff3d6','#8a5a00','Check your insurance'],likely_excluded:['#fdecea','#b42318','Insurance: may not cover'],expired:['#fdecea','#b42318','Policy expired']};
 function covPill(c){const x=COVC[c];return x?`<span class="sg" style="background:${x[0]};color:${x[1]}">${x[2]}</span>`:'';}
@@ -357,23 +501,26 @@ function protectCard(d){const j=d.job||{};const has=!!d.coverage;const can=has&&
  <div class="btns"><button class="btn" data-claimbuild="1">Save to job history and build my claim sheet</button></div>
  <div id="claimout" style="display:none"><label>Claim information sheet (copy it into an email to your agent)</label><textarea id="claimsheet" rows="12" readonly></textarea><div class="btns"><button class="btn sec" data-claimcopy="1">Copy</button></div>
  <small>General information only, not legal or insurance advice. Your insurance company decides what is covered.</small></div></div></div>`;
-}function jobRow(j){return `<a class="job" href="/jobs?id=${j.id}"><div><b>${esc(j.title)}</b><br><small>${esc(j.customer)} &middot; ${esc(TRADES[j.trade]||j.trade)}</small></div><span>${covPill(j.coverage)}${j.signed?'<span class="sg">&#10003; Signed</span>':j.awaiting?'<span class="sg w">Awaiting signature</span>':''}<span class="tag">${esc(STAGE[j.stage]||j.stage)}</span></span></a>`;}
+}function jobRow(j){return `<a class="job" href="/jobs?id=${j.id}"><div><b>${esc(j.title)}</b><br><small>${esc(j.customer)} &middot; ${esc(TRADES[j.trade]||j.trade)}</small>${j.followUpDue?`<br><small class="${j.followUpDue<=todayL()?'bad':'muted'}">Follow up ${esc(dtf(j.followUpDue))}</small>`:j.preferredDate&&(j.bucket==='new'||j.bucket==='estimates')?`<br><small class="muted">Wants it ${esc(dtf(j.preferredDate))}</small>`:''}</div><span>${covPill(j.coverage)}${j.signed?'<span class="sg">&#10003; Signed</span>':j.awaiting?'<span class="sg w">Awaiting signature</span>':''}<span class="tag">${esc(STAGE[j.stage]||j.stage)}</span></span></a>`;}
 async function list(){
-  const {jobs}=await api('/api/jobs');
-  $('view').innerHTML=`${assistantCard(null)}
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:18px 0 0">Jobs</h2><button class="btn" id="n_show">+ Add a job you won yourself</button></div>
-  <div id="n_box" style="display:none"><div class="card" style="margin-top:10px"><p class="muted" style="margin-top:0">Use this for work that did not come through your quote page, like a referral or a repeat customer.</p>
+  const {jobs}=await api('/api/jobs');window.PL=jobs;TAB=tabPick(jobs);
+  $('view').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:4px 0 0">Jobs</h2><button class="btn" id="n_show">+ New bid</button></div>
+  <div id="n_box" style="display:none"><div class="card" style="margin-top:10px"><p class="muted" style="margin-top:0">For a bid that did not come through your website, like a referral or a repeat customer. Saving opens the bid so you can start the estimate.</p>
    <label>Customer name</label><input id="n_name" placeholder="Example: Maria Lopez">
-   <div class="row"><div><label>Email</label><input id="n_email" type="email" placeholder="Example: maria@email.com"></div><div><label>Phone</label><input id="n_phone" type="tel" placeholder="Example: 214-555-0123"></div></div>
-   <label>Job address (optional)</label><input id="n_addr" placeholder="Example: 123 Main St">
+   <div class="row"><div><label>Phone</label><input id="n_phone" type="tel" placeholder="Example: 214-555-0123"></div><div><label>Email</label><input id="n_email" type="email" placeholder="Example: maria@email.com"></div></div>
+   <label>Job address</label><input id="n_addr" placeholder="Example: 123 Main St">
    <div class="row"><div><label>City</label><input id="n_city" placeholder="Example: Dallas"></div><div><label>Zip</label><input id="n_zip" inputmode="numeric" placeholder="Example: 75201"></div></div>
-   <label>Job title</label><input id="n_title" placeholder="Example: Repaint 3 bedrooms">
-   <label>Type of work</label><select id="n_trade">${Object.entries(TRADES).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('')}</select>
-   <div class="btns"><button class="btn" id="n_go">Create job</button></div></div></div>
-  <div class="sec">${jobs.length?GROUPS.map(([t,st,h])=>{const key=j=>j.stage==='bid'&&j.signed?'bid:signed':j.stage;const m=jobs.filter(j=>st.includes(key(j)));return m.length?`<h3>${t} <span class="ct">(${m.length})</span></h3>${h?`<small class="muted">${h}</small>`:''}<div class="card" style="margin-top:6px">${m.map(jobRow).join('')}</div>`:'';}).join(''):'<div class="card"><p class="muted">No jobs yet. New leads from your quote form and chat appear here automatically, or add one with the button above.</p></div>'}</div>`;
-  $('n_show').onclick=()=>{const b=$('n_box');b.style.display=b.style.display==='none'?'block':'none';};
+   <label>Service</label><select id="n_trade">${Object.entries(TRADES).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('')}</select>
+   <label>Short title</label><input id="n_title" placeholder="Example: Repaint 3 bedrooms">
+   <label>What they asked for (optional)</label><textarea id="n_desc" rows="2" placeholder="Example: Bedrooms and hallway, ceilings too. Light colors."></textarea>
+   <div class="row"><div><label>When they would like it</label><input id="n_date" type="date"></div><div><label>Best time</label><select id="n_time"><option value="">Any time</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select></div></div>
+   <div class="btns"><button class="btn" id="n_go">Save and start the estimate</button></div></div></div>
+  <div class="ptabs" id="pl_tabs" role="toolbar" aria-label="Pipeline" style="margin-top:12px"></div><div id="pl_list"></div>
+  <details class="acc" style="margin-top:22px"><summary><span class="at">Job assistant</span><span class="asub">Ask any painting or business question</span></summary><div class="accin">${assistantCard(null)}</div></details>`;
+  tabDraw(jobs);
+  $('n_show').onclick=()=>{const b=$('n_box');b.style.display=b.style.display==='none'?'block':'none';if(b.style.display==='block')$('n_name').focus();};
   micInit();chatDraw();
-  $('n_go').onclick=async()=>{try{msg('');const r=await api('/api/jobs',{name:$('n_name').value,email:$('n_email').value,phone:$('n_phone').value,address:$('n_addr').value,city:$('n_city').value,zip:$('n_zip').value,title:$('n_title').value,trade:$('n_trade').value});location.href='/jobs?id='+r.jobId;}catch(e){msg(e.message);}};
+  $('n_go').onclick=async()=>{try{msg('');const nm=$('n_name').value.trim();const r=await api('/api/jobs',{name:nm,email:$('n_email').value,phone:$('n_phone').value,address:$('n_addr').value,city:$('n_city').value,zip:$('n_zip').value,title:$('n_title').value.trim()||('Bid for '+nm),trade:$('n_trade').value,description:$('n_desc').value,preferredDate:$('n_date').value,preferredTime:$('n_time').value});try{localStorage.setItem('pm_jobtab','new');}catch(x){}location.href='/jobs?id='+r.jobId;}catch(e){msg(e.message);}};
 }
 
 function qtyFields(rc){
@@ -382,19 +529,25 @@ function qtyFields(rc){
   for(const k of Object.keys(rc.data||{})){const L=(rc.labels&&rc.labels[k])?rc.labels[k].label+' ('+rc.labels[k].unit+')':QL[k];if(k.endsWith('_pct')||!L)continue;if(typeof rc.data[k]==='number'&&rc.data[k]>0)out.push([k,L]);}
   return out;
 }
+let OPTS=[];
+const SECN={paint:'Paint',drywall:'Drywall',trim:'Trim',other:'Other'};
+function secOf(l){return l.section&&SECN[l.section]?l.section:'paint';}
 function totals(){
-  const sub=lines.reduce((s,l)=>s+Math.round((+l.qty||0)*(+l.unitPrice||0)*100),0);
+  const sub=lines.filter(l=>!OPTS.includes(secOf(l))).reduce((s,l)=>s+Math.round((+l.qty||0)*(+l.unitPrice||0)*100),0);
   const disc=Math.min(Math.round((+$('discount').value||0)*100),sub);
   const tax=Math.round((sub-disc)*(+$('tax').value||0)/100);
   return{sub,disc,tax,total:sub-disc+tax};
 }
 const $$=c=>'$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 function drawLines(){
-  $('lines').innerHTML=lines.length?`<div class="line head"><span>Description</span><span>Qty</span><span>Unit</span><span>Price ($)</span><span></span></div>`+lines.map((l,i)=>`<div class="line"><input data-i="${i}" data-f="description" value="${esc(l.description)}"><input data-i="${i}" data-f="qty" inputmode="decimal" value="${esc(l.qty)}"><input data-i="${i}" data-f="unit" value="${esc(l.unit)}"><input data-i="${i}" data-f="unitPrice" inputmode="decimal" class="${l.needsPrice&&!(+l.unitPrice>0)?'np':''}" value="${esc(l.unitPrice)}"><button data-del="${i}" title="Remove">&times;</button></div>`).join(''):'<p class="muted">No lines yet. Fill them from your prices above, or add a line by hand.</p>';
+  $('lines').innerHTML=lines.length?lines.map((l,i)=>`<div class="lrow"><input data-i="${i}" data-f="description" value="${esc(l.description)}" placeholder="Description" aria-label="Description"><div class="l2"><input data-i="${i}" data-f="qty" inputmode="decimal" value="${esc(l.qty)}" aria-label="Quantity" placeholder="Qty"><input data-i="${i}" data-f="unit" value="${esc(l.unit)}" aria-label="Unit" placeholder="Unit"><input data-i="${i}" data-f="unitPrice" inputmode="decimal" class="${l.needsPrice&&!(+l.unitPrice>0)?'np':''}" value="${esc(l.unitPrice)}" aria-label="Price in dollars" placeholder="Price $"><select data-i="${i}" data-f="section" aria-label="Section">${Object.entries(SECN).map(([k,v])=>`<option value="${k}" ${secOf(l)===k?'selected':''}>${esc(v)}</option>`).join('')}</select><button data-del="${i}" title="Remove" aria-label="Remove line">&times;</button></div></div>`).join('')+optDraw():'<p class="muted">No lines yet. Build the estimate from your notes, fill the lines from your prices, or add a line by hand.</p>';
   drawTotals();
 }
-function drawTotals(){if($('sched'))drawSched();const t=totals();$('tot').innerHTML=`Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;}
-function readEstimate(){const L=id=>($(id)||{value:''}).value;return{inclusions:L('e_incl'),exclusions:L('e_excl'),assumptions:L('e_assume'),allowances:L('e_allow'),options:L('e_opts'),schedule:sched,costBuild:cost,lines,scope:$('scope').value,notes:$('notes').value,taxPct:$('tax').value,discount:$('discount').value,validDays:$('valid').value,language:$('lang').value};}
+function optDraw(){const used=Object.keys(SECN).filter(k=>lines.some(l=>secOf(l)===k));if(used.length<2&&!OPTS.length)return '<small class="muted" style="display:block;margin-top:6px">Use the section box on each line to split the estimate into drywall, painting and trim. Each section can then be made optional.</small>';
+ return `<div style="margin-top:10px"><b style="font-size:14px">Optional sections</b><small class="muted" style="display:block">Ticked sections print with their own price as an add-on the customer can choose, and are not counted in the total.</small>${used.map(k=>`<label class="optck"><input type="checkbox" data-optsec="${k}" ${OPTS.includes(k)?'checked':''}> ${esc(SECN[k])}</label>`).join('')}</div>`;}
+document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.optsec){OPTS=t.checked?OPTS.concat([t.dataset.optsec]):OPTS.filter(x=>x!==t.dataset.optsec);drawTotals();}else if(t.dataset&&t.dataset.f==='section'){lines[+t.dataset.i].section=t.value;drawLines();}});
+function drawTotals(){if($('sched'))drawSched();const t=totals();const ot=OPTS.map(k=>[k,lines.filter(l=>secOf(l)===k).reduce((s,l)=>s+Math.round((+l.qty||0)*(+l.unitPrice||0)*100),0)]).filter(x=>x[1]>0);$('tot').innerHTML=`${ot.map(([k,c])=>`<small class="muted">Optional: ${esc(SECN[k])} ${$$(c)}</small><br>`).join('')}Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;}
+function readEstimate(){const L=id=>($(id)||{value:''}).value;return{optionalSections:OPTS,revisionLabel:L('e_rev'),includeTerms:!!($('e_terms')||{}).checked,colors:(J&&J.colors)||[],inclusions:L('e_incl'),exclusions:L('e_excl'),assumptions:L('e_assume'),allowances:L('e_allow'),options:L('e_opts'),schedule:sched,costBuild:cost,lines,scope:$('scope').value,notes:$('notes').value,taxPct:$('tax').value,discount:$('discount').value,validDays:$('valid').value,language:$('lang').value};}
 
 function drawClauses(){const c=$('clauses');if(!c)return;c.innerHTML=clauses.map((cl,i)=>`<label>${i+1}. Title</label><input data-ci="${i}" data-cf="title" value="${esc(cl.title)}"><textarea data-ci="${i}" data-cf="body" rows="4" style="margin-top:6px">${esc(cl.body)}</textarea>`).join('');const b=$('c_btns');if(b)b.style.display=clauses.length?'flex':'none';}
 
@@ -486,7 +639,7 @@ function soCard(d){const s=d.signoff,j=d.job;const nm=esc(String(j.customerName|
 function nextStep(d){const j=d.job,e=d.estimate,st=j.stage;const nm=String(j.customerName||'the customer').split(/\s+/)[0];let t='';
  const vs=d.visit&&d.visit.status==='booked'?d.visit:null;
  if(st==='lead'&&vs&&!e)t=vs.date<todayL()?`The visit on ${dtf(vs.date)} is still marked as booked. Open Site visit and tap Mark visit done once you have been there.`:`Visit ${vWhen(vs)}. Take photos and notes, then tap Create estimate.`;
- else if(st==='lead')t=e?`You started an estimate. Review it, then send it to ${nm}.`:`This is a new lead. If you want to see the place first, book a site visit. Otherwise tell me about the job below, then tap Create estimate.`;
+ else if(st==='lead')t=e?`You started an estimate. Review it, then send it to ${nm}.`:`This is a new lead. If you want to see the place first, book a site visit. Otherwise follow the steps at the top: add your notes and colors, then open Summary and build the estimate.`;
  else if(st==='bid')t=e&&e.status==='sent'?`Estimate sent. Waiting for ${nm} to approve it. A friendly call or text often helps.`:`Your estimate is saved. Send it to ${nm} when it looks right.`;
  else if(st==='contract')t=`Contract stage. Record the deposit when it arrives, then add the job to the calendar. If the crew is already working, tap Start the job.`;
  else if(st==='scheduled'){const sc=d.schedule,td=new Date(Date.now()-6*36e5).toISOString().slice(0,10);t=sc&&sc.start?(sc.start<=td?`The start date (${dtf(sc.start)}) is here. Tap Start the job when the crew begins.`:`Scheduled for ${dtf(sc.start)}. Record the deposit if you have not, and make crew instructions and a materials list. When the crew begins, tap Start the job.`+(sc.startNotice?(sc.noticed&&sc.noticed===sc.start?` ${nm} was emailed the "We start tomorrow" notice.`:` ${nm} will be emailed a "We start tomorrow" notice the day before.`):'')):`Scheduled. Record the deposit if you have not, and make crew instructions and a materials list. When the crew begins, tap Start the job.`;}
@@ -575,7 +728,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
 });
 async function detail(id){
   const sy=window.scrollY;const d=await api('/api/job?id='+id);J=d;const j=d.job,e=d.estimate;
-  lines=e&&e.estimate?e.estimate.lines.map(l=>({description:l.description,qty:l.qty,unit:l.unit,unitPrice:l.unitCents/100})):[];
+  lines=e&&e.estimate?e.estimate.lines.map(l=>({description:l.description,qty:l.qty,unit:l.unit,unitPrice:l.unitCents/100,section:l.section})):[];OPTS=e&&e.estimate&&e.estimate.optionalSections?e.estimate.optionalSections.slice():[];COL=(d.colors||[]).map(c=>({...c}));
   const qf=qtyFields(d.rateCard);const est=e&&e.estimate?e.estimate:{};const ct=d.contract&&d.contract.contract?d.contract.contract:{};sched=(est.schedule||[]).map(m=>({...m}));cost=est.costBuild?{items:(est.costBuild.items||[]).map(c=>({...c})),markupPct:est.costBuild.markupPct||0}:{items:[],markupPct:0};clauses=ct.clauses?ct.clauses.map(c=>({...c})):[];
   BF=d.brief?{...d.brief,answers:{...(d.brief.answers||{})}}:{type:guessType(j.trade),details:'',answers:{},photoNote:''};
   const st=j.stage,early=(st==='lead'||st==='bid'),mid=['contract','scheduled','in_progress','punch'].includes(st),late=(st==='invoiced'||st==='closed');
@@ -586,10 +739,16 @@ async function detail(id){
   ${nextStep(d)}
   ${commBanner(d.commercial)}
   ${st==='lost'?lostCard(d):''}
-  <h3 class="grp">Estimate</h3>
-  ${early||d.visit?acc('visit','Site visit',visitSub(d),!!(d.visit&&d.visit.status==='booked')&&early,visitCard(d)):''}
-  ${acc('type','1. Tell me about the job','',early,briefCard())}
-  ${acc('est','2. Estimate',estSub,early&&(!!e||lines.length>0),`<div class="card">
+  ${early?stepBar():''}
+  <h3 class="grp">${early?'Bid':'Estimate'}</h3>
+  ${acc('req','1. Customer request',reqSub(d),early&&!e&&!(d.fieldNotes||[]).length,reqCard(d))}
+  ${early||d.visit?acc('visit','Site visit booking',visitSub(d),!!(d.visit&&d.visit.status==='booked')&&early,visitCard(d)):''}
+  ${acc('notes','2. Site visit notes','',early&&!e,notesCard())}
+  ${acc('type','3. Job details and photos','',early&&!e,briefCard())}
+  ${acc('colors','4. Colors','',false,colorsCard())}
+  ${acc('help','Ask the Job assistant','Photo questions, paint and prep advice, a second opinion on your price',false,assistantCard(j.id))}
+  ${acc('sum','5. Project summary','',false,sumCard())}
+  ${acc('est','6. Estimate',estSub,early&&(!!e||lines.length>0),`<div class="card">
    <label style="margin-top:0">Scope of work (what the customer gets)</label><textarea id="scope" rows="4" placeholder="Tap Create estimate above and I will write this for you, or type your own.">${esc(est.scope||'')}</textarea>
    <div id="lines" style="margin-top:12px"></div>
    <div class="btns"><button class="btn sec" id="addline">+ Add a line</button></div>
@@ -608,6 +767,8 @@ async function detail(id){
    <details class="g"><summary>More estimate options (what is included, payment schedule, discount, tax)</summary><div class="inner">
     <div class="row"><div><label>Discount ($)</label><input id="discount" inputmode="decimal" value="${esc((est.discountCents||0)/100||'')}"></div><div><label>Sales tax (%)</label><input id="tax" inputmode="decimal" value="${esc(est.taxPct||'')}"></div></div>
     <div class="row"><div><label>Valid for (days)</label><input id="valid" inputmode="numeric" value="${esc(est.validDays||30)}"></div><div><label>Language</label><select id="lang"><option value="en">English</option><option value="es" ${est.language==='es'?'selected':''}>Español</option></select></div></div>
+    ${e?`<label>Revision words on the estimate</label><input id="e_rev" value="${esc(est.revisionLabel||'')}" placeholder="Leave empty to print none"><small class="muted">When you change an estimate the customer already has, I save it as a new revision (Revision 2, 3...) and the old signing link stops working. You can change these words or clear them.</small>`:''}
+    <label class="optck" style="margin-top:12px"><input type="checkbox" id="e_terms" ${(e?est.includeTerms===true:true)?'checked':''}> Print the contract terms on the estimate, so one signature covers both</label>
     <h3 style="margin-top:14px">What is included and not included</h3>
     <small>One item per line. These print on the estimate. The included, not included and assumptions lists also carry into the contract.</small>
     <label>Included</label><textarea id="e_incl" rows="3">${esc((est.inclusions||[]).join('\n'))}</textarea>
@@ -624,7 +785,7 @@ async function detail(id){
     <div id="cost"></div>
     <label>Notes for the customer</label><textarea id="notes" rows="3">${esc(est.notes||'')}</textarea>
    </div></details></div>`)}
-  ${acc('help','Ask for help (Job assistant and Quote helper)','Photo questions, step-by-step plans, a second opinion on your price',false,assistantCard(j.id))}
+  ${(early||st==='contract')?acc('close','7. Close the sale',d.followUp?'Follow up '+dtf(d.followUp.due):st==='contract'?'Deposit and dates':e?'Yes, think, or follow up':'After the estimate',early&&!!e&&e.status==='sent'||st==='contract',closeCard(d)):''}
 
   <h3 class="grp">After the customer says yes</h3>
   <p class="muted grpn">Deposit, contract, schedule, crew, and changes the customer asks for.</p>
@@ -662,7 +823,8 @@ async function detail(id){
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
   $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>{msg('Final estimate ready. Total '+$$(r.totals.totalCents)+'. Preview it, then send it.',true);const sd=$('send');if(sd&&!sd.disabled&&sd.scrollIntoView)sd.scrollIntoView({behavior:'smooth',block:'center'});});};
   $('send').onclick=async()=>{if(!await checkInfo('Send this estimate',[['Estimate total',$$(totals().total)]],'Looks right, send it'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
-  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad();findingsLoad();woLoad();payLoad();wcLoad();lsLoad();
+  drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad().then(sumDraw);findingsLoad();woLoad();payLoad();wcLoad();lsLoad();
+  if(!$('note_fab'))document.body.insertAdjacentHTML('beforeend',fabHtml());notesDraw();colorsDraw();sumDraw();nqFlush();
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};
   const cact=async(action)=>{try{msg('');const r=await api('/api/contract',{action,jobId:j.id,contract:{startDate:$('c_start').value,endDate:$('c_end').value,language:$('c_lang').value,clauses}});return r;}catch(x){if(x)msg(x.message);}};
   const cs=$('c_save');if(cs){cs.onclick=async()=>{const r=await cact('save');if(r)detail(j.id).then(()=>msg('Contract saved.',true));};
@@ -753,7 +915,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  else if(ds.claimcopy){try{await navigator.clipboard.writeText($('claimsheet').value);msg('Copied.',true);}catch(_){$('claimsheet').select();msg('Press Ctrl+C or Command+C to copy.');}}
 });
 document.addEventListener('input',e=>{const t=e.target,ds=t.dataset||{};if(ds.dk&&ds.df){const d=docs[ds.dk];if(!d)return;if(ds.di!==undefined)d.items[+ds.di][ds.df]=ds.df==='qty'?(Number(t.value)||0):t.value;else d[ds.df]=t.value;}});
-document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.ci!==undefined){clauses[+t.dataset.ci][t.dataset.cf]=t.value;return;}if(t.dataset&&t.dataset.f!==undefined){lines[+t.dataset.i][t.dataset.f]=t.value;drawTotals();}else if(t.id==='discount'||t.id==='tax')drawTotals();});
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.ci!==undefined){clauses[+t.dataset.ci][t.dataset.cf]=t.value;return;}if(t.dataset&&t.dataset.f!==undefined){if(t.dataset.f==='section')return;lines[+t.dataset.i][t.dataset.f]=t.value;drawTotals();}else if(t.id==='discount'||t.id==='tax')drawTotals();});
 document.addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.del;if(d!==undefined&&d!==''){lines.splice(+d,1);drawLines();}});
 (async()=>{try{const id=new URLSearchParams(location.search).get('id');id?await detail(id):await list();}catch(e){if(e)$('view').innerHTML='<p class="bad">'+esc(e.message||'Could not load.')+'</p>';}})();
 </script><script src="/aithumbs.js"></script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>

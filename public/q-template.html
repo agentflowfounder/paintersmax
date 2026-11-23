@@ -42,6 +42,8 @@
       <option value="multifamily">Apartment complex</option>
     </select>
     <label for="sqft">Approximate square feet</label><input id="sqft" name="sqft" type="number" min="100" max="500000" required>
+    <label for="preferredDate">When would you like the work done? (optional)</label>
+    <div style="display:flex;gap:8px"><input id="preferredDate" name="preferredDate" type="date" style="flex:1"><select id="preferredTime" name="preferredTime" aria-label="Best time" style="flex:1"><option value="">Any time</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select></div>
     <label for="details">Anything else we should know? (optional)</label><textarea id="details" name="details" rows="3"></textarea>
     <label for="photos">Photos of the area (optional, up to 4)</label>
     <input id="photos" type="file" accept="image/*" multiple>

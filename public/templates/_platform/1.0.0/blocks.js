@@ -41,7 +41,7 @@
       if (v('website')) { f.reset(); say(msg.dataset.ok, true); return; }
       if (f.hasAttribute('data-preview')) { say((document.documentElement.lang === 'es' ? 'Vista previa: no se envió. ' : 'Preview: nothing was sent. ') + msg.dataset.ok, true); return; }
       var btn = f.querySelector('button[type=submit]'); if (btn) btn.disabled = true;
-      fetch(f.dataset.endpoint || '/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ companySlug: f.dataset.company, name: name, email: email, phone: v('phone'), zip: v('zip'), details: v('details'), source: f.dataset.source || 'website' }) })
+      fetch(f.dataset.endpoint || '/api/lead', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ companySlug: f.dataset.company, name: name, email: email, phone: v('phone'), zip: v('zip'), details: v('details'), preferredDate: v('preferredDate'), preferredTime: v('preferredTime'), source: f.dataset.source || 'website' }) })
         .then(function (r) { if (!r.ok) throw 0; f.reset(); say(msg.dataset.ok, true); })
         .catch(function () { say(msg.dataset.err, false); })
         .then(function () { if (btn) btn.disabled = false; });

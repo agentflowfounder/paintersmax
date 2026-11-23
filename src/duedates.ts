@@ -17,6 +17,7 @@ export interface DueFacts {
   scheduleStart?: string | null; // YYYY-MM-DD
   scheduleEnd?: string | null;
   visitDate?: string | null; // only a visit that is still booked
+  followUpDue?: string | null; // a follow-up the painter set ("wants to think" or a chosen date)
 }
 export interface Due {
   step: string;
@@ -41,7 +42,9 @@ function pick(f: DueFacts): Due | null {
       if (f.estStatus) return { step: "Finish and send the estimate", due: after(f.estUpdatedAt, f.updatedAt, 2) };
       return { step: "Reply to the new lead", due: after(f.createdAt, f.createdAt, 1) };
     case "bid":
-      if (f.estStatus === "sent") return { step: "Follow up on the estimate", due: after(f.estUpdatedAt, f.updatedAt, 3) };
+      if (f.followUpDue && isIsoDate(f.followUpDue)) return { step: "Follow up with the customer", due: f.followUpDue };
+      // A bid that has waited 48 hours gets a follow-up.
+      if (f.estStatus === "sent") return { step: "Follow up on the estimate", due: after(f.estUpdatedAt, f.updatedAt, 2) };
       if (f.estStatus === "signed") return { step: "Build and send the contract", due: after(f.signedAt || f.estUpdatedAt, f.updatedAt, 1) };
       return { step: "Send the estimate", due: after(f.estUpdatedAt, f.updatedAt, 2) };
     case "contract":
