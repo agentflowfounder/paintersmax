@@ -1,4 +1,5 @@
 import type { Env } from "./types.ts";
+import type { BidRequest } from "./fieldnotes.ts";
 
 /** Maps the quote form's job type to the wizard's trade names. */
 export function tradeFor(jobType: string | undefined): string {
@@ -25,6 +26,8 @@ export interface LeadInput {
   trade: string;
   /** First entry on the job timeline (what the customer asked for). */
   firstEvent?: string;
+  /** What the customer asked for and when they would like it done, shown at the top of the New Bid. */
+  request?: BidRequest;
 }
 
 /**
@@ -64,8 +67,8 @@ export async function ensureCustomerAndJob(env: Env, i: LeadInput): Promise<{ cu
       }
     }
 
-    const j = await env.DB.prepare("INSERT INTO jobs (company_id, customer_id, property_id, lead_id, title, trade) VALUES (?, ?, ?, ?, ?, ?)")
-      .bind(i.companyId, customerId, propertyId, i.leadId, i.title.slice(0, 120), i.trade)
+    const j = await env.DB.prepare("INSERT INTO jobs (company_id, customer_id, property_id, lead_id, title, trade, data) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(i.companyId, customerId, propertyId, i.leadId, i.title.slice(0, 120), i.trade, i.request ? JSON.stringify({ request: i.request }) : null)
       .run();
     const jobId = Number(j.meta.last_row_id);
     await env.DB.prepare("UPDATE leads SET customer_id = ?, job_id = ? WHERE id = ?").bind(customerId, jobId, i.leadId).run();

@@ -7,6 +7,7 @@ import { handleEsign, handleSign } from "./esign.ts";
 import { writeSummary } from "./ai.ts";
 import { ownerBriefText, writeBrief } from "./brief.ts";
 import { addJobEvent, ensureCustomerAndJob, tradeFor } from "./crm.ts";
+import { cleanRequest } from "./fieldnotes.ts";
 import { handleAdmin } from "./admin.ts";
 import { handleAuthConfig, handleGoogleCallback, handleGoogleStart } from "./google.ts";
 import { handleBilling, handleCheckout, handleStripeWebhook } from "./stripe.ts";
@@ -139,6 +140,7 @@ async function handleQuote(request: Request, env: Env, ctx: ExecutionContext): P
     title: `${q.jobType.replace(/_/g, " ")} painting, ${q.sqft} sq ft`,
     trade: tradeFor(q.jobType),
     firstEvent: `Instant quote: ${q.jobType}, ${q.sqft} sq ft. Range shown $${Math.round(lowCents / 100)} to $${Math.round(highCents / 100)}. Customer notes: ${q.details ?? "none"}`,
+    request: cleanRequest({ description: q.details ?? "", preferredDate: body?.preferredDate, preferredTime: body?.preferredTime }, "instant quote"),
   });
   if (fileIds && brief) await addJobEvent(env, company.id, fileIds.jobId, "photo_brief", ownerBriefText(brief.brief, lowCents, highCents));
 
@@ -260,6 +262,7 @@ async function handleLead(request: Request, env: Env, ctx?: ExecutionContext): P
     title: detailsText.slice(0, 80) || `Request from ${name}`,
     trade: tradeFor(detailsText.match(/Service:\s*([^.]*)/i)?.[1] ?? detailsText),
     firstEvent: `${source}: ${detailsText || "(no details)"}`,
+    request: cleanRequest({ description: detailsText, preferredDate: body?.preferredDate, preferredTime: body?.preferredTime }, source),
   });
   // The contact form emails the owner itself; other sources (like the chat) are alerted here.
   if (ctx && source !== "website-contact-form") {

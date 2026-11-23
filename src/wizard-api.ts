@@ -7,7 +7,10 @@ import { ask, buildJobContext, completeEx, draftCoverNote, sanitizeHistory } fro
 import type { Env } from "./types.ts";
 import { labelsFor } from "./ratecatalog.ts";
 import { commercialBlockedMessage, loadCommercialStatus } from "./commercial.ts";
-import { computeTotals, draftLines, milestoneAmounts, quantityOptions, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
+import { computeTotals, draftLines, guessSection, milestoneAmounts, quantityOptions, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
+import { bucketFor } from "./pipeline.ts";
+import { addNote, cleanColors, cleanNote, cleanRequest, notesForPrompt, readNotes, type FollowUp } from "./fieldnotes.ts";
+import { addDaysIso, isIsoDate } from "./dates.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
 import { loadHowToPay, loadPayments, sumPaid } from "./payments.ts";
 import { cleanBrief, cleanDraftAI, draftPrompt, DRAFT_SYSTEM, JOB_TYPES, type Brief } from "./jobbrief.ts";
@@ -165,16 +168,21 @@ export async function handleJobs(request: Request, env: Env): Promise<Response> 
         .run();
       propertyId = Number(p.meta.last_row_id);
     }
-    const job = await env.DB.prepare("INSERT INTO jobs (company_id, customer_id, property_id, title, trade, stage) VALUES (?, ?, ?, ?, ?, 'lead')")
-      .bind(user.companyId, customerId, propertyId, title, trade)
+    const req = cleanRequest(b, "manual");
+    const job = await env.DB.prepare("INSERT INTO jobs (company_id, customer_id, property_id, title, trade, stage, data) VALUES (?, ?, ?, ?, ?, 'lead', ?)")
+      .bind(user.companyId, customerId, propertyId, title, trade, JSON.stringify({ request: req }))
       .run();
     const jobId = Number(job.meta.last_row_id);
-    await addJobEvent(env, user.companyId, jobId, "note", "Job added by hand.");
+    await addJobEvent(env, user.companyId, jobId, "note", `New bid added by hand.${req.description ? ` Request: ${req.description}` : ""}`);
     return json({ ok: true, jobId });
   }
 
   const rows = await env.DB.prepare(
-    `SELECT j.id, j.title, j.trade, j.stage, j.updated_at AS updatedAt, c.name AS customer,
+    `SELECT j.id, j.title, j.trade, j.stage, j.updated_at AS updatedAt, j.created_at AS createdAt, c.name AS customer,
+            json_extract(j.data,'$.signoff.acceptedAt') AS acceptedAt, json_extract(j.data,'$.followUp.due') AS followUpDue,
+            json_extract(j.data,'$.request.preferredDate') AS preferredDate,
+            (SELECT json_extract(a.value,'$.endOn') FROM app_settings a WHERE a.key = 'cert:' || j.company_id || ':' || j.id) AS warrantyEnd,
+            (SELECT d.status FROM documents d WHERE d.job_id = j.id AND d.kind = 'estimate' ORDER BY d.id DESC LIMIT 1) AS estStatus,
             EXISTS (SELECT 1 FROM signature_requests s WHERE s.job_id = j.id AND s.status = 'signed') AS signed,
             EXISTS (SELECT 1 FROM signature_requests s WHERE s.job_id = j.id AND s.status = 'pending' AND s.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')) AS awaiting
        FROM jobs j JOIN customers c ON c.id = j.customer_id
@@ -183,7 +191,11 @@ export async function handleJobs(request: Request, env: Env): Promise<Response> 
     .bind(user.companyId)
     .all();
   const pol = await loadSummary(env, user.companyId);
-  return json({ jobs: (rows.results as any[]).map((r) => ({ ...r, coverage: coverageFor(pol, r.trade)?.status ?? null })) });
+  const today = todayLocal();
+  return json({
+    today,
+    jobs: (rows.results as any[]).map((r) => ({ ...r, bucket: bucketFor({ stage: r.stage, accepted: !!r.acceptedAt, warrantyEnd: r.warrantyEnd, today }), coverage: coverageFor(pol, r.trade)?.status ?? null })),
+  });
 }
 
 /** GET /api/job?id= returns one job with its customer, property, rate card, saved estimate and timeline. */
@@ -258,6 +270,90 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
       if (changed.length) await addJobEvent(env, user.companyId, jid, "note", `Details changed: ${changed.join(", ")}.`);
       return json({ ok: true, changed });
     }
+
+    // ---- Site visit: field notes (typed or spoken), colors, the customer's request ----
+    const readData = async () => parse((await env.DB.prepare("SELECT data FROM jobs WHERE id = ? AND company_id = ?").bind(jid, user.companyId).first<{ data: string | null }>())?.data);
+    const saveData = (key: string, value: unknown) =>
+      env.DB.prepare(`UPDATE jobs SET data = json_set(COALESCE(data, '{}'), '$.${key}', json(?)), updated_at = datetime('now') WHERE id = ? AND company_id = ?`).bind(JSON.stringify(value), jid, user.companyId).run();
+
+    if (b.action === "note") {
+      // Notes can arrive late from a phone that was offline; each carries its own id and time, so a retry never adds it twice.
+      const items = Array.isArray(b.notes) ? b.notes.slice(0, 50) : [b.note];
+      const now = new Date().toISOString();
+      let list = readNotes((await readData()).fieldNotes);
+      const added = [];
+      for (const raw of items) {
+        const n = cleanNote(raw, now);
+        if (!n) continue;
+        const before = list.length;
+        list = addNote(list, n);
+        if (list.length !== before || list.some((x) => x.id === n.id)) added.push(n);
+      }
+      if (!added.length) return json({ error: "Type or say a note first." }, 400);
+      await saveData("fieldNotes", list);
+      return json({ ok: true, notes: list });
+    }
+    if (b.action === "noteEdit" || b.action === "noteDelete") {
+      let list = readNotes((await readData()).fieldNotes);
+      const cur = list.find((x) => x.id === b.id);
+      if (!cur) return json({ error: "That note was not found." }, 404);
+      if (b.action === "noteDelete") list = list.filter((x) => x.id !== b.id);
+      else {
+        const n = cleanNote({ id: cur.id, at: cur.at, text: b.text, tag: b.tag }, new Date().toISOString());
+        if (!n) return json({ error: "A note cannot be empty. Delete it instead." }, 400);
+        list = list.map((x) => (x.id === cur.id ? n : x));
+      }
+      await saveData("fieldNotes", list);
+      return json({ ok: true, notes: list });
+    }
+    if (b.action === "colors") {
+      const colors = cleanColors(b.colors);
+      await saveData("colors", colors);
+      return json({ ok: true, colors });
+    }
+    if (b.action === "request") {
+      const old = (await readData()).request ?? {};
+      const req = cleanRequest({ ...old, ...b.request }, old.source ?? "manual");
+      await saveData("request", req);
+      return json({ ok: true, request: req });
+    }
+
+    // ---- Closing: the customer says yes, wants to think, or wants a call on a date ----
+    if (b.action === "accept") {
+      // The customer said yes in person. The job moves to "Jobs" (signed work); the deposit and the calendar are the next steps.
+      if (!["lead", "bid"].includes(cur.stage)) return json({ ok: true, already: true });
+      const est = await env.DB.prepare("SELECT id FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(jid, user.companyId).first<{ id: number }>();
+      if (!est) return json({ error: "Create the estimate first, so the job has a price." }, 400);
+      await env.DB.prepare("UPDATE jobs SET stage = 'contract', data = json_remove(COALESCE(data, '{}'), '$.followUp'), updated_at = datetime('now') WHERE id = ? AND company_id = ?").bind(jid, user.companyId).run();
+      await addJobEvent(env, user.companyId, jid, "stage", `The customer said yes${b.how === "signed" ? " and signed" : " in person"}. The bid is now a job.`);
+      return json({ ok: true });
+    }
+    if (b.action === "followup") {
+      const today = todayLocal();
+      const due = b.reason === "date" && isIsoDate(b.due) && b.due >= today ? (b.due as string) : addDaysIso(today, 2);
+      const f: FollowUp = { due, reason: b.reason === "date" ? "date" : "thinking", setOn: today };
+      await saveData("followUp", f);
+      await addJobEvent(env, user.companyId, jid, "note", f.reason === "thinking" ? `The customer wants time to think. Follow up on ${due}.` : `Follow up with the customer on ${due}.`);
+      return json({ ok: true, followUp: f });
+    }
+    if (b.action === "followupClear") {
+      await env.DB.prepare("UPDATE jobs SET data = json_remove(COALESCE(data, '{}'), '$.followUp'), updated_at = datetime('now') WHERE id = ? AND company_id = ?").bind(jid, user.companyId).run();
+      return json({ ok: true });
+    }
+    if (b.action === "followupSend") {
+      // The painter reads and edits the follow-up email on the phone first. Nothing is sent without this tap.
+      if (!cur.email) return json({ error: "This customer has no email address. Add one in Edit details." }, 400);
+      const subject = text(b.subject, 160);
+      const body = typeof b.body === "string" ? b.body.trim().slice(0, 4000) : "";
+      if (!subject || !body) return json({ error: "The email needs a subject and a message." }, 400);
+      const prof = parse((await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(user.companyId).first<{ data: string }>())?.data);
+      const res = await sendCustomerEmail(env, cur.email, user.companyName, prof?.company?.email || user.email, subject, body + (await portalNote(env, user.companyId, jid, b.language === "es")));
+      if (res !== "sent") return json({ error: "The email could not be sent. Try again in a minute." }, 502);
+      const d = await readData();
+      if (d.followUp?.due) await saveData("followUp", { ...d.followUp, sentAt: new Date().toISOString() });
+      await addJobEvent(env, user.companyId, jid, "note", `Follow-up email sent to ${cur.email}.`);
+      return json({ ok: true });
+    }
     return json({ error: "Unknown action." }, 400);
   }
   const id = Number(new URL(request.url).searchParams.get("id"));
@@ -265,13 +361,22 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
   const job = await env.DB.prepare(
     `SELECT j.id, j.title, j.trade, j.stage, j.property_id AS propertyId, j.customer_id AS customerId,
             c.name AS customerName, c.email AS customerEmail, c.phone AS customerPhone,
-            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn, json_extract(j.data,'$.visit') AS visit, json_extract(j.data,'$.signoff') AS signoff, json_extract(j.data,'$.reviewAskedAt') AS reviewAskedAt
+            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn, json_extract(j.data,'$.visit') AS visit, json_extract(j.data,'$.signoff') AS signoff, json_extract(j.data,'$.reviewAskedAt') AS reviewAskedAt,
+            json_extract(j.data,'$.request') AS request, json_extract(j.data,'$.fieldNotes') AS fieldNotes, json_extract(j.data,'$.colors') AS colors, json_extract(j.data,'$.followUp') AS followUp
        FROM jobs j JOIN customers c ON c.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id
       WHERE j.id = ? AND j.company_id = ?`,
   )
     .bind(id, user.companyId)
     .first<any>();
   if (!job) return json({ error: "Not found." }, 404);
+  const anyCard = await env.DB.prepare("SELECT 1 AS x FROM rate_cards WHERE company_id = ? AND trade = ? LIMIT 1").bind(user.companyId, job.trade).first();
+  if (!anyCard && job.stage !== "lost") {
+    // A request for work the painter does not list. Kept once per job for the admin report (what painters are asked for).
+    await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO NOTHING")
+      .bind(`outsvc:${user.companyId}:${id}`, JSON.stringify({ trade: job.trade, on: todayLocal() }))
+      .run()
+      .catch(() => undefined);
+  }
   const [card, doc, events, contractDoc, extraDocs] = await Promise.all([
     env.DB.prepare("SELECT method, data FROM rate_cards WHERE company_id = ? AND trade = ? AND audience = 'retail'").bind(user.companyId, job.trade).first<{ method: string; data: string }>(),
     env.DB.prepare("SELECT id, status, body, language FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(id, user.companyId).first<{ id: number; status: string; body: string; language: string }>(),
@@ -284,7 +389,12 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     ).bind(id, user.companyId).all(),
   ]);
   return json({
-    job: { ...job, brief: undefined, schedule: undefined, startedOn: undefined, visit: undefined, signoff: undefined, reviewAskedAt: undefined },
+    job: { ...job, brief: undefined, schedule: undefined, startedOn: undefined, visit: undefined, signoff: undefined, reviewAskedAt: undefined, request: undefined, fieldNotes: undefined, colors: undefined, followUp: undefined },
+    request: job.request ? cleanRequest(parse(job.request), parse(job.request).source ?? "") : null,
+    fieldNotes: readNotes(parse(job.fieldNotes)),
+    colors: cleanColors(parse(job.colors)),
+    followUp: parse(job.followUp)?.due ? parse(job.followUp) : null,
+    offersTrade: !!anyCard,
     signoff: readSignoff(job.signoff),
     reviewAskedAt: job.reviewAskedAt ?? null,
     visit: parse(job.visit) && typeof parse(job.visit) === "object" && parse(job.visit).date ? parse(job.visit) : null,
@@ -341,10 +451,13 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
   }
 
   if (b.action === "aiDraft") {
-    const jobRow = await env.DB.prepare("SELECT json_extract(j.data,'$.brief') AS brief, p.city AS city FROM jobs j LEFT JOIN properties p ON p.id = j.property_id WHERE j.id = ? AND j.company_id = ?").bind(job.id, user.companyId).first<{ brief: string | null; city: string | null }>();
+    const jobRow = await env.DB.prepare("SELECT json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.fieldNotes') AS notes, json_extract(j.data,'$.request') AS request, json_extract(j.data,'$.colors') AS colors, p.city AS city FROM jobs j LEFT JOIN properties p ON p.id = j.property_id WHERE j.id = ? AND j.company_id = ?").bind(job.id, user.companyId).first<{ brief: string | null; notes: string | null; request: string | null; colors: string | null; city: string | null }>();
     const stored = parse(jobRow?.brief);
     const brief: Brief = cleanBrief(stored?.type ? stored : b.brief, new Date().toISOString());
-    const hasContent = !!brief.details || Object.keys(brief.answers).length > 0;
+    const reqText = cleanRequest(parse(jobRow?.request)).description;
+    const colorText = cleanColors(parse(jobRow?.colors)).map((c) => `${c.where}: ${[c.brand, c.code, c.name].filter(Boolean).join(" ")}`).join("; ");
+    const siteNotes = [reqText ? `Customer's request: ${reqText}` : "", notesForPrompt(readNotes(parse(jobRow?.notes))), colorText ? `Colors chosen: ${colorText}` : ""].filter(Boolean).join("\n");
+    const hasContent = !!brief.details || Object.keys(brief.answers).length > 0 || !!siteNotes;
     if (!hasContent) return json({ error: "Tell me a little about the job first: tap the answers that fit, or type or speak a few notes." }, 400);
     const company = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string; createdAt?: string }>();
     if (!company) return json({ error: "Not found." }, 404);
@@ -357,7 +470,8 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
     const cardData = card ? parse(card.data) : {};
     const options = card && card.method !== "lump_sum" ? quantityOptions(card.method, cardData) : [];
     const finds = ((await env.DB.prepare("SELECT data FROM job_photo_findings WHERE job_id = ? AND company_id = ? AND status = 'approved' ORDER BY id DESC LIMIT 6").bind(job.id, user.companyId).all<{ data: string }>().catch(() => ({ results: [] as { data: string }[] }))).results ?? []).flatMap((f) => (parse(f.data).issues ?? []).slice(0, 4).map((i: any) => `${String(i?.title ?? "").slice(0, 70)}: ${String(i?.fix ?? "").slice(0, 120)}`));
-    const out = await completeEx(env, DRAFT_SYSTEM, [{ role: "user", content: draftPrompt(brief, options, jobRow?.city ?? "", finds, b.language === "es" ? "es" : "en") }], { prefer: ["gemini", "openai", "anthropic"], maxTokens: 2200, tool: "estimate_draft" });
+    // The estimate is what the customer reads, so Claude Sonnet writes it first; the others step in if it does not answer.
+    const out = await completeEx(env, DRAFT_SYSTEM, [{ role: "user", content: draftPrompt(brief, options, jobRow?.city ?? "", finds, b.language === "es" ? "es" : "en", siteNotes) }], { prefer: ["anthropic", "gemini", "openai"], maxTokens: 2600, tool: "estimate_draft" });
     const parsed = out ? parseJsonLoose(out.text) : null;
     if (!parsed) {
       await refund(env, company, "estimate_draft");
@@ -365,8 +479,8 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
     }
     const ai = cleanDraftAI(parsed, options);
     // The code prices the quantities from the painter's own list. The AI never sets a price.
-    const priced = card ? draftLines(card.method, cardData, ai.quantities, job.trade).map((l) => ({ description: l.description, qty: l.qty, unit: l.unit, unitPrice: l.unitCents / 100 })) : [];
-    const extra = ai.extraLines.map((l) => ({ description: l.description, qty: l.qty, unit: l.unit, unitPrice: 0, needsPrice: true }));
+    const priced = card ? draftLines(card.method, cardData, ai.quantities, job.trade).map((l) => ({ description: l.description, qty: l.qty, unit: l.unit, unitPrice: l.unitCents / 100, section: guessSection(l.description) })) : [];
+    const extra = ai.extraLines.map((l) => ({ description: l.description, qty: l.qty, unit: l.unit, unitPrice: 0, needsPrice: true, section: l.section || guessSection(l.description) }));
     return json({ scope: ai.scope, lines: [...priced, ...extra], pricedCount: priced.length, needsPriceCount: extra.length, inclusions: ai.inclusions, exclusions: ai.exclusions, assumptions: ai.assumptions, questions: ai.questions, hasPriceList: !!card, ai: out ? { tool: out.tool, model: out.model } : undefined });
   }
 
@@ -380,10 +494,24 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
 
   if (b.action === "save" || b.action === "send") {
     if (!est.lines.length) return json({ error: "Add at least one priced line." }, 400);
+    const existing = await env.DB.prepare("SELECT id, status, body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(job.id, user.companyId).first<{ id: number; status: string; body: string }>();
+    const prevRev = Math.max(1, Math.round(Number(parse(existing?.body)?.estimate?.revision) || 1));
+    const revise = !!existing && (existing.status === "sent" || existing.status === "signed");
+    if (revise) {
+      est.revision = prevRev + 1;
+      est.revisionLabel = est.language === "es" ? `Revisión ${est.revision}` : `Revision ${est.revision}`;
+    } else est.revision = existing ? prevRev : 1;
     const body = JSON.stringify({ estimate: est, totals });
-    const existing = await env.DB.prepare("SELECT id FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' ORDER BY id DESC LIMIT 1").bind(job.id, user.companyId).first<{ id: number }>();
     let docId: number;
-    if (existing) {
+    if (revise && existing) {
+      await env.DB.prepare("UPDATE documents SET status = 'replaced', updated_at = datetime('now') WHERE id = ?").bind(existing.id).run();
+      await env.DB.prepare("UPDATE signature_requests SET status = 'void' WHERE document_id = ? AND status = 'pending'").bind(existing.id).run();
+      const ins = await env.DB.prepare("INSERT INTO documents (company_id, job_id, kind, language, status, title, body) VALUES (?, ?, 'estimate', ?, 'draft', ?, ?)")
+        .bind(user.companyId, job.id, est.language, `Estimate: ${job.title}`.slice(0, 160), body)
+        .run();
+      docId = Number(ins.meta.last_row_id);
+      await addJobEvent(env, user.companyId, job.id, "note", `Estimate revised (revision ${est.revision}). The earlier copy is kept, and its signing link no longer works.`);
+    } else if (existing) {
       docId = existing.id;
       await env.DB.prepare("UPDATE documents SET body = ?, language = ?, title = ?, updated_at = datetime('now') WHERE id = ?").bind(body, est.language, `Estimate: ${job.title}`.slice(0, 160), docId).run();
     } else {
@@ -460,6 +588,8 @@ async function renderForJob(env: Env, companyId: number, jobId: number, est: Ret
       property: j.property,
       jobTitle: j.row.title,
       date: new Date().toISOString().slice(0, 10),
+      // One signature covers both: the contract's starting clauses print under the estimate when the painter leaves this on.
+      terms: est.includeTerms ? defaultClauses({ company: j.company.name, customer: j.row.customerName, property: j.property, scope: est.scope, totals, startDate: "", endDate: "", profile: j.profile, estimate: est }, est.language) : undefined,
     },
     est,
     totals,

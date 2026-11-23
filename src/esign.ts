@@ -233,6 +233,9 @@ export async function handleSign(request: Request, env: Env): Promise<Response> 
     await env.DB.prepare("UPDATE documents SET status = 'signed', updated_at = datetime('now') WHERE id = ?").bind(r.document_id).run();
     if (r.kind === "contract") {
       await env.DB.prepare("UPDATE jobs SET stage = 'scheduled', updated_at = datetime('now') WHERE id = ? AND stage IN ('lead','bid','contract')").bind(r.job_id).run();
+    } else if (r.kind === "estimate") {
+      // A signed estimate is the agreement (its contract terms can print on it), so the bid becomes a job waiting for its dates.
+      await env.DB.prepare("UPDATE jobs SET stage = 'contract', data = json_remove(COALESCE(data, '{}'), '$.followUp'), updated_at = datetime('now') WHERE id = ? AND stage IN ('lead','bid')").bind(r.job_id).run();
     }
     await addJobEvent(env, r.company_id, r.job_id, "stage", `${r.kind === "contract" ? "Contract" : "Estimate"} signed online by ${name}.`);
 

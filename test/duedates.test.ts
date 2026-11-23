@@ -31,7 +31,7 @@ test("a lead with a booked visit is due on the visit day; with a draft estimate 
 });
 
 test("bid stage: follow up three days after sending, contract the day after signing", () => {
-  assert.deepEqual(nextDue({ ...base, stage: "bid", estStatus: "sent", estUpdatedAt: "2026-11-10 16:00:00" }), { step: "Follow up on the estimate", due: "2026-11-13" });
+  assert.deepEqual(nextDue({ ...base, stage: "bid", estStatus: "sent", estUpdatedAt: "2026-11-10 16:00:00" }), { step: "Follow up on the estimate", due: "2026-11-12" }); // 48 hours
   assert.deepEqual(nextDue({ ...base, stage: "bid", estStatus: "signed", signedAt: "2026-11-11T18:00:00.000Z", estUpdatedAt: "2026-11-11 18:00:00" }), { step: "Build and send the contract", due: "2026-11-12" });
   assert.deepEqual(nextDue({ ...base, stage: "bid", estStatus: "draft", estUpdatedAt: "2026-11-10 16:00:00" }), { step: "Send the estimate", due: "2026-11-12" });
 });
@@ -59,7 +59,7 @@ test("closed, lost and unknown stages suggest nothing, and unreadable timestamps
   assert.equal(nextDue({ ...base, stage: "lost" }), null);
   assert.equal(nextDue({ ...base, stage: "something_new" }), null);
   assert.equal(nextDue({ stage: "lead", createdAt: "", updatedAt: "" }), null);
-  assert.equal(nextDue({ ...base, stage: "bid", estStatus: "sent", visitDate: "bad", estUpdatedAt: "garbage", updatedAt: "2026-11-10 16:00:00" })?.due, "2026-11-13");
+  assert.equal(nextDue({ ...base, stage: "bid", estStatus: "sent", visitDate: "bad", estUpdatedAt: "garbage", updatedAt: "2026-11-10 16:00:00" })?.due, "2026-11-12");
 });
 
 test("dueWords says today, tomorrow, a weekday, a date, and how late", () => {
@@ -76,4 +76,9 @@ test("dueWords says today, tomorrow, a weekday, a date, and how late", () => {
 test("todayLocal is the date six hours behind UTC", () => {
   assert.equal(todayLocal(Date.parse("2026-11-14T05:00:00Z")), "2026-11-13");
   assert.equal(todayLocal(Date.parse("2026-11-14T06:00:00Z")), "2026-11-14");
+});
+
+test("a follow-up date the painter set wins over the 48-hour follow-up", () => {
+  assert.deepEqual(nextDue({ ...base, stage: "bid", estStatus: "sent", estUpdatedAt: "2026-11-10 16:00:00", followUpDue: "2026-11-20" }), { step: "Follow up with the customer", due: "2026-11-20" });
+  assert.deepEqual(nextDue({ ...base, stage: "bid", estStatus: "sent", estUpdatedAt: "2026-11-10 16:00:00", followUpDue: "bad" }), { step: "Follow up on the estimate", due: "2026-11-12" });
 });

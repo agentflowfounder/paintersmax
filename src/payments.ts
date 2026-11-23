@@ -2,6 +2,7 @@ import { getSessionUser } from "./auth.ts";
 import { addJobEvent } from "./crm.ts";
 import { woTotalCents, cleanWo } from "./workorders.ts";
 import type { Env } from "./types.ts";
+import { sendCustomerEmail } from "./email.ts";
 
 /**
  * What the customer has paid on a job: a simple record the painter keeps ("records for your accountant, not tax advice").
@@ -70,6 +71,21 @@ export function readPayments(raw: string | null | undefined): Payment[] {
   } catch {
     return [];
   }
+}
+
+/** A plain receipt email for one payment. Never shows more than the reference the painter typed (a check number or last four). */
+export function receiptText(p: Payment, o: { company: string; customer: string; jobTitle: string; paidCents: number; totalCents: number; language: "en" | "es" }): { subject: string; body: string } {
+  const es = o.language === "es";
+  const m = (c: number) => `$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const how: Record<string, [string, string]> = { cash: ["cash", "efectivo"], check: ["check", "cheque"], zelle: ["Zelle", "Zelle"], cash_app: ["CashApp", "CashApp"], venmo: ["Venmo", "Venmo"], paypal: ["PayPal", "PayPal"], bank_deposit: ["bank deposit", "depósito bancario"], card_outside: ["card", "tarjeta"], other: ["other", "otro"] };
+  const method = (how[p.method] ?? how.other)[es ? 1 : 0] + (p.ref ? ` ${p.method === "check" && /^\d+$/.test(p.ref) ? "#" : ""}${p.ref}` : "");
+  const first = o.customer.split(/\s+/)[0] || o.customer;
+  const balance = Math.max(0, o.totalCents - o.paidCents);
+  const kind = p.kind === "deposit" ? (es ? " (depósito)" : " (deposit)") : p.kind === "final" ? (es ? " (pago final)" : " (final payment)") : "";
+  const lines = es
+    ? [`Hola ${first},`, "", `Gracias. Recibimos su pago${kind}.`, "", `Trabajo: ${o.jobTitle}`, `Monto: ${m(p.cents)}`, `Fecha: ${p.on}`, `Forma de pago: ${method}`, ...(o.totalCents ? [`Total del trabajo: ${m(o.totalCents)}`, `Pagado hasta hoy: ${m(o.paidCents)}`, `Saldo: ${m(balance)}`] : []), "", "Guarde este correo como su recibo.", "", o.company]
+    : [`Hi ${first},`, "", `Thank you. We received your payment${kind}.`, "", `Job: ${o.jobTitle}`, `Amount: ${m(p.cents)}`, `Date: ${p.on}`, `Paid by: ${method}`, ...(o.totalCents ? [`Job total: ${m(o.totalCents)}`, `Paid so far: ${m(o.paidCents)}`, `Balance: ${m(balance)}`] : []), "", "Keep this email as your receipt.", "", o.company];
+  return { subject: es ? `Recibo de pago de ${o.company}` : `Payment receipt from ${o.company}`, body: lines.join("\n") };
 }
 
 export const sumPaid = (list: Payment[]) => list.reduce((s, p) => s + p.cents, 0);
@@ -156,6 +172,20 @@ export async function handleJobPay(request: Request, env: Env): Promise<Response
   if (!job) return json({ error: "Job not found." }, 404);
 
   let list = await loadPayments(env, c, jobId);
+  if (request.method === "POST" && b?.action === "receipt") {
+    // Emails a receipt for one payment. The page shows it in a check-before-sending window first (preview: true).
+    const p = list.find((x) => x.id === b.id);
+    if (!p) return json({ error: "Payment not found." }, 404);
+    const row = await env.DB.prepare("SELECT j.title, cu.name, cu.email, co.name AS company, co.notify_email FROM jobs j JOIN customers cu ON cu.id = j.customer_id JOIN companies co ON co.id = j.company_id WHERE j.id = ? AND j.company_id = ?").bind(jobId, c).first<{ title: string; name: string; email: string | null; company: string; notify_email: string | null }>();
+    if (!row?.email) return json({ error: "This customer has no email address. Add one in Edit details." }, 400);
+    const t = await contractTotal(env, c, jobId);
+    const r = receiptText(p, { company: row.company, customer: row.name, jobTitle: row.title, paidCents: sumPaid(list), totalCents: t.totalCents, language: b.language === "es" ? "es" : "en" });
+    if (b.preview === true) return json({ ok: true, to: row.email, ...r });
+    const sent = await sendCustomerEmail(env, row.email, row.company, row.notify_email || user.email, r.subject, r.body);
+    if (sent !== "sent") return json({ error: "The receipt could not be sent. Try again in a minute." }, 502);
+    await addJobEvent(env, c, jobId, "payment", `Receipt emailed to ${row.email} for $${(p.cents / 100).toFixed(2)}.`);
+    return json({ ok: true, emailed: true });
+  }
   if (request.method === "POST") {
     if (b?.action === "add") {
       if (list.length >= MAX_PAYMENTS) return json({ error: "That job has a lot of payments already. Contact support if you need more." }, 400);

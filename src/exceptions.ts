@@ -11,7 +11,7 @@ import type { Env } from "./types.ts";
  *  - Payments: missed yearly renewals and monthly allowances that are past due.
  *  - Sites: a paid client whose website was never published 7 days after sign-up, or not published in 60 days.
  */
-export interface ExceptionItem { kind: "ai" | "payment" | "site"; title: string; detail: string; companyId?: number; severity: "high" | "medium" }
+export interface ExceptionItem { kind: "ai" | "payment" | "site" | "demand"; title: string; detail: string; companyId?: number; severity: "high" | "medium" }
 
 /** AI tools with a high failure rate. Pure so it can be tested. */
 export function aiExceptions(rows: { tool: string; model: string; calls: number; ok: number; errorPct: number }[]): ExceptionItem[] {
@@ -24,6 +24,18 @@ export function siteStuck(door: string, publishedAt: string | null, ageDays: num
   if (!publishedAt) return ageDays >= 7 ? `Paid ${door} client, website never published (${ageDays} days since sign-up).` : null;
   const gap = Math.round((Date.parse(today) - Date.parse(publishedAt.slice(0, 10))) / 86400000);
   return gap > 60 ? `Website not published for ${gap} days.` : null;
+}
+
+/**
+ * Work painters were asked for but do not list (a job whose type has no price list). One line for the owner, so add-ons and
+ * guides can follow real demand. Pure so it can be tested; rows come from the outsvc:<company>:<job> keys.
+ */
+export function outsideServices(rows: { trade: string; on: string }[], since: string): ExceptionItem | null {
+  const n = new Map<string, number>();
+  for (const r of rows) if (typeof r.trade === "string" && typeof r.on === "string" && r.on >= since) n.set(r.trade, (n.get(r.trade) ?? 0) + 1);
+  if (!n.size) return null;
+  const list = [...n.entries()].sort((a, b) => b[1] - a[1]).map(([t, c]) => `${t.replace(/_/g, " ")} ${c}`).join(", ");
+  return { kind: "demand", title: "Painters were asked for work they do not list", detail: `Last 30 days: ${list}. Ideas for add-ons, guides or price lists.`, severity: "medium" };
 }
 
 export async function exceptionList(env: Env, today: string): Promise<ExceptionItem[]> {
@@ -48,5 +60,8 @@ export async function exceptionList(env: Env, today: string): Promise<ExceptionI
     const why = siteStuck(door, live.get(c.id) ?? null, Number.isFinite(age) ? age : 0, today);
     if (why) out.push({ kind: "site", title: `${c.name}: website needs a look`, detail: why, companyId: c.id, severity: "medium" });
   }
+  const since = new Date(Date.parse(`${today}T00:00:00Z`) - 30 * 86400000).toISOString().slice(0, 10);
+  const demand = outsideServices((await blobsWithPrefix(env, "outsvc:", 10000)).map((r) => r.value as { trade: string; on: string }), since);
+  if (demand) out.push(demand);
   return out.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "high" ? -1 : 1));
 }

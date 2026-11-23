@@ -108,6 +108,11 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
   // A scheduled job whose start date has come: offer the Start the job button.
   const dueStart = ((await env.DB.prepare(`SELECT j.id, j.title, cu.name AS customer, json_extract(j.data,'$.schedule.start') AS start FROM jobs j JOIN customers cu ON cu.id = j.customer_id
                     WHERE j.company_id = ? AND j.stage IN ('contract','scheduled') AND json_extract(j.data,'$.schedule.start') <= ? ORDER BY start LIMIT 5`).bind(c, todayLocal()).all().catch(() => ({ results: [] }))).results ?? []) as any[];
+  // Bids sent more than 48 hours ago with no answer (and no follow-up date set): one line with the count.
+  const waiting = await one(`SELECT COUNT(*) AS n FROM jobs j WHERE j.company_id = ? AND j.stage = 'bid' AND json_extract(j.data,'$.followUp.due') IS NULL
+      AND (SELECT d.status FROM documents d WHERE d.job_id = j.id AND d.kind = 'estimate' ORDER BY d.id DESC LIMIT 1) = 'sent'
+      AND (SELECT d.updated_at FROM documents d WHERE d.job_id = j.id AND d.kind = 'estimate' ORDER BY d.id DESC LIMIT 1) < datetime('now','-2 days')`, c).catch(() => ({ n: 0 }));
+  if (Number(waiting.n) > 0) attention.push({ type: "followup", link: "/jobs#estimates", text: `${waiting.n} bid${Number(waiting.n) === 1 ? " has" : "s have"} waited over 48 hours for an answer. A friendly call or a short email often wins the job.` });
   for (const r of dueStart) attention.push({ type: "start", jobId: r.id, text: `The start date (${friendlyDate(String(r.start))}) is here: ${r.customer}, ${r.title}. Open the job and tap Start the job when the crew begins.` });
   if (policy) {
     try {
@@ -139,7 +144,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
     } catch {
       data = {};
     }
-    const d = nextDue({ stage: r.stage, createdAt: r.createdAt, updatedAt: r.updatedAt, estStatus: r.estStatus, estUpdatedAt: r.estUpdatedAt, signedAt: r.signedAt, invStatus: r.invStatus, invUpdatedAt: r.invUpdatedAt, scheduleStart: data.schedule?.start ?? null, scheduleEnd: data.schedule?.end ?? null, visitDate: data.visit?.status === "booked" ? data.visit.date : null });
+    const d = nextDue({ stage: r.stage, createdAt: r.createdAt, updatedAt: r.updatedAt, estStatus: r.estStatus, estUpdatedAt: r.estUpdatedAt, signedAt: r.signedAt, invStatus: r.invStatus, invUpdatedAt: r.invUpdatedAt, scheduleStart: data.schedule?.start ?? null, scheduleEnd: data.schedule?.end ?? null, visitDate: data.visit?.status === "booked" ? data.visit.date : null, followUpDue: data.followUp?.due ?? null });
     if (!d) continue;
     const w = dueWords(d.due, todayLocal());
     if (!w.late && d.due > addDaysIso(todayLocal(), 7)) continue;
