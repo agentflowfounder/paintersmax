@@ -20,9 +20,16 @@
       h += row('Last event received', v.lastEvent ? esc(v.lastEvent.type) + ', ' + when(v.lastEvent.at) : 'none yet', v.lastEvent ? true : null);
       h += row('Events this week', String(v.eventsThisWeek));
       h += row('Last failed payment', v.lastFailedPayment ? 'Client #' + esc(v.lastFailedPayment.companyId) + ', ' + when(v.lastFailedPayment.at) + ' (' + v.pastDueNow + ' past due now)' : 'none', v.lastFailedPayment ? false : true);
-      h += '<div style="margin-top:8px"><small>Events Stripe must send: ' + v.needed.map(esc).join(', ') + '.</small> <button type="button" id="sk_again" style="margin-left:6px">Check again</button></div>';
+      h += '<div style="margin-top:8px"><small>Events Stripe must send: ' + v.needed.map(esc).join(', ') + '.</small> <button type="button" id="sk_again" style="margin-left:6px">Check again</button> <button type="button" id="sk_test" style="margin-left:6px"' + (v.mode === 'test' ? '' : ' disabled title="Only with test keys: it uses a test card"') + '>Test Stripe</button></div><div id="sk_test_out" style="margin-top:8px"></div>';
       box.innerHTML = h;
       document.getElementById('sk_again').onclick = load;
+      document.getElementById('sk_test').onclick = function () {
+        var b = this, out = document.getElementById('sk_test_out'); b.disabled = true; out.innerHTML = '<small>Sending a $1 test payment through Stripe and waiting for its event (up to 15 seconds)...</small>';
+        fetch('/api/admin/stripe-check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'test' }) }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || 'Could not run the test.'); return j; }); }).then(function (t) {
+          out.innerHTML = '<div class="' + (t.ok ? 'ok' : 'bad') + '" style="font-weight:700">' + (t.ok ? 'Test passed: Stripe can reach your site.' : 'Test failed.') + '</div>' + t.steps.map(function (s) { return '<div class="' + (s.ok ? 'ok' : 'bad') + '">' + (s.ok ? '&#10003; ' : '&#10007; ') + esc(s.text) + '</div>'; }).join('');
+          b.disabled = false;
+        }).catch(function (e) { out.innerHTML = '<div class="bad">' + esc(e.message) + '</div>'; b.disabled = false; });
+      };
     }).catch(function (e) { box.textContent = e.message; });
   }
   load();

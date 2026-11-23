@@ -8,7 +8,7 @@
   var TABS = [
     ['clients', 'Clients', 'clients'], ['subs', 'Subscriptions', 'subscriptions'], ['credits', 'Credits', 'credits'], ['starter', 'Starter campaign', 'credits'], ['aihealth', 'AI health', 'credits'], ['promos', 'Promotions', 'promos'],
     ['research', 'Research', 'research'], ['feedback', 'Feedback', 'feedback'], ['domains', 'Domains', 'domains'], ['sites', 'Websites', 'sites'],
-    ['content', 'Help guide', 'content'], ['settings', 'Settings', 'settings'], ['security', 'Team and audit log', 'security'],
+    ['content', 'Help guide', 'content'], ['launch', 'Launch checklist', 'settings'], ['settings', 'Settings', 'settings'], ['security', 'Team and audit log', 'security'],
   ];
   var DOOR = { free: 'Free', launch: 'Local Pro', grow: 'Contractor', signature: 'Commercial' };
   var doorName = function (k) { return k === 'free' ? esc(T('Free')) : '<span translate="no">' + esc(DOOR[k] || k) + '</span>'; };
@@ -532,6 +532,21 @@
     }).catch(function (x) { box.textContent = x ? x.message : ''; });
   }
 
+  // Launch checklist: items the app can check show a green tick by themselves; the rest the owner ticks.
+  function launchLoad() {
+    var box = $('lc_box'); if (!box) return;
+    api('/api/admin?launch=1').then(function (v) {
+      var groups = ['Money', 'Safety', 'Content', 'Customers'];
+      box.innerHTML = '<p style="margin:0 0 8px"><b>' + v.done + ' of ' + v.total + ' ready</b> for launch day (December 1).</p><div style="height:8px;background:#eee;border-radius:6px;overflow:hidden;margin-bottom:10px"><div style="height:8px;width:' + Math.round(100 * v.done / v.total) + '%;background:#2f855a"></div></div>' +
+        groups.map(function (g) {
+          return '<h3 style="margin:14px 0 4px">' + esc(g) + '</h3>' + v.items.filter(function (i) { return i.group === g; }).map(function (i) {
+            return '<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid #eee"><div style="flex:0 0 24px">' + (i.auto ? '<span class="' + (i.done ? 'ok' : 'bad') + '" style="font-size:18px" aria-label="' + (i.done ? 'ready' : 'not ready') + '">' + (i.done ? '&#10003;' : '&#9675;') + '</span>' : '<input type="checkbox" data-lc="' + esc(i.id) + '"' + (i.done ? ' checked' : '') + dis('settings') + '>') + '</div><div style="min-width:0"><b>' + esc(i.label) + '</b>' + (i.auto ? ' <small>(checked by the app)</small>' : '') + (i.note ? ' <small class="bad">' + esc(i.note) + '</small>' : '') + '<div><small>' + esc(i.how) + '</small></div></div></div>';
+          }).join('');
+        }).join('');
+      box.onchange = function (e) { var id = e.target && e.target.dataset && e.target.dataset.lc; if (!id) return; post({ action: 'launch_tick', id: id, done: e.target.checked }).then(function () { launchLoad(); }).catch(function (x) { bad(x); launchLoad(); }); };
+    }).catch(function (x) { box.textContent = x ? x.message : ''; });
+  }
+
   var LOAD = {
     clients: function () { clientsLoad(); exceptionsLoad(); if (typeof load === 'function') load(); },
     client: clientLoad,
@@ -544,6 +559,7 @@
     feedback: feedbackLoad,
     domains: function () { heldLoad(); if (typeof load === 'function') load(); },
     content: function () { if (typeof hLoad === 'function') hLoad(); },
+    launch: launchLoad,
     settings: function () { samplesLoad(); ['tkLoad', 'mkLoad', 'mLoad', 'ntLoad', 'amLoad'].forEach(function (f) { if (typeof window[f] === 'function') window[f](); }); },
     security: securityLoad,
   };
