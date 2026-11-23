@@ -10,6 +10,8 @@ import { ALERT_KEY, readAlert } from "./aialert.ts";
 import { BLIND_KEY, BLIND_TOOLS, readBlind, runBlindTest, scoreBlindTest } from "./blindtest.ts";
 import { aiScorecard, aiToday } from "./ailog.ts";
 import { exceptionList } from "./exceptions.ts";
+import { launchChecklist, tickLaunch } from "./launch.ts";
+import { stripeFacts } from "./stripecheck.ts";
 import { readSamplesSetting, SAMPLES_KEY, saveSamplesSetting } from "./samples.ts";
 import { databaseBackup, LAST_BACKUP_KEY } from "./backup.ts";
 import { CHANNELS, loadPromos, normCode, promoPrice, promoUses, savePromo, setPromoActive, validatePromo } from "./promos.ts";
@@ -192,6 +194,7 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
     };
   }
   if (q.get("exceptions") === "1") return { area: "clients", data: { items: await exceptionList(env, today) } };
+  if (q.get("launch") === "1") return { area: "settings", data: await launchChecklist(env, today, await stripeFacts(env, url.hostname)) };
   if (q.get("samples") === "1") return { area: "settings", data: await readBlob(env, SAMPLES_KEY, readSamplesSetting) };
   if (q.get("credits") === "1") return { area: "credits", data: await creditsOverview(env, q.get("month") ?? "") };
   if (q.get("aihealth") === "1") {
@@ -250,7 +253,7 @@ export const ACT_AREAS: Record<string, Area> = {
   feedback_reply: "feedback",
   quickreply_save: "feedback",
   held_save: "domains", held_decide: "domains",
-  team_set: "security", samples_set: "settings",
+  team_set: "security", samples_set: "settings", launch_tick: "settings",
   ai_alert_set: "credits", blind_run: "credits", blind_pick: "credits",
 };
 
@@ -313,6 +316,10 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
       if (!r.ok) return fail(r.error);
       forgetClientModel(co.id);
       return { ok: true, companyId: co.id, data: { envelopes: r.value }, detail: { enabled: r.value.enabled, painter: r.value.painterCanEdit, caps: r.value.caps, model: r.value.textModel } };
+    }
+    case "launch_tick": {
+      const r = await tickLaunch(env, String(b.id ?? ""), b.done === true);
+      return r.ok ? { ok: true, detail: `launch checklist ${String(b.id).slice(0, 30)} ${b.done === true ? "ticked" : "unticked"}` } : fail(r.error);
     }
     case "samples_set": {
       await saveSamplesSetting(env, b.on !== false, b.text);
