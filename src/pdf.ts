@@ -28,6 +28,30 @@ export async function htmlToPdf(env: Env, html: string): Promise<Uint8Array | nu
   }
 }
 
+/** A picture of a finished HTML document (PNG, JPEG or WebP), full page, phone-friendly width. Null when the browser is unavailable. */
+export async function htmlToImage(env: Env, html: string, type: "png" | "jpeg" | "webp"): Promise<Uint8Array | null> {
+  if (!env.BROWSER) return null;
+  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null;
+  try {
+    browser = await puppeteer.launch(env.BROWSER);
+    const page = await browser.newPage();
+    await page.setJavaScriptEnabled(false);
+    await page.setViewport({ width: 820, height: 1100, deviceScaleFactor: 2 });
+    await page.setContent(html, { waitUntil: "load", timeout: 15000 });
+    const shot = await page.screenshot({ type, fullPage: true, ...(type === "png" ? {} : { quality: 88 }) });
+    return shot as Uint8Array;
+  } catch (err) {
+    console.error("image failed", String(err));
+    return null;
+  } finally {
+    try {
+      await browser?.close();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 const b64 = (bytes: Uint8Array) => {
   let bin = "";
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));

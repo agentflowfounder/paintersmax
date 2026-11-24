@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Business analysis - PaintersMax</title><script src="/i18n.js" data-app></script>
+<title>Business analysis - PaintersMax</title><link rel="stylesheet" href="/colorcode.css"><script src="/i18n.js" data-app></script>
 <style>
 *{box-sizing:border-box}
 body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
@@ -55,6 +55,20 @@ function render(a){var h='';
   var p=a.productivity,cs=Object.keys(p.byCrewSize).sort();
   h+='<div class="card"><h3>'+T('Crew productivity')+'</h3>'+(p.revenuePerHourCents==null?'<p class="muted">'+T('Record crew hours on your jobs to see sales per labor hour.')+'</p>':'<p>'+T('Sales per labor hour')+': <b>'+$$(p.revenuePerHourCents)+'</b></p>'+bars(Object.fromEntries(cs.map(function(k){return [k+' '+T('workers'),p.byCrewSize[k].revenuePerHourCents]})),function(v){return $$(v)+'/hr'},cs.map(function(k){return k+' '+T('workers')})))+'</div>';
   var t=a.totals;h+='<div class="card"><h3>'+T('Materials and mileage')+'</h3><p>'+T('Materials')+': <b>'+$$(t.materialsCents)+'</b>'+(t.materialsPctOfRevenue==null?'':' ('+t.materialsPctOfRevenue+'% '+T('of sales')+')')+' &middot; '+T('Crew payments on jobs')+': <b>'+$$(t.payCents)+'</b> &middot; '+T('Miles')+': <b>'+t.miles+'</b></p></div>';}
- h+=sugg(a.suggestions);$('body').innerHTML=h;}
+ if(a.level==='full')h+='<div class="card" id="cmp"><h3>'+T('Compare my jobs')+'</h3><p class="muted">'+T('Loading...')+'</p></div>';else h+=lockCard('Compare my jobs');
+ h+=sugg(a.suggestions);$('body').innerHTML=h;if(a.level==='full')cmpLoad();}
+var CMP=null,CSORT='margin';
+function tag(m){return m==null?'':m<0?'<span class="cc t-bad">'+T('Lost money')+'</span>':m<25?'<span class="cc t-warn">'+T('Thin')+'</span>':'<span class="cc t-ok">'+T('Healthy')+'</span>';}
+function cmpLoad(){fetch('/api/comparejobs').then(function(r){return r.json()}).then(function(j){CMP=j;cmpDraw();}).catch(function(){var c=$('cmp');if(c)c.innerHTML='<h3>'+T('Compare my jobs')+'</h3><p class="muted">'+T('Could not load the report.')+'</p>';});}
+function cmpDraw(){var c=$('cmp');if(!c||!CMP)return;var j=CMP;
+ if(!j.rows.length){c.innerHTML='<h3>'+T('Compare my jobs')+'</h3><p class="muted">'+T('Finish a job with its price, receipts and crew pay recorded, and it shows up here next to your other jobs.')+'</p>';return;}
+ var h='<h3>'+T('Compare my jobs')+'</h3><p class="muted" style="margin-top:0">'+T('Finished jobs with a price and recorded costs. Green is healthy (25% or more), yellow is thin, red lost money.')+'</p>';
+ h+='<div class="grid2"><div><b>'+T('Profit by month')+'</b>'+bars(Object.fromEntries(j.byMonth.map(function(m){return [m.key,Math.max(0,m.profitCents)]})),$$,j.byMonth.map(function(m){return m.key}))+'</div><div><b>'+T('Margin by service')+'</b>'+bars(Object.fromEntries(j.byService.map(function(m){return [m.key,Math.max(0,m.marginPct||0)]})),function(v){return v+'%'})+'</div></div>';
+ var rows=j.rows.slice();rows.sort(function(a,b){return CSORT==='margin'?b.marginPct-a.marginPct:CSORT==='profit'?b.profitCents-a.profitCents:CSORT==='hour'?(b.pricePerHourCents||0)-(a.pricePerHourCents||0):b.id-a.id});
+ h+='<p style="margin:12px 0 6px">'+T('Sort by')+': '+[['margin','Margin'],['profit','Profit'],['hour','Per labor hour'],['new','Newest']].map(function(x){return '<button class="btn" style="padding:4px 10px;margin:2px;'+(CSORT===x[0]?'':'background:#eceae4')+'" data-cs="'+x[0]+'">'+T(x[1])+'</button>'}).join('')+'</p>';
+ h+='<div style="overflow-x:auto"><table><thead><tr><th>'+T('Job')+'</th><th>'+T('Month')+'</th><th class="r">'+T('Price')+'</th><th class="r">'+T('Profit')+'</th><th class="r">'+T('Margin')+'</th><th class="r">'+T('Per hour')+'</th></tr></thead><tbody>'+
+  rows.map(function(r){return '<tr><td><a href="/jobs?id='+r.id+'">'+esc(r.title)+'</a><br><span class="muted">'+esc(r.trade)+'</span></td><td>'+esc(r.month)+'</td><td class="r">'+$$(r.priceCents)+'</td><td class="r">'+(r.profitCents<0?'-'+$$(-r.profitCents):$$(r.profitCents))+'</td><td class="r">'+r.marginPct+'% '+tag(r.marginPct)+'</td><td class="r">'+(r.pricePerHourCents?$$(r.pricePerHourCents):'-')+'</td></tr>'}).join('')+'</tbody></table></div>';
+ c.innerHTML=h;}
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-cs]');if(b){CSORT=b.getAttribute('data-cs');cmpDraw();}});
 fetch('/api/analysis').then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json();}).then(render).catch(function(e){if(e)$('body').textContent=T('Could not load the report.');});
 </script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>

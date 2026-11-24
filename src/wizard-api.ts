@@ -3,7 +3,7 @@ import { getSessionUser } from "./auth.ts";
 import { extraCitiesFor } from "./sitebuilder.ts";
 import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } from "./profile.ts";
 import { consume, normalizePlan, refund } from "./usage.ts";
-import { ask, askAnything, buildJobContext, completeEx, draftCoverNote, sanitizeHistory } from "./assistant.ts";
+import { ask, askAnything, askStream, buildJobContext, completeEx, draftCoverNote, sanitizeHistory } from "./assistant.ts";
 import type { Env } from "./types.ts";
 import { labelsFor } from "./ratecatalog.ts";
 import { commercialBlockedMessage, loadCommercialStatus } from "./commercial.ts";
@@ -1064,6 +1064,33 @@ export async function handleAssistant(request: Request, env: Env): Promise<Respo
     return json({ error: msg, code: used.reason }, 429);
   }
   const lang = b?.language === "es" ? "es" : "en";
+  if (b?.mode === "ask" && b?.stream === true) {
+    // Word-by-word answer (server-sent events): {"t":"..."} pieces, then {"done":true,...} or {"error":"..."}.
+    const { readable, writable } = new TransformStream();
+    const w = writable.getWriter();
+    const enc = new TextEncoder();
+    const send = (o: unknown) => w.write(enc.encode(`data: ${JSON.stringify(o)}\n\n`));
+    const input = { context, history: sanitizeHistory(b?.history), question, language: lang as "en" | "es", page: text(b?.page, 60), companyId: company.id };
+    const run = (async () => {
+      try {
+        const reply = await askStream(env, input, (t) => send({ t }));
+        if (!reply) {
+          await refund(env, company, "ai_assistant");
+          await send({ error: "The assistant could not answer right now. Please try again in a minute." });
+        } else {
+          const saved = await recordTurn(env, user, { conversationId: b?.conversationId, jobId: context ? Number(b?.jobId) : null, question, reply });
+          await send({ done: true, reply, used: used.used, limit: used.limit, conversationId: saved?.id ?? null, messageId: saved?.assistantId ?? null });
+        }
+      } catch (err) {
+        console.error("ask stream", String(err));
+        await send({ error: "The assistant could not answer right now. Please try again in a minute." }).catch(() => {});
+      } finally {
+        await w.close().catch(() => {});
+      }
+    })();
+    void run;
+    return new Response(readable, { headers: { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-store", "x-accel-buffering": "no" } });
+  }
   const reply = b?.mode === "ask" ? await askAnything(env, { context, history: sanitizeHistory(b?.history), question, language: lang, page: text(b?.page, 60), companyId: company.id }) : await ask(env, context, sanitizeHistory(b?.history), question, lang, company.id);
   if (!reply) {
     await refund(env, company, "ai_assistant");

@@ -17,6 +17,8 @@ import { handleAddress } from "./address.ts";
 import { handleVoiceSession } from "./voicesession.ts";
 import { handleAskChats } from "./askhistory.ts";
 import { handleJobReport } from "./jobreport.ts";
+import { handleBidCheck, handleCompareJobs } from "./bidcheck.ts";
+import { handleJobSummaryApi, handleJobSummaryFile } from "./jobsummary.ts";
 import { handleWordList } from "./wordlist.ts";
 import { handleSamples } from "./samples.ts";
 import { syncTierDemos } from "./tierdemos.ts";
@@ -897,6 +899,16 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleSamples(request, env);
       } catch (err) {
         console.error("samples failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    // Round 7 tools: one table of routes, each wrapped so a failure answers JSON.
+    const R7: Record<string, (r: Request, e: Env) => Promise<Response>> = { "/api/bidcheck": handleBidCheck, "/api/comparejobs": handleCompareJobs, "/api/jobsummary": handleJobSummaryApi, "/jobsummary": handleJobSummaryFile };
+    if (R7[pathname]) {
+      try {
+        return await R7[pathname](request, env);
+      } catch (err) {
+        console.error(pathname, "failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }

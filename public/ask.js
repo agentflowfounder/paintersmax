@@ -128,10 +128,40 @@
     if (view === 'hist') { view = 'chat'; }
     busy = true; var prior = hist.slice(-8).map(function (m) { return { role: m.role, content: m.content }; });
     hist.push({ role: 'user', content: text }); $('pm_aski').value = ''; draw('<div class="b a">' + esc(T('Thinking...')) + '</div>');
-    api('/api/assistant', { mode: 'ask', message: text, history: prior, page: location.pathname, jobId: jobId(), language: es() ? 'es' : 'en', conversationId: convId })
+    stream({ mode: 'ask', stream: true, message: text, history: prior, page: location.pathname, jobId: jobId(), language: es() ? 'es' : 'en', conversationId: convId })
       .then(function (j) { if (j.conversationId) convId = j.conversationId; hist.push({ role: 'assistant', content: j.reply, id: j.messageId || undefined }); save(); draw(); return speak(j.reply).then(function () { if (talk && $('pm_askp').classList.contains('open')) mic(); }); })
       .catch(function (e) { hist.pop(); $('pm_aski').value = text; draw(e ? '<div class="b a">' + esc(T(e.message)) + '</div>' : ''); })
       .then(function () { busy = false; });
+  }
+  // Word-by-word answers: shows each piece as it arrives, then resolves with the final {reply, conversationId, messageId}.
+  function stream(body) {
+    return fetch('/api/assistant', { method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) }).then(function (r) {
+      var ct = r.headers.get('content-type') || '';
+      if (!r.ok || ct.indexOf('event-stream') < 0 || !r.body || !r.body.getReader) {
+        return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || j.error) throw new Error(j.error || 'Something went wrong.'); return j; });
+      }
+      var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', so = '', fin = null;
+      function show() { draw('<div class="b a">' + esc(so).replace(/\n/g, '<br>') + '</div>'); }
+      function take(block) {
+        block.split('\n').forEach(function (line) {
+          if (line.indexOf('data:') !== 0) return;
+          var o; try { o = JSON.parse(line.slice(5)); } catch (e) { return; }
+          if (o.t) { so += o.t; show(); }
+          if (o.error) throw new Error(o.error);
+          if (o.done) fin = o;
+        });
+      }
+      function pump() {
+        return reader.read().then(function (x) {
+          if (x.done) { if (buf) take(buf); if (!fin) throw new Error('The answer was cut off. Please try again.'); return fin; }
+          buf += dec.decode(x.value, { stream: true });
+          var parts = buf.split('\n\n'); buf = parts.pop();
+          parts.forEach(take);
+          return fin ? fin : pump();
+        });
+      }
+      return pump();
+    });
   }
   function mic() {
     if (!window.pmVoice) return;

@@ -291,11 +291,92 @@ export const ASK_PROMPT = [
   "- If someone sincerely asks whether you are a person, say you are an automated assistant. Do not name the companies or models behind you.",
 ].join("\n");
 
-export async function askAnything(env: Env, o: { context: string | null; history: Turn[]; question: string; language: "en" | "es"; page: string; companyId: number }): Promise<string | null> {
+type AskInput = { context: string | null; history: Turn[]; question: string; language: "en" | "es"; page: string; companyId: number };
+
+/** The system prompt for Ask: rules, the page, matching help articles and the job (when on a job page). */
+export async function askSystem(env: Env, o: AskInput): Promise<string> {
   const lib = await loadLibrary(env).catch(() => STARTER_ARTICLES);
   const hits = searchArticles(lib, o.question, 3);
   const help = hits.map((h) => `## ${h.article.title}\n${h.article.body.slice(0, 1200)}${h.article.link ? `\n(Page: ${h.article.link.href})` : ""}`).join("\n\n");
   const parts = [ASK_PROMPT, o.language === "es" ? "Always answer in Spanish." : "", `<page>${o.page || "/"}</page>`, help ? `<help>\n${help}\n</help>` : "", o.context ? `<job_data>\n${o.context}\n</job_data>` : ""];
-  const out = await completeEx(env, parts.filter(Boolean).join("\n\n"), [...o.history, { role: "user", content: o.question }], { prefer: ["gemini", "haiku", "openai", "anthropic"], maxTokens: 700, companyId: o.companyId, tool: "ask" });
+  return parts.filter(Boolean).join("\n\n");
+}
+
+export async function askAnything(env: Env, o: AskInput): Promise<string | null> {
+  const out = await completeEx(env, await askSystem(env, o), [...o.history, { role: "user", content: o.question }], { prefer: ["gemini", "haiku", "openai", "anthropic"], maxTokens: 700, companyId: o.companyId, tool: "ask" });
   return out?.text ?? null;
+}
+
+/** Pulls the text pieces out of a Gemini server-sent-events body. Exported for tests. */
+export function geminiSseTexts(chunk: string): string[] {
+  const out: string[] = [];
+  for (const line of chunk.split("\n")) {
+    const t = line.trim();
+    if (!t.startsWith("data:")) continue;
+    try {
+      const j = JSON.parse(t.slice(5).trim());
+      const txt = (j?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p?.text ?? "").join("");
+      if (txt) out.push(txt);
+    } catch {
+      /* a partial line; the caller keeps the tail */
+    }
+  }
+  return out;
+}
+
+/**
+ * Ask, word by word. Calls onText for each piece as Gemini writes it, and returns the whole answer.
+ * When Gemini has no key or fails before the first word, it falls back to the normal one-shot answer (Haiku, then the rest),
+ * sent as one piece, so the painter always gets an answer.
+ */
+export async function askStream(env: Env, o: AskInput, onText: (t: string) => Promise<void> | void): Promise<string | null> {
+  const system = await askSystem(env, o);
+  const turns: Turn[] = [...o.history, { role: "user", content: o.question }];
+  let full = "";
+  if (env.GEMINI_API_KEY) {
+    const model = geminiModel(env);
+    const t0 = Date.now();
+    try {
+      const r = await fetch(`${env.GEMINI_API_BASE ?? "https://generativelanguage.googleapis.com"}/v1beta/models/${model}:streamGenerateContent?alt=sse`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: turns.map((t) => ({ role: t.role === "assistant" ? "model" : "user", parts: [{ text: t.content }] })),
+          generationConfig: { ...thinkingCfg(model), maxOutputTokens: 700 },
+        }),
+      });
+      if (r.ok && r.body) {
+        const reader = r.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const cut = buf.lastIndexOf("\n");
+          if (cut < 0) continue;
+          const ready = buf.slice(0, cut);
+          buf = buf.slice(cut + 1);
+          for (const t of geminiSseTexts(ready)) {
+            full += t;
+            await onText(t);
+          }
+        }
+        for (const t of geminiSseTexts(buf)) {
+          full += t;
+          await onText(t);
+        }
+      }
+      await logAiCall(env, { tool: "ask", model, ms: Date.now() - t0, tokensIn: approxTokens(system), tokensOut: approxTokens(full), ok: !!full.trim() });
+    } catch (err) {
+      console.error("ask stream failed", String(err));
+      await logAiCall(env, { tool: "ask", model, ms: Date.now() - t0, tokensIn: approxTokens(system), tokensOut: approxTokens(full), ok: false });
+    }
+    if (full.trim()) return full.trim();
+  }
+  const out = await completeEx(env, system, turns, { prefer: ["haiku", "openai", "anthropic"], maxTokens: 700, companyId: o.companyId, tool: "ask" });
+  if (!out?.text) return null;
+  await onText(out.text);
+  return out.text;
 }
