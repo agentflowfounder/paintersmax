@@ -204,6 +204,7 @@ export async function handleJobs(request: Request, env: Env): Promise<Response> 
             json_extract(j.data,'$.request.preferredDate') AS preferredDate,
             (SELECT json_extract(a.value,'$.endOn') FROM app_settings a WHERE a.key = 'cert:' || j.company_id || ':' || j.id) AS warrantyEnd,
             (SELECT d.status FROM documents d WHERE d.job_id = j.id AND d.kind = 'estimate' ORDER BY d.id DESC LIMIT 1) AS estStatus,
+            json_extract(j.data,'$.archived') AS archived,
             EXISTS (SELECT 1 FROM signature_requests s WHERE s.job_id = j.id AND s.status = 'signed') AS signed,
             EXISTS (SELECT 1 FROM signature_requests s WHERE s.job_id = j.id AND s.status = 'pending' AND s.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')) AS awaiting
        FROM jobs j JOIN customers c ON c.id = j.customer_id
@@ -215,7 +216,7 @@ export async function handleJobs(request: Request, env: Env): Promise<Response> 
   const today = todayLocal();
   return json({
     today,
-    jobs: (rows.results as any[]).map((r) => ({ ...r, bucket: bucketFor({ stage: r.stage, accepted: !!r.acceptedAt, warrantyEnd: r.warrantyEnd, today }), coverage: coverageFor(pol, r.trade)?.status ?? null })),
+    jobs: (rows.results as any[]).map((r) => ({ ...r, bucket: bucketFor({ stage: r.stage, accepted: !!r.acceptedAt, warrantyEnd: r.warrantyEnd, today, archived: !!r.archived }), coverage: coverageFor(pol, r.trade)?.status ?? null })),
   });
 }
 
@@ -296,6 +297,33 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
       }
       if (changed.length) await addJobEvent(env, user.companyId, jid, "note", `Details changed: ${changed.join(", ")}.`);
       return json({ ok: true, changed });
+    }
+
+    // ---- Archive (hide, restore any time) and delete (gone for good; money records stay as company records) ----
+    if (b.action === "archive") {
+      if (b.on === false) await env.DB.prepare("UPDATE jobs SET data = json_remove(COALESCE(data, '{}'), '$.archived'), updated_at = datetime('now') WHERE id = ? AND company_id = ?").bind(jid, user.companyId).run();
+      else await env.DB.prepare("UPDATE jobs SET data = json_set(COALESCE(data, '{}'), '$.archived', ?), updated_at = datetime('now') WHERE id = ? AND company_id = ?").bind(todayLocal(), jid, user.companyId).run();
+      await addJobEvent(env, user.companyId, jid, "note", b.on === false ? "Job restored from the archive." : "Job archived.");
+      return json({ ok: true });
+    }
+    if (b.action === "delete") {
+      const files = await env.DB.prepare("SELECT r2_key AS k FROM job_files WHERE company_id = ? AND job_id = ?").bind(user.companyId, jid).all<{ k: string }>();
+      for (const f of files.results ?? []) if (f.k) await env.FILES?.delete(f.k).catch(() => undefined);
+      const c = user.companyId;
+      await env.DB.batch([
+        env.DB.prepare("DELETE FROM job_files WHERE company_id = ? AND job_id = ?").bind(c, jid),
+        env.DB.prepare("DELETE FROM job_photo_findings WHERE company_id = ? AND job_id = ?").bind(c, jid),
+        env.DB.prepare("DELETE FROM work_orders WHERE company_id = ? AND job_id = ?").bind(c, jid),
+        env.DB.prepare("DELETE FROM signature_requests WHERE company_id = ? AND job_id = ?").bind(c, jid),
+        env.DB.prepare("DELETE FROM documents WHERE job_id = ?").bind(jid),
+        env.DB.prepare("DELETE FROM job_events WHERE job_id = ?").bind(jid),
+        env.DB.prepare("UPDATE expenses SET job_id = NULL WHERE company_id = ? AND job_id = ?").bind(c, jid),
+        env.DB.prepare("UPDATE time_entries SET job_id = NULL WHERE company_id = ? AND job_id = ?").bind(c, jid),
+        env.DB.prepare("UPDATE worker_payments SET job_id = NULL WHERE company_id = ? AND job_id = ?").bind(c, jid),
+        env.DB.prepare("UPDATE leads SET job_id = NULL WHERE job_id = ?").bind(jid),
+        env.DB.prepare("DELETE FROM jobs WHERE id = ? AND company_id = ?").bind(jid, c),
+      ]);
+      return json({ ok: true, deleted: true });
     }
 
     // ---- Site visit: field notes (typed or spoken), colors, the customer's request ----
@@ -406,7 +434,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
   const job = await env.DB.prepare(
     `SELECT j.id, j.title, j.trade, j.stage, j.property_id AS propertyId, j.customer_id AS customerId,
             c.name AS customerName, c.email AS customerEmail, c.phone AS customerPhone,
-            p.address, p.city, p.state, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn, json_extract(j.data,'$.visit') AS visit, json_extract(j.data,'$.signoff') AS signoff, json_extract(j.data,'$.reviewAskedAt') AS reviewAskedAt,
+            p.address, p.city, p.state, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.archived') AS archived, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn, json_extract(j.data,'$.visit') AS visit, json_extract(j.data,'$.signoff') AS signoff, json_extract(j.data,'$.reviewAskedAt') AS reviewAskedAt,
             json_extract(j.data,'$.request') AS request, json_extract(j.data,'$.fieldNotes') AS fieldNotes, json_extract(j.data,'$.colors') AS colors, json_extract(j.data,'$.followUp') AS followUp, json_extract(j.data,'$.bid') AS bid
        FROM jobs j JOIN customers c ON c.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id
       WHERE j.id = ? AND j.company_id = ?`,

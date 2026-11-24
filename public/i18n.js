@@ -2518,5 +2518,19 @@
     "Wood": "Madera"
   });
 
+  pmI18n.add({
+    "Archive": "Archivar",
+    "Archived": "Archivados",
+    "Restore": "Restaurar",
+    "Delete job": "Eliminar trabajo",
+    "Archive this job": "Archivar este trabajo",
+    "Restore this job": "Restaurar este trabajo",
+    "Delete this job": "Eliminar este trabajo",
+    "Archive or delete this job": "Archivar o eliminar este trabajo",
+    "Camera": "Cámara",
+    "Gallery": "Galería",
+    "Jobs you put away. Open one and tap Restore to bring it back.": "Trabajos que guardó aparte. Abra uno y toque Restaurar para recuperarlo.",
+    "All jobs": "Todos los trabajos"
+  });
   pmI18n.start();
 })();

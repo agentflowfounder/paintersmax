@@ -71,3 +71,10 @@ test("paid plans use Gemini voice typing, the Free plan and a missing key use th
   assert.equal(chooseEngine("free", true), "device");
   assert.equal(chooseEngine("basic", false), "device");
 });
+
+test("an archived job leaves every list and shows only in Archived", async () => {
+  const { bucketFor } = await import("../src/pipeline.ts");
+  assert.equal(bucketFor({ stage: "lead", today: "2026-11-24", archived: true }), "archived");
+  assert.equal(bucketFor({ stage: "lost", today: "2026-11-24", archived: true }), "archived");
+  assert.equal(bucketFor({ stage: "lead", today: "2026-11-24" }), "new");
+});

@@ -85,7 +85,7 @@ function expPane(){
  return '<div class="card" id="xcard"><b>'+(EDITX?T('Edit this expense'):T('Add an expense'))+'</b>'+
  '<p class="muted" style="margin:6px 0">'+T('Fastest way: take a photo of the receipt.')+' '+hint+'</p>'+
  '<div id="pmsg" class="muted"></div>'+
- '<div class="rcrow"><label class="btn s" style="margin:0;cursor:pointer">'+T('Add receipt photo')+'<input id="x_file" type="file" accept="image/*" style="display:none"></label><span id="x_rcs" class="muted">'+rcStatus()+'</span></div><div id="x_thumb">'+rcThumb()+'</div>'+
+ '<div class="rcrow"><label class="btn s" style="margin:0;cursor:pointer">'+T('Take a photo')+'<input id="x_cam" type="file" accept="image/*" capture="environment" style="display:none"></label><label class="btn s" style="margin:0 0 0 6px;cursor:pointer">'+T('From the gallery')+'<input id="x_file" type="file" accept="image/*" style="display:none"></label><span id="x_rcs" class="muted">'+rcStatus()+'</span></div><div id="x_thumb">'+rcThumb()+'</div>'+
  '<div class="row"><div><label>'+T('Amount ($)')+'</label><input id="x_amt" inputmode="decimal" placeholder="0.00" value="'+esc(XF.amt)+'"></div><div><label>'+T('Date')+'</label><input id="x_date" type="date" value="'+esc(XF.date)+'"></div><div><label>'+T('Vendor')+'</label><input id="x_ven" maxlength="80" placeholder="Sherwin-Williams" value="'+esc(XF.ven)+'"></div><div><label>'+T('Category')+HELP(T('Categories are the labels on expenses, like Materials or Fuel. Your accountant uses them to sort your costs. Add your own (like Dumpster rental) in the Settings tab and they show up in this list.'))+'</label><select id="x_cat">'+catOpts(XF.cat)+'</select></div></div>'+
  '<div class="row3"><div><label>'+T('Job')+'</label><select id="x_job">'+jobOpts(XF.job)+'</select></div><div style="grid-column:span 2"><label>'+T('Note (optional)')+'</label><input id="x_note" maxlength="300" value="'+esc(XF.note)+'"></div></div>'+
  '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button id="x_save">'+(EDITX?T('Save changes'):T('Save expense'))+'</button>'+(EDITX?'<button class="s" id="x_cancel">'+T('Cancel')+'</button>':'')+'</div>'+
@@ -206,7 +206,7 @@ document.addEventListener('input',syncForm);
 document.addEventListener('toggle',function(e){var g=e.target&&e.target.dataset&&e.target.dataset.gk;if(g!==undefined&&g!==null&&e.target.tagName==='DETAILS')OPEN[g]=e.target.open;},true);
 document.addEventListener('change',function(e){var t=e.target;syncForm(e);
  if(t.id==='x_ven'){var k=(t.value||'').toLowerCase().trim();if(k){var rules=D.settings.rules;for(var r in rules){if(r&&k.indexOf(r)>=0){$('x_cat').value=rules[r];XF.cat=rules[r];break;}}}}
- else if(t.id==='x_file'&&t.files[0]){pickReceipt(t.files[0]);t.value='';}
+ else if((t.id==='x_file'||t.id==='x_cam')&&t.files[0]){pickReceipt(t.files[0]);t.value='';}
  else if(t.id==='i_file'&&t.files[0]){var f=t.files[0];t.value='';var isPdf=/\.pdf$/i.test(f.name)||f.type==='application/pdf',isImg=/^image\//.test(f.type);
   if(isPdf||isImg){if(f.size>4500000){msg(T('That file is too large (the limit is about 5 MB). Download one month at a time, or use a CSV file.'),'bad');return;}
    msg(T('Reading your statement. This can take up to a minute, please keep this page open.'),'muted');

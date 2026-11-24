@@ -3,7 +3,7 @@
  * Worked out in code from the stage that is already stored, so no database change is needed.
  */
 
-export const BUCKETS = ["new", "estimates", "jobs", "completed", "invoice", "paid", "warranty", "lost"] as const;
+export const BUCKETS = ["new", "estimates", "jobs", "completed", "invoice", "paid", "warranty", "lost", "archived"] as const;
 export type Bucket = (typeof BUCKETS)[number];
 
 export interface BucketFacts {
@@ -14,9 +14,12 @@ export interface BucketFacts {
   warrantyEnd?: string | null;
   /** Today as YYYY-MM-DD (US time). */
   today: string;
+  /** The painter archived the job: it leaves every other list until restored. */
+  archived?: boolean;
 }
 
 export function bucketFor(f: BucketFacts): Bucket {
+  if (f.archived) return "archived";
   switch (f.stage) {
     case "lead":
       return "new";
