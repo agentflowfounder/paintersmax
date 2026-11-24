@@ -618,7 +618,21 @@ document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.
 function drawTotals(){if($('sched'))drawSched();const t=totals();const ot=OPTS.map(k=>[k,lines.filter(l=>secOf(l)===k).reduce((s,l)=>s+Math.round((+l.qty||0)*(+l.unitPrice||0)*100),0)]).filter(x=>x[1]>0);$('tot').innerHTML=`${ot.map(([k,c])=>`<small class="muted">Optional: ${esc(SECN[k])} ${$$(c)}</small><br>`).join('')}Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;bidDraw();}
 /* Bid check: this bid next to the painter's last 10 finished jobs, a warning under their target margin, and a word of encouragement. */
 let BID=null;
-async function bidLoad(){try{BID=await api('/api/bidcheck');}catch(x){BID=null;}bidDraw();}
+async function bidLoad(){try{BID=await api('/api/bidcheck');}catch(x){BID=null;}bidDraw();vpLoad();}
+/* Vendor prices on the estimate. The "whose prices" question only shows on jobs where it fits (a business, builder or agency customer, or commercial work). */
+let VP=null,VOWN='mine';
+async function vpLoad(){const el=$('vprice');if(!el||!J)return;try{VP=await api('/api/vendors?job='+J.job.id);}catch(x){VP=null;}vpDraw();}
+function vpDraw(){const el=$('vprice');if(!el)return;if(!VP||(!VP.ask&&!VP.myVendors)){el.innerHTML='';return;}
+ let o='<h4 style="margin:12px 0 6px">Use a vendor price</h4>';
+ if(VP.ask)o+=`<p class="muted" style="margin:4px 0">${esc(VP.ask)} Whose prices should this estimate use?</p><div class="btns" style="margin:4px 0"><button class="btn ${VOWN==='mine'?'':'sec'}" data-vown="mine">My prices</button><button class="btn ${VOWN==='customer'?'':'sec'}" data-vown="customer">The customer's prices</button><a class="btn sec" href="/vendors">Vendors page</a></div>`;
+ o+=`<div style="display:flex;gap:6px"><input id="vp_q" placeholder="Search a product, like Duration satin"><button class="btn sec" data-vfind="1">Find</button></div><div id="vp_res"></div>`;
+ if(!VP.myVendors)o+='<small class="muted">Add your paint store and its price sheet on the <a href="/vendors">Vendors page</a> to fill materials with your real prices.</small>';
+ el.innerHTML=o;}
+document.addEventListener('click',async e=>{const t=e.target.closest?e.target.closest('[data-vown],[data-vfind],[data-vadd]'):null;if(!t)return;const ds=t.dataset;
+ if(ds.vown){VOWN=ds.vown;vpDraw();return;}
+ if(ds.vfind){const q=($('vp_q')||{}).value||'';if(!q.trim())return;try{const r=await api('/api/vendors?find='+encodeURIComponent(q)+'&owner='+VOWN);window._vpr=r.prices;$('vp_res').innerHTML=r.prices.length?r.prices.map((p,i)=>`<div class="ev">${esc(p.product)} ${esc(p.size)} &middot; ${esc(p.vendor)} <b>${$$(p.priceCents)}</b> <button class="btn sec" style="padding:2px 10px" data-vadd="${i}">Add line</button></div>`).join(''):'<small class="muted">No match in '+(VOWN==='customer'?"customers'":'your')+' price lists.</small>';}catch(x){if(x)msg(x.message);}return;}
+ if(ds.vadd!==undefined){const p=(window._vpr||[])[+ds.vadd];if(!p)return;lines.push({description:p.product+(p.size?' ('+p.size+')':'')+' - '+p.vendor+(VOWN==='customer'?' (customer price)':''),qty:1,unit:p.size||'each',unitPrice:p.priceCents/100,section:'paint'});drawLines();msg('Line added. Set the quantity.',true);}
+});
 function bidHours(){return lines.filter(l=>/^(h|hr|hrs|hour|hours)$/i.test(String(l.unit||'').trim())).reduce((s,l)=>s+(+l.qty||0),0);}
 function bidDraw(){const el=$('bidchk');if(!el)return;if(!BID){el.innerHTML='';return;}
  const t=totals().total,h=bidHours(),H=BID.history,tg=BID.target;const cb=(typeof cost!=='undefined'&&cost&&cost.items)?costTotal().base:0;
@@ -912,6 +926,7 @@ async function detail(id){
     <div class="btns"><button class="btn sec" id="fill">Fill lines from my prices</button></div>`:`<p class="muted">You have not set prices for this type of work yet. <a href="/app">Open Estimating Setup</a> (Your prices), or add lines by hand.</p>`}</div></details>
    <div class="tot" id="tot"></div>
    <div id="bidchk" class="bidchk"></div>
+   <div id="vprice" class="bidchk"></div>
    <div class="stp"><span class="n">1</span><div><b>Create the final estimate</b><small class="muted" style="display:block">Adds up your lines and saves the customer's copy. You can come back and update it.</small></div></div>
    <div class="btns"><button class="btn" id="save">${e?'Update final estimate':'Create final estimate'}</button></div>
    <div class="stp ${e?'':'off'}"><span class="n">2</span><div><b>Check it, then send it</b><small class="muted" style="display:block">${!e?'Create the final estimate first. Then you can preview it and send it.':!j.customerEmail?'Add an email address in Edit details above to send it from here, or download the PDF.':e.status==='sent'?'Sent. If you change anything, update the estimate and send it again.':'Preview it the way '+esc(String(j.customerName||'the customer').split(/\s+/)[0])+' will see it, then send it.'}</small></div></div>
