@@ -94,6 +94,18 @@ details.acc[open]>summary{border-bottom:1px solid #eee}
 .pbl{display:flex;justify-content:space-between;gap:8px;font-size:13px;margin:6px 0 4px;color:#0F1B2D}.pbl small{color:#4A5568}
 .pbs{display:flex;gap:4px}.pbs button{all:unset;cursor:pointer;flex:1;height:26px;display:flex;align-items:flex-end;justify-content:center}.pbs button i{display:block;width:100%;height:6px;border-radius:99px;background:#cfd5dc}.pbs button.done i{background:#2e9e5b}.pbs button.cur i{background:#E8A33D;height:10px}.pbs button:focus-visible i{outline:2px solid #0F1B2D}
 .mgcard{border-color:var(--c-bad-line)}.mgcard .btns{margin-top:8px}.btn.dng{background:var(--c-bad);color:#fff;border-color:var(--c-bad)}
+/* Desktop and tablet: steps on the left, the step you are on at the right. Phones stay one column. */
+@media(min-width:768px){main{max-width:860px;padding-left:24px;padding-right:24px}.btn,.ptab,.jl{min-height:44px}input,select,textarea{font-size:16px}}
+@media(min-width:960px){main.wide{max-width:1240px}.jgrid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:24px;align-items:start}.jside{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;padding-right:2px}.jmain{min-width:0}.pbar{position:static;margin:0 0 14px;background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:12px}.pbs{display:none}.pbn{display:block}.jmain .grp{margin-top:6px}}
+.pbn{display:none;list-style:none;margin:8px 0 0;padding:0}.pbn li{margin:0}.pbn button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;padding:9px 8px;border-radius:8px;font-size:14px;font-weight:600}.pbn button:hover,.pbn button:focus-visible{background:#f1efe9}.pbn button b{width:24px;height:24px;border-radius:50%;background:#cfd5dc;color:#0F1B2D;display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:none}.pbn button.done b{background:#2e9e5b;color:#fff}.pbn button.cur b{background:#E8A33D}.pbn button.cur{background:#fff3d6}
+/* Job results graphs: every bar has its words and numbers beside it */
+.rp h4{margin:16px 0 6px;font-size:15px}.rp .gbar{display:flex;height:16px;border-radius:99px;overflow:hidden;background:#eceae4}.rp .gbar i{display:block;height:100%}
+.rp .lg{display:grid;gap:4px;margin:8px 0}.rp .lg div{display:flex;align-items:center;gap:8px;font-size:14px}.rp .lg span.sw2{width:12px;height:12px;border-radius:3px;flex:none}.rp .lg b{margin-left:auto;font-variant-numeric:tabular-nums}
+.rp .hb{display:grid;grid-template-columns:110px 1fr 70px;gap:8px;align-items:center;margin:6px 0;font-size:14px}.rp .hb .gbar{height:12px}.rp .hb em{font-style:normal;text-align:right;font-variant-numeric:tabular-nums}
+.rp .rk{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.rp .rk div{display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fbfaf7;border:1px solid rgba(15,27,45,.08);border-radius:8px;padding:8px 10px;font-size:14px}
+.rp ul.ins{margin:6px 0 0;padding-left:20px}.rp ul.ins li{margin:0 0 6px;line-height:1.45}
+.rp .tl{border-left:3px solid #cfd5dc;margin:6px 0 6px 6px;padding-left:12px}.rp .tl div{margin:0 0 8px;font-size:14px}.rp .tl .none{color:#4A5568}
+@media print{header,.jside,.notefab,#pm_ask,.jtop,.acc>summary{display:none}.jgrid{display:block}}
 .jh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .jtoggle{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border-radius:8px;padding:2px 4px}.jtoggle h2{margin:4px 0 0}.jtoggle .car{font-size:15px;transition:transform .2s}.jtoggle[aria-expanded=true] .car{transform:rotate(180deg)}.jtoggle:focus-visible{outline:2px solid #E8A33D}
 .row3{display:grid;grid-template-columns:1.6fr .7fr 1fr;gap:8px}
@@ -111,7 +123,7 @@ details.acc[open]>summary{border-bottom:1px solid #eee}
 .cpbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cpimg{width:100%;max-height:280px;object-fit:cover;border-radius:10px;display:block;margin-top:10px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cap{font-size:12px;font-weight:600;color:#4A5568;margin:6px 0 2px}
 .nsteps label{display:flex;gap:8px;align-items:flex-start;font-weight:400}.nsteps input{width:auto;margin-top:4px}
-</style></head><body>
+</style><link rel="stylesheet" href="/colorcode.css"></head><body>
 <header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Estimating Setup</a><a href="/calendar">Calendar</a><a href="/records">Records</a><a href="/crew">Crew</a><a href="/lessons">Lessons</a><a href="/analysis">Analysis</a><a href="/builders">Builder rates</a><a href="/import">Import customers</a><a href="/materials">Materials</a><a href="/insurance">Insurance</a><a href="/dashboard">Settings and leads</a></div></header>
 <main><div id="view">Loading...</div><div id="msg"></div></main>
 <script>
@@ -522,7 +534,7 @@ const BSTEPS=[['req','Request'],['type','Details'],['colors','Colors'],['sum','S
 function stepBar(d){d=d||{};const e=d.estimate,hasEst=!!(e&&e.estimate),notes=(d.fieldNotes||[]).length,st=(d.job||{}).stage;
  const done=[true,notes>0||!!d.brief,((d.colors||(J&&J.colors)||[]).length>0),hasEst,hasEst,!!(d.visit&&(d.visit.status==='booked'||d.visit.status==='done')),!['lead','bid'].includes(st)];
  let cur=done.findIndex(x=>!x);if(cur<0)cur=done.length-1;const n=done.filter(Boolean).length;
- return `<nav class="pbar" aria-label="Estimate progress"><div class="pbt" role="progressbar" aria-valuemin="0" aria-valuemax="${BSTEPS.length}" aria-valuenow="${n}"><i style="width:${Math.round(n/BSTEPS.length*100)}%"></i></div><div class="pbl"><span>Step ${cur+1} of ${BSTEPS.length}: <b>${esc(BSTEPS[cur][1])}</b></span><small>${n} of ${BSTEPS.length} done</small></div><div class="pbs">${BSTEPS.map(([k,nm],i)=>`<button type="button" class="${done[i]?'done':''} ${i===cur?'cur':''}" data-stepgo="${k}" aria-label="${esc(nm)}${done[i]?' (done)':''}"><i></i></button>`).join('')}</div></nav>`;}
+ return `<nav class="pbar" aria-label="Estimate progress"><div class="pbt" role="progressbar" aria-valuemin="0" aria-valuemax="${BSTEPS.length}" aria-valuenow="${n}"><i style="width:${Math.round(n/BSTEPS.length*100)}%"></i></div><div class="pbl"><span>Step ${cur+1} of ${BSTEPS.length}: <b>${esc(BSTEPS[cur][1])}</b></span><small>${n} of ${BSTEPS.length} done</small></div><div class="pbs">${BSTEPS.map(([k,nm],i)=>`<button type="button" class="${done[i]?'done':''} ${i===cur?'cur':''}" data-stepgo="${k}" aria-label="${esc(nm)}${done[i]?' (done)':''}"><i></i></button>`).join('')}</div><ol class="pbn">${BSTEPS.map(([k,nm],i)=>`<li><button type="button" class="${done[i]?'done':''} ${i===cur?'cur':''}" data-stepgo="${k}"><b>${done[i]?'&#10003;':i+1}</b>${esc(nm)}${done[i]?' <small class="muted">done</small>':''}</button></li>`).join('')}</ol></nav>`;}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-stepgo]');if(!b)return;openAcc(b.dataset.stepgo);const a=$('acc_'+b.dataset.stepgo);if(a)a.scrollIntoView({behavior:'smooth',block:'start'});});
 
 const GROUPS=[['New leads',['lead'],'Customers who asked for a quote. Build an estimate to bid on them.'],['Estimate approved',['bid:signed'],'The customer signed the estimate. Build and send the contract next.'],['Waiting on the customer',['bid','contract'],'Estimates and contracts you sent. Waiting for the customer to approve or sign.'],['In progress',['scheduled','in_progress','punch'],'Approved jobs that are scheduled or underway.'],['Completed',['invoiced','closed'],'Finished and invoiced jobs.'],['Lost',['lost'],'']];
@@ -652,7 +664,7 @@ document.addEventListener('click',async e=>{const ds=e.target.dataset||{};
 // ---- Job page layout helpers: sections that open and close, the header card, the next-step line, "tell me about the job" ----
 const ACC={};
 function acc(id,title,sub,open,inner){const o=ACC[id]!==undefined?ACC[id]:!!open;return `<details class="acc" id="acc_${id}" data-acc="${id}" ${o?'open':''}><summary><span class="at">${title}</span>${sub?`<span class="asub" id="accs_${id}">${sub}</span>`:`<span class="asub" id="accs_${id}"></span>`}</summary><div class="accin">${inner}</div></details>`;}
-document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.dataset.acc)ACC[d.dataset.acc]=d.open;},true);
+document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.dataset.acc){ACC[d.dataset.acc]=d.open;if(d.dataset.acc==='report'&&d.open)reportLoad();}},true);
 function openAcc(id){const a=$('acc_'+id);if(a){a.open=true;ACC[id]=true;}}
 const GUESS={interior:'interior',exterior:'exterior',power_washing:'power_wash',commercial:'commercial',decks_fences:'wood_stain'};
 const guessType=t=>GUESS[t]||'custom';
@@ -786,7 +798,37 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  else if(ds.dtsave){try{msg('');await api('/api/job',{action:'update',jobId:J.job.id,name:$('dt_name').value,title:$('dt_title').value,phone:$('dt_phone').value,email:$('dt_email').value,address:$('dt_addr').value,city:$('dt_city').value,zip:$('dt_zip').value});await detail(J.job.id);msg('Saved. The change is in the job history.',true);}catch(x){if(x)msg(x.message);}}
  else if(t.closest&&t.closest('#bf_mic')){micToggle($('bf_mic'),()=>window.PM_LANG==='es'?'es-US':'en-US',x=>{const d=$('bf_details');d.value=((d.value?d.value+' ':'')+x).trim();BF.details=d.value;bfSaveSoon();});}
 });
+
+// ---- Job results: what the job earned, where the money went, how long each step took, which records exist ----
+const RCOL={materials:'#4a86d6',other:'#9aa5b1',pay:'#E8A33D',profit:'#2e9e5b'};
+function gbar(parts,total){const t=total>0?total:1;return `<div class="gbar" role="img" aria-label="Bar chart">${parts.filter(p=>p[1]>0).map(p=>`<i style="width:${Math.max(1,Math.round(p[1]/t*100))}%;background:${p[2]}"></i>`).join('')}</div>`;}
+function hbar(label,val,max,color,txt){return `<div class="hb"><span>${esc(label)}</span><div class="gbar"><i style="width:${max>0?Math.max(val>0?2:0,Math.round(val/max*100)):0}%;background:${color}"></i></div><em>${esc(txt)}</em></div>`;}
+function reportHtml(r){const m=r.money,h=r.hours,dd=r.days,pc=v=>v==null?'-':v+'%';let o='';
+ o+=`<h4 style="margin-top:0">Where the money went</h4>`;
+ if(m.profitCents==null){o+=`<p class="muted" style="margin:0">No expenses or crew pay are recorded for this job yet, so profit cannot be shown. <a href="/records?job=${J.job.id}">Add receipts</a> and <a href="/crew">crew hours</a>.</p>`;}
+ else{const tot=m.totalCents||1;const parts=[['Materials',m.materialsCents,RCOL.materials],['Other expenses',m.otherExpenseCents,RCOL.other],['Crew pay',m.payCents,RCOL.pay],['You kept (profit)',Math.max(0,m.profitCents),RCOL.profit]];
+  o+=gbar(parts,tot)+`<div class="lg">${parts.map(p=>`<div><span class="sw2" style="background:${p[2]}"></span>${esc(p[0])}<b>${$$(p[1])} &middot; ${Math.round(p[1]/tot*100)}%</b></div>`).join('')}</div>`;
+  o+=`<p style="margin:6px 0">${m.profitCents<0?'<span class="cc t-bad">Lost money</span>':m.marginPct!=null&&m.marginPct>=25?'<span class="cc t-ok">Healthy margin</span>':'<span class="cc t-warn">Thin margin</span>'} <b>${m.profitCents<0?'-'+$$(-m.profitCents):$$(m.profitCents)}</b> profit, ${pc(m.marginPct)} of the price.</p>`;}
+ o+=`<h4>Price and payment</h4><div class="lg"><div>Agreed price<b>${$$(m.priceCents)}</b></div>${m.changeCents?`<div>Change orders<b>${$$(m.changeCents)}</b></div>`:''}<div>Total<b>${$$(m.totalCents)}</b></div><div>Collected<b>${$$(m.collectedCents)}</b></div><div>Balance<b>${m.balanceCents>0?'<span class="cc t-warn">'+$$(m.balanceCents)+' due</span>':'<span class="cc t-ok">Paid in full</span>'}</b></div></div>`;
+ if(m.marginPct!=null&&r.compare&&r.compare.marginPct!=null&&r.compare.jobs>=2){const mx=Math.max(m.marginPct,r.compare.marginPct,1);o+=`<h4>Your margin compared</h4>${hbar('This job',m.marginPct,mx,RCOL.profit,pc(m.marginPct))}${hbar('Your average ('+r.compare.jobs+' jobs)',r.compare.marginPct,mx,'#9aa5b1',pc(r.compare.marginPct))}`;}
+ o+=`<h4>Hours</h4>`;
+ if(!h.actualMinutes)o+=`<p class="muted" style="margin:0">No crew hours recorded yet. <a href="/crew">Add hours</a> to see pay per labor hour and compare with your estimate.</p>`;
+ else{const hrs=x=>(Math.round(x/6)/10)+' h';const mx=Math.max(h.actualMinutes,h.estimatedMinutes||0);
+  if(h.estimatedMinutes)o+=hbar('Estimated',h.estimatedMinutes,mx,'#9aa5b1',hrs(h.estimatedMinutes));
+  o+=hbar('Actual',h.actualMinutes,mx,h.estimatedMinutes&&h.actualMinutes>h.estimatedMinutes*1.15?'#b42318':RCOL.profit,hrs(h.actualMinutes));
+  if(h.overPct!=null)o+=`<p style="margin:4px 0">${h.overPct>15?'<span class="cc t-bad">Over estimate</span>':h.overPct<-15?'<span class="cc t-info">Under estimate</span>':'<span class="cc t-ok">On estimate</span>'} ${Math.abs(h.overPct)}% ${h.overPct>=0?'more':'fewer'} hours than estimated.</p>`;
+  if(h.revenuePerHourCents)o+=`<p style="margin:4px 0">Price per labor hour: <b>${$$(h.revenuePerHourCents)}</b></p>`;
+  if(h.workers.length>1)o+=h.workers.map(w=>hbar(w.name,w.minutes,h.actualMinutes,'#4a86d6',hrs(w.minutes))).join('');}
+ o+=`<h4>Timeline</h4><div class="tl">${r.timeline.map(t=>`<div>${t.date?'<b>'+esc(dtf(t.date))+'</b>':'<span class="none">Not recorded</span>'} &middot; ${esc(t.label)}</div>`).join('')}</div>`;
+ const gaps=[['Lead to estimate',dd.leadToEstimate],['Estimate to signed',dd.estimateToSigned],['Signed to start',dd.signedToStart],['Days of work',dd.workDays],['Finish to invoice',dd.endToInvoice],['Invoice to paid',dd.invoiceToPaid]].filter(g=>g[1]!=null);
+ if(gaps.length){const mx=Math.max(...gaps.map(g=>g[1]),1);o+=`<h4>Days at each step</h4>`+gaps.map(g=>hbar(g[0],g[1],mx,g[1]>14?'#E8A33D':'#4a86d6',g[1]+(g[1]===1?' day':' days'))).join('')+(dd.leadToPaid!=null?`<p style="margin:4px 0">Lead to paid: <b>${dd.leadToPaid} days</b></p>`:'');}
+ o+=`<h4>Records for this job <small class="muted">${r.recordsDone} of ${r.records.length}</small></h4><div class="rk">${r.records.map(k=>`<div><span>${esc(k.label)}<br><small class="muted">${esc(k.detail)}</small></span><span class="cc ${k.have?'t-ok':'t-warn'}">${k.have?'Done':'Missing'}</span></div>`).join('')}</div>`;
+ if(r.insights.length)o+=`<h4>What this tells you</h4><ul class="ins">${r.insights.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+ o+=`<div class="btns"><button class="btn sec" type="button" onclick="window.print()">Print this report</button></div><small class="muted">Plain math from the records you saved. For your accountant, not tax advice.</small>`;
+ return o;}
+async function reportLoad(){const b=$('m_report');if(!b||!J)return;b.innerHTML='<small class="muted">Loading...</small>';try{const r=await api('/api/jobreport?id='+J.job.id);b.innerHTML=reportHtml(r);const s=$('accs_report');if(s)s.textContent=r.money.marginPct!=null?r.money.marginPct+'% margin':r.recordsDone+' of '+r.records.length+' records';}catch(x){b.innerHTML='<small class="bad">'+esc(x&&x.message||'Could not load.')+'</small>';}}
 async function detail(id){
+  const mn=document.querySelector('main');if(mn)mn.classList.add('wide');
   const sy=window.scrollY;const d=await api('/api/job?id='+id);J=d;window.J=d;const j=d.job,e=d.estimate;
   lines=e&&e.estimate?e.estimate.lines.map(l=>({description:l.description,qty:l.qty,unit:l.unit,unitPrice:l.unitCents/100,section:l.section})):[];OPTS=e&&e.estimate&&e.estimate.optionalSections?e.estimate.optionalSections.slice():[];COL=(d.colors||[]).map(c=>({...c}));
   const qf=qtyFields(d.rateCard);const est=e&&e.estimate?e.estimate:{};const ct=d.contract&&d.contract.contract?d.contract.contract:{};sched=(est.schedule||[]).map(m=>({...m}));cost=est.costBuild?{items:(est.costBuild.items||[]).map(c=>({...c})),markupPct:est.costBuild.markupPct||0}:{items:[],markupPct:0};clauses=ct.clauses?ct.clauses.map(c=>({...c})):[];
@@ -795,12 +837,14 @@ async function detail(id){
   const estSub=e&&e.totals?`${$$(e.totals.totalCents)} &middot; ${esc(e.status)}`:'Not saved yet';
   $('view').innerHTML=`<nav class="jtop" aria-label="Back"><a class="jl" href="/jobs">&larr; All jobs</a><a class="jl" href="/dashboard">Home</a></nav>
   <h2>${esc(j.title)}</h2>
+  <div class="jgrid"><aside class="jside">
   ${headCard(d)}
   ${nextStep(d)}
   ${commBanner(d.commercial)}
   ${st==='lost'?lostCard(d):''}
   ${(d.job&&d.job.paused&&st!=='lost')?pauseCard(d):''}
   ${early?stepBar(d):''}
+  </aside><div class="jmain">
   <h3 class="grp">${early?'Bid':'Estimate'}</h3>
   ${early?bidLink(d):''}
   ${nextSteps(d)}
@@ -872,6 +916,7 @@ async function detail(id){
   ${acc('signoff','Customer sign-off and review request',d.signoff&&d.signoff.acceptedAt?'Accepted':d.signoff?'Waiting':'Optional',st==='punch'||(st==='invoiced'&&!d.reviewAskedAt),soCard(d))}
   ${acc('inv','Invoice','',late||st==='punch','<div id="m_inv"></div>')}
   ${acc('warr','Warranty','Best after the invoice is paid',st==='closed','<div id="m_warr"></div>'+wcCard())}
+  ${acc('report','Job results and analysis','Profit, time and records',st==='closed','<div class="rp" id="m_report"><small class="muted">Open to see the numbers for this job.</small></div>')}
 
   <h3 class="grp">Keep on record</h3>
   ${acc('prot','Insurance and protecting this job','',false,covBanner(d.coverage)+protectCard(d))}
@@ -879,7 +924,8 @@ async function detail(id){
   ${st!=='lost'&&st!=='closed'?acc('lost','Lost this job?','',false,lostCard(d)):''}
   ${acc('manage','Archive or delete this job','',false,mgCard(d))}
   ${acc('hist','Job history','',false,`<div class="card">${d.events.map(v=>`<div class="ev"><b>${esc(v.kind)}</b> &middot; ${esc(dtf((v.at||'').slice(0,10)))}<br>${esc(v.text).slice(0,600)}</div>`).join('')||'<small>Nothing yet.</small>'}</div>`)}
-  <div class="card"><small class="muted">Everything about this job is saved here, under <b>${esc(j.title)}</b>: notes, photos, the estimate and every document. Expenses, mileage and receipts are in <a href="/records?job=${j.id}">Records</a>, where you can also download the whole job file in one go.</small></div>`;
+  <div class="card"><small class="muted">Everything about this job is saved here, under <b>${esc(j.title)}</b>: notes, photos, the estimate and every document. Expenses, mileage and receipts are in <a href="/records?job=${j.id}">Records</a>, where you can also download the whole job file in one go.</small></div>
+  </div></div>`;
   bfDraw();
   drawLines();sigLoad(j.id,e,d.contract);
   const f=$('fill');if(f)f.onclick=async()=>{try{msg('');const quantities={};document.querySelectorAll('[data-q]').forEach(i=>{if(i.value!=='')quantities[i.dataset.q]=Number(i.value);});const r=await api('/api/estimate',{action:'draft',jobId:j.id,quantities});if(!r.lines.length)throw new Error('Enter at least one quantity first.');lines=r.lines;drawLines();msg('Lines filled. Review and change anything you like.',true);}catch(e){if(e)msg(e.message);}};
@@ -887,6 +933,7 @@ async function detail(id){
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
   $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>{msg('Final estimate ready. Total '+$$(r.totals.totalCents)+'. Preview it, then send it.',true);const sd=$('send');if(sd&&!sd.disabled&&sd.scrollIntoView)sd.scrollIntoView({behavior:'smooth',block:'center'});});};
   $('send').onclick=async()=>{if(!await checkInfo('Send this estimate',[['Estimate total',$$(totals().total)]],'Looks right, send it'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
+  if(ACC.report||st==='closed')reportLoad();
   drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad().then(sumDraw);findingsLoad();woLoad();payLoad();wcLoad();lsLoad();
   if(!$('note_fab'))document.body.insertAdjacentHTML('beforeend',fabHtml());notesDraw();colorsDraw();sumDraw();nqFlush();
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};

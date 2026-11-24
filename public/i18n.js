@@ -2594,6 +2594,7 @@
     "New, or just for your information.": "Nuevo, o solo para su información.",
     "Quiet. Archived or paused.": "Tranquilo. Archivado o en pausa.",
     "Every colored tag also has a word, so you never have to rely on color alone.": "Cada etiqueta de color también tiene una palabra, así nunca depende solo del color.",
+    "Job results and analysis": "Resultados y análisis del trabajo", "Where the money went": "A dónde fue el dinero", "Price and payment": "Precio y pago", "Hours": "Horas", "Timeline": "Cronología", "Days at each step": "Días en cada paso", "Records for this job": "Registros de este trabajo", "What this tells you": "Lo que esto le dice", "Print this report": "Imprimir este informe", "Your margin compared": "Su margen comparado", "Agreed price": "Precio acordado", "Collected": "Cobrado", "Balance": "Saldo",
     "Red": "Rojo", "Yellow": "Amarillo", "Green": "Verde", "Blue": "Azul", "Gray": "Gris",
     "Overtime": "Horas extra", "Estimate": "Presupuesto", "Contract": "Contrato", "Scheduled": "Programado", "In progress": "En curso", "Punch list": "Lista de pendientes", "Invoiced": "Facturado", "Closed": "Cerrado", "Lead": "Cliente potencial"
   });

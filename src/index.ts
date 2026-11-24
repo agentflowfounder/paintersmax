@@ -16,6 +16,7 @@ import { handleAssistant, handleBidTools, handleContract, handleDoc, handleJobDo
 import { handleAddress } from "./address.ts";
 import { handleVoiceSession } from "./voicesession.ts";
 import { handleAskChats } from "./askhistory.ts";
+import { handleJobReport } from "./jobreport.ts";
 import { handleWordList } from "./wordlist.ts";
 import { handleSamples } from "./samples.ts";
 import { syncTierDemos } from "./tierdemos.ts";
@@ -896,6 +897,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleSamples(request, env);
       } catch (err) {
         console.error("samples failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/jobreport") {
+      try {
+        return await handleJobReport(request, env);
+      } catch (err) {
+        console.error("jobreport failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
