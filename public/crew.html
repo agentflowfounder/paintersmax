@@ -25,7 +25,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:7px 4px;border-bottom:1p
 .lock{background:repeating-linear-gradient(135deg,#fff,#fff 10px,#faf7f0 10px,#faf7f0 20px)}
 details.g{border:1px solid #e6e3dc;border-radius:8px;margin:8px 0;background:#fff}details.g>summary{cursor:pointer;padding:9px 12px;font-weight:600}details.g .inner{padding:0 12px 8px}
 .btn.mini{padding:4px 9px;font-size:13px}
-</style></head><body>
+</style><link rel="stylesheet" href="/colorcode.css"></head><body>
 <header><div><b>PaintersMax</b> Crew and hours</div><div><a href="/jobs">Jobs</a><a href="/records">Records</a><a href="/calendar">Calendar</a><a href="/dashboard">Settings and leads</a></div></header>
 <main>
 <h1>Crew, hours and pay records</h1>
@@ -77,8 +77,8 @@ function timePane(){if(!active().length)return '<div class="card muted">'+T('Add
 function DS(d){return DT(d).replace(/,?\s*(de\s+)?\d{4}$/,'');}
 function loadTs(){api('/api/crew?timesheet='+SEL+'&week='+WEEK).then(function(r){TS=r;$('t_lbl').textContent=T('Week of')+' '+DT(r.week,'long')+' ('+r.totalHours+' '+T('hrs')+')';
  var locked=!!r.approved,x='';
- if(r.overtimeHours>0)x+='<div class="note" style="margin-bottom:8px"><b>'+r.overtimeHours+' '+T('hours over 40 this week.')+'</b> '+T('Employees over 40 hours in a week may be owed overtime. Tell your accountant.')+'</div>';
- if(locked)x+='<div class="note" style="margin-bottom:8px;border-left-color:#0a7a3d"><span class="ok">'+T('Approved')+' '+esc(DT(r.approved.on))+' ('+r.approved.hours+' '+T('hrs')+').</span> '+T('The hours are locked.')+' <button class="s mini" id="t_unappr">'+T('Unapprove')+'</button></div>';
+ if(r.overtimeHours>0)x+='<div class="note" style="margin-bottom:8px"><span class="cc t-warn">'+T('Overtime')+'</span> <b>'+r.overtimeHours+' '+T('hours over 40 this week.')+'</b> '+T('Employees over 40 hours in a week may be owed overtime. Tell your accountant.')+'</div>';
+ if(locked)x+='<div class="note" style="margin-bottom:8px;border-left-color:#0a7a3d"><span class="cc t-ok">'+T('Approved')+'</span> '+esc(DT(r.approved.on))+' ('+r.approved.hours+' '+T('hrs')+').</span> '+T('The hours are locked.')+' <button class="s mini" id="t_unappr">'+T('Unapprove')+'</button></div>';
  else if(r.canApprove)x+='<div style="margin-bottom:8px"><button class="s mini" id="t_appr">'+T('Approve this week')+'</button>'+HELP(T('Approving says you checked these hours. It locks them so they cannot be changed by mistake. You can unapprove any time. It is optional.'))+'</div>';
  if(r.reworkHours>0)x+='<div class="muted" style="margin-bottom:8px">'+r.reworkHours+' '+T('hours this week were callbacks or rework.')+'</div>';
  $('t_extra').innerHTML=x;
@@ -101,7 +101,7 @@ function repPane(){
  var contractors=D.workers.filter(function(w){return w.kind==='contractor'&&(w.active||w.paidCents>0)});
  var l1099=D.list1099.reduce(function(m,x){m[x.id]=x;return m;},{});
  var w9rows=contractors.map(function(w){var x=l1099[w.id]||{paidCents:0,crossed:false};
-  return '<tr><td><b>'+esc(w.name)+'</b></td><td class="r">'+$$(x.paidCents)+'</td><td>'+(x.crossed?'<b class="bad">'+T('Needs a 1099')+'</b>':'<span class="muted">'+T('Under the amount')+'</span>')+'</td><td>'+(w.w9FileId?'<span class="ok">'+T('W-9 on file')+'</span> <a href="/api/files?id='+w.w9FileId+'" target="_blank">'+T('View')+'</a> ':'<span class="bad">'+T('No W-9')+'</span> ')+'<label class="btn s mini" style="margin:0;cursor:pointer">'+T(w.w9FileId?'Replace':'Upload W-9')+'<input type="file" accept="image/*,application/pdf" data-up="w9" data-wid="'+w.id+'" style="display:none"></label></td></tr>'}).join('');
+  return '<tr><td><b>'+esc(w.name)+'</b></td><td class="r">'+$$(x.paidCents)+'</td><td>'+(x.crossed?'<span class="cc t-bad">'+T('Needs a 1099')+'</span>':'<span class="muted">'+T('Under the amount')+'</span>')+'</td><td>'+(w.w9FileId?'<span class="ok">'+T('W-9 on file')+'</span> <a href="/api/files?id='+w.w9FileId+'" target="_blank">'+T('View')+'</a> ':'<span class="bad">'+T('No W-9')+'</span> ')+'<label class="btn s mini" style="margin:0;cursor:pointer">'+T(w.w9FileId?'Replace':'Upload W-9')+'<input type="file" accept="image/*,application/pdf" data-up="w9" data-wid="'+w.id+'" style="display:none"></label></td></tr>'}).join('');
  var sum=D.absenceSummary||{};
  var att=people.map(function(w){var o=sum[w.id]||{};return '<tr><td><b>'+esc(w.name)+'</b></td><td class="r">'+(o.sick||0)+'</td><td class="r">'+(o.vacation||0)+'</td><td class="r">'+(o.holiday||0)+'</td><td class="r">'+(o.absent||0)+'</td><td class="r">'+(o.late||0)+'</td><td>'+(o.last?esc(DT(o.last)):'')+'</td></tr>'}).join('');
  var wname=function(id){var w=D.workers.find(function(x){return x.id===id});return w?w.name:''};

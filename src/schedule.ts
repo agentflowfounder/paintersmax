@@ -71,7 +71,7 @@ export async function scheduledJobs(env: Env, companyId: number) {
   const { results } = await env.DB.prepare(
     `SELECT j.id, j.title, j.stage, j.data, cu.name AS customer, cu.email, p.address, p.city
        FROM jobs j JOIN customers cu ON cu.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id
-      WHERE j.company_id = ? AND json_extract(j.data, '$.schedule.start') IS NOT NULL AND j.stage NOT IN ('lost')
+      WHERE j.company_id = ? AND json_extract(j.data, '$.schedule.start') IS NOT NULL AND j.stage NOT IN ('lost') AND json_extract(j.data, '$.archived') IS NULL
       ORDER BY json_extract(j.data, '$.schedule.start') LIMIT 500`,
   ).bind(companyId).all<any>();
   return (results ?? []).map((r) => {

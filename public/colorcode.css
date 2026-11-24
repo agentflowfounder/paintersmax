@@ -1,0 +1,9 @@
+/* PaintersMax color code. One color always means one thing, and every tag keeps its word, so nothing depends on color alone.
+ * red = danger, lost or overdue   yellow = needs your attention   green = good, go   blue = new or for your information   gray = quiet */
+:root{--c-bad:#b42318;--c-bad-bg:#fdecea;--c-bad-line:#e5a39d;--c-warn:#8a5a00;--c-warn-bg:#fff3d6;--c-warn-line:#e8c26a;--c-ok:#0a7a3d;--c-ok-bg:#e6f4ea;--c-ok-line:#9ccc9c;--c-info:#1f4f8a;--c-info-bg:#eaf2fd;--c-info-line:#a9c4ea;--c-mute:#5b6572;--c-mute-bg:#eceae4}
+.cc{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:3px 10px;white-space:nowrap}
+.cc.t-bad{background:var(--c-bad-bg);color:var(--c-bad)}.cc.t-warn{background:var(--c-warn-bg);color:var(--c-warn)}.cc.t-ok{background:var(--c-ok-bg);color:var(--c-ok)}.cc.t-info{background:var(--c-info-bg);color:var(--c-info)}.cc.t-mute{background:var(--c-mute-bg);color:var(--c-mute)}
+.cc::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:currentColor;vertical-align:1px}
+a.cc{text-decoration:none}
+.ccstrip{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}.ccstrip a.cc{font-size:15px;padding:10px 16px;min-height:44px;display:inline-flex;align-items:center;box-shadow:0 1px 2px rgba(15,27,45,.08)}
+.ccleg{display:grid;gap:8px;margin:10px 0}.ccleg div{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:10px 12px}
