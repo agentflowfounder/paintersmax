@@ -29,7 +29,7 @@ label{display:block;font-size:13px;font-weight:600;margin:10px 0 3px}input,texta
 .row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}@media(max-width:560px){.row{grid-template-columns:1fr}.day{min-height:56px}.chip{font-size:10px}}
 .muted{color:#4A5568;font-size:14px}.ok{color:#0a7a3d;font-weight:600}.bad{color:#b42318;font-weight:600}
 .nd{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #eee}.nd:first-of-type{border-top:0}
-</style></head><body>
+</style><link rel="stylesheet" href="/colorcode.css"></head><body>
 <header><div><b>PaintersMax</b> Calendar</div><div><a href="/jobs">Jobs</a><a href="/dashboard">Settings and leads</a></div></header>
 <main>
 <h1>Calendar and crew schedule</h1>
@@ -64,6 +64,8 @@ var vt=function(t){var m=/^(\d\d):(\d\d)$/.exec(t||'');if(!m)return'';var hh=+m[
 var vt2=function(t){var m=/^(\d\d):(\d\d)$/.exec(t||'');if(!m)return'';var hh=+m[1];return (hh%12||12)+':'+m[2]+' '+(hh<12?'AM':'PM')};
 function jobsOn(k){return jobs.filter(function(j){return j.start<=k&&k<=j.end&&(!fc||(j.crew||[]).some(function(n){return n.toLowerCase()===fc.toLowerCase()}))});}
 function chipV(v){return'<button class="chip v" data-visit="'+v.jobId+'" title="'+esc(T('Site visit')+' - '+v.customer+(v.address?' - '+v.address:''))+'">'+esc((vt(v.time)?vt(v.time)+' ':'')+T('Visit')+': '+v.customer)+'</button>';}
+var CCS={lead:['info','Lead'],bid:['warn','Estimate'],contract:['warn','Contract'],scheduled:['info','Scheduled'],in_progress:['info','In progress'],punch:['warn','Punch list'],invoiced:['warn','Invoiced'],closed:['ok','Closed']};
+function ccTag(st){var c=CCS[st];return c?' <span class="cc t-'+c[0]+'">'+T(c[1])+'</span>':'';}
 function chipJ(j,k){var cr=j.crew||[],col=cr.length?colorOf(cr[0]):'',st=cr.length?'':(j.stage==='closed'||j.stage==='invoiced'?' c':j.stage==='in_progress'?' p':'');
  var dots=cr.slice(1).map(function(n){return'<i class="dot" style="background:'+colorOf(n)+'"></i>'}).join('');
  return'<button class="chip'+st+'" data-job="'+j.jobId+'" style="'+(col?'background:'+col:'')+'" title="'+esc(j.title+' - '+j.customer+(cr.length?' - '+cr.join(', '):''))+'">'+dots+esc((j.startTime&&k===j.start?j.startTime+' ':'')+j.title)+'</button>';}
@@ -97,7 +99,7 @@ function drawDay(){
  var k=iso(anchor),vs=visits.filter(function(v){return v.date===k}),js=jobsOn(k),h='';
  vs.forEach(function(v){h+='<div class="ent" style="border-color:#1f5fbf"><b>'+esc(T('Site visit'))+': '+esc(v.customer)+'</b>'+(v.time?' &middot; '+esc(vt2(v.time)):'')+(v.address?'<div class="muted">'+esc(v.address)+'</div>':'')+'<div class="acts"><a href="/jobs?id='+v.jobId+'">'+T('Open the job')+'</a></div></div>';});
  js.forEach(function(j){var cr=j.crew||[],span=Math.round((Date.parse(j.end+'T00:00:00Z')-Date.parse(j.start+'T00:00:00Z'))/86400000)+1,n=Math.round((Date.parse(k+'T00:00:00Z')-Date.parse(j.start+'T00:00:00Z'))/86400000)+1;
-  h+='<div class="ent" style="border-color:'+(cr.length?colorOf(cr[0]):'#0F1B2D')+'"><b>'+esc(j.title)+'</b> <span class="muted">'+esc(j.customer||'')+'</span>'+(j.startTime&&k===j.start?' &middot; '+esc(vt2(j.startTime)):'')
+  h+='<div class="ent" style="border-color:'+(cr.length?colorOf(cr[0]):'#0F1B2D')+'"><b>'+esc(j.title)+'</b>'+ccTag(j.stage)+' <span class="muted">'+esc(j.customer||'')+'</span>'+(j.startTime&&k===j.start?' &middot; '+esc(vt2(j.startTime)):'')
    +(span>1?'<div class="muted">'+esc(window.PM_LANG==='es'?'Día '+n+' de '+span:'Day '+n+' of '+span)+'</div>':'')
    +(j.address?'<div class="muted">'+esc(j.address)+'</div>':'')
    +(cr.length?'<div>'+cr.map(function(c){return'<i class="dot" style="background:'+colorOf(c)+'"></i>'+esc(c)}).join(' &nbsp; ')+'</div>':'<div class="muted">'+T('No crew assigned.')+'</div>')

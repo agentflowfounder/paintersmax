@@ -23,6 +23,7 @@
     '#pmv .pmv-warn{background:#fff3d6;color:#5a3b00;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:15px;display:none}#pmv.quiet .pmv-warn{display:block}' +
     '#pmv button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:16px 18px;cursor:pointer;font-size:18px}' +
     '#pmv .pmv-stop{background:#E8A33D;color:#0F1B2D;flex:1}#pmv .pmv-cancel{background:rgba(255,255,255,.14);color:#fff}' +
+    '#pmv .pmv-main{background:#d92d20;color:#fff;width:100%;min-height:64px;font-size:20px}#pmv.paused .pmv-main{background:#b42318}#pmv .pmv-hint{color:#c9d3e0;font-size:13px;text-align:center;margin:6px 0 0}#pmv.paused .pmv-dot{background:#E8A33D;animation:none}' +
     '.pmv-mic{display:inline-flex;align-items:center;gap:6px;font:inherit;font-weight:700;font-size:14px;border:0;border-radius:8px;padding:8px 12px;margin-top:6px;background:#eceae4;color:#0F1B2D;cursor:pointer}.pmv-mic svg{flex:none}';
   document.head.appendChild(css);
   var MIC = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>';
@@ -45,8 +46,22 @@
     if (code === 'network') return T('Voice typing needs an internet connection. Check your signal and try again.');
     return '';
   }
+  // The painter's word list: fixes for trade words the phone mishears. Loaded once; if it cannot load, nothing changes.
+  var WORDS = null;
+  function loadWords() {
+    if (WORDS !== null) return; WORDS = [];
+    try { fetch('/api/wordlist', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) { if (j) WORDS = (j.custom || []).concat(j.defaults || []); }).catch(function () {}); } catch (e) {}
+  }
+  function fixWords(t) {
+    if (!WORDS || !WORDS.length) return t;
+    WORDS.forEach(function (p) {
+      try { t = t.replace(new RegExp('(^|[^\\p{L}\\p{N}])' + p[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{N}])', 'giu'), function (m, pre) { return pre + p[1]; }); } catch (e) {}
+    });
+    return t;
+  }
   var cur = null;
   function listen(o) {
+    loadWords();
     o = o || {};
     if (cur) cur.finish(false);
     var box = document.createElement('div');
@@ -55,37 +70,48 @@
       '<div class="pmv-txt" aria-live="polite"><span class="pmv-ph">' + T('Listening...') + '</span></div>' +
       '<div class="pmv-warn">' + T('I cannot hear you. Keep talking, or tap Done if you are finished.') + '</div>' +
       '<div class="pmv-row"><span class="pmv-dot"></span><span class="pmv-st">' + T('Listening') + '</span><span class="pmv-tm">0:00</span></div>' +
+      '<div class="pmv-row"><button type="button" class="pmv-main" aria-label="' + T('Tap once to pause. Tap twice to stop.') + '">' + T('Tap to pause') + '</button></div><div class="pmv-hint">' + T('One tap pauses. Two quick taps stop and save.') + '</div>' +
       '<div class="pmv-row"><button type="button" class="pmv-cancel">' + T('Cancel') + '</button><button type="button" class="pmv-stop">' + T('Done') + '</button></div>';
     document.body.appendChild(box);
     var txt = box.querySelector('.pmv-txt'), st = box.querySelector('.pmv-st'), tm = box.querySelector('.pmv-tm');
-    var finals = [], interim = '', want = true, rec = null, started = Date.now(), lastHeard = Date.now(), nudges = 0, quick = 0, t0 = 0, g = '', gstop = null;
+    var finals = [], interim = '', want = true, rec = null, started = Date.now(), lastHeard = Date.now(), nudges = 0, quick = 0, t0 = 0, g = '', gstop = null, paused = false, gem = false, tapTimer = null;
     var draw = function () {
-      var f = (finals.join(' ') + ' ' + g).trim();
+      var f = fixWords((finals.join(' ') + ' ' + g).trim());
       txt.innerHTML = f || interim ? esc(f) + (interim ? ' <i>' + esc(interim) + '</i>' : '') : '<span class="pmv-ph">' + T('Listening...') + '</span>';
       txt.scrollTop = txt.scrollHeight;
     };
     var timer = setInterval(function () {
       var s = Math.floor((Date.now() - started) / 1000); tm.textContent = Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
       var quiet = Date.now() - lastHeard;
-      if (want && quiet > 9000 * (nudges + 1)) {
+      if (want && !paused && quiet > 9000 * (nudges + 1)) {
         nudges++; box.classList.add('quiet'); beep();
         if (nudges >= 4) finish(true);
       }
     }, 500);
     function finish(keep) {
       if (!want && !box.parentNode) return;
-      want = false; clearInterval(timer);
+      want = false; clearInterval(timer); clearTimeout(tapTimer);
       try { rec && rec.stop(); } catch (e) {}
       if (gstop) gstop();
       if (box.parentNode) box.parentNode.removeChild(box);
       document.removeEventListener('keydown', onKey);
       cur = null;
-      var text = (finals.join(' ') + ' ' + g + (interim ? ' ' + interim : '')).replace(/\s+/g, ' ').trim();
+      var text = fixWords((finals.join(' ') + ' ' + g + (interim ? ' ' + interim : '')).replace(/\s+/g, ' ').trim());
       if (keep && text && o.onDone) o.onDone(text);
       if (o.onClose) o.onClose(keep ? text : '');
     }
     function onKey(e) { if (e.key === 'Escape') finish(false); }
     document.addEventListener('keydown', onKey);
+    var main = box.querySelector('.pmv-main');
+    function pauseToggle() {
+      paused = !paused;
+      if (paused) { try { rec && rec.stop(); } catch (e) {} box.classList.add('paused'); st.textContent = T('Paused'); main.textContent = T('Tap to resume'); }
+      else { box.classList.remove('paused'); lastHeard = Date.now(); nudges = 0; st.textContent = T('Listening'); main.textContent = T('Tap to pause'); if (!gem) begin(); }
+    }
+    main.onclick = function () {
+      if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; finish(true); return; }
+      tapTimer = setTimeout(function () { tapTimer = null; pauseToggle(); }, 320);
+    };
     box.querySelector('.pmv-stop').onclick = function () { finish(true); };
     box.querySelector('.pmv-cancel').onclick = function () { finish(false); };
     cur = { finish: finish };
@@ -115,7 +141,7 @@
       r.onend = function () {
         // Speech services stop after a pause; start again so long notes keep going.
         if (interim) { finals.push(interim); interim = ''; draw(); }
-        if (!want) return;
+        if (!want || paused) return;
         if (Date.now() - t0 < 1000 && ++quick >= 5) { want = false; box.classList.add('off'); st.textContent = T('Voice typing stopped. Tap Done to keep what you said.'); clearInterval(timer); return; }
         setTimeout(begin, 200);
       };
@@ -125,7 +151,7 @@
     function startGemini(info) {
       var ws = null, stream = null, ac = null, node = null, src = null, ready = false, heard = false, dead = false;
       function fallback() {
-        if (dead) return; dead = true; gstop();
+        if (dead) return; dead = true; gem = false; gstop();
         if (want) { st.textContent = T('Listening'); begin(); }
       }
       gstop = function () {
@@ -135,6 +161,7 @@
         try { stream && stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
         try { ws && ws.close(); } catch (e) {}
       };
+      gem = true;
       var guard = setTimeout(function () { if (!heard && !dead) fallback(); }, 8000);
       try {
         ws = new WebSocket('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=' + encodeURIComponent(info.token));
@@ -164,7 +191,7 @@
           node = ac.createScriptProcessor(4096, 1, 1);
           var ratio = ac.sampleRate / 16000;
           node.onaudioprocess = function (e) {
-            if (!ws || ws.readyState !== 1) return;
+            if (!ws || ws.readyState !== 1 || paused) return;
             var inp = e.inputBuffer.getChannelData(0), n = Math.floor(inp.length / ratio), pcm = new Int16Array(n);
             for (var i = 0; i < n; i++) { var v = Math.max(-1, Math.min(1, inp[Math.floor(i * ratio)])); pcm[i] = v < 0 ? v * 32768 : v * 32767; }
             var bin = '', u8 = new Uint8Array(pcm.buffer);

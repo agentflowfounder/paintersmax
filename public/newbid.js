@@ -244,8 +244,24 @@ async function servicesPage() {
    <b>Quick picks</b><div class="picks" style="margin:6px 0 10px">${s.picks.map((p) => `<span class="pk">${esc(tt(p))}</span>`).join('')}</div>
    <b>Suggested tools</b>${s.tools.map((t) => `<label class="tool"><input type="checkbox" data-svctool="${esc(s.trade)}|${esc(t.id)}" ${t.on ? 'checked' : ''}><span><b>${esc(tt(t.label))}</b><br><small class="muted">${esc(tt(t.hint))}</small></span></label>`).join('')}
   </div></details>`).join('')}`;
+  wordCard();
   const h = (location.hash || '').slice(1), el = h && document.getElementById(h);
   if (el) { el.open = true; el.scrollIntoView({ block: 'start' }); }
+}
+// The painter's word list: fixes for trade words the phone mishears when dictating.
+async function wordCard() {
+  let w; try { w = await api('/api/wordlist'); } catch (e) { return; }
+  const box = document.createElement('div'); box.className = 'card'; box.id = 'wordcard'; box.style.marginTop = '16px';
+  const rows = (w.custom || []).map((p) => p.join(' = '));
+  box.innerHTML = `<b>${esc(tt('My word list'))}</b><p class="muted" style="margin:4px 0 8px">${esc(tt('Phones mishear trade words. Add what the phone writes and what you mean, one per line, like: sheet rock = Sheetrock. It fixes your voice notes as you finish talking.'))}</p>
+   <textarea id="wl_t" rows="5" placeholder="sheet rock = Sheetrock">${esc(rows.join('\n'))}</textarea>
+   <div class="btns"><button class="btn sec" id="wl_save" type="button">${esc(tt('Save my word list'))}</button></div>
+   <small class="muted">${esc(tt('Already fixed for you:'))} ${esc((w.defaults || []).map((p) => p[0] + ' = ' + p[1]).join(' · '))}</small>`;
+  $('view').appendChild(box);
+  $('wl_save').onclick = async () => {
+    const custom = $('wl_t').value.split(/\n/).map((l) => l.split('=').map((x) => x.trim())).filter((p) => p.length >= 2 && p[0] && p[1]);
+    try { const r = await api('/api/wordlist', { custom }); $('wl_t').value = r.custom.map((p) => p.join(' = ')).join('\n'); toast('Saved'); } catch (x) { if (x) msg(x.message); }
+  };
 }
 document.addEventListener('change', async (e) => {
   const t = e.target; if (!t.dataset || !t.dataset.svctool) return;

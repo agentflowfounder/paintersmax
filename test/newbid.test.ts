@@ -78,3 +78,29 @@ test("an archived job leaves every list and shows only in Archived", async () =>
   assert.equal(bucketFor({ stage: "lost", today: "2026-11-24", archived: true }), "archived");
   assert.equal(bucketFor({ stage: "lead", today: "2026-11-24" }), "new");
 });
+
+test("Ask conversations get a topic and a short title", async () => {
+  const { topicOf, titleOf } = await import("../src/askhistory.ts");
+  assert.equal(topicOf("What primer covers water stains?"), "products");
+  assert.equal(topicOf("How do I send an estimate in PaintersMax?"), "platform");
+  assert.equal(topicOf("How do I answer a customer who says my price is too high?"), "pricing");
+  assert.equal(topicOf("hello there"), "general");
+  assert.equal(titleOf("  How do I ask for a deposit politely?  "), "How do I ask for a deposit politely");
+  assert.ok(titleOf("x ".repeat(100)).length <= 60);
+  assert.equal(titleOf(""), "Conversation");
+});
+
+test("the painter's word list fixes whole words only and keeps the painter's own pairs clean", async () => {
+  const { applyWords, cleanWords, DEFAULT_WORDS } = await import("../src/wordlist.ts");
+  assert.equal(applyWords("Hang sheet rock and Sherman Williams paint", DEFAULT_WORDS), "Hang Sheetrock and Sherwin-Williams paint");
+  assert.equal(applyWords("the estimated bed is ready", DEFAULT_WORDS), "the estimate bid is ready");
+  assert.equal(applyWords("dry walls", [["dry wall", "drywall"]]), "dry walls", "does not change part of a longer word");
+  assert.deepEqual(cleanWords([["Sheet Rock", "Sheetrock"], ["sheet rock", "x"], ["", "y"], ["same", "Same"], "bad"]), [["sheet rock", "Sheetrock"]]);
+});
+
+test("a paused job leaves the open list until its wake-up day", async () => {
+  const { bucketFor } = await import("../src/pipeline.ts");
+  assert.equal(bucketFor({ stage: "bid", today: "2026-11-24", pausedUntil: "2026-12-01" }), "paused");
+  assert.equal(bucketFor({ stage: "bid", today: "2026-12-01", pausedUntil: "2026-12-01" }), "estimates");
+  assert.equal(bucketFor({ stage: "closed", today: "2026-11-24", pausedUntil: "2026-12-01" }), "paid");
+});
