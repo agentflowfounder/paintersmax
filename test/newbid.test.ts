@@ -104,3 +104,32 @@ test("a paused job leaves the open list until its wake-up day", async () => {
   assert.equal(bucketFor({ stage: "bid", today: "2026-12-01", pausedUntil: "2026-12-01" }), "estimates");
   assert.equal(bucketFor({ stage: "closed", today: "2026-11-24", pausedUntil: "2026-12-01" }), "paid");
 });
+
+test("a job report shows profit, timeline gaps and missing records plainly", async () => {
+  const { buildReport, daysBetween } = await import("../src/jobreport.ts");
+  assert.equal(daysBetween("2026-11-01", "2026-11-04"), 3);
+  assert.equal(daysBetween("2026-11-04", "2026-11-01"), null);
+  assert.equal(daysBetween("", "2026-11-01"), null);
+  const base = {
+    priceCents: 400000, changeCents: 20000, collectedCents: 420000, categories: [{ category: "Materials", cents: 80000 }, { category: "Fuel", cents: 5000 }], payCents: 150000,
+    minutes: 3000, estimatedMinutes: 2400, workers: [{ name: "Luis", minutes: 3000 }],
+    dates: { lead: "2026-11-01", estimate: "2026-11-02", signed: "2026-11-12", start: "2026-11-15", end: "2026-11-17", invoice: "2026-11-18", paid: "2026-12-05", warranty: "2026-12-05" },
+    have: { photos: 4, notes: 3, signedEstimate: true, contract: true, expenses: 2, hours: true, invoice: true, warranty: false, signoff: true },
+    avg: { marginPct: 40, priceCents: 350000, jobs: 5 },
+  };
+  const r = buildReport(base);
+  assert.equal(r.money.totalCents, 420000);
+  assert.equal(r.money.costCents, 235000);
+  assert.equal(r.money.profitCents, 185000);
+  assert.equal(r.money.marginPct, 44.0);
+  assert.equal(r.days.estimateToSigned, 10);
+  assert.equal(r.days.workDays, 3);
+  assert.equal(r.days.invoiceToPaid, 17);
+  assert.equal(r.hours.overPct, 25);
+  assert.equal(r.recordsDone, 8);
+  assert.ok(r.insights.some((x) => x.includes("above your average")));
+  assert.ok(r.insights.some((x) => x.includes("took 10 days to sign")));
+  const none = buildReport({ ...base, categories: [], payCents: 0, minutes: 0, estimatedMinutes: null, workers: [], avg: { marginPct: null, priceCents: null, jobs: 0 } });
+  assert.equal(none.money.profitCents, null, "no costs recorded is not shown as 100% profit");
+  assert.ok(none.insights[0].includes("profit cannot be shown"));
+});
