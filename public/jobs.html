@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en"><head><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0F1B2D">
-<title>PaintersMax Jobs</title><script src="/i18n.js" data-app></script>
+<title>PaintersMax Jobs</title><script src="/i18n.js" data-app></script><script src="/us-cities.js"></script><script src="/voice.js"></script><script src="/newbid.js"></script>
 <style>
 *{box-sizing:border-box}
 body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
@@ -80,13 +80,31 @@ details.acc[open]>summary{border-bottom:1px solid #eee}
 .pal{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}.sw{display:inline-flex;align-items:center;gap:6px;border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:5px 10px 5px 5px;font-size:13px;cursor:pointer;color:#0F1B2D}.sw span{width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}
 .lrow{border-bottom:1px solid #f0eee9;padding:8px 0}.lrow .l2{display:grid;grid-template-columns:50px 58px minmax(60px,1fr) 104px 26px;gap:6px;margin-top:6px;align-items:center}.lrow input,.lrow select{padding:8px}.lrow .l2 select{padding:8px 4px}.lrow .l2 button{border:0;background:none;font-size:18px;cursor:pointer;color:#b42318}
 .optck{display:flex;gap:8px;align-items:center;font-weight:400;margin:4px 0;font-size:14px}.optck input{width:auto}
+.crumb{margin:0 0 6px}.lead{font-size:16px;line-height:1.45;margin:4px 0 12px}
+.jh a.btn{text-decoration:none}.jh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.jtoggle{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border-radius:8px;padding:2px 4px}.jtoggle h2{margin:4px 0 0}.jtoggle .car{font-size:15px;transition:transform .2s}.jtoggle[aria-expanded=true] .car{transform:rotate(180deg)}.jtoggle:focus-visible{outline:2px solid #E8A33D}
+.row3{display:grid;grid-template-columns:1.6fr .7fr 1fr;gap:8px}
+.sug{display:flex;flex-direction:column;gap:4px;margin-top:4px}.sug button{font:inherit;text-align:left;background:#fff;border:1px solid #cfd5dc;border-radius:8px;padding:10px;cursor:pointer}.sug button:hover{background:#f1efe9}
+.bigsel{font-size:17px;padding:13px}.btn.big{width:100%;padding:16px;font-size:17px}.btn.dark{background:#0F1B2D;color:#fff}
+.svch{display:flex;align-items:center;gap:10px;justify-content:space-between}.svch h2{margin:6px 0}
+.nbbox textarea{font-size:17px;min-height:150px}.nbbtns{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin:10px 0 6px}
+.bigmic{display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;font-size:17px;background:#0F1B2D;color:#fff}.bigmic svg{width:22px;height:22px}
+.picks{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.pk{font:inherit;font-size:14px;border:1px solid #cfd5dc;background:#fff;border-radius:999px;padding:9px 13px;cursor:pointer;display:inline-block}.pk.on{background:#0F1B2D;color:#fff;border-color:#0F1B2D}
+.nbph{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;margin:6px 0}.nbph img{width:100%;height:84px;object-fit:cover;border-radius:8px;display:block}
+.cam{display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin:0}
+.nbprice hr{border:0;border-top:1px solid #eceae4;margin:16px 0}
+.qp{background:#f3f8f3;border:1px solid #cfe3cf;border-radius:10px;padding:12px;margin-top:12px}.qpr{font:600 26px Newsreader,Georgia,serif}.qpr span{font-size:16px;color:#4A5568}
+.tool{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin:10px 0}.tool input{width:auto;margin-top:4px}
+.cpbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cpimg{width:100%;max-height:280px;object-fit:cover;border-radius:10px;display:block;margin-top:10px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cap{font-size:12px;font-weight:600;color:#4A5568;margin:6px 0 2px}
+.nsteps label{display:flex;gap:8px;align-items:flex-start;font-weight:400}.nsteps input{width:auto;margin-top:4px}
 </style></head><body>
 <header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Estimating Setup</a><a href="/calendar">Calendar</a><a href="/records">Records</a><a href="/crew">Crew</a><a href="/lessons">Lessons</a><a href="/analysis">Analysis</a><a href="/builders">Builder rates</a><a href="/import">Import customers</a><a href="/materials">Materials</a><a href="/insurance">Insurance</a><a href="/dashboard">Settings and leads</a></div></header>
 <main><div id="view">Loading...</div><div id="msg"></div></main>
 <script>
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const $=id=>document.getElementById(id);
-const TRADES={interior:'Interior painting',exterior:'Exterior painting',commercial:'Commercial',new_construction:'New construction',power_washing:'Power washing',drywall:'Drywall repair',cabinets:'Cabinet painting',decks_fences:'Decks and fences',fencing:'Fence installation',remodeling:'Remodeling',epoxy_floors:'Epoxy floors',industrial:'Industrial'};
+const TRADES={interior:'Interior painting',exterior:'Exterior painting',commercial:'Commercial',new_construction:'New construction',power_washing:'Power washing',drywall:'Drywall install and repair',cabinets:'Cabinet painting',decks_fences:'Decks and fences',fencing:'Fence installation',remodeling:'Remodeling',epoxy_floors:'Epoxy floors',industrial:'Industrial'};
 const QL={small:'Small rooms',medium:'Medium rooms',large:'Large rooms',custom_min:'Custom rooms',ceiling:'Ceilings',trim:'Rooms with trim',door_each:'Doors',accent_wall:'Accent walls',repairs_hourly:'Repair hours',base_1_story:'1-story house (1 = yes)',base_2_story:'2-story house (1 = yes)',base_3_story:'3-story house (1 = yes)',door:'Doors',shutter:'Shutters',window:'Windows',garage_door:'Garage doors',power_washing:'Power washing (1 = yes)',wood_repair_hourly:'Wood repair hours',color_change:'Extra colors',gate_each:'Gates',removal_per_ft:'Old fence to remove (ft)',stain_per_ft:'Staining or painting (ft)',mobilization:'Mobilization (1 = yes)',lift_daily:'Lift days',hourly:'Labor hours'};
 const BASE={sqft_floor:[['sqft','Square feet of floor area']],sqft_wall:[['sqft','Square feet of wall']],per_linear_ft:[['linear_ft','Linear feet']],lump_sum:[['cost','Your cost for the whole job ($)']]};
 const STAGE={lead:'Lead',bid:'Estimate',contract:'Contract',scheduled:'Scheduled',in_progress:'In progress',punch:'Punch list',invoiced:'Invoiced',closed:'Closed',lost:'Lost'};
@@ -143,8 +161,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};
 });
 try{localStorage.removeItem('as_lang');}catch(x){}
 document.addEventListener('change',async e=>{if(e.target.id!=='as_cam'||!e.target.files[0])return;const f=e.target.files[0];e.target.value='';try{msg('Adding photo...',true);const b=await shrinkImg(f),fd=new FormData();fd.append('file',b);fd.append('jobId',chatJob);fd.append('kind','photo');const r=await fetch('/api/files',{method:'POST',body:fd});if(r.status===401){location.href='/login';return;}const j=await r.json().catch(()=>({}));if(!r.ok){msg(j.error||'Could not add the photo.');return;}chatFile=j.id;attDraw();msg('');if(typeof filesLoad==='function')filesLoad();$('as_in').focus();}catch(x){msg('Could not add the photo.');}});
-document.addEventListener('click',e=>{const d=e.target.dataset||{};if(d.adetach){chatFile=0;attDraw();}else if(e.target.id==='ask_fab'||(e.target.closest&&e.target.closest('#ask_fab'))){if(typeof openAcc==='function')openAcc('help');const i=$('as_in');if(i){i.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>i.focus(),350);}}});
-(function(){const b=document.createElement('button');b.id='ask_fab';b.className='btn fab';b.type='button';b.textContent='Ask';b.setAttribute('aria-label','Ask the assistant');document.body.appendChild(b);})();
+document.addEventListener('click',e=>{const d=e.target.dataset||{};if(d.adetach){chatFile=0;attDraw();}});
 
 // ---- Photos and files ----
 let FL=null;
@@ -326,30 +343,21 @@ function lostCard(d){const j=d.job||{};let l=null;try{l=j.lost?JSON.parse(j.lost
 const MIC={};
 function micLabel(b,on){const t=b.lastChild;if(t&&t.nodeType===3)t.textContent=on?(window.PM_LANG==='es'?'Escuchando. Toca para parar':'Listening. Tap to stop'):(window.pmT?window.pmT('Mic'):'Mic');b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');}
 function micToggle(b,lang,onText){
-  const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R||!b)return;
-  if(MIC[b.id]){MIC[b.id].stop();return;}
-  const st={want:true,r:null,bad:0,t:0,stop(){st.want=false;try{st.r&&st.r.stop();}catch(e){}delete MIC[b.id];micLabel(b,false);}};
-  MIC[b.id]=st;micLabel(b,true);
-  const begin=()=>{
-    if(!st.want)return;
-    const r=new R();st.r=r;r.lang=lang();r.continuous=true;r.interimResults=false;
-    st.t=Date.now();
-    r.onresult=ev=>{st.bad=0;for(let i=ev.resultIndex;i<ev.results.length;i++){if(ev.results[i].isFinal){const x=(ev.results[i][0].transcript||'').trim();if(x)onText(x);}}};
-    r.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){st.stop();msg(window.PM_LANG==='es'?'El micrófono está bloqueado. Permítelo en la configuración del navegador.':'The microphone is blocked. Allow it in your browser settings.');}};
-    r.onend=()=>{if(!st.want)return;if(Date.now()-st.t<800){if(++st.bad>=4){st.stop();return;}}setTimeout(begin,250);};
-    try{r.start();}catch(e){setTimeout(begin,400);}
-  };
-  begin();
+  // One voice screen for every mic: the words show as they are spoken, and Done keeps them.
+  if(!window.pmVoice){msg('Voice typing is still loading. Try again in a second.');return;}
+  pmVoice.listen({lang,title:b&&b.getAttribute('aria-label')||'Talk now',onDone:onText});
 }
-function micInit(){const ok=window.SpeechRecognition||window.webkitSpeechRecognition;['as_mic','bf_mic','fn_mic'].forEach(i=>{const m=$(i);if(m&&ok)m.style.display='';});}
+function micInit(){['as_mic','bf_mic','fn_mic'].forEach(i=>{const m=$(i);if(m)m.style.display='';});}
 // ---- Pipeline tabs: New Bids > Estimates > Jobs > Jobs Completed > Invoice > Paid > Warranty (and Lost) ----
-const TABS=[['new','New Bids','Customers who asked for a price. Call them, visit, then build the estimate.'],['estimates','Estimates','Estimates you are writing or have sent. Close them or follow up.'],['jobs','Jobs','Signed work. Take the deposit, schedule the crew, do the work.'],['completed','Jobs Completed','Work done. Get the customer sign-off and build the final invoice.'],['invoice','Invoice','Final invoice sent. Record payments as they come in.'],['paid','Paid','Paid in full.'],['warranty','Warranty','Paid jobs still inside their warranty.'],['lost','Lost','Bids the customer turned down, with the reason.']];
+const TABS=[['open','Open jobs','Your open bids and jobs. To start a new bid, tap + New bid at the top.'],['new','New Bids','Customers who asked for a price. Call them, visit, then build the estimate.'],['estimates','Estimates','Estimates you are writing or have sent. Close them or follow up.'],['jobs','Jobs','Signed work. Take the deposit, schedule the crew, do the work.'],['completed','Jobs Completed','Work done. Get the customer sign-off and build the final invoice.'],['invoice','Invoice','Final invoice sent. Record payments as they come in.'],['paid','Paid','Paid in full.'],['warranty','Warranty','Paid jobs still inside their warranty.'],['lost','Lost','Bids the customer turned down, with the reason.']];
 let TAB=null;
-function tabPick(jobs){const h=(location.hash||'').slice(1);if(TABS.some(t=>t[0]===h))return h;let s=null;try{s=localStorage.getItem('pm_jobtab');}catch(e){}if(s&&TABS.some(t=>t[0]===s))return s;const first=TABS.find(t=>jobs.some(j=>j.bucket===t[0]));return first?first[0]:'new';}
+const OPEN_B=['new','estimates','jobs','completed','invoice'];
+const inTab=(j,k)=>k==='open'?OPEN_B.includes(j.bucket):j.bucket===k;
+function tabPick(jobs){const h=(location.hash||'').slice(1);if(TABS.some(t=>t[0]===h))return h;let s=null;try{s=localStorage.getItem('pm_jobtab');}catch(e){}if(s&&TABS.some(t=>t[0]===s))return s;return 'open';}
 function tabDraw(jobs){const box=$('pl_tabs'),out=$('pl_list');if(!box||!out)return;
- box.innerHTML=TABS.map(([k,n])=>{const c=jobs.filter(j=>j.bucket===k).length;return `<button class="ptab ${k===TAB?'on':''}" data-ptab="${k}" aria-pressed="${k===TAB}">${esc(n)} <span class="pct">${c}</span></button>`;}).join('');
- const t=TABS.find(x=>x[0]===TAB),m=jobs.filter(j=>j.bucket===TAB);
- out.innerHTML=`<small class="muted" style="display:block;margin:4px 0 8px">${esc(t[2])}</small>`+(m.length?`<div class="card" style="margin-top:6px">${m.map(jobRow).join('')}</div>`:`<div class="card"><p class="muted" style="margin:0">${TAB==='new'?'No new bids. Website requests appear here by themselves, or tap + New bid.':'Nothing here right now.'}</p></div>`);
+ box.innerHTML=TABS.map(([k,n])=>{const c=jobs.filter(j=>inTab(j,k)).length;return `<button class="ptab ${k===TAB?'on':''}" data-ptab="${k}" aria-pressed="${k===TAB}">${esc(n)} <span class="pct">${c}</span></button>`;}).join('');
+ const t=TABS.find(x=>x[0]===TAB),m=jobs.filter(j=>inTab(j,TAB));
+ out.innerHTML=`<p class="lead" style="margin:8px 0">${esc(t[2])}</p>`+(m.length?`<div class="card" style="margin-top:6px">${m.map(jobRow).join('')}</div>`:`<div class="card"><p class="muted" style="margin:0">${TAB==='new'||TAB==='open'?'Nothing open right now. Website requests show up here by themselves, or tap + New bid.':'Nothing here right now.'}</p></div>`);
  const on=box.querySelector('.on');if(on&&on.scrollIntoView)on.scrollIntoView({block:'nearest',inline:'center'});}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-ptab]');if(!b||!window.PL)return;TAB=b.dataset.ptab;try{localStorage.setItem('pm_jobtab',TAB);}catch(x){}history.replaceState(null,'','#'+TAB);tabDraw(window.PL);});
 
@@ -370,7 +378,7 @@ function notesCard(){return `<div class="card"><p class="muted" style="margin-to
  <textarea id="fn_in" rows="2" placeholder="Example: Water stain on the hall ceiling. Customer wants satin in the kitchen."></textarea>
  <div class="btns" style="margin-top:6px"><button class="btn" data-fnadd="1">Save note</button><button type="button" class="btn sec mic" id="fn_mic" style="display:none" aria-label="Speak a note"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>Mic</button></div>
  <div id="fn_list" style="margin-top:10px"></div></div>`;}
-function notesDraw(){const b=$('fn_list');if(!b||!J)return;const mine=nq().filter(n=>n.jobId===J.job.id);const all=(J.fieldNotes||[]).concat(mine.filter(p=>!(J.fieldNotes||[]).some(x=>x.id===p.id)).map(p=>({...p,tag:'pending'})));
+function notesDraw(){if(window.nbNotesDraw)nbNotesDraw();const b=$('fn_list');if(!b||!J)return;const mine=nq().filter(n=>n.jobId===J.job.id);const all=(J.fieldNotes||[]).concat(mine.filter(p=>!(J.fieldNotes||[]).some(x=>x.id===p.id)).map(p=>({...p,tag:'pending'})));
  const s=$('accs_notes');if(s)s.textContent=all.length?all.length+(all.length===1?' note':' notes')+(mine.length?' ('+mine.length+' waiting for signal)':''):'Optional';
  if(!all.length){b.innerHTML='<small class="muted">No notes yet.</small>';sumDraw();return;}
  b.innerHTML=all.slice().reverse().map(n=>`<div class="fnote"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="ntag ${n.tag}">${esc(n.tag==='pending'?'Waiting for signal':NTAG[n.tag]||n.tag)}</span><small class="muted">${esc(new Date(n.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))}</small></div><div style="margin:4px 0;white-space:pre-wrap">${esc(n.text)}</div>${n.tag==='pending'?'':`<div class="btns" style="margin-top:2px"><select data-fntag="${esc(n.id)}" aria-label="Group" style="width:auto;padding:6px 8px">${Object.entries(NTAG).map(([k,v])=>`<option value="${k}" ${k===n.tag?'selected':''}>${esc(v)}</option>`).join('')}</select><button class="mini" data-fndel="${esc(n.id)}">Delete</button></div>`}</div>`).join('');
@@ -383,9 +391,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
 document.addEventListener('change',async e=>{const t=e.target;if(!J||!t.dataset||!t.dataset.fntag)return;const n=(J.fieldNotes||[]).find(x=>x.id===t.dataset.fntag);if(!n)return;try{const r=await api('/api/job',{action:'noteEdit',jobId:J.job.id,id:n.id,text:n.text,tag:t.value});J.fieldNotes=r.notes;notesDraw();}catch(x){if(x)msg(x.message);}});
 // The floating Note button: tap to talk (each sentence becomes a note), tap again to stop. Without speech, it opens the note box.
 let fabMic=null;
-function noteFab(){const f=$('note_fab');const ok=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!ok){openAcc('notes');const a=$('acc_notes');if(a)a.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>{const i=$('fn_in');if(i)i.focus();},350);return;}
- micToggle(f,()=>window.PM_LANG==='es'?'es-US':'en-US',x=>noteAdd(x));}
+function noteFab(){micToggle($('note_fab'),()=>window.PM_LANG==='es'?'es-US':'en-US',x=>noteAdd(x));}
 function fabHtml(){return `<button class="btn mic notefab" id="note_fab" aria-label="Speak a field note"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>Note</button>`;}
 
 // ---- The customer's request ----
@@ -403,10 +409,40 @@ document.addEventListener('click',async e=>{const ds=e.target.dataset||{};if(!J)
 // ---- Colors: chosen with the customer, saved on the bid and printed on the estimate ----
 const PALS=[['Modern neutrals',[['Soft white','#F2EFE8'],['Warm greige','#CFC6B8'],['Quiet gray','#B9BCBA'],['Mushroom','#A89F91'],['Charcoal','#3E4144']]],['Historic colors',[['Parchment','#EADFC8'],['Sage green','#9CA88B'],['Barn red','#7C2E25'],['Colonial blue','#3E5A75'],['Ochre','#C49A45']]],['Accent highlights',[['Navy','#1F2F4A'],['Forest','#2F4A3A'],['Terracotta','#B8613E'],['Mustard','#D4A22C'],['Plum','#5B3A55']]]];
 let COL=[];
-function colorsCard(){return `<div class="card"><p class="muted" style="margin-top:0">Write down each color the customer picks: where it goes, the paint brand and its color code. It saves to this bid and prints on the estimate. Paint store fan decks are still the best way to match a color.</p>
+function colorsCard(){return `<div class="card"><p class="lead" style="margin-top:0">Show the customer a color on a photo of their own room or house. Keep the colors they like: they print on the estimate.</p>
+ <div class="cpbtns"><label class="btn cam" style="justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="4"/></svg>Take a photo<input type="file" accept="image/*" capture="environment" data-cpfile="1" style="display:none"></label><label class="btn sec cam" style="justify-content:center">From the gallery<input type="file" accept="image/*" data-cpfile="1" style="display:none"></label></div>
+ <div id="cp_box"></div>
+ <h4 style="margin:16px 0 4px">Colors for this job</h4><small class="muted" style="display:block">Where it goes, the paint brand and its color code. Check the code with the paint store before you buy.</small>
  <div id="cl_rows"></div><div class="btns"><button class="btn sec" data-cladd="1">+ Add a color</button><button class="btn" data-clsave="1">Save colors</button></div>
- <details class="g" style="margin-top:12px"><summary>Color ideas to show the customer</summary><div class="inner">${PALS.map(([n,cs])=>`<b style="font-size:14px">${esc(n)}</b><div class="pal">${cs.map(([cn,hx])=>`<button class="sw" data-clpick="${esc(cn)}|${hx}" title="${esc(cn)}"><span style="background:${hx}"></span>${esc(cn)}</button>`).join('')}</div>`).join('')}<small class="muted">Our own color names, as ideas only. Tap one to add it, then type the brand and code of the matching paint.</small></div></details>
- <div class="btns"><a class="btn sec" href="/colors?job=${J.job.id}">Show a color on the customer's photo</a></div></div>`;}
+ <details class="g" style="margin-top:12px"><summary>Color ideas to show the customer</summary><div class="inner">${PALS.map(([n,cs])=>`<b style="font-size:14px">${esc(n)}</b><div class="pal">${cs.map(([cn,hx])=>`<button class="sw" data-clpick="${esc(cn)}|${hx}" title="${esc(cn)}"><span style="background:${hx}"></span>${esc(cn)}</button>`).join('')}</div>`).join('')}<small class="muted">Our own color names, as ideas only. Tap one to add it, then type the brand and code of the matching paint.</small></div></details></div>`;}
+// ---- Color preview on the customer's photo ----
+const CWORDS={white:'#F4F2EC',blanco:'#F4F2EC',cream:'#F1E6CC',crema:'#F1E6CC',beige:'#D9C8A9',tan:'#C8AD86',greige:'#BDB3A3',gray:'#9EA2A2',grey:'#9EA2A2',gris:'#9EA2A2',charcoal:'#3E4144',black:'#222222',negro:'#222222',red:'#B03A2E',rojo:'#B03A2E',pink:'#E3A1A8',rosa:'#E3A1A8',orange:'#D9822B',naranja:'#D9822B',yellow:'#E9C949',amarillo:'#E9C949',gold:'#C9A227',green:'#5E8B5A',verde:'#5E8B5A',sage:'#9CA88B',olive:'#7A7A45',teal:'#2F7F7F',blue:'#3E6FA3',azul:'#3E6FA3',navy:'#1F2F4A',marino:'#1F2F4A',purple:'#6E4C8E',morado:'#6E4C8E',plum:'#5B3A55',brown:'#7A5A3A',cafe:'#7A5A3A','café':'#7A5A3A','marrón':'#7A5A3A',terracotta:'#B8613E'};
+function mixHex(h,to,a){const p=x=>parseInt(h.slice(x,x+2),16),q=x=>parseInt(to.slice(x,x+2),16);return '#'+[1,3,5].map(i=>Math.round(p(i)*(1-a)+q(i)*a).toString(16).padStart(2,'0')).join('').toUpperCase();}
+function wordColor(t){const w=String(t||'').toLowerCase().normalize('NFC').split(/[^a-záéíóúñ]+/).filter(Boolean);let hex=null;for(const x of w)if(CWORDS[x])hex=CWORDS[x];if(!hex)return null;
+ if(w.some(x=>['light','pale','soft','claro','clara'].includes(x)))hex=mixHex(hex,'#FFFFFF',.45);if(w.some(x=>['dark','deep','oscuro','oscura'].includes(x)))hex=mixHex(hex,'#000000',.35);return hex;}
+let CP={img:null,hex:'#BDB3A3',name:'Greige',meta:null,out:null};
+async function cpDraw(){const b=$('cp_box');if(!b)return;if(!CP.img){b.innerHTML='';return;}
+ if(!CP.meta){try{CP.meta=await api('/api/colors');}catch(x){CP.meta={swatches:[],surfaces:['walls'],limit:0};}}
+ const m=CP.meta,SF={walls:'Walls',ceiling:'Ceiling',trim:'Trim and baseboards',cabinets:'Cabinets',doors:'Doors',front_door:'Front door',siding:'Siding or outside walls',ext_trim:'Outside trim',garage:'Garage door',fence:'Fence'};
+ const seen=new Set(),sw=(m.swatches||[]).concat(PALS.flatMap(p=>p[1].map(([n,h])=>({name:n,hex:h})))).filter(x=>!seen.has(x.name)&&seen.add(x.name));
+ b.innerHTML=`<img class="cpimg" src="${CP.img}" alt="Your photo">
+ <label>Pick a color</label><div class="pal">${sw.slice(0,15).map(s=>`<button class="sw" data-cphex="${esc(s.hex.toUpperCase())}|${esc(s.name)}"><span style="background:${esc(s.hex)}"></span>${esc(s.name)}</button>`).join('')}</div>
+ <label for="cp_word">Or say or type a color</label><input id="cp_word" placeholder="Example: light gray, navy blue, soft green" data-voice="Say a color">
+ <div style="display:flex;gap:10px;align-items:center;margin-top:8px"><input type="color" id="cp_pick" value="${CP.hex}" style="width:56px;height:42px;padding:0" aria-label="Pick any color"><b id="cp_cn">${esc(CP.name)}</b> <small class="muted" id="cp_hx">${CP.hex}</small></div>
+ <label for="cp_surf">What to paint</label><select id="cp_surf">${(m.surfaces||['walls']).map(k=>`<option value="${esc(k)}">${esc(SF[k]||k)}</option>`).join('')}</select>
+ <div class="btns"><button class="btn" id="cp_go" ${m.limit<1&&!m.creditUses?'':''}>Show it on the photo</button></div>
+ <small class="muted">${m.limit<1?'Photo previews are not in your plan yet.':'Takes about 20 seconds. Uses one photo preview from your plan.'}</small>
+ <div id="cp_out"></div>`;}
+function cpSet(hex,name){CP.hex=hex.toUpperCase();CP.name=name||'Your color';const a=$('cp_pick'),c=$('cp_cn'),h=$('cp_hx');if(a)a.value=CP.hex;if(c)c.textContent=CP.name;if(h)h.textContent=CP.hex;}
+document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.cpfile&&t.files[0]){const f=t.files[0];t.value='';const im=new Image();im.onload=()=>{const k=Math.min(1,1280/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);CP.img=c.toDataURL('image/jpeg',.85);CP.out=null;cpDraw();};im.src=URL.createObjectURL(f);}
+ else if(t.id==='cp_pick')cpSet(t.value,'Your color');
+ else if(t.id==='cp_word'){const h=wordColor(t.value);if(h)cpSet(h,t.value.trim());else if(t.value.trim())toast('I do not know that color yet. Pick one above.');}});
+document.addEventListener('click',async e=>{const b=e.target.closest&&e.target.closest('[data-cphex],#cp_go,[data-cpkeep]');if(!b)return;
+ if(b.dataset.cphex){const [h,n]=b.dataset.cphex.split('|');cpSet(h,n);return;}
+ if(b.dataset.cpkeep!==undefined){const sf=$('cp_surf');COL.push({where:sf?sf.options[sf.selectedIndex].text:'',brand:'',code:'',name:CP.name,hex:CP.hex});colorsDraw();toast('Added. Type the paint brand and code, then tap Save colors.');return;}
+ if(!CP.img)return;b.disabled=true;b.textContent='Making the preview...';
+ try{const r=await api('/api/colors',{image:CP.img,hex:CP.hex,surface:$('cp_surf').value});CP.out=r.image;$('cp_out').innerHTML=`<div class="two"><div><p class="cap">Before</p><img class="cpimg" src="${CP.img}" alt="Before"></div><div><p class="cap">After</p><img class="cpimg" src="${r.image}" alt="After"></div></div><div class="btns"><button class="btn" data-cpkeep="1">Keep this color for the job</button><a class="btn sec" href="${r.image}" download="color-preview.png">Save the picture</a></div><small class="muted">A preview, not a color match. Test a sample on the wall first.</small>`;}
+ catch(x){if(x)msg(x.message);}b.disabled=false;b.textContent='Show it on the photo';});
 function colorsDraw(){const b=$('cl_rows');if(!b)return;const s=$('accs_colors');if(s)s.textContent=COL.length?COL.length+(COL.length===1?' color':' colors'):'Optional';
  b.innerHTML=COL.length?COL.map((c,i)=>`<div class="crow"><input type="color" data-cli="${i}" data-clf="hex" value="${esc(c.hex||'#ffffff')}" aria-label="Color"><div style="flex:1;min-width:0"><input data-cli="${i}" data-clf="where" value="${esc(c.where)}" placeholder="Where (Example: Living room walls)"><div class="row" style="grid-template-columns:1fr 1fr 1.3fr;margin-top:6px"><input data-cli="${i}" data-clf="brand" value="${esc(c.brand)}" placeholder="Brand"><input data-cli="${i}" data-clf="code" value="${esc(c.code)}" placeholder="Code"><input data-cli="${i}" data-clf="name" value="${esc(c.name)}" placeholder="Color name"></div></div><button class="mini" data-cldel="${i}" aria-label="Remove">&times;</button></div>`).join(''):'<small class="muted">No colors yet.</small>';}
 document.addEventListener('input',e=>{const ds=e.target.dataset||{};if(ds.cli!==undefined&&COL[+ds.cli]){COL[+ds.cli][ds.clf]=e.target.value;}});
@@ -469,7 +505,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
 });
 
 // ---- Steps across the top of a bid ----
-const BSTEPS=[['req','Request'],['notes','Notes'],['type','Details'],['colors','Colors'],['sum','Summary'],['est','Estimate'],['close','Close']];
+const BSTEPS=[['req','Request'],['type','Details'],['colors','Colors'],['sum','Summary'],['est','Estimate'],['visit','Visit'],['close','Close']];
 function stepBar(){return `<nav class="steps" aria-label="Bid steps">${BSTEPS.map(([k,n],i)=>`<button class="stepb" data-stepgo="${k}"><span>${i+1}</span>${esc(n)}</button>`).join('')}</nav>`;}
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-stepgo]');if(!b)return;openAcc(b.dataset.stepgo);const a=$('acc_'+b.dataset.stepgo);if(a)a.scrollIntoView({behavior:'smooth',block:'start'});});
 
@@ -504,23 +540,11 @@ function protectCard(d){const j=d.job||{};const has=!!d.coverage;const can=has&&
 }function jobRow(j){return `<a class="job" href="/jobs?id=${j.id}"><div><b>${esc(j.title)}</b><br><small>${esc(j.customer)} &middot; ${esc(TRADES[j.trade]||j.trade)}</small>${j.followUpDue?`<br><small class="${j.followUpDue<=todayL()?'bad':'muted'}">Follow up ${esc(dtf(j.followUpDue))}</small>`:j.preferredDate&&(j.bucket==='new'||j.bucket==='estimates')?`<br><small class="muted">Wants it ${esc(dtf(j.preferredDate))}</small>`:''}</div><span>${covPill(j.coverage)}${j.signed?'<span class="sg">&#10003; Signed</span>':j.awaiting?'<span class="sg w">Awaiting signature</span>':''}<span class="tag">${esc(STAGE[j.stage]||j.stage)}</span></span></a>`;}
 async function list(){
   const {jobs}=await api('/api/jobs');window.PL=jobs;TAB=tabPick(jobs);
-  $('view').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:4px 0 0">Jobs</h2><button class="btn" id="n_show">+ New bid</button></div>
-  <div id="n_box" style="display:none"><div class="card" style="margin-top:10px"><p class="muted" style="margin-top:0">For a bid that did not come through your website, like a referral or a repeat customer. Saving opens the bid so you can start the estimate.</p>
-   <label>Customer name</label><input id="n_name" placeholder="Example: Maria Lopez">
-   <div class="row"><div><label>Phone</label><input id="n_phone" type="tel" placeholder="Example: 214-555-0123"></div><div><label>Email</label><input id="n_email" type="email" placeholder="Example: maria@email.com"></div></div>
-   <label>Job address</label><input id="n_addr" placeholder="Example: 123 Main St">
-   <div class="row"><div><label>City</label><input id="n_city" placeholder="Example: Dallas"></div><div><label>Zip</label><input id="n_zip" inputmode="numeric" placeholder="Example: 75201"></div></div>
-   <label>Service</label><select id="n_trade">${Object.entries(TRADES).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('')}</select>
-   <label>Short title</label><input id="n_title" placeholder="Example: Repaint 3 bedrooms">
-   <label>What they asked for (optional)</label><textarea id="n_desc" rows="2" placeholder="Example: Bedrooms and hallway, ceilings too. Light colors."></textarea>
-   <div class="row"><div><label>When they would like it</label><input id="n_date" type="date"></div><div><label>Best time</label><select id="n_time"><option value="">Any time</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select></div></div>
-   <div class="btns"><button class="btn" id="n_go">Save and start the estimate</button></div></div></div>
-  <div class="ptabs" id="pl_tabs" role="toolbar" aria-label="Pipeline" style="margin-top:12px"></div><div id="pl_list"></div>
-  <details class="acc" style="margin-top:22px"><summary><span class="at">Job assistant</span><span class="asub">Ask any painting or business question</span></summary><div class="accin">${assistantCard(null)}</div></details>`;
+  const showTabs=TAB!=='open';
+  $('view').innerHTML=`<div class="jh"><button type="button" class="jtoggle" id="pl_toggle" aria-expanded="${showTabs}" aria-controls="pl_tabs" title="Show the job lists"><h2>Jobs</h2><span class="car" aria-hidden="true">&#9662;</span></button><a class="btn" id="n_show" href="/jobs?new=1">+ New bid</a></div>
+  <div class="ptabs" id="pl_tabs" role="toolbar" aria-label="Job lists" style="margin-top:12px;${showTabs?'':'display:none'}"></div><div id="pl_list"></div>`;
   tabDraw(jobs);
-  $('n_show').onclick=()=>{const b=$('n_box');b.style.display=b.style.display==='none'?'block':'none';if(b.style.display==='block')$('n_name').focus();};
-  micInit();chatDraw();
-  $('n_go').onclick=async()=>{try{msg('');const nm=$('n_name').value.trim();const r=await api('/api/jobs',{name:nm,email:$('n_email').value,phone:$('n_phone').value,address:$('n_addr').value,city:$('n_city').value,zip:$('n_zip').value,title:$('n_title').value.trim()||('Bid for '+nm),trade:$('n_trade').value,description:$('n_desc').value,preferredDate:$('n_date').value,preferredTime:$('n_time').value});try{localStorage.setItem('pm_jobtab','new');}catch(x){}location.href='/jobs?id='+r.jobId;}catch(e){msg(e.message);}};
+  $('pl_toggle').onclick=()=>{const b=$('pl_tabs'),o=b.style.display==='none';b.style.display=o?'':'none';$('pl_toggle').setAttribute('aria-expanded',String(o));if(!o&&TAB!=='open'){TAB='open';try{localStorage.setItem('pm_jobtab','open');}catch(x){}history.replaceState(null,'','/jobs');tabDraw(window.PL);}};
 }
 
 function qtyFields(rc){
@@ -601,7 +625,7 @@ const GUESS={interior:'interior',exterior:'exterior',power_washing:'power_wash',
 const guessType=t=>GUESS[t]||'custom';
 let BF=null,bfT=null;
 
-function headCard(d){const j=d.job;const tel=String(j.customerPhone||'').replace(/[^\d+]/g,'');const addr=[j.address,j.city,j.zip].filter(Boolean).join(', ');
+function headCard(d){const j=d.job;const tel=String(j.customerPhone||'').replace(/[^\d+]/g,'');const addr=[j.address,j.city,[j.state,j.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
  const pill=d.coverage?covPill(d.coverage.status):'';
  return `<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div><b style="font-size:17px">${esc(j.customerName)}</b> <span class="tag">${esc(STAGE[j.stage]||j.stage)}</span> ${pill}</div><button class="mini ed" data-dtedit="1">Edit details</button></div>
  <div class="contact">${tel?`<a class="cbtn" href="tel:${esc(tel)}">Call</a><a class="cbtn" href="sms:${esc(tel)}">Text</a>`:''}${j.customerEmail?`<a class="cbtn" href="mailto:${esc(j.customerEmail)}">Email</a>`:''}${addr?`<a class="cbtn" target="_blank" rel="noopener" href="https://maps.google.com/?q=${encodeURIComponent(addr)}">Map</a>`:''}</div>
@@ -617,10 +641,10 @@ const vTime=t=>{const m=/^(\d\d):(\d\d)$/.exec(t||'');if(!m)return '';const h=+m
 const vWhen=v=>dtf(v.date)+(vTime(v.time)?' at '+vTime(v.time):'');
 const todayL=()=>new Date(Date.now()-6*36e5).toISOString().slice(0,10);
 function gcalVisit(d){const v=d.visit,j=d.job;if(!v)return '';const dd=v.date.replace(/-/g,'');let dates;if(v.time){const t=v.time.replace(':','')+'00';const e=String((+v.time.slice(0,2)+1)%24).padStart(2,'0')+v.time.slice(3)+'00';dates=dd+'T'+t+'/'+dd+'T'+e;}else{const n=new Date(v.date+'T00:00:00Z');n.setUTCDate(n.getUTCDate()+1);dates=dd+'/'+n.toISOString().slice(0,10).replace(/-/g,'');}
- const addr=[j.address,j.city,j.zip].filter(Boolean).join(', ');return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Site visit - '+j.customerName)+'&dates='+dates+'&details='+encodeURIComponent((v.notes||'')+'\nJob: https://paintersmax.app/jobs?id='+j.id)+'&location='+encodeURIComponent(addr);}
+ const addr=[j.address,j.city,[j.state,j.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('Site visit - '+j.customerName)+'&dates='+dates+'&details='+encodeURIComponent((v.notes||'')+'\nJob: https://paintersmax.app/jobs?id='+j.id)+'&location='+encodeURIComponent(addr);}
 function visitSub(d){const v=d.visit;if(!v)return 'Optional';if(v.status==='booked')return vWhen(v);if(v.status==='done')return 'Done';return 'Cancelled';}
 function visitCard(d){const v=d.visit,j=d.job;const booked=v&&v.status==='booked';const est=d.estimate&&d.estimate.estimate;
- const top=booked?`<p style="margin-top:0"><b>Booked: ${esc(vWhen(v))}</b><br><small class="muted">${v.notify?(v.confirmedAt?'The customer was emailed a confirmation and gets a reminder the day before.':'The customer email has not gone out yet. Tap Save visit to send it.'):'The customer is not emailed about this visit.'}</small></p>`:v&&v.status==='done'?`<p style="margin-top:0"><b>Visit done</b> <small class="muted">(${esc(dtf(v.date))})</small></p>`:v&&v.status==='cancelled'?`<p class="muted" style="margin-top:0">The visit on ${esc(dtf(v.date))} was cancelled. You can book a new one.</p>`:`<p class="muted" style="margin-top:0">Booking a walk-through puts it on your calendar. You can also email the customer a confirmation and a friendly reminder the day before. Nothing is emailed unless you tick the box.</p>`;
+ const top=booked?`<p style="margin-top:0"><b>Booked: ${esc(vWhen(v))}</b><br><small class="muted">${v.notify?(v.confirmedAt?'The customer was emailed a confirmation and gets a reminder the day before.':'The customer email has not gone out yet. Tap Save visit to send it.'):'The customer is not emailed about this visit.'}</small></p>`:v&&v.status==='done'?`<p style="margin-top:0"><b>Visit done</b> <small class="muted">(${esc(dtf(v.date))})</small></p>`:v&&v.status==='cancelled'?`<p class="muted" style="margin-top:0">The visit on ${esc(dtf(v.date))} was cancelled. You can book a new one.</p>`:`<p style="margin-top:0">Need to see the place, or go back to measure? Pick a day and time below and tap <b>Book</b>. It goes on your calendar.</p><small class="muted" style="display:block;margin-bottom:8px">Tick the box if you want the customer to get a confirmation email and a reminder the day before. Nothing is emailed unless you tick it. At the visit, add what you see in Visit notes below.</small>`;
  const dv=booked?v.date:'',tv=booked?v.time:'',nv=booked?v.notes:'',lg=booked?v.lang:(est&&est.language==='es'?'es':'en');
  const nt=booked?!!v.notify:!!j.customerEmail;
  return `<div class="card">${top}<div class="row"><div><label>Date</label><input type="date" id="vs_date" min="${todayL()}" value="${esc(dv)}"></div><div><label>Time (optional)</label><input type="time" id="vs_time" value="${esc(tv)}"></div></div>
@@ -636,10 +660,13 @@ function soCard(d){const s=d.signoff,j=d.job;const nm=esc(String(j.customerName|
  const late=['invoiced','closed'].includes(j.stage)||(s&&s.acceptedAt);
  if(late)h+=`<h3 style="margin:16px 0 4px">Review request</h3>${d.reviewAskedAt?`<p style="margin:0 0 6px"><b>Review request sent ${esc(dtf(String(d.reviewAskedAt).slice(0,10)))}.</b></p>`:''}<p class="muted" style="margin:0 0 6px">A short thank-you email that asks for a review. You read it first, and nothing is sent until you tap Send.</p><div class="btns" style="margin-top:0"><button class="btn sec" data-rvprev="${lg}" ${em?'':'disabled'}>${d.reviewAskedAt?'Write another review request':'Write the review request'}</button></div><div id="rv_box"></div>`;
  return `<div class="card">${h}</div>`;}
+function bidLink(d){return `<a class="btn big dark" style="display:block;text-align:center;text-decoration:none;margin:0 0 12px" href="/jobs?id=${d.job.id}&bid=1">Open the bid screen: talk, photos, quick price</a>`;}
+function nextSteps(d){const L=d.layout,b=d.bid;if(!L||!b||!b.tools||!b.tools.length)return '';const pick=L.tools.filter(t=>b.tools.includes(t.id));if(!pick.length)return '';
+ return `<div class="card nsteps"><b>Next steps you picked for this bid</b>${pick.map(t=>`<div style="margin-top:8px">&#8226; <b>${esc(t.label)}</b><br><small class="muted">${esc(t.hint)}</small></div>`).join('')}<small class="muted" style="display:block;margin-top:8px"><a href="/jobs?id=${d.job.id}&bid=1">Change them on the bid screen</a></small></div>`;}
 function nextStep(d){const j=d.job,e=d.estimate,st=j.stage;const nm=String(j.customerName||'the customer').split(/\s+/)[0];let t='';
  const vs=d.visit&&d.visit.status==='booked'?d.visit:null;
  if(st==='lead'&&vs&&!e)t=vs.date<todayL()?`The visit on ${dtf(vs.date)} is still marked as booked. Open Site visit and tap Mark visit done once you have been there.`:`Visit ${vWhen(vs)}. Take photos and notes, then tap Create estimate.`;
- else if(st==='lead')t=e?`You started an estimate. Review it, then send it to ${nm}.`:`This is a new lead. If you want to see the place first, book a site visit. Otherwise follow the steps at the top: add your notes and colors, then open Summary and build the estimate.`;
+ else if(st==='lead')t=e?`You started an estimate. Review it, then send it to ${nm}.`:`This is a new bid. Open the bid screen to talk through the job and take photos, then get a quick price or write the full estimate.`;
  else if(st==='bid')t=e&&e.status==='sent'?`Estimate sent. Waiting for ${nm} to approve it. A friendly call or text often helps.`:`Your estimate is saved. Send it to ${nm} when it looks right.`;
  else if(st==='contract')t=`Contract stage. Record the deposit when it arrives, then add the job to the calendar. If the crew is already working, tap Start the job.`;
  else if(st==='scheduled'){const sc=d.schedule,td=new Date(Date.now()-6*36e5).toISOString().slice(0,10);t=sc&&sc.start?(sc.start<=td?`The start date (${dtf(sc.start)}) is here. Tap Start the job when the crew begins.`:`Scheduled for ${dtf(sc.start)}. Record the deposit if you have not, and make crew instructions and a materials list. When the crew begins, tap Start the job.`+(sc.startNotice?(sc.noticed&&sc.noticed===sc.start?` ${nm} was emailed the "We start tomorrow" notice.`:` ${nm} will be emailed a "We start tomorrow" notice the day before.`):'')):`Scheduled. Record the deposit if you have not, and make crew instructions and a materials list. When the crew begins, tap Start the job.`;}
@@ -650,7 +677,7 @@ function nextStep(d){const j=d.job,e=d.estimate,st=j.stage;const nm=String(j.cus
  const go=(st==='contract'||st==='scheduled')?`<div class="btns" style="margin-top:8px"><button class="btn" data-startjob="1">Start the job</button></div>`:'';
  return t?`<div class="next"><b>Next:</b> ${esc(t)}${go}</div>`:'';}
 
-function briefCard(){return `<div class="card"><label style="margin-top:0">What kind of job is it?</label><div class="jtypes" id="bf_types"></div>
+function briefCard(){return `<div class="card"><div class="jtypes" id="bf_types" style="display:none"></div>
  <label for="bf_details">Tell me about it. Type it, or tap the mic and talk.</label>
  <textarea id="bf_details" rows="4" placeholder="Example: Two bedrooms and the hall. Walls are in good shape. Customer wants it done before Thanksgiving."></textarea>
  <div class="btns" style="margin-top:6px"><button type="button" class="btn sec mic" id="bf_mic" style="display:none" aria-label="Speak your notes"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4"/></svg>Mic</button></div>
@@ -727,7 +754,7 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
  else if(t.closest&&t.closest('#bf_mic')){micToggle($('bf_mic'),()=>window.PM_LANG==='es'?'es-US':'en-US',x=>{const d=$('bf_details');d.value=((d.value?d.value+' ':'')+x).trim();BF.details=d.value;bfSaveSoon();});}
 });
 async function detail(id){
-  const sy=window.scrollY;const d=await api('/api/job?id='+id);J=d;const j=d.job,e=d.estimate;
+  const sy=window.scrollY;const d=await api('/api/job?id='+id);J=d;window.J=d;const j=d.job,e=d.estimate;
   lines=e&&e.estimate?e.estimate.lines.map(l=>({description:l.description,qty:l.qty,unit:l.unit,unitPrice:l.unitCents/100,section:l.section})):[];OPTS=e&&e.estimate&&e.estimate.optionalSections?e.estimate.optionalSections.slice():[];COL=(d.colors||[]).map(c=>({...c}));
   const qf=qtyFields(d.rateCard);const est=e&&e.estimate?e.estimate:{};const ct=d.contract&&d.contract.contract?d.contract.contract:{};sched=(est.schedule||[]).map(m=>({...m}));cost=est.costBuild?{items:(est.costBuild.items||[]).map(c=>({...c})),markupPct:est.costBuild.markupPct||0}:{items:[],markupPct:0};clauses=ct.clauses?ct.clauses.map(c=>({...c})):[];
   BF=d.brief?{...d.brief,answers:{...(d.brief.answers||{})}}:{type:guessType(j.trade),details:'',answers:{},photoNote:''};
@@ -741,14 +768,13 @@ async function detail(id){
   ${st==='lost'?lostCard(d):''}
   ${early?stepBar():''}
   <h3 class="grp">${early?'Bid':'Estimate'}</h3>
+  ${early?bidLink(d):''}
+  ${nextSteps(d)}
   ${acc('req','1. Customer request',reqSub(d),early&&!e&&!(d.fieldNotes||[]).length,reqCard(d))}
-  ${early||d.visit?acc('visit','Site visit booking',visitSub(d),!!(d.visit&&d.visit.status==='booked')&&early,visitCard(d)):''}
-  ${acc('notes','2. Site visit notes','',early&&!e,notesCard())}
-  ${acc('type','3. Job details and photos','',early&&!e,briefCard())}
-  ${acc('colors','4. Colors','',false,colorsCard())}
-  ${acc('help','Ask the Job assistant','Photo questions, paint and prep advice, a second opinion on your price',false,assistantCard(j.id))}
-  ${acc('sum','5. Project summary','',false,sumCard())}
-  ${acc('est','6. Estimate',estSub,early&&(!!e||lines.length>0),`<div class="card">
+  ${acc('type','2. Job details and photos','',early&&!e,briefCard())}
+  ${acc('colors','3. Colors','',false,colorsCard())}
+  ${acc('sum','4. Project summary','',false,sumCard())}
+  ${acc('est','5. Estimate',estSub,early&&(!!e||lines.length>0),`<div class="card">
    <label style="margin-top:0">Scope of work (what the customer gets)</label><textarea id="scope" rows="4" placeholder="Tap Create estimate above and I will write this for you, or type your own.">${esc(est.scope||'')}</textarea>
    <div id="lines" style="margin-top:12px"></div>
    <div class="btns"><button class="btn sec" id="addline">+ Add a line</button></div>
@@ -785,7 +811,10 @@ async function detail(id){
     <div id="cost"></div>
     <label>Notes for the customer</label><textarea id="notes" rows="3">${esc(est.notes||'')}</textarea>
    </div></details></div>`)}
+  ${early||d.visit?acc('visit','6. Site visit',visitSub(d),!!(d.visit&&d.visit.status==='booked')&&early,visitCard(d)+'<h4 style="margin:14px 0 4px">Visit notes</h4>'+notesCard()):acc('visit','Visit notes',(d.fieldNotes||[]).length?(d.fieldNotes.length+' notes'):'',false,notesCard())}
   ${(early||st==='contract')?acc('close','7. Close the sale',d.followUp?'Follow up '+dtf(d.followUp.due):st==='contract'?'Deposit and dates':e?'Yes, think, or follow up':'After the estimate',early&&!!e&&e.status==='sent'||st==='contract',closeCard(d)):''}
+
+  ${acc('help','Ask about this job','Photo questions, paint and prep advice, a second opinion on your price',false,assistantCard(j.id))}
 
   <h3 class="grp">After the customer says yes</h3>
   <p class="muted grpn">Deposit, contract, schedule, crew, and changes the customer asks for.</p>
@@ -815,7 +844,7 @@ async function detail(id){
   ${acc('ls','Lessons learned','',false,lsCard())}
   ${st!=='lost'&&st!=='closed'?acc('lost','Lost this job?','',false,lostCard(d)):''}
   ${acc('hist','Job history','',false,`<div class="card">${d.events.map(v=>`<div class="ev"><b>${esc(v.kind)}</b> &middot; ${esc(dtf((v.at||'').slice(0,10)))}<br>${esc(v.text).slice(0,600)}</div>`).join('')||'<small>Nothing yet.</small>'}</div>`)}
-  <div class="card"><small class="muted">Expenses, mileage and receipts for this job are kept in <a href="/records">Records</a>. Your full job file (photos and documents in one download) is in Records, under Download.</small></div>`;
+  <div class="card"><small class="muted">Everything about this job is saved here, under <b>${esc(j.title)}</b>: notes, photos, the estimate and every document. Expenses, mileage and receipts are in <a href="/records?job=${j.id}">Records</a>, where you can also download the whole job file in one go.</small></div>`;
   bfDraw();
   drawLines();sigLoad(j.id,e,d.contract);
   const f=$('fill');if(f)f.onclick=async()=>{try{msg('');const quantities={};document.querySelectorAll('[data-q]').forEach(i=>{if(i.value!=='')quantities[i.dataset.q]=Number(i.value);});const r=await api('/api/estimate',{action:'draft',jobId:j.id,quantities});if(!r.lines.length)throw new Error('Enter at least one quantity first.');lines=r.lines;drawLines();msg('Lines filled. Review and change anything you like.',true);}catch(e){if(e)msg(e.message);}};
@@ -917,5 +946,5 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
 document.addEventListener('input',e=>{const t=e.target,ds=t.dataset||{};if(ds.dk&&ds.df){const d=docs[ds.dk];if(!d)return;if(ds.di!==undefined)d.items[+ds.di][ds.df]=ds.df==='qty'?(Number(t.value)||0):t.value;else d[ds.df]=t.value;}});
 document.addEventListener('input',e=>{const t=e.target;if(t.dataset&&t.dataset.ci!==undefined){clauses[+t.dataset.ci][t.dataset.cf]=t.value;return;}if(t.dataset&&t.dataset.f!==undefined){if(t.dataset.f==='section')return;lines[+t.dataset.i][t.dataset.f]=t.value;drawTotals();}else if(t.id==='discount'||t.id==='tax')drawTotals();});
 document.addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.del;if(d!==undefined&&d!==''){lines.splice(+d,1);drawLines();}});
-(async()=>{try{const id=new URLSearchParams(location.search).get('id');id?await detail(id):await list();}catch(e){if(e)$('view').innerHTML='<p class="bad">'+esc(e.message||'Could not load.')+'</p>';}})();
+(async()=>{try{const sp=new URLSearchParams(location.search),id=sp.get('id');if(sp.get('new'))await newBid();else if(sp.get('services'))await servicesPage();else if(id&&sp.get('bid'))await bidScreen(id);else if(id){await detail(id);if(sp.get('draft')){history.replaceState(null,'','/jobs?id='+id);openAcc('type');bfCreate();}}else await list();}catch(e){if(e)$('view').innerHTML='<p class="bad">'+esc(e.message||'Could not load.')+'</p>';}})();
 </script><script src="/aithumbs.js"></script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>
