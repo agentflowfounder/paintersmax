@@ -51,7 +51,7 @@
     }
     // The browser tab icon, the voice recorder and the Ask button come with the menu, so every app page has them.
     if (!document.querySelector('link[rel~="icon"]')) { var ic = document.createElement('link'); ic.rel = 'icon'; ic.type = 'image/svg+xml'; ic.href = '/favicon.svg'; document.head.appendChild(ic); }
-    ['/voice.js', '/ask.js', '/logo-apply.js'].forEach(function (src) {
+    ['/voice.js', '/livevoice.js', '/ask.js', '/logo-apply.js'].forEach(function (src) {
       if (document.querySelector('script[src="' + src + '"]')) return;
       var sc = document.createElement('script'); sc.src = src; sc.async = false; document.body.appendChild(sc);
     });

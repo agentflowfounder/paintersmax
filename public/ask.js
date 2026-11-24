@@ -40,7 +40,7 @@
   fab.id = 'pm_ask'; fab.type = 'button'; fab.textContent = T('Ask'); fab.setAttribute('aria-label', T('Ask the assistant'));
   var p = document.createElement('div');
   p.id = 'pm_askp'; p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', T('Ask the assistant'));
-  p.innerHTML = '<div class="ah"><b>' + T('Ask anything') + '</b><button type="button" class="hb" id="pm_ask_hist">' + T('History') + '</button><button type="button" class="hb" id="pm_ask_new">' + T('New chat') + '</button><button type="button" class="hb" id="pm_ask_dl">' + T('Download') + '</button><label class="tm"><input type="checkbox" id="pm_talk"> ' + T('Read answers aloud') + '</label><button type="button" id="pm_askx" aria-label="' + T('Close') + '">&times;</button></div>' +
+  p.innerHTML = '<div class="ah"><b>' + T('Ask anything') + '</b><button type="button" class="hb" id="pm_ask_hist">' + T('History') + '</button><button type="button" class="hb" id="pm_ask_new">' + T('New chat') + '</button><button type="button" class="hb" id="pm_ask_dl">' + T('Download') + '</button><button type="button" class="hb" id="pm_ask_live" title="' + T('Talk with the assistant out loud, like a phone call') + '">' + T('Talk live') + '</button><label class="tm"><input type="checkbox" id="pm_talk"> ' + T('Read answers aloud') + '</label><button type="button" id="pm_askx" aria-label="' + T('Close') + '">&times;</button></div>' +
     '<div class="al" id="pm_askl" aria-live="polite"></div>' +
     '<div class="af" id="pm_askf"><button type="button" class="mc" id="pm_askm" aria-label="' + T('Talk') + '">' + (window.pmVoice ? window.pmVoice.MIC : '&#127908;') + '</button><textarea id="pm_aski" rows="1" placeholder="' + T('Type your question') + '"></textarea><button type="button" class="snd" id="pm_asks">' + T('Send') + '</button></div>' +
     '<div class="ft">' + T('Answers are suggestions. Check numbers and safety rules before you rely on them. Each question uses one of your monthly assistant questions.') + '</div>';
@@ -177,6 +177,15 @@
     $('pm_ask_hist').onclick = function () { view = view === 'hist' ? 'chat' : 'hist'; draw(); };
     $('pm_ask_new').onclick = function () { hist = []; convId = null; view = 'chat'; save(); draw(); };
     $('pm_ask_dl').onclick = download;
+    $('pm_ask_live').onclick = function () {
+      if (!window.pmLive) { alert(T('Live voice is still loading. Try again in a second.')); return; }
+      try { speechSynthesis.cancel(); } catch (e) {}
+      window.pmLive.open({ page: location.pathname, jobId: jobId(), language: es() ? 'es' : 'en', onEnd: function (tr) {
+        if (!tr || !tr.length) return;
+        tr.forEach(function (l) { hist.push({ role: l.who === 'you' ? 'user' : 'assistant', content: l.text }); });
+        save(); view = 'chat'; draw();
+      } });
+    };
     $('pm_aski').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(this.value); } });
     $('pm_talk').onchange = function () { talk = this.checked; if (!talk) try { speechSynthesis.cancel(); } catch (e) {} };
     $('pm_askl').addEventListener('click', function (e) {
