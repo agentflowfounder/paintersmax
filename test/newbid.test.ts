@@ -63,3 +63,11 @@ test("a note keeps its photos", () => {
   assert.deepEqual(n.photos, [5, 6]);
   assert.equal(cleanNote({ text: "No photos" }, "2026-11-24T00:00:00.000Z")!.photos, undefined);
 });
+
+test("paid plans use Gemini voice typing, the Free plan and a missing key use the phone's speech", async () => {
+  const { chooseEngine } = await import("../src/voicesession.ts");
+  assert.equal(chooseEngine("basic", true), "gemini");
+  assert.equal(chooseEngine("pro", true), "gemini");
+  assert.equal(chooseEngine("free", true), "device");
+  assert.equal(chooseEngine("basic", false), "device");
+});

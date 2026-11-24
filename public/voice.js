@@ -58,9 +58,9 @@
       '<div class="pmv-row"><button type="button" class="pmv-cancel">' + T('Cancel') + '</button><button type="button" class="pmv-stop">' + T('Done') + '</button></div>';
     document.body.appendChild(box);
     var txt = box.querySelector('.pmv-txt'), st = box.querySelector('.pmv-st'), tm = box.querySelector('.pmv-tm');
-    var finals = [], interim = '', want = true, rec = null, started = Date.now(), lastHeard = Date.now(), nudges = 0, quick = 0, t0 = 0;
+    var finals = [], interim = '', want = true, rec = null, started = Date.now(), lastHeard = Date.now(), nudges = 0, quick = 0, t0 = 0, g = '', gstop = null;
     var draw = function () {
-      var f = finals.join(' ');
+      var f = (finals.join(' ') + ' ' + g).trim();
       txt.innerHTML = f || interim ? esc(f) + (interim ? ' <i>' + esc(interim) + '</i>' : '') : '<span class="pmv-ph">' + T('Listening...') + '</span>';
       txt.scrollTop = txt.scrollHeight;
     };
@@ -76,10 +76,11 @@
       if (!want && !box.parentNode) return;
       want = false; clearInterval(timer);
       try { rec && rec.stop(); } catch (e) {}
+      if (gstop) gstop();
       if (box.parentNode) box.parentNode.removeChild(box);
       document.removeEventListener('keydown', onKey);
       cur = null;
-      var text = (finals.join(' ') + (interim ? ' ' + interim : '')).replace(/\s+/g, ' ').trim();
+      var text = (finals.join(' ') + ' ' + g + (interim ? ' ' + interim : '')).replace(/\s+/g, ' ').trim();
       if (keep && text && o.onDone) o.onDone(text);
       if (o.onClose) o.onClose(keep ? text : '');
     }
@@ -120,7 +121,69 @@
       };
       try { r.start(); } catch (e) { setTimeout(begin, 400); }
     };
-    begin();
+    // Paid plans: Gemini Transcribe Live through a one-use token from our server. Anything that goes wrong falls back to the phone's own speech.
+    function startGemini(info) {
+      var ws = null, stream = null, ac = null, node = null, src = null, ready = false, heard = false, dead = false;
+      function fallback() {
+        if (dead) return; dead = true; gstop();
+        if (want) { st.textContent = T('Listening'); begin(); }
+      }
+      gstop = function () {
+        gstop = function () {};
+        try { node && node.disconnect(); src && src.disconnect(); } catch (e) {}
+        try { ac && ac.close(); } catch (e) {}
+        try { stream && stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+        try { ws && ws.close(); } catch (e) {}
+      };
+      var guard = setTimeout(function () { if (!heard && !dead) fallback(); }, 8000);
+      try {
+        ws = new WebSocket('wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=' + encodeURIComponent(info.token));
+      } catch (e) { clearTimeout(guard); return fallback(); }
+      ws.onopen = function () {
+        ws.send(JSON.stringify({ setup: { model: 'models/' + info.model, generationConfig: { responseModalities: ['TEXT'] }, inputAudioTranscription: {} } }));
+      };
+      ws.onerror = function () { clearTimeout(guard); fallback(); };
+      ws.onclose = function () { clearTimeout(guard); if (!dead && want) fallback(); };
+      ws.onmessage = function (ev) {
+        Promise.resolve(typeof ev.data === 'string' ? ev.data : ev.data.text()).then(function (raw) {
+          var m; try { m = JSON.parse(raw); } catch (e) { return; }
+          if (m.setupComplete && !ready) { ready = true; capture(); return; }
+          var sc = m.serverContent; if (!sc) return;
+          var add = (sc.inputTranscription && sc.inputTranscription.text) || '';
+          if (!add && sc.modelTurn && sc.modelTurn.parts) add = sc.modelTurn.parts.map(function (x) { return x.text || ''; }).join('');
+          if (!add) return;
+          heard = true; g += add; lastHeard = Date.now(); nudges = 0; box.classList.remove('quiet'); st.textContent = T('Listening'); draw();
+        });
+      };
+      function capture() {
+        navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (s2) {
+          if (dead || !want) { s2.getTracks().forEach(function (t) { t.stop(); }); return; }
+          stream = s2;
+          ac = new (window.AudioContext || window.webkitAudioContext)();
+          src = ac.createMediaStreamSource(stream);
+          node = ac.createScriptProcessor(4096, 1, 1);
+          var ratio = ac.sampleRate / 16000;
+          node.onaudioprocess = function (e) {
+            if (!ws || ws.readyState !== 1) return;
+            var inp = e.inputBuffer.getChannelData(0), n = Math.floor(inp.length / ratio), pcm = new Int16Array(n);
+            for (var i = 0; i < n; i++) { var v = Math.max(-1, Math.min(1, inp[Math.floor(i * ratio)])); pcm[i] = v < 0 ? v * 32768 : v * 32767; }
+            var bin = '', u8 = new Uint8Array(pcm.buffer);
+            for (var j = 0; j < u8.length; j++) bin += String.fromCharCode(u8[j]);
+            ws.send(JSON.stringify({ realtimeInput: { audio: { data: btoa(bin), mimeType: 'audio/pcm;rate=16000' } } }));
+          };
+          src.connect(node); node.connect(ac.destination);
+        }).catch(function (err) {
+          clearTimeout(guard); dead = true; gstop();
+          if (err && (err.name === 'NotAllowedError' || err.name === 'SecurityError')) { want = false; box.classList.add('off'); st.textContent = errText('not-allowed'); clearInterval(timer); }
+          else if (want) begin();
+        });
+      }
+    }
+    if (o.engine === 'device') begin();
+    else fetch('/api/voice/session', { method: 'POST', credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : { engine: 'device' }; })
+      .catch(function () { return { engine: 'device' }; })
+      .then(function (info) { if (!want) return; if (info && info.engine === 'gemini' && info.token && window.WebSocket && navigator.mediaDevices) startGemini(info); else begin(); });
     return cur;
   }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }

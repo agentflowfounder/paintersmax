@@ -12,6 +12,7 @@ export interface Env {
   YOUTUBE_API_KEY?: string; // secret: YouTube Data API v3 (search only; playing a pasted video needs no key)
   OPENAI_API_KEY?: string;
   GEMINI_API_KEY?: string;
+  GEMINI_TRANSCRIBE_MODEL?: string;
   RESEND_API_KEY?: string;
   // Plain variables (wrangler.jsonc "vars")
   NOTIFY_EMAIL?: string;
