@@ -3,13 +3,14 @@ import { getSessionUser } from "./auth.ts";
 import { extraCitiesFor } from "./sitebuilder.ts";
 import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } from "./profile.ts";
 import { consume, normalizePlan, refund } from "./usage.ts";
-import { ask, buildJobContext, completeEx, draftCoverNote, sanitizeHistory } from "./assistant.ts";
+import { ask, askAnything, buildJobContext, completeEx, draftCoverNote, sanitizeHistory } from "./assistant.ts";
 import type { Env } from "./types.ts";
 import { labelsFor } from "./ratecatalog.ts";
 import { commercialBlockedMessage, loadCommercialStatus } from "./commercial.ts";
 import { computeTotals, draftLines, guessSection, milestoneAmounts, quantityOptions, renderEstimateHtml, sanitizeEstimate, scheduleIsValid } from "./estimate.ts";
 import { bucketFor } from "./pipeline.ts";
-import { addNote, cleanColors, cleanNote, cleanRequest, notesForPrompt, readNotes, type FollowUp } from "./fieldnotes.ts";
+import { addNote, cleanColors, cleanNote, cleanPhotoIds, cleanRequest, notesForPrompt, readNotes, type FollowUp } from "./fieldnotes.ts";
+import { cleanBid, cleanToolPrefs, formatPhone, layoutsFor, parseQuickPrice, QUICK_PRICE_SYSTEM, serviceFor } from "./services.ts";
 import { addDaysIso, isIsoDate } from "./dates.ts";
 import { defaultClauses, renderContractHtml, sanitizeContract } from "./contract.ts";
 import { loadHowToPay, loadPayments, sumPaid } from "./payments.ts";
@@ -28,6 +29,7 @@ import { documentAttachment, htmlToPdf } from "./pdf.ts";
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 
+const stateOf = (v: unknown) => (/^[A-Za-z]{2}$/.test(String(v ?? "").trim()) ? String(v).trim().toUpperCase() : "");
 const parse = (s: string | null | undefined) => {
   try {
     return s ? JSON.parse(s) : {};
@@ -156,15 +158,15 @@ export async function handleJobs(request: Request, env: Env): Promise<Response> 
     }
     if (!customerId) {
       const ins = await env.DB.prepare("INSERT INTO customers (company_id, name, email, phone) VALUES (?, ?, ?, ?)")
-        .bind(user.companyId, name, email, text(b?.phone, 40) || null)
+        .bind(user.companyId, name, email, formatPhone(text(b?.phone, 40)) || null)
         .run();
       customerId = Number(ins.meta.last_row_id);
     }
     const address = text(b?.address, 160);
     let propertyId: number | null = null;
     if (address) {
-      const p = await env.DB.prepare("INSERT INTO properties (company_id, customer_id, address, city, zip) VALUES (?, ?, ?, ?, ?)")
-        .bind(user.companyId, customerId, address, text(b?.city, 60) || null, text(b?.zip, 10) || null)
+      const p = await env.DB.prepare("INSERT INTO properties (company_id, customer_id, address, city, state, zip) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(user.companyId, customerId, address, text(b?.city, 60) || null, stateOf(b?.state) || null, text(b?.zip, 10) || null)
         .run();
       propertyId = Number(p.meta.last_row_id);
     }
@@ -175,6 +177,25 @@ export async function handleJobs(request: Request, env: Env): Promise<Response> 
     const jobId = Number(job.meta.last_row_id);
     await addJobEvent(env, user.companyId, jobId, "note", `New bid added by hand.${req.description ? ` Request: ${req.description}` : ""}`);
     return json({ ok: true, jobId });
+  }
+
+  // Customer lookup for the New bid screen: a repeat customer's details fill in by themselves.
+  const find = new URL(request.url).searchParams.get("find");
+  if (find !== null) {
+    const q = find.trim().toLowerCase().slice(0, 60);
+    if (q.length < 2) return json({ customers: [] });
+    const digits = q.replace(/\D/g, "");
+    const like = `%${q.replace(/[%_]/g, "")}%`;
+    const found = await env.DB.prepare(
+      `SELECT c.id, c.name, c.email, c.phone,
+              (SELECT p.address FROM properties p WHERE p.customer_id = c.id ORDER BY p.id DESC LIMIT 1) AS address,
+              (SELECT p.city FROM properties p WHERE p.customer_id = c.id ORDER BY p.id DESC LIMIT 1) AS city,
+              (SELECT p.state FROM properties p WHERE p.customer_id = c.id ORDER BY p.id DESC LIMIT 1) AS state,
+              (SELECT p.zip FROM properties p WHERE p.customer_id = c.id ORDER BY p.id DESC LIMIT 1) AS zip
+         FROM customers c WHERE c.company_id = ? AND (lower(c.name) LIKE ? OR lower(COALESCE(c.email,'')) LIKE ? OR (? != '' AND replace(replace(replace(replace(replace(COALESCE(c.phone,''),'(',''),')',''),'-',''),' ',''),'.','') LIKE ?))
+        ORDER BY c.id DESC LIMIT 6`,
+    ).bind(user.companyId, like, like, digits.length >= 3 ? digits : "", `%${digits}%`).all();
+    return json({ customers: found.results });
   }
 
   const rows = await env.DB.prepare(
@@ -212,7 +233,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     const jid = Number(b?.jobId);
     const cur = Number.isInteger(jid)
       ? await env.DB.prepare(
-          `SELECT j.id, j.title, j.trade, j.stage, j.customer_id AS customerId, j.property_id AS propertyId, c.name, c.email, c.phone, p.address, p.city, p.zip
+          `SELECT j.id, j.title, j.trade, j.stage, j.customer_id AS customerId, j.property_id AS propertyId, c.name, c.email, c.phone, p.address, p.city, p.state, p.zip
              FROM jobs j JOIN customers c ON c.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id WHERE j.id = ? AND j.company_id = ?`,
         ).bind(jid, user.companyId).first<any>()
       : null;
@@ -222,7 +243,8 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
       const brief = cleanBrief(b.brief);
       const def = JOB_TYPES.find((t) => t.id === brief.type)!;
       await env.DB.prepare("UPDATE jobs SET data = json_set(COALESCE(data, '{}'), '$.brief', json(?)), updated_at = datetime('now') WHERE id = ? AND company_id = ?").bind(JSON.stringify(brief), jid, user.companyId).run();
-      if (def.trade && def.trade !== cur.trade && isTrade(def.trade)) {
+      // The service is picked on the New bid screen now, so the brief only changes it when asked to.
+      if (b.setTrade && def.trade && def.trade !== cur.trade && isTrade(def.trade)) {
         await env.DB.prepare("UPDATE jobs SET trade = ? WHERE id = ? AND company_id = ?").bind(def.trade, jid, user.companyId).run();
         await addJobEvent(env, user.companyId, jid, "note", `Job type set to ${def.label}.`);
       }
@@ -249,22 +271,27 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
         if (e && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return json({ error: "That email address does not look right. Check it and try again." }, 400);
         email = e || null;
       }
-      const phone = b.phone === undefined ? cur.phone ?? null : text(b.phone, 40) || null;
+      const phone = b.phone === undefined ? cur.phone ?? null : formatPhone(text(b.phone, 40)) || null;
       const address = b.address === undefined ? cur.address ?? "" : text(b.address, 160);
       const city = b.city === undefined ? cur.city ?? "" : text(b.city, 60);
       const zip = b.zip === undefined ? cur.zip ?? "" : text(b.zip, 10);
+      const state = b.state === undefined ? cur.state ?? "" : stateOf(b.state);
       const changed: string[] = [];
       if (name !== cur.name) changed.push("customer name");
       if (title !== cur.title) changed.push("job title");
       if (email !== (cur.email ?? null)) changed.push("email");
       if (phone !== (cur.phone ?? null)) changed.push("phone");
-      if (address !== (cur.address ?? "") || city !== (cur.city ?? "") || zip !== (cur.zip ?? "")) changed.push("address");
+      if (address !== (cur.address ?? "") || city !== (cur.city ?? "") || zip !== (cur.zip ?? "") || state !== (cur.state ?? "")) changed.push("address");
       await env.DB.prepare("UPDATE customers SET name = ?, email = ?, phone = ? WHERE id = ? AND company_id = ?").bind(name, email, phone, cur.customerId, user.companyId).run();
       await env.DB.prepare("UPDATE jobs SET title = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?").bind(title, jid, user.companyId).run();
+      if (b.trade !== undefined && isTrade(b.trade) && b.trade !== cur.trade) {
+        await env.DB.prepare("UPDATE jobs SET trade = ? WHERE id = ? AND company_id = ?").bind(b.trade, jid, user.companyId).run();
+        changed.push("service");
+      }
       if (cur.propertyId) {
-        await env.DB.prepare("UPDATE properties SET address = ?, city = ?, zip = ? WHERE id = ? AND company_id = ?").bind(address, city || null, zip || null, cur.propertyId, user.companyId).run();
+        await env.DB.prepare("UPDATE properties SET address = ?, city = ?, state = ?, zip = ? WHERE id = ? AND company_id = ?").bind(address, city || null, state || null, zip || null, cur.propertyId, user.companyId).run();
       } else if (address) {
-        const p = await env.DB.prepare("INSERT INTO properties (company_id, customer_id, address, city, zip) VALUES (?, ?, ?, ?, ?)").bind(user.companyId, cur.customerId, address, city || null, zip || null).run();
+        const p = await env.DB.prepare("INSERT INTO properties (company_id, customer_id, address, city, state, zip) VALUES (?, ?, ?, ?, ?, ?)").bind(user.companyId, cur.customerId, address, city || null, state || null, zip || null).run();
         await env.DB.prepare("UPDATE jobs SET property_id = ? WHERE id = ? AND company_id = ?").bind(Number(p.meta.last_row_id), jid, user.companyId).run();
       }
       if (changed.length) await addJobEvent(env, user.companyId, jid, "note", `Details changed: ${changed.join(", ")}.`);
@@ -299,12 +326,30 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
       if (!cur) return json({ error: "That note was not found." }, 404);
       if (b.action === "noteDelete") list = list.filter((x) => x.id !== b.id);
       else {
-        const n = cleanNote({ id: cur.id, at: cur.at, text: b.text, tag: b.tag }, new Date().toISOString());
+        const n = cleanNote({ id: cur.id, at: cur.at, text: b.text ?? cur.text, tag: b.tag, photos: cur.photos }, new Date().toISOString());
         if (!n) return json({ error: "A note cannot be empty. Delete it instead." }, 400);
         list = list.map((x) => (x.id === cur.id ? n : x));
       }
       await saveData("fieldNotes", list);
       return json({ ok: true, notes: list });
+    }
+    if (b.action === "notePhoto") {
+      // Adds (or removes) one of this job's photos on a note.
+      let list = readNotes((await readData()).fieldNotes);
+      const cur = list.find((x) => x.id === b.id);
+      if (!cur) return json({ error: "That note was not found." }, 404);
+      const fid = Number(b.fileId);
+      const f = Number.isInteger(fid) ? await env.DB.prepare("SELECT id FROM job_files WHERE id = ? AND company_id = ? AND job_id = ?").bind(fid, user.companyId, jid).first() : null;
+      if (!f) return json({ error: "That photo was not found." }, 404);
+      const photos = b.remove ? (cur.photos ?? []).filter((x) => x !== fid) : cleanPhotoIds([...(cur.photos ?? []), fid]);
+      list = list.map((x) => (x.id === cur.id ? { ...x, photos } : x));
+      await saveData("fieldNotes", list);
+      return json({ ok: true, notes: list });
+    }
+    if (b.action === "bid") {
+      const bid = cleanBid(b.bid, cur.trade);
+      await saveData("bid", bid);
+      return json({ ok: true, bid });
     }
     if (b.action === "colors") {
       const colors = cleanColors(b.colors);
@@ -361,8 +406,8 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
   const job = await env.DB.prepare(
     `SELECT j.id, j.title, j.trade, j.stage, j.property_id AS propertyId, j.customer_id AS customerId,
             c.name AS customerName, c.email AS customerEmail, c.phone AS customerPhone,
-            p.address, p.city, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn, json_extract(j.data,'$.visit') AS visit, json_extract(j.data,'$.signoff') AS signoff, json_extract(j.data,'$.reviewAskedAt') AS reviewAskedAt,
-            json_extract(j.data,'$.request') AS request, json_extract(j.data,'$.fieldNotes') AS fieldNotes, json_extract(j.data,'$.colors') AS colors, json_extract(j.data,'$.followUp') AS followUp
+            p.address, p.city, p.state, p.zip, json_extract(j.data,'$.lost') AS lost, json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.schedule') AS schedule, json_extract(j.data,'$.startedOn') AS startedOn, json_extract(j.data,'$.visit') AS visit, json_extract(j.data,'$.signoff') AS signoff, json_extract(j.data,'$.reviewAskedAt') AS reviewAskedAt,
+            json_extract(j.data,'$.request') AS request, json_extract(j.data,'$.fieldNotes') AS fieldNotes, json_extract(j.data,'$.colors') AS colors, json_extract(j.data,'$.followUp') AS followUp, json_extract(j.data,'$.bid') AS bid
        FROM jobs j JOIN customers c ON c.id = j.customer_id LEFT JOIN properties p ON p.id = j.property_id
       WHERE j.id = ? AND j.company_id = ?`,
   )
@@ -389,7 +434,9 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     ).bind(id, user.companyId).all(),
   ]);
   return json({
-    job: { ...job, brief: undefined, schedule: undefined, startedOn: undefined, visit: undefined, signoff: undefined, reviewAskedAt: undefined, request: undefined, fieldNotes: undefined, colors: undefined, followUp: undefined },
+    job: { ...job, brief: undefined, schedule: undefined, startedOn: undefined, visit: undefined, signoff: undefined, reviewAskedAt: undefined, request: undefined, fieldNotes: undefined, colors: undefined, followUp: undefined, bid: undefined },
+    bid: job.bid ? cleanBid(parse(job.bid), job.trade) : null,
+    layout: layoutsFor(await loadToolPrefs(env, user.companyId)).find((l) => l.trade === job.trade) ?? serviceFor(job.trade),
     request: job.request ? cleanRequest(parse(job.request), parse(job.request).source ?? "") : null,
     fieldNotes: readNotes(parse(job.fieldNotes)),
     colors: cleanColors(parse(job.colors)),
@@ -450,13 +497,52 @@ export async function handleEstimate(request: Request, env: Env): Promise<Respon
     return json({ lines });
   }
 
+  if (b.action === "quickPrice") {
+    // A quick ballpark from the notes and photos, before the formal estimate. Gemini answers first (fast and low cost).
+    const row = await env.DB.prepare("SELECT json_extract(j.data,'$.fieldNotes') AS notes, json_extract(j.data,'$.request') AS request, json_extract(j.data,'$.bid') AS bid, p.city AS city FROM jobs j LEFT JOIN properties p ON p.id = j.property_id WHERE j.id = ? AND j.company_id = ?").bind(job.id, user.companyId).first<{ notes: string | null; request: string | null; bid: string | null; city: string | null }>();
+    const notes = readNotes(parse(row?.notes));
+    const reqText = cleanRequest(parse(row?.request)).description;
+    const picks = cleanBid(parse(row?.bid), job.trade).picks;
+    if (!notes.length && !reqText && !picks.length) return json({ error: "Add a note first: type it, or tap the mic and say what the job is." }, 400);
+    const company = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string; createdAt?: string }>();
+    if (!company) return json({ error: "Not found." }, 404);
+    const used = await consume(env, company, "ai_assistant");
+    if (!used.allowed) return json({ error: used.reason === "kill_switch" ? "Quick price is paused right now. Try again soon." : "You have used this month's assistant questions, which quick prices use too. Your allowance starts over next month.", code: used.reason }, 429);
+    const card = await env.DB.prepare("SELECT method, data FROM rate_cards WHERE company_id = ? AND trade = ? AND audience = 'retail'").bind(user.companyId, job.trade).first<{ method: string; data: string }>();
+    // The newest photo from the notes goes along, so the AI can see the size and condition.
+    const fid = notes.flatMap((n) => n.photos ?? []).pop();
+    let image: { mime: string; data: string } | undefined;
+    if (fid) {
+      const f = await env.DB.prepare("SELECT r2_key AS k, mime, bytes FROM job_files WHERE id = ? AND company_id = ? AND job_id = ? AND r2_key != ''").bind(fid, user.companyId, job.id).first<{ k: string; mime: string; bytes: number }>();
+      const obj = f && f.mime.startsWith("image/") && f.bytes <= 3 * 1024 * 1024 && env.FILES ? await env.FILES.get(f.k) : null;
+      if (f && obj) {
+        const buf = new Uint8Array(await obj.arrayBuffer());
+        let bin = "";
+        for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+        image = { mime: f.mime, data: btoa(bin) };
+      }
+    }
+    const jobText = [`Service: ${serviceFor(job.trade).label}`, row?.city ? `City: ${row.city}` : "", reqText ? `Customer asked for: ${reqText}` : "", picks.length ? `The work covers: ${picks.join(", ")}` : "", notesForPrompt(notes)].filter(Boolean).join("\n");
+    const system = `${QUICK_PRICE_SYSTEM}\n\n<prices>\n${card ? `${card.method}: ${card.data.slice(0, 1500)}` : "none"}\n</prices>\n\n<job>\n${jobText.slice(0, 5000)}\n</job>`;
+    const turns = [{ role: "user" as const, content: image ? "Give the quick price for this job. A site photo is attached." : "Give the quick price for this job.", ...(image ? { image } : {}) }];
+    const out = await completeEx(env, system, turns, { prefer: ["gemini", "haiku", "openai", "anthropic"], maxTokens: 700, tool: "quick_price" });
+    const qp = out ? parseQuickPrice(parseJsonLoose(out.text)) : null;
+    if (!qp) {
+      await refund(env, company, "ai_assistant");
+      return json({ error: "Quick price could not answer this time. Try again in a minute, or write the full estimate." }, 503);
+    }
+    await addJobEvent(env, user.companyId, job.id, "note", `Quick price: $${Math.round(qp.lowCents / 100)} to $${Math.round(qp.highCents / 100)}.`);
+    return json({ ...qp, hasPriceList: !!card, ai: out ? { tool: out.tool, model: out.model } : undefined });
+  }
+
   if (b.action === "aiDraft") {
-    const jobRow = await env.DB.prepare("SELECT json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.fieldNotes') AS notes, json_extract(j.data,'$.request') AS request, json_extract(j.data,'$.colors') AS colors, p.city AS city FROM jobs j LEFT JOIN properties p ON p.id = j.property_id WHERE j.id = ? AND j.company_id = ?").bind(job.id, user.companyId).first<{ brief: string | null; notes: string | null; request: string | null; colors: string | null; city: string | null }>();
+    const jobRow = await env.DB.prepare("SELECT json_extract(j.data,'$.brief') AS brief, json_extract(j.data,'$.fieldNotes') AS notes, json_extract(j.data,'$.request') AS request, json_extract(j.data,'$.colors') AS colors, json_extract(j.data,'$.bid') AS bid, p.city AS city FROM jobs j LEFT JOIN properties p ON p.id = j.property_id WHERE j.id = ? AND j.company_id = ?").bind(job.id, user.companyId).first<{ brief: string | null; notes: string | null; request: string | null; colors: string | null; bid: string | null; city: string | null }>();
     const stored = parse(jobRow?.brief);
     const brief: Brief = cleanBrief(stored?.type ? stored : b.brief, new Date().toISOString());
     const reqText = cleanRequest(parse(jobRow?.request)).description;
     const colorText = cleanColors(parse(jobRow?.colors)).map((c) => `${c.where}: ${[c.brand, c.code, c.name].filter(Boolean).join(" ")}`).join("; ");
-    const siteNotes = [reqText ? `Customer's request: ${reqText}` : "", notesForPrompt(readNotes(parse(jobRow?.notes))), colorText ? `Colors chosen: ${colorText}` : ""].filter(Boolean).join("\n");
+    const picks = cleanBid(parse(jobRow?.bid), job.trade).picks;
+    const siteNotes = [reqText ? `Customer's request: ${reqText}` : "", picks.length ? `The work covers: ${picks.join(", ")}` : "", notesForPrompt(readNotes(parse(jobRow?.notes))), colorText ? `Colors chosen: ${colorText}` : ""].filter(Boolean).join("\n");
     const hasContent = !!brief.details || Object.keys(brief.answers).length > 0 || !!siteNotes;
     if (!hasContent) return json({ error: "Tell me a little about the job first: tap the answers that fit, or type or speak a few notes." }, 400);
     const company = await env.DB.prepare("SELECT id, plan, created_at AS createdAt FROM companies WHERE id = ?").bind(user.companyId).first<{ id: number; plan: string; createdAt?: string }>();
@@ -935,7 +1021,8 @@ export async function handleAssistant(request: Request, env: Env): Promise<Respo
     const msg = used.reason === "kill_switch" ? "The assistant is paused right now. Try again soon." : used.reason === "not_in_plan" ? "The assistant is not included in your plan." : "You have used this month's assistant questions. Upgrade your plan for more.";
     return json({ error: msg, code: used.reason }, 429);
   }
-  const reply = await ask(env, context, sanitizeHistory(b?.history), question, b?.language === "es" ? "es" : "en", company.id);
+  const lang = b?.language === "es" ? "es" : "en";
+  const reply = b?.mode === "ask" ? await askAnything(env, { context, history: sanitizeHistory(b?.history), question, language: lang, page: text(b?.page, 60), companyId: company.id }) : await ask(env, context, sanitizeHistory(b?.history), question, lang, company.id);
   if (!reply) {
     await refund(env, company, "ai_assistant");
     return json({ error: "The assistant could not answer right now. Please try again in a minute." }, 503);
@@ -991,4 +1078,35 @@ export async function handleLang(request: Request, env: Env): Promise<Response> 
     return json({ ok: true, lang });
   }
   return json({ lang: data?.language?.ui === "es" ? "es" : "en" });
+}
+
+
+const toolKey = (companyId: number) => `bidtools:${companyId}`;
+export async function loadToolPrefs(env: Env, companyId: number): Promise<Record<string, Record<string, boolean>>> {
+  const r = await env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(toolKey(companyId)).first<{ value: string }>().catch(() => null);
+  return cleanToolPrefs(parse(r?.value));
+}
+
+/**
+ * /api/bidtools: the New bid screen for each service.
+ *  GET: every service layout with the painter's own tool choices applied.
+ *  POST { trade, tool, on }: turns one suggested tool on or off for that service.
+ */
+export async function handleBidTools(request: Request, env: Env): Promise<Response> {
+  const user = await getSessionUser(env, request);
+  if (!user) return json({ error: "Not signed in." }, 401);
+  const prefs = await loadToolPrefs(env, user.companyId);
+  if (request.method === "GET") return json({ services: layoutsFor(prefs) });
+  if (request.method !== "POST") return json({ error: "Not found." }, 404);
+  let b: any;
+  try {
+    b = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON." }, 400);
+  }
+  const s = serviceFor(String(b?.trade ?? ""));
+  if (s.trade !== b?.trade || !s.tools.some((t) => t.id === b?.tool) || typeof b?.on !== "boolean") return json({ error: "Unknown tool." }, 400);
+  const next = cleanToolPrefs({ ...prefs, [s.trade]: { ...(prefs[s.trade] ?? {}), [b.tool]: b.on } });
+  await env.DB.prepare("INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')").bind(toolKey(user.companyId), JSON.stringify(next)).run();
+  return json({ ok: true, services: layoutsFor(next) });
 }

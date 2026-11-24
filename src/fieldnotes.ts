@@ -11,7 +11,12 @@ export interface FieldNote {
   at: string; // ISO time it was written (on the phone, so offline notes keep their own time)
   text: string;
   tag: NoteTag;
+  /** Photos added to this note (job_files ids). */
+  photos?: number[];
 }
+
+export const MAX_NOTE_PHOTOS = 12;
+export const cleanPhotoIds = (v: unknown): number[] => (Array.isArray(v) ? [...new Set(v.map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, MAX_NOTE_PHOTOS) : []);
 
 export const MAX_NOTES = 200;
 export const MAX_NOTE_LEN = 2000;
@@ -39,7 +44,8 @@ export function cleanNote(i: any, nowIso: string): FieldNote | null {
   if (!text) return null;
   const id = typeof i?.id === "string" && /^[A-Za-z0-9_-]{4,40}$/.test(i.id) ? i.id : `n${Date.parse(nowIso).toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   const at = typeof i?.at === "string" && !Number.isNaN(Date.parse(i.at)) && Date.parse(i.at) <= Date.parse(nowIso) + 5 * 60_000 ? new Date(i.at).toISOString() : nowIso;
-  return { id, at, text, tag: isTag(i?.tag) ? i.tag : tagNote(text) };
+  const photos = cleanPhotoIds(i?.photos);
+  return { id, at, text, tag: isTag(i?.tag) ? i.tag : tagNote(text), ...(photos.length ? { photos } : {}) };
 }
 
 /** Reads the stored list, dropping anything broken. */

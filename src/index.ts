@@ -12,7 +12,8 @@ import { handleAdmin } from "./admin.ts";
 import { handleAuthConfig, handleGoogleCallback, handleGoogleStart } from "./google.ts";
 import { handleBilling, handleCheckout, handleStripeWebhook } from "./stripe.ts";
 import { handleStripeCheck } from "./stripecheck.ts";
-import { handleAssistant, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleLang, handleProfile, handleRateCard } from "./wizard-api.ts";
+import { handleAssistant, handleBidTools, handleContract, handleDoc, handleJobDoc, handleJobNote, handleEstimate, handleJob, handleJobs, handleLang, handleProfile, handleRateCard } from "./wizard-api.ts";
+import { handleAddress } from "./address.ts";
 import { handleSamples } from "./samples.ts";
 import { syncTierDemos } from "./tierdemos.ts";
 import { adminActor } from "./adminroles.ts";
@@ -892,6 +893,14 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleSamples(request, env);
       } catch (err) {
         console.error("samples failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    if (pathname === "/api/bidtools" || pathname === "/api/address") {
+      try {
+        return await (pathname === "/api/bidtools" ? handleBidTools : handleAddress)(request, env);
+      } catch (err) {
+        console.error(pathname, "failed", String(err));
         return json({ error: "Something went wrong." }, 500);
       }
     }
