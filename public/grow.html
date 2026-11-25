@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Grow your business - PaintersMax</title><link rel="stylesheet" href="/colorcode.css"><script src="/i18n.js" data-app></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px}header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+main{max-width:900px;margin:0 auto;padding:16px 12px 90px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:28px;margin:8px 0}
+h3{margin:0 0 8px}
+.card{background:#fff;border:1px solid rgba(15,27,45,.1);border-radius:10px;padding:14px;margin:0 0 14px}
+.muted{color:#4A5568;font-size:14px}
+select{font:inherit;padding:10px;border:1px solid #cfcac0;border-radius:8px;min-height:44px;background:#fff}
+ol li,ul li{margin:7px 0;line-height:1.45}
+.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 14px;background:#E8A33D;color:#0F1B2D;cursor:pointer;min-height:44px;text-decoration:none;display:inline-block}
+.btn.sec{background:#eceae4}
+.qs{display:flex;flex-wrap:wrap;gap:8px}
+.safe{border-left:4px solid #1f4f8a;background:#eaf2fd;padding:10px 12px;border-radius:8px;font-size:14px}
+</style></head><body>
+<header><b>PaintersMax</b> Grow your business</header>
+<main>
+<h1>Grow from local pro to commercial contractor</h1>
+<p class="muted">Plain steps to set up your business the right way, build credit and get ready for bigger jobs. Pick your state for the right links.</p>
+<p class="safe">General information with links to official sources. It is not legal, tax or lending advice. For your own case, ask a business attorney, a CPA or your bank.</p>
+<div class="card"><h3>Your state</h3><select id="st" aria-label="State"></select></div>
+<div class="card"><h3>Set up the business</h3><ol id="steps"></ol></div>
+<div class="card"><h3>Build business credit</h3><ol>
+<li>Open a business bank account in the business name, and run every job through it.</li>
+<li>Use the same business name, address and phone everywhere: state filing, bank, suppliers, Google profile.</li>
+<li>Open trade accounts with paint stores and rental yards, and pay on time or early. Ask if they report to business credit bureaus.</li>
+<li>Keep invoices, receipts and job results in PaintersMax. Clean records help when a lender or a builder asks.</li></ol>
+<p><a class="btn sec" href="/vendors">Open Vendors and prices</a></p></div>
+<div class="card"><h3>Financing, for you and your customers</h3><ul>
+<li><b>Customer financing:</b> lets a homeowner pay over time for a big project. Compare the fee you pay per job.</li>
+<li><b>Equipment leasing:</b> spreads the cost of sprayers, lifts or a trailer before a big commercial or government job.</li>
+<li><b>Line of credit:</b> covers payroll and materials while a big customer takes 30 to 60 days to pay.</li>
+<li><b>SBA-backed loans:</b> longer terms for growing businesses. See <a href="https://www.sba.gov/funding-programs/loans" target="_blank" rel="noopener">sba.gov loans</a>.</li></ul>
+<p class="muted">Read every agreement and compare at least two offers. PaintersMax does not lend money or recommend a lender.</p></div>
+<div class="card"><h3>Ask a question</h3><p class="muted" style="margin-top:0">Ask about your state, your business type or getting ready for bigger jobs. Answers come from the help library and general knowledge, with the same safety rules as above.</p><div class="qs" id="qs"></div></div>
+</main>
+<script>
+var T=window.pmT||function(s){return s};
+var STATES=['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','District of Columbia','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'];
+// State-specific notes. Only facts we have checked go here; every other state links to its office through the SBA's list.
+var NOTES={Texas:{office:'Texas Secretary of State (SOSDirect)',url:'https://www.sos.state.tx.us/corp/sosda/index.shtml',llc:'File a Certificate of Formation (Form 205) online through SOSDirect.'}};
+var sel=document.getElementById('st');
+sel.innerHTML=STATES.map(function(s){return '<option'+(s==='Texas'?' selected':'')+'>'+s+'</option>'}).join('');
+try{var saved=localStorage.getItem('pm_grow_state');if(saved&&STATES.indexOf(saved)>=0)sel.value=saved;}catch(e){}
+function draw(){var s=sel.value,n=NOTES[s];try{localStorage.setItem('pm_grow_state',s);}catch(e){}
+ var office=n?'<a href="'+n.url+'" target="_blank" rel="noopener">'+n.office+'</a>':'your state\'s Secretary of State (find it on <a href="https://www.sba.gov/business-guide/launch-your-business/register-your-business" target="_blank" rel="noopener">the SBA state list</a>)';
+ document.getElementById('steps').innerHTML=[
+  '<b>Choose a business type.</b> Sole proprietor needs no filing. An LLC is registered with the state and keeps business debts apart from your personal things. Ask a CPA about tax choices like an S corporation election.',
+  '<b>Register with '+s+'.</b> Go to '+office+'.'+(n&&n.llc?' '+n.llc:' Look for the LLC (or "limited liability company") formation form, and check the current fee and yearly report rules there.'),
+  '<b>Get a free EIN</b> from the IRS at <a href="https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online" target="_blank" rel="noopener">irs.gov</a>. Never pay a website for one.',
+  '<b>Check local licenses and permits</b> with your city and county. Some cities require a contractor registration.',
+  '<b>Get insurance</b> (general liability at least). Builders and agencies ask for a certificate. See the <a href="/insurance-guide">Insurance guide</a>.',
+  '<b>Open a business bank account</b> with your EIN and formation papers.',
+  '<b>Put it in PaintersMax:</b> add your legal name and license in <a href="/app">Estimating Setup</a> so it prints on every estimate and invoice.'
+ ].map(function(x){return '<li>'+x+'</li>'}).join('');
+ var qs=['What do I need to form an LLC in '+s+'?','Should I stay a sole proprietor or become an LLC?','How do I build business credit as a painter?','How can I offer financing to my customers?','What do I need to bid on a '+s+' government painting job?','Should I lease or buy a paint sprayer for a big job?'];
+ document.getElementById('qs').innerHTML=qs.map(function(q){return '<button class="btn sec" data-q="'+q.replace(/"/g,'&quot;')+'">'+q+'</button>'}).join('');}
+sel.onchange=draw;draw();
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-q]');if(!b)return;if(window.pmAsk){window.pmAsk.open();window.pmAsk.send(b.getAttribute('data-q'));}else alert(T('The Ask button is still loading. Try again in a second.'));});
+</script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>
