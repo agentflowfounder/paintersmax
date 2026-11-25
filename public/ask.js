@@ -40,7 +40,7 @@
   fab.id = 'pm_ask'; fab.type = 'button'; fab.textContent = T('Ask'); fab.setAttribute('aria-label', T('Ask the assistant'));
   var p = document.createElement('div');
   p.id = 'pm_askp'; p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', T('Ask the assistant'));
-  p.innerHTML = '<div class="ah"><b>' + T('Ask anything') + '</b><button type="button" class="hb" id="pm_ask_hist">' + T('History') + '</button><button type="button" class="hb" id="pm_ask_new">' + T('New chat') + '</button><button type="button" class="hb" id="pm_ask_dl">' + T('Download') + '</button><label class="tm"><input type="checkbox" id="pm_talk"> ' + T('Read answers aloud') + '</label><button type="button" id="pm_askx" aria-label="' + T('Close') + '">&times;</button></div>' +
+  p.innerHTML = '<div class="ah"><b>' + T('Ask anything') + '</b><button type="button" class="hb" id="pm_ask_hist">' + T('History') + '</button><button type="button" class="hb" id="pm_ask_new">' + T('New chat') + '</button><button type="button" class="hb" id="pm_ask_dl">' + T('Download') + '</button><button type="button" class="hb" id="pm_ask_live" title="' + T('Talk with the assistant out loud, like a phone call') + '">' + T('Talk live') + '</button><label class="tm"><input type="checkbox" id="pm_talk"> ' + T('Read answers aloud') + '</label><button type="button" id="pm_askx" aria-label="' + T('Close') + '">&times;</button></div>' +
     '<div class="al" id="pm_askl" aria-live="polite"></div>' +
     '<div class="af" id="pm_askf"><button type="button" class="mc" id="pm_askm" aria-label="' + T('Talk') + '">' + (window.pmVoice ? window.pmVoice.MIC : '&#127908;') + '</button><textarea id="pm_aski" rows="1" placeholder="' + T('Type your question') + '"></textarea><button type="button" class="snd" id="pm_asks">' + T('Send') + '</button></div>' +
     '<div class="ft">' + T('Answers are suggestions. Check numbers and safety rules before you rely on them. Each question uses one of your monthly assistant questions.') + '</div>';
@@ -128,10 +128,40 @@
     if (view === 'hist') { view = 'chat'; }
     busy = true; var prior = hist.slice(-8).map(function (m) { return { role: m.role, content: m.content }; });
     hist.push({ role: 'user', content: text }); $('pm_aski').value = ''; draw('<div class="b a">' + esc(T('Thinking...')) + '</div>');
-    api('/api/assistant', { mode: 'ask', message: text, history: prior, page: location.pathname, jobId: jobId(), language: es() ? 'es' : 'en', conversationId: convId })
+    stream({ mode: 'ask', stream: true, message: text, history: prior, page: location.pathname, jobId: jobId(), language: es() ? 'es' : 'en', conversationId: convId })
       .then(function (j) { if (j.conversationId) convId = j.conversationId; hist.push({ role: 'assistant', content: j.reply, id: j.messageId || undefined }); save(); draw(); return speak(j.reply).then(function () { if (talk && $('pm_askp').classList.contains('open')) mic(); }); })
       .catch(function (e) { hist.pop(); $('pm_aski').value = text; draw(e ? '<div class="b a">' + esc(T(e.message)) + '</div>' : ''); })
       .then(function () { busy = false; });
+  }
+  // Word-by-word answers: shows each piece as it arrives, then resolves with the final {reply, conversationId, messageId}.
+  function stream(body) {
+    return fetch('/api/assistant', { method: 'POST', headers: { 'content-type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(body) }).then(function (r) {
+      var ct = r.headers.get('content-type') || '';
+      if (!r.ok || ct.indexOf('event-stream') < 0 || !r.body || !r.body.getReader) {
+        return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || j.error) throw new Error(j.error || 'Something went wrong.'); return j; });
+      }
+      var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', so = '', fin = null;
+      function show() { draw('<div class="b a">' + esc(so).replace(/\n/g, '<br>') + '</div>'); }
+      function take(block) {
+        block.split('\n').forEach(function (line) {
+          if (line.indexOf('data:') !== 0) return;
+          var o; try { o = JSON.parse(line.slice(5)); } catch (e) { return; }
+          if (o.t) { so += o.t; show(); }
+          if (o.error) throw new Error(o.error);
+          if (o.done) fin = o;
+        });
+      }
+      function pump() {
+        return reader.read().then(function (x) {
+          if (x.done) { if (buf) take(buf); if (!fin) throw new Error('The answer was cut off. Please try again.'); return fin; }
+          buf += dec.decode(x.value, { stream: true });
+          var parts = buf.split('\n\n'); buf = parts.pop();
+          parts.forEach(take);
+          return fin ? fin : pump();
+        });
+      }
+      return pump();
+    });
   }
   function mic() {
     if (!window.pmVoice) return;
@@ -147,6 +177,15 @@
     $('pm_ask_hist').onclick = function () { view = view === 'hist' ? 'chat' : 'hist'; draw(); };
     $('pm_ask_new').onclick = function () { hist = []; convId = null; view = 'chat'; save(); draw(); };
     $('pm_ask_dl').onclick = download;
+    $('pm_ask_live').onclick = function () {
+      if (!window.pmLive) { alert(T('Live voice is still loading. Try again in a second.')); return; }
+      try { speechSynthesis.cancel(); } catch (e) {}
+      window.pmLive.open({ page: location.pathname, jobId: jobId(), language: es() ? 'es' : 'en', onEnd: function (tr) {
+        if (!tr || !tr.length) return;
+        tr.forEach(function (l) { hist.push({ role: l.who === 'you' ? 'user' : 'assistant', content: l.text }); });
+        save(); view = 'chat'; draw();
+      } });
+    };
     $('pm_aski').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(this.value); } });
     $('pm_talk').onchange = function () { talk = this.checked; if (!talk) try { speechSynthesis.cancel(); } catch (e) {} };
     $('pm_askl').addEventListener('click', function (e) {

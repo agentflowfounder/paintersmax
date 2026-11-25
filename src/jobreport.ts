@@ -28,7 +28,7 @@ export interface ReportInput {
   estimatedMinutes: number | null;
   workers: { name: string; minutes: number }[];
   dates: { lead: string; estimate: string; signed: string; start: string; end: string; invoice: string; paid: string; warranty: string };
-  have: { photos: number; notes: number; signedEstimate: boolean; contract: boolean; expenses: number; hours: boolean; invoice: boolean; warranty: boolean; signoff: boolean };
+  have: { photos: number; notes: number; signedEstimate: boolean; contract: boolean; expenses: number; hours: boolean; invoice: boolean; warranty: boolean; signoff: boolean; summary?: boolean };
   avg: { marginPct: number | null; priceCents: number | null; jobs: number };
 }
 
@@ -84,6 +84,18 @@ export function buildReport(i: ReportInput) {
   if (days.estimateToSigned !== null && days.estimateToSigned > 7) insights.push(`The customer took ${days.estimateToSigned} days to sign. A follow-up on day 3 may help.`);
   if (days.invoiceToPaid !== null && days.invoiceToPaid > 14) insights.push(`Payment took ${days.invoiceToPaid} days after the invoice.`);
 
+  // Ways to keep more on the next job, then one forward-looking line. Plain advice, never a promise.
+  const tips: string[] = [];
+  if (matPct !== null && matPct > 25) {
+    tips.push("Materials: ask your local Sherwin-Williams rep for a Pro account and volume pricing, and ask for a price lock on big jobs.");
+    tips.push("Compare that price sheet with Home Depot Pro and Lowe's Pro. Save your price sheets on the Vendors page so estimates use your real prices.");
+  }
+  if (overPct !== null && overPct > 15) tips.push("Hours: walk the job again before you price it, and add prep time for patching, caulking and masking. Track hours by room to learn your real speed.");
+  if (i.changeCents === 0 && total > 0) tips.push("Extras: when the customer asks for more, write a change order before you start it, so extra work is paid work.");
+  if (days.invoiceToPaid !== null && days.invoiceToPaid > 14) tips.push("Getting paid: ask for a deposit at signing and a progress payment midway, and send the invoice the day you finish.");
+  if (margin !== null && margin < 25) tips.push("Margin: raise this kind of job by 5 to 10 percent on the next bid, or trim the scope. Many painters aim for 30 to 40 percent after materials and labor.");
+  const cheer = margin === null ? "Every record you add makes the next bid smarter. Keep going." : margin >= 30 ? "Strong job. Do more work like this one and tell the customer you would love a review." : margin >= 0 ? "You finished the job and learned your real numbers. Use them on the next bid and it will pay better." : "A tough job is still a lesson paid for. The numbers above show exactly what to change, and the next bid will be better.";
+
   const records = [
     { key: "photos", label: "Photos", have: i.have.photos > 0, detail: i.have.photos ? `${i.have.photos} saved` : "None yet" },
     { key: "notes", label: "Site visit notes", have: i.have.notes > 0, detail: i.have.notes ? `${i.have.notes} notes` : "None yet" },
@@ -94,6 +106,7 @@ export function buildReport(i: ReportInput) {
     { key: "signoff", label: "Customer sign-off", have: i.have.signoff, detail: i.have.signoff ? "Accepted" : "Not yet" },
     { key: "invoice", label: "Invoice", have: i.have.invoice, detail: i.have.invoice ? "Made" : "Not made" },
     { key: "warranty", label: "Warranty certificate", have: i.have.warranty, detail: i.have.warranty ? "Made" : "Not made" },
+    { key: "summary", label: "Job summary and private record", have: !!i.have.summary, detail: i.have.summary ? "Approved" : "Not approved" },
   ];
   return {
     money: { priceCents: i.priceCents, changeCents: i.changeCents, totalCents: total, collectedCents: i.collectedCents, balanceCents: Math.max(0, total - i.collectedCents), materialsCents: materials, otherExpenseCents: otherExpenses, payCents: i.payCents, costCents: cost, profitCents: hasCosts ? profit : null, marginPct: margin, categories: i.categories },
@@ -112,6 +125,8 @@ export function buildReport(i: ReportInput) {
     records,
     recordsDone: records.filter((r) => r.have).length,
     insights: insights.slice(0, 6),
+    tips: tips.slice(0, 5),
+    cheer,
   };
 }
 
@@ -127,7 +142,7 @@ export async function handleJobReport(request: Request, env: Env): Promise<Respo
        FROM jobs j WHERE j.id = ? AND j.company_id = ?`,
   ).bind(id, c).first<any>();
   if (!job) return json({ error: "Not found." }, 404);
-  const [est, signed, inv, cos, exp, pay, time, files, docs, cert] = await Promise.all([
+  const [est, signed, inv, cos, exp, pay, time, files, docs, cert, jsum] = await Promise.all([
     env.DB.prepare("SELECT substr(created_at,1,10) AS at, status, body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'estimate' AND status != 'superseded' ORDER BY id DESC LIMIT 1").bind(id, c).first<any>(),
     env.DB.prepare("SELECT substr(MIN(signed_at),1,10) AS at FROM signature_requests WHERE job_id = ? AND company_id = ? AND status = 'signed'").bind(id, c).first<any>(),
     env.DB.prepare("SELECT substr(created_at,1,10) AS at, substr(updated_at,1,10) AS upd, status, body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'invoice' AND status != 'superseded' ORDER BY id DESC LIMIT 1").bind(id, c).first<any>(),
@@ -138,6 +153,7 @@ export async function handleJobReport(request: Request, env: Env): Promise<Respo
     env.DB.prepare("SELECT kind, COUNT(*) AS n FROM job_files WHERE company_id = ? AND job_id = ? GROUP BY kind").bind(c, id).all<any>(),
     env.DB.prepare("SELECT kind FROM documents WHERE job_id = ? AND company_id = ? AND status != 'superseded' GROUP BY kind").bind(id, c).all<any>(),
     env.DB.prepare("SELECT value FROM app_settings WHERE key = ?").bind(`cert:${c}:${id}`).first<any>(),
+    env.DB.prepare("SELECT json_extract(value,'$.status') AS status FROM app_settings WHERE key = ?").bind(`jobsum:${c}:${id}`).first<any>(),
   ]);
   const eb = parse(est?.body);
   const lines: any[] = Array.isArray(eb?.estimate?.lines) ? eb.estimate.lines : Array.isArray(eb?.lines) ? eb.lines : [];
@@ -163,7 +179,7 @@ export async function handleJobReport(request: Request, env: Env): Promise<Respo
   const input: ReportInput = {
     priceCents: price, changeCents: change, collectedCents: collected, categories: cats, payCents: Number(pay?.cents) || 0, minutes, estimatedMinutes: estMin > 0 ? Math.round(estMin) : null, workers,
     dates: { lead: job.leadOn ?? "", estimate: est?.at ?? "", signed: signed?.at ?? "", start: job.startOn ?? "", end: job.endOn ?? "", invoice: inv?.at ?? "", paid: inv && /paid/i.test(String(inv.status)) ? inv.upd ?? "" : "", warranty: certV?.startOn ?? "" },
-    have: { photos: fileN("photo"), notes, signedEstimate: sold, contract: kinds.has("contract"), expenses: expN, hours: minutes > 0, invoice: !!inv, warranty: !!cert, signoff: !!job.accepted },
+    have: { photos: fileN("photo"), notes, signedEstimate: sold, contract: kinds.has("contract"), expenses: expN, hours: minutes > 0, invoice: !!inv, warranty: !!cert, signoff: !!job.accepted, summary: jsum?.status === "approved" || jsum?.status === "sent" },
     avg: { marginPct: avgMargin, priceCents: avgPrice, jobs: facts.length },
   };
   return json({ job: { id: job.id, title: job.title, stage: job.stage, trade: job.trade }, ...buildReport(input) });

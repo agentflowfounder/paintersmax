@@ -17,6 +17,9 @@ import { handleAddress } from "./address.ts";
 import { handleVoiceSession } from "./voicesession.ts";
 import { handleAskChats } from "./askhistory.ts";
 import { handleJobReport } from "./jobreport.ts";
+import { handleBidCheck, handleCompareJobs } from "./bidcheck.ts";
+import { handleJobSummaryApi, handleJobSummaryFile } from "./jobsummary.ts";
+import { handleVendors } from "./vendors.ts";
 import { handleWordList } from "./wordlist.ts";
 import { handleSamples } from "./samples.ts";
 import { syncTierDemos } from "./tierdemos.ts";
@@ -897,6 +900,17 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
         return await handleSamples(request, env);
       } catch (err) {
         console.error("samples failed", String(err));
+        return json({ error: "Something went wrong." }, 500);
+      }
+    }
+    // Round 7 tools: one table of routes, each wrapped so a failure answers JSON.
+    const R7: Record<string, (r: Request, e: Env) => Promise<Response>> = { "/api/bidcheck": handleBidCheck, "/api/comparejobs": handleCompareJobs, "/api/jobsummary": handleJobSummaryApi, "/jobsummary": handleJobSummaryFile, "/api/vendors": handleVendors };
+    if (R7[pathname]) {
+      try {
+        return await R7[pathname](request, env);
+      } catch (err) {
+        console.error(pathname, "failed", String(err));
+        if (/no such table/i.test(String(err))) return json({ error: "This page is still being switched on. Please try again later." }, 503);
         return json({ error: "Something went wrong." }, 500);
       }
     }

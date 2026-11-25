@@ -103,7 +103,7 @@ details.acc[open]>summary{border-bottom:1px solid #eee}
 .rp .lg{display:grid;gap:4px;margin:8px 0}.rp .lg div{display:flex;align-items:center;gap:8px;font-size:14px}.rp .lg span.sw2{width:12px;height:12px;border-radius:3px;flex:none}.rp .lg b{margin-left:auto;font-variant-numeric:tabular-nums}
 .rp .hb{display:grid;grid-template-columns:110px 1fr 70px;gap:8px;align-items:center;margin:6px 0;font-size:14px}.rp .hb .gbar{height:12px}.rp .hb em{font-style:normal;text-align:right;font-variant-numeric:tabular-nums}
 .rp .rk{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}.rp .rk div{display:flex;justify-content:space-between;gap:8px;align-items:center;background:#fbfaf7;border:1px solid rgba(15,27,45,.08);border-radius:8px;padding:8px 10px;font-size:14px}
-.rp ul.ins{margin:6px 0 0;padding-left:20px}.rp ul.ins li{margin:0 0 6px;line-height:1.45}
+.bidchk{border-top:1px dashed #d8d4ca;margin-top:10px}.bidchk .cheer2{background:#eef7f0;border-left:4px solid #2e9e5b;padding:6px 10px;border-radius:6px;margin:6px 0;font-size:14px}.rp .cheer{background:#eef7f0;border-left:4px solid #2e9e5b;padding:8px 12px;border-radius:6px;margin:10px 0}.rp ul.ins{margin:6px 0 0;padding-left:20px}.rp ul.ins li{margin:0 0 6px;line-height:1.45}
 .rp .tl{border-left:3px solid #cfd5dc;margin:6px 0 6px 6px;padding-left:12px}.rp .tl div{margin:0 0 8px;font-size:14px}.rp .tl .none{color:#4A5568}
 @media print{header,.jside,.notefab,#pm_ask,.jtop,.acc>summary{display:none}.jgrid{display:block}}
 .jh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
@@ -615,7 +615,41 @@ function drawLines(){
 function optDraw(){const used=Object.keys(SECN).filter(k=>lines.some(l=>secOf(l)===k));if(used.length<2&&!OPTS.length)return '<small class="muted" style="display:block;margin-top:6px">Use the section box on each line to split the estimate into drywall, painting and trim. Each section can then be made optional.</small>';
  return `<div style="margin-top:10px"><b style="font-size:14px">Optional sections</b><small class="muted" style="display:block">Ticked sections print with their own price as an add-on the customer can choose, and are not counted in the total.</small>${used.map(k=>`<label class="optck"><input type="checkbox" data-optsec="${k}" ${OPTS.includes(k)?'checked':''}> ${esc(SECN[k])}</label>`).join('')}</div>`;}
 document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.optsec){OPTS=t.checked?OPTS.concat([t.dataset.optsec]):OPTS.filter(x=>x!==t.dataset.optsec);drawTotals();}else if(t.dataset&&t.dataset.f==='section'){lines[+t.dataset.i].section=t.value;drawLines();}});
-function drawTotals(){if($('sched'))drawSched();const t=totals();const ot=OPTS.map(k=>[k,lines.filter(l=>secOf(l)===k).reduce((s,l)=>s+Math.round((+l.qty||0)*(+l.unitPrice||0)*100),0)]).filter(x=>x[1]>0);$('tot').innerHTML=`${ot.map(([k,c])=>`<small class="muted">Optional: ${esc(SECN[k])} ${$$(c)}</small><br>`).join('')}Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;}
+function drawTotals(){if($('sched'))drawSched();const t=totals();const ot=OPTS.map(k=>[k,lines.filter(l=>secOf(l)===k).reduce((s,l)=>s+Math.round((+l.qty||0)*(+l.unitPrice||0)*100),0)]).filter(x=>x[1]>0);$('tot').innerHTML=`${ot.map(([k,c])=>`<small class="muted">Optional: ${esc(SECN[k])} ${$$(c)}</small><br>`).join('')}Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;bidDraw();}
+/* Bid check: this bid next to the painter's last 10 finished jobs, a warning under their target margin, and a word of encouragement. */
+let BID=null;
+async function bidLoad(){try{BID=await api('/api/bidcheck');}catch(x){BID=null;}bidDraw();vpLoad();}
+/* Vendor prices on the estimate. The "whose prices" question only shows on jobs where it fits (a business, builder or agency customer, or commercial work). */
+let VP=null,VOWN='mine';
+async function vpLoad(){const el=$('vprice');if(!el||!J)return;try{VP=await api('/api/vendors?job='+J.job.id);}catch(x){VP=null;}vpDraw();}
+function vpDraw(){const el=$('vprice');if(!el)return;if(!VP||(!VP.ask&&!VP.myVendors)){el.innerHTML='';return;}
+ let o='<h4 style="margin:12px 0 6px">Use a vendor price</h4>';
+ if(VP.ask)o+=`<p class="muted" style="margin:4px 0">${esc(VP.ask)} Whose prices should this estimate use?</p><div class="btns" style="margin:4px 0"><button class="btn ${VOWN==='mine'?'':'sec'}" data-vown="mine">My prices</button><button class="btn ${VOWN==='customer'?'':'sec'}" data-vown="customer">The customer's prices</button><a class="btn sec" href="/vendors">Vendors page</a></div>`;
+ o+=`<div style="display:flex;gap:6px"><input id="vp_q" placeholder="Search a product, like Duration satin"><button class="btn sec" data-vfind="1">Find</button></div><div id="vp_res"></div>`;
+ if(!VP.myVendors)o+='<small class="muted">Add your paint store and its price sheet on the <a href="/vendors">Vendors page</a> to fill materials with your real prices.</small>';
+ el.innerHTML=o;}
+document.addEventListener('click',async e=>{const t=e.target.closest?e.target.closest('[data-vown],[data-vfind],[data-vadd]'):null;if(!t)return;const ds=t.dataset;
+ if(ds.vown){VOWN=ds.vown;vpDraw();return;}
+ if(ds.vfind){const q=($('vp_q')||{}).value||'';if(!q.trim())return;try{const r=await api('/api/vendors?find='+encodeURIComponent(q)+'&owner='+VOWN);window._vpr=r.prices;$('vp_res').innerHTML=r.prices.length?r.prices.map((p,i)=>`<div class="ev">${esc(p.product)} ${esc(p.size)} &middot; ${esc(p.vendor)} <b>${$$(p.priceCents)}</b> <button class="btn sec" style="padding:2px 10px" data-vadd="${i}">Add line</button></div>`).join(''):'<small class="muted">No match in '+(VOWN==='customer'?"customers'":'your')+' price lists.</small>';}catch(x){if(x)msg(x.message);}return;}
+ if(ds.vadd!==undefined){const p=(window._vpr||[])[+ds.vadd];if(!p)return;lines.push({description:p.product+(p.size?' ('+p.size+')':'')+' - '+p.vendor+(VOWN==='customer'?' (customer price)':''),qty:1,unit:p.size||'each',unitPrice:p.priceCents/100,section:'paint'});drawLines();msg('Line added. Set the quantity.',true);}
+});
+function bidHours(){return lines.filter(l=>/^(h|hr|hrs|hour|hours)$/i.test(String(l.unit||'').trim())).reduce((s,l)=>s+(+l.qty||0),0);}
+function bidDraw(){const el=$('bidchk');if(!el)return;if(!BID){el.innerHTML='';return;}
+ const t=totals().total,h=bidHours(),H=BID.history,tg=BID.target;const cb=(typeof cost!=='undefined'&&cost&&cost.items)?costTotal().base:0;
+ let pm=null,basis='';
+ if(t>0&&cb>0){pm=Math.round(1000*(t-cb*100)/t)/10;basis='from your cost build';}
+ else if(t>0&&H.jobs&&H.avgCrewCostPerHourCents&&h>0){const c=h*H.avgCrewCostPerHourCents+t*(H.avgMaterialsPct||0)/100;pm=Math.round(1000*(t-c)/t)/10;basis='a rough guess from your last '+H.jobs+' jobs';}
+ const pph=t>0&&h>0?Math.round(t/h):null;
+ let o='<h4 style="margin:12px 0 6px">Bid check</h4>';
+ if(pm!==null){const low=pm<tg;o+=`<p style="margin:4px 0">${low?'<span class="cc t-warn">Under your target</span>':'<span class="cc t-ok">On target</span>'} Expected margin <b>${pm}%</b> (${esc(basis)}). Your target is ${tg}%.</p>`;
+  if(low)o+=`<p class="muted" style="margin:4px 0">To reach ${tg}%, the total would be about <b>${$$(Math.round(t*(100-pm)/(100-tg)))}</b>. You can also trim the scope or add prep hours you left out.</p>`;}
+ else o+='<p class="muted" style="margin:4px 0">Add labor lines in hours, or your costs in "Your price building", and I can show the expected margin.</p>';
+ if(H.jobs){o+=`<p style="margin:4px 0">Your last ${H.jobs} finished jobs: ${H.avgMarginPct!==null?'average margin <b>'+H.avgMarginPct+'%</b>':''}${H.avgPricePerHourCents?', '+$$(H.avgPricePerHourCents)+' per labor hour':''}.${pph?' This bid: <b>'+$$(pph)+'</b> per hour.':''}</p>`;
+  if(pph&&H.avgPricePerHourCents)o+=`<p class="cheer2">${pph>=H.avgPricePerHourCents?'This bid pays at or above your usual rate. Nice work. Explain the value clearly and stand by your price.':'This bid pays less per hour than your usual. That can be fine to win a new customer, but price the next one with confidence. Your skill is worth it.'}</p>`;}
+ else o+='<p class="muted" style="margin:4px 0">After your first finished jobs with receipts and crew hours, I will compare each bid with your real numbers.</p>';
+ o+=`<label style="display:inline-flex;gap:6px;align-items:center;font-size:14px;margin-top:4px">My target margin <input id="bid_tg" inputmode="numeric" value="${tg}" style="width:64px"> %</label>`;
+ el.innerHTML=o;}
+document.addEventListener('change',async e=>{if(!e.target||e.target.id!=='bid_tg')return;try{const j=await api('/api/bidcheck',{target:Number(e.target.value)});BID.target=j.target;bidDraw();msg('Target saved.',true);}catch(x){if(x)msg(x.message);}});
 function readEstimate(){const L=id=>($(id)||{value:''}).value;return{optionalSections:OPTS,revisionLabel:L('e_rev'),includeTerms:!!($('e_terms')||{}).checked,colors:(J&&J.colors)||[],inclusions:L('e_incl'),exclusions:L('e_excl'),assumptions:L('e_assume'),allowances:L('e_allow'),options:L('e_opts'),schedule:sched,costBuild:cost,lines,scope:$('scope').value,notes:$('notes').value,taxPct:$('tax').value,discount:$('discount').value,validDays:$('valid').value,language:$('lang').value};}
 
 function drawClauses(){const c=$('clauses');if(!c)return;c.innerHTML=clauses.map((cl,i)=>`<label>${i+1}. Title</label><input data-ci="${i}" data-cf="title" value="${esc(cl.title)}"><textarea data-ci="${i}" data-cf="body" rows="4" style="margin-top:6px">${esc(cl.body)}</textarea>`).join('');const b=$('c_btns');if(b)b.style.display=clauses.length?'flex':'none';}
@@ -626,7 +660,7 @@ function drawSched(){const c=$('sched');if(!c)return;const t=totals().total;
  c.innerHTML=sched.map((m,i)=>`<div class="line" style="grid-template-columns:1fr 70px 90px 30px"><input data-sf="label" data-si="${i}" value="${esc(m.label)}"><input data-sf="pct" data-si="${i}" inputmode="decimal" value="${esc(m.pct)}"><span class="muted">${$$(Math.round(t*(+m.pct||0)/100))}</span><button data-sdel="${i}">&times;</button></div>`).join('')+
  `<div class="btns"><button class="btn sec" data-sadd="1">+ Add a milestone</button></div>`+(sched.length?`<small class="${schedSum()===100?'ok':'bad'}">Total ${schedSum()}%${schedSum()===100?'':' (must be 100%)'}</small>`:'');}
 function costTotal(){const base=cost.items.reduce((a,c)=>a+(+c.amount||0),0);return{base,total:Math.round(base*(1+(+cost.markupPct||0)/100)*100)/100};}
-function costOut(){const o=$('c_out');const x=costTotal();if(o)o.innerHTML='Costs '+$$(Math.round(x.base*100))+'<br><b>Price '+$$(Math.round(x.total*100))+'</b>';}
+function costOut(){const o=$('c_out');const x=costTotal();if(o)o.innerHTML='Costs '+$$(Math.round(x.base*100))+'<br><b>Price '+$$(Math.round(x.total*100))+'</b>';bidDraw();}
 function drawCost(){const c=$('cost');if(!c)return;
  c.innerHTML=cost.items.map((x,i)=>`<div class="line" style="grid-template-columns:1fr 110px 30px"><input data-cf2="label" data-ci2="${i}" value="${esc(x.label)}" placeholder="Example: Wood fence materials"><input data-cf2="amount" data-ci2="${i}" inputmode="decimal" value="${esc(x.amount||'')}" placeholder="$"><button data-cdel="${i}">&times;</button></div>`).join('')+
  `<div class="btns"><button class="btn sec" data-cadd="1">+ Add a cost</button></div><div class="row"><div><label>Markup for overhead, contingency and profit (%)</label><input id="c_mk" inputmode="decimal" value="${esc(cost.markupPct||'')}"></div><div class="tot" style="align-self:end" id="c_out"></div></div>
@@ -664,7 +698,7 @@ document.addEventListener('click',async e=>{const ds=e.target.dataset||{};
 // ---- Job page layout helpers: sections that open and close, the header card, the next-step line, "tell me about the job" ----
 const ACC={};
 function acc(id,title,sub,open,inner){const o=ACC[id]!==undefined?ACC[id]:!!open;return `<details class="acc" id="acc_${id}" data-acc="${id}" ${o?'open':''}><summary><span class="at">${title}</span>${sub?`<span class="asub" id="accs_${id}">${sub}</span>`:`<span class="asub" id="accs_${id}"></span>`}</summary><div class="accin">${inner}</div></details>`;}
-document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.dataset.acc){ACC[d.dataset.acc]=d.open;if(d.dataset.acc==='report'&&d.open)reportLoad();}},true);
+document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.dataset.acc){ACC[d.dataset.acc]=d.open;if(d.dataset.acc==='report'&&d.open)reportLoad();if(d.dataset.acc==='jsum'&&d.open)jsumLoad();}},true);
 function openAcc(id){const a=$('acc_'+id);if(a){a.open=true;ACC[id]=true;}}
 const GUESS={interior:'interior',exterior:'exterior',power_washing:'power_wash',commercial:'commercial',decks_fences:'wood_stain'};
 const guessType=t=>GUESS[t]||'custom';
@@ -824,9 +858,39 @@ function reportHtml(r){const m=r.money,h=r.hours,dd=r.days,pc=v=>v==null?'-':v+'
  if(gaps.length){const mx=Math.max(...gaps.map(g=>g[1]),1);o+=`<h4>Days at each step</h4>`+gaps.map(g=>hbar(g[0],g[1],mx,g[1]>14?'#E8A33D':'#4a86d6',g[1]+(g[1]===1?' day':' days'))).join('')+(dd.leadToPaid!=null?`<p style="margin:4px 0">Lead to paid: <b>${dd.leadToPaid} days</b></p>`:'');}
  o+=`<h4>Records for this job <small class="muted">${r.recordsDone} of ${r.records.length}</small></h4><div class="rk">${r.records.map(k=>`<div><span>${esc(k.label)}<br><small class="muted">${esc(k.detail)}</small></span><span class="cc ${k.have?'t-ok':'t-warn'}">${k.have?'Done':'Missing'}</span></div>`).join('')}</div>`;
  if(r.insights.length)o+=`<h4>What this tells you</h4><ul class="ins">${r.insights.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+ if(r.tips&&r.tips.length)o+=`<h4>Ways to keep more next time</h4><ul class="ins">${r.tips.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`;
+ if(r.cheer)o+=`<p class="cheer">${esc(r.cheer)}</p>`;
  o+=`<div class="btns"><button class="btn sec" type="button" onclick="window.print()">Print this report</button></div><small class="muted">Plain math from the records you saved. For your accountant, not tax advice.</small>`;
  return o;}
 async function reportLoad(){const b=$('m_report');if(!b||!J)return;b.innerHTML='<small class="muted">Loading...</small>';try{const r=await api('/api/jobreport?id='+J.job.id);b.innerHTML=reportHtml(r);const s=$('accs_report');if(s)s.textContent=r.money.marginPct!=null?r.money.marginPct+'% margin':r.recordsDone+' of '+r.records.length+' records';}catch(x){b.innerHTML='<small class="bad">'+esc(x&&x.message||'Could not load.')+'</small>';}}
+/* Job summary: a customer copy (no money) the painter edits and approves, plus a private copy for the books. Downloads in six formats. */
+let JS=null;
+const JSST={draft:['t-warn','Draft, not approved'],approved:['t-ok','Approved'],sent:['t-info','Sent to the customer']};
+async function jsumLoad(){const b=$('m_jsum');if(!b||!J)return;b.innerHTML='<small class="muted">Loading...</small>';try{JS=await api('/api/jobsummary?id='+J.job.id);jsumDraw();}catch(x){b.innerHTML='<small class="muted">'+esc(x&&x.message||'Could not load.')+'</small>';}}
+function jsumDraw(){const b=$('m_jsum');if(!b||!JS)return;const s=JS.summary,v=JS.view,st=JSST[s.status]||JSST.draft,lock=s.status!=='draft';
+ const dl=(part)=>['pdf','doc','png','jpg','webp','html'].map(f=>`<a class="btn sec" style="padding:6px 10px" href="/jobsummary?id=${J.job.id}&part=${part}&format=${f}" ${f==='html'?'target="_blank"':''}>${f==='doc'?'Word':f==='html'?'Open page':f.toUpperCase()}</a>`).join(' ');
+ const ta=(id,label,help,val,rows)=>`<label>${label}</label>${help?`<small class="muted" style="display:block">${help}</small>`:''}<textarea id="${id}" rows="${rows||3}" ${lock?'disabled':''}>${esc(val||'')}</textarea>`;
+ const sas=$('accs_jsum');if(sas)sas.textContent=st[1];
+ b.innerHTML=`<p><span class="cc ${st[0]}">${esc(st[1])}</span>${s.approvedAt?' <small class="muted">Approved '+esc(s.approvedAt)+'</small>':''}${s.sentAt?' <small class="muted">Sent '+esc(s.sentAt)+' to '+esc(s.sentTo||'')+'</small>':''}</p>
+ <p class="muted" style="margin:4px 0 10px">The customer copy shows your company, the job, dates, ${v.colors.length} color${v.colors.length===1?'':'s'} from the Colors step, your warranty and the paint maker's warranty, and care tips. It never shows prices or costs.</p>
+ ${ta('js_prod','Products used','Brand, product line and sheen for each area. Example: Sherwin-Williams Duration, satin, walls.',s.products,3)}
+ ${ta('js_mw',"Paint maker's warranty","Paste the maker's own warranty wording or a short summary you have checked. PaintersMax never writes a maker's terms for you.",s.makerWarranty,3)}
+ <label>Link to the maker's warranty page</label><input id="js_ml" ${lock?'disabled':''} placeholder="https://..." value="${esc(s.makerLink||'')}">
+ ${ta('js_pw','Your warranty','Filled from your warranty certificate or your settings. Change it if this job is different.',s.painterWarranty,3)}
+ ${ta('js_care','Caring for the paint','',s.care,3)}
+ ${ta('js_note','A note from you (optional)','A thank-you, or what to watch for.',s.note,2)}
+ <div class="btns" style="margin-top:10px">${lock?'<button class="btn sec" data-js="reopen">Reopen to edit</button>':'<button class="btn sec" data-js="save">Save draft</button> <button class="btn" data-js="approve">Approve</button>'}
+ ${s.status!=='draft'?`<button class="btn" data-js="send">${s.status==='sent'?'Send again':'Email to the customer'}</button>`:''}</div>
+ <small class="muted">Approving also saves a private job record with this job's numbers for your books.</small>
+ <h4 style="margin:14px 0 6px">Download the customer copy</h4><div class="btns" style="flex-wrap:wrap;gap:6px">${dl('customer')}</div>
+ <h4 style="margin:14px 0 6px">Download your private job record</h4><div class="btns" style="flex-wrap:wrap;gap:6px">${dl('private')}</div>
+ <small class="muted">PDF and pictures are made on our server and can take a few seconds. Word opens in Microsoft Word, Google Docs or Pages.</small>`;}
+document.addEventListener('click',async e=>{const t=e.target.closest?e.target.closest('[data-js]'):null;if(!t||!J)return;const a=t.dataset.js;
+ const f={products:($('js_prod')||{}).value,makerWarranty:($('js_mw')||{}).value,makerLink:($('js_ml')||{}).value,painterWarranty:($('js_pw')||{}).value,care:($('js_care')||{}).value,note:($('js_note')||{}).value};
+ try{let body={id:J.job.id,action:a,fields:f};
+  if(a==='send'){const to=prompt('Send the job summary to which email?',(J.job&&J.job.customerEmail)||(JS&&JS.view.customer.email)||'');if(!to)return;body={id:J.job.id,action:'send',to};}
+  t.disabled=true;const r=await api('/api/jobsummary',body);JS.summary=r.summary;jsumDraw();msg(a==='send'?'Job summary sent.':a==='approve'?'Approved. Private job record saved.':a==='reopen'?'Reopened.':'Saved.',true);}
+ catch(x){t.disabled=false;if(x)msg(x.message);}});
 async function detail(id){
   const mn=document.querySelector('main');if(mn)mn.classList.add('wide');
   const sy=window.scrollY;const d=await api('/api/job?id='+id);J=d;window.J=d;const j=d.job,e=d.estimate;
@@ -861,6 +925,8 @@ async function detail(id){
     <div class="row">${qf.map(([k,l])=>`<div><label>${esc(l)}</label><input data-q="${esc(k)}" inputmode="decimal"></div>`).join('')}</div>
     <div class="btns"><button class="btn sec" id="fill">Fill lines from my prices</button></div>`:`<p class="muted">You have not set prices for this type of work yet. <a href="/app">Open Estimating Setup</a> (Your prices), or add lines by hand.</p>`}</div></details>
    <div class="tot" id="tot"></div>
+   <div id="bidchk" class="bidchk"></div>
+   <div id="vprice" class="bidchk"></div>
    <div class="stp"><span class="n">1</span><div><b>Create the final estimate</b><small class="muted" style="display:block">Adds up your lines and saves the customer's copy. You can come back and update it.</small></div></div>
    <div class="btns"><button class="btn" id="save">${e?'Update final estimate':'Create final estimate'}</button></div>
    <div class="stp ${e?'':'off'}"><span class="n">2</span><div><b>Check it, then send it</b><small class="muted" style="display:block">${!e?'Create the final estimate first. Then you can preview it and send it.':!j.customerEmail?'Add an email address in Edit details above to send it from here, or download the PDF.':e.status==='sent'?'Sent. If you change anything, update the estimate and send it again.':'Preview it the way '+esc(String(j.customerName||'the customer').split(/\s+/)[0])+' will see it, then send it.'}</small></div></div>
@@ -917,6 +983,7 @@ async function detail(id){
   ${acc('inv','Invoice','',late||st==='punch','<div id="m_inv"></div>')}
   ${acc('warr','Warranty','Best after the invoice is paid',st==='closed','<div id="m_warr"></div>'+wcCard())}
   ${acc('report','Job results and analysis','Profit, time and records',st==='closed','<div class="rp" id="m_report"><small class="muted">Open to see the numbers for this job.</small></div>')}
+  ${acc('jsum','Job summary for the customer','Colors, products, warranties and care',false,'<div id="m_jsum"><small class="muted">Open to write the summary.</small></div>')}
 
   <h3 class="grp">Keep on record</h3>
   ${acc('prot','Insurance and protecting this job','',false,covBanner(d.coverage)+protectCard(d))}
@@ -927,13 +994,13 @@ async function detail(id){
   <div class="card"><small class="muted">Everything about this job is saved here, under <b>${esc(j.title)}</b>: notes, photos, the estimate and every document. Expenses, mileage and receipts are in <a href="/records?job=${j.id}">Records</a>, where you can also download the whole job file in one go.</small></div>
   </div></div>`;
   bfDraw();
-  drawLines();sigLoad(j.id,e,d.contract);
+  drawLines();sigLoad(j.id,e,d.contract);bidLoad();
   const f=$('fill');if(f)f.onclick=async()=>{try{msg('');const quantities={};document.querySelectorAll('[data-q]').forEach(i=>{if(i.value!=='')quantities[i.dataset.q]=Number(i.value);});const r=await api('/api/estimate',{action:'draft',jobId:j.id,quantities});if(!r.lines.length)throw new Error('Enter at least one quantity first.');lines=r.lines;drawLines();msg('Lines filled. Review and change anything you like.',true);}catch(e){if(e)msg(e.message);}};
   $('addline').onclick=()=>{lines.push({description:'',qty:1,unit:'ea',unitPrice:0});drawLines();};
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
   $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>{msg('Final estimate ready. Total '+$$(r.totals.totalCents)+'. Preview it, then send it.',true);const sd=$('send');if(sd&&!sd.disabled&&sd.scrollIntoView)sd.scrollIntoView({behavior:'smooth',block:'center'});});};
   $('send').onclick=async()=>{if(!await checkInfo('Send this estimate',[['Estimate total',$$(totals().total)]],'Looks right, send it'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
-  if(ACC.report||st==='closed')reportLoad();
+  if(ACC.report||st==='closed')reportLoad();if(ACC.jsum)jsumLoad();
   drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad().then(sumDraw);findingsLoad();woLoad();payLoad();wcLoad();lsLoad();
   if(!$('note_fab'))document.body.insertAdjacentHTML('beforeend',fabHtml());notesDraw();colorsDraw();sumDraw();nqFlush();
   const cb=$('c_build');if(cb)cb.onclick=async()=>{try{msg('');if(clauses.length&&!confirm('This replaces the clauses on screen with a fresh draft. Continue?'))return;const r=await api('/api/contract',{action:'draft',jobId:j.id,language:$('c_lang').value,startDate:$('c_start').value,endDate:$('c_end').value});clauses=r.clauses;drawClauses();msg('Contract built. Read it and edit anything you like.',true);}catch(x){if(x)msg(x.message);}};
