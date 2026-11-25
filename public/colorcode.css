@@ -1,3 +1,4 @@
+@import url("/pm-badges.css"); /* vendor badges, shared by every app page: see /vendor-badges */
 /* PaintersMax color code. One color always means one thing, and every tag keeps its word, so nothing depends on color alone.
  * red = danger, lost or overdue   yellow = needs your attention   green = good, go   blue = new or for your information   gray = quiet */
 :root{--c-bad:#b42318;--c-bad-bg:#fdecea;--c-bad-line:#e5a39d;--c-warn:#8a5a00;--c-warn-bg:#fff3d6;--c-warn-line:#e8c26a;--c-ok:#0a7a3d;--c-ok-bg:#e6f4ea;--c-ok-line:#9ccc9c;--c-info:#1f4f8a;--c-info-bg:#eaf2fd;--c-info-line:#a9c4ea;--c-mute:#5b6572;--c-mute-bg:#eceae4}

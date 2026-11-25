@@ -1,0 +1,88 @@
+/* PaintersMax vendor badges  (pm-badges.css)
+ * Our own animated text-and-shape badges for paint stores and suppliers.
+ * These are NOT the stores' logos. Each badge is the store's name in our font next to a
+ * generic painting icon (can, tag, tape, swatches, roller, brush) in the PaintersMax colors.
+ * Real logos are trademarks: use them only with written permission from that company.
+ *
+ * Use:  <span class="pmv pmv-sherwin-williams">Sherwin-Williams</span>
+ * Stores: pmv-sherwin-williams, pmv-home-depot, pmv-lowes, pmv-benjamin-moore, pmv-ppg, pmv-other (any store)
+ * Looks:  (dark is the default) pmv-light, pmv-gold      Sizes: pmv-sm, pmv-lg      Shape: pmv-tile (icon only, name read aloud)
+ * Motion: plays once when it appears and again on hover or keyboard focus. Put class pmv-host on a card or link
+ *         around the badge to replay it when that whole card is hovered. pmv-loop repeats it (one per screen at most).
+ * Motion rules: transform and opacity only, turned off for people who ask for reduced motion, fully visible without JavaScript.
+ * Colors: Scheme 1 black #0B0B0B, charcoal #333533, eggshell #F2ECDD, saffron #F5CB5C, satin gold #CD9C20 (gold is never small text on light).
+ * Guide for admins: /vendor-badges
+ */
+.pmv{--pmv-bg:#0B0B0B;--pmv-fg:#F2ECDD;--pmv-line:rgba(245,203,92,.38);--pmv-ico:#F5CB5C;--pmv-ico2:#F2ECDD;--pmv-fs:14px;--pmv-i:22px;--pmv-py:5px;--pmv-pl:6px;--pmv-pr:13px;--pmv-x:var(--pmv-pl);--pmv-t:1.8s;--pmv-ease:cubic-bezier(.16,1,.3,1);
+  position:relative;isolation:isolate;display:inline-flex;align-items:center;gap:8px;box-sizing:border-box;vertical-align:middle;
+  padding:var(--pmv-py) var(--pmv-pr) var(--pmv-py) var(--pmv-pl);border:1px solid var(--pmv-line);border-radius:999px;
+  background:var(--pmv-bg);color:var(--pmv-fg);font:600 var(--pmv-fs)/1.15 Inter,"DM Sans",system-ui,sans-serif;letter-spacing:.01em;
+  white-space:nowrap;text-decoration:none;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+.pmv::before,.pmv::after{content:"";flex:none;width:var(--pmv-i);height:var(--pmv-i);background:var(--pmv-ico);
+  -webkit-mask:var(--pmv-m) center/contain no-repeat;mask:var(--pmv-m) center/contain no-repeat;
+  animation:var(--pmv-k) var(--pmv-t) var(--pmv-ease) both}
+.pmv::after{position:absolute;left:var(--pmv-x);top:calc(50% - var(--pmv-i) / 2);background:var(--pmv-ac,var(--pmv-ico));display:none}
+a.pmv:hover,button.pmv:hover,.pmv[tabindex]:hover{transform:translateY(-1px)}
+.pmv:focus-visible{outline:2px solid #F5CB5C;outline-offset:3px}
+/* Looks */
+.pmv.pmv-light{--pmv-bg:#F2ECDD;--pmv-fg:#0B0B0B;--pmv-line:rgba(11,11,11,.16);--pmv-ico:#0B0B0B;--pmv-ico2:#CD9C20}
+.pmv.pmv-gold{--pmv-bg:#F5CB5C;--pmv-fg:#0B0B0B;--pmv-line:rgba(11,11,11,.22);--pmv-ico:#0B0B0B;--pmv-ico2:#333533}
+/* Sizes */
+.pmv.pmv-sm{--pmv-fs:12px;--pmv-i:18px;--pmv-py:3px;--pmv-pl:5px;--pmv-pr:10px}
+.pmv.pmv-lg{--pmv-fs:17px;--pmv-i:30px;--pmv-py:7px;--pmv-pl:8px;--pmv-pr:18px}
+/* Icon-only tile: the name stays in the page for screen readers and search, only the icon shows. */
+.pmv.pmv-tile{--pmv-i:26px;width:44px;height:44px;padding:0;justify-content:center;gap:0;border-radius:12px;font-size:0;letter-spacing:0;--pmv-x:calc(50% - var(--pmv-i) / 2)}
+.pmv.pmv-tile.pmv-sm{--pmv-i:20px;width:32px;height:32px;border-radius:9px}
+.pmv.pmv-tile.pmv-lg{--pmv-i:38px;width:64px;height:64px;border-radius:16px}
+/* Repeat (use one per screen at most) */
+.pmv.pmv-loop::before,.pmv.pmv-loop::after{animation-duration:3.6s;animation-iteration-count:infinite}
+/* Stores */
+/* Sherwin-Williams: paint can, lid pops and settles */
+.pmv.pmv-sherwin-williams{--pmv-m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M4.5 8.2h15v11.3a2.3 2.3 0 0 1-2.3 2.3H6.8a2.3 2.3 0 0 1-2.3-2.3zM7.5 12.5v4.6h9v-4.6z'/%3E%3C/svg%3E")}
+.pmv.pmv-sherwin-williams::before{transform-origin:50% 50%;--pmv-k:pmv-sherwin-williams-a}
+.pmv.pmv-sherwin-williams::after{display:block;transform-origin:12% 85%;-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3.5' y='5' width='17' height='2.2' rx='1.1'/%3E%3Crect x='9.5' y='3' width='5' height='2.4' rx='.8'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3.5' y='5' width='17' height='2.2' rx='1.1'/%3E%3Crect x='9.5' y='3' width='5' height='2.4' rx='.8'/%3E%3C/svg%3E");--pmv-k:pmv-sherwin-williams-a2}
+.pmv.pmv-sherwin-williams:hover::before,.pmv.pmv-sherwin-williams:focus-visible::before,.pmv-host:hover .pmv.pmv-sherwin-williams::before,.pmv-host:focus-visible .pmv.pmv-sherwin-williams::before{--pmv-k:pmv-sherwin-williams-b}
+.pmv.pmv-sherwin-williams:hover::after,.pmv.pmv-sherwin-williams:focus-visible::after,.pmv-host:hover .pmv.pmv-sherwin-williams::after,.pmv-host:focus-visible .pmv.pmv-sherwin-williams::after{--pmv-k:pmv-sherwin-williams-b2}
+@keyframes pmv-sherwin-williams-a{0%{transform:scale(.6);opacity:0}30%{transform:scale(1.06);opacity:1}45%,100%{transform:none;opacity:1}}@keyframes pmv-sherwin-williams-b{0%{transform:scale(.6);opacity:0}30%{transform:scale(1.06);opacity:1}45%,100%{transform:none;opacity:1}}
+@keyframes pmv-sherwin-williams-a2{0%,22%{transform:none}36%{transform:translateY(-24%) rotate(-18deg)}50%{transform:translateY(-8%) rotate(-5deg)}58%{transform:none}63%{transform:translateY(-4%)}68%,100%{transform:none}}@keyframes pmv-sherwin-williams-b2{0%,22%{transform:none}36%{transform:translateY(-24%) rotate(-18deg)}50%{transform:translateY(-8%) rotate(-5deg)}58%{transform:none}63%{transform:translateY(-4%)}68%,100%{transform:none}}
+/* Home Depot: price tag swings on its string */
+.pmv.pmv-home-depot{--pmv-m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M9 2h6l3.2 4.2V20a2 2 0 0 1-2 2H7.8a2 2 0 0 1-2-2V6.2zM12 4.9a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM9 11.5h6v1.8H9zm0 3.6h4.2v1.8H9z'/%3E%3C/svg%3E")}
+.pmv.pmv-home-depot::before{transform-origin:50% 18%;--pmv-k:pmv-home-depot-a}
+.pmv.pmv-home-depot:hover::before,.pmv.pmv-home-depot:focus-visible::before,.pmv-host:hover .pmv.pmv-home-depot::before,.pmv-host:focus-visible .pmv.pmv-home-depot::before{--pmv-k:pmv-home-depot-b}
+@keyframes pmv-home-depot-a{0%{transform:rotate(-30deg)}20%{transform:rotate(22deg)}34%{transform:rotate(-13deg)}47%{transform:rotate(7deg)}57%{transform:rotate(-3deg)}65%,100%{transform:none}}@keyframes pmv-home-depot-b{0%{transform:rotate(-30deg)}20%{transform:rotate(22deg)}34%{transform:rotate(-13deg)}47%{transform:rotate(7deg)}57%{transform:rotate(-3deg)}65%,100%{transform:none}}
+/* Lowe's: tape measure rolls in, blade slides out */
+.pmv.pmv-lowes{--pmv-m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M5.5 5.5h8.5a4 4 0 0 1 4 4v9H5.5a3 3 0 0 1-3-3v-7a3 3 0 0 1 3-3zM10.2 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z'/%3E%3C/svg%3E")}
+.pmv.pmv-lowes::before{transform-origin:50% 50%;--pmv-k:pmv-lowes-a}
+.pmv.pmv-lowes::after{display:block;transform-origin:75% 50%;-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='18' y='15.6' width='5' height='2.9'/%3E%3Crect x='21.8' y='13.6' width='1.7' height='4.9' rx='.4'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='18' y='15.6' width='5' height='2.9'/%3E%3Crect x='21.8' y='13.6' width='1.7' height='4.9' rx='.4'/%3E%3C/svg%3E");--pmv-k:pmv-lowes-a2}
+.pmv.pmv-lowes:hover::before,.pmv.pmv-lowes:focus-visible::before,.pmv-host:hover .pmv.pmv-lowes::before,.pmv-host:focus-visible .pmv.pmv-lowes::before{--pmv-k:pmv-lowes-b}
+.pmv.pmv-lowes:hover::after,.pmv.pmv-lowes:focus-visible::after,.pmv-host:hover .pmv.pmv-lowes::after,.pmv-host:focus-visible .pmv.pmv-lowes::after{--pmv-k:pmv-lowes-b2}
+@keyframes pmv-lowes-a{0%{transform:rotate(-90deg) scale(.7);opacity:0}32%{transform:rotate(8deg) scale(1);opacity:1}44%,100%{transform:none;opacity:1}}@keyframes pmv-lowes-b{0%{transform:rotate(-90deg) scale(.7);opacity:0}32%{transform:rotate(8deg) scale(1);opacity:1}44%,100%{transform:none;opacity:1}}
+@keyframes pmv-lowes-a2{0%,28%{transform:scaleX(0)}50%{transform:scaleX(1.12)}58%{transform:scaleX(.94)}65%,100%{transform:none}}@keyframes pmv-lowes-b2{0%,28%{transform:scaleX(0)}50%{transform:scaleX(1.12)}58%{transform:scaleX(.94)}65%,100%{transform:none}}
+/* Benjamin Moore: color swatch cards fan open */
+.pmv.pmv-benjamin-moore{--pmv-m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M9.3 2.5h5.4a1.3 1.3 0 0 1 1.3 1.3v16.4a1.3 1.3 0 0 1-1.3 1.3H9.3A1.3 1.3 0 0 1 8 20.2V3.8a1.3 1.3 0 0 1 1.3-1.3zm.8 2.2v4.4h3.8V4.7z'/%3E%3C/svg%3E")}
+.pmv.pmv-benjamin-moore::before{transform:rotate(-24deg);transform-origin:50% 88%;--pmv-k:pmv-benjamin-moore-a}
+.pmv.pmv-benjamin-moore::after{display:block;transform:rotate(20deg);--pmv-ac:var(--pmv-ico2);transform-origin:50% 88%;-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M9.3 2.5h5.4a1.3 1.3 0 0 1 1.3 1.3v16.4a1.3 1.3 0 0 1-1.3 1.3H9.3A1.3 1.3 0 0 1 8 20.2V3.8a1.3 1.3 0 0 1 1.3-1.3zm.8 2.2v4.4h3.8V4.7z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M9.3 2.5h5.4a1.3 1.3 0 0 1 1.3 1.3v16.4a1.3 1.3 0 0 1-1.3 1.3H9.3A1.3 1.3 0 0 1 8 20.2V3.8a1.3 1.3 0 0 1 1.3-1.3zm.8 2.2v4.4h3.8V4.7z'/%3E%3C/svg%3E");--pmv-k:pmv-benjamin-moore-a2}
+.pmv.pmv-benjamin-moore:hover::before,.pmv.pmv-benjamin-moore:focus-visible::before,.pmv-host:hover .pmv.pmv-benjamin-moore::before,.pmv-host:focus-visible .pmv.pmv-benjamin-moore::before{--pmv-k:pmv-benjamin-moore-b}
+.pmv.pmv-benjamin-moore:hover::after,.pmv.pmv-benjamin-moore:focus-visible::after,.pmv-host:hover .pmv.pmv-benjamin-moore::after,.pmv-host:focus-visible .pmv.pmv-benjamin-moore::after{--pmv-k:pmv-benjamin-moore-b2}
+@keyframes pmv-benjamin-moore-a{0%{transform:none}38%{transform:rotate(-32deg)}52%,100%{transform:rotate(-24deg)}}@keyframes pmv-benjamin-moore-b{0%{transform:none}38%{transform:rotate(-32deg)}52%,100%{transform:rotate(-24deg)}}
+@keyframes pmv-benjamin-moore-a2{0%{transform:none}38%{transform:rotate(28deg)}52%,100%{transform:rotate(20deg)}}@keyframes pmv-benjamin-moore-b2{0%{transform:none}38%{transform:rotate(28deg)}52%,100%{transform:rotate(20deg)}}
+/* PPG: paint roller rolls on a fresh stripe */
+.pmv.pmv-ppg{--pmv-m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='10' y='2.8' width='13' height='5.8' rx='1.3'/%3E%3Crect x='15.6' y='8.4' width='2.2' height='3.4'/%3E%3Crect x='14.7' y='11.6' width='4' height='9.8' rx='1.7'/%3E%3C/svg%3E")}
+.pmv.pmv-ppg::before{transform-origin:50% 50%;--pmv-k:pmv-ppg-a}
+.pmv.pmv-ppg::after{display:block;--pmv-ac:var(--pmv-ico2);z-index:-1;transform-origin:0 50%;-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='3.5' width='14' height='4' rx='1'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='3.5' width='14' height='4' rx='1'/%3E%3C/svg%3E");--pmv-k:pmv-ppg-a2}
+.pmv.pmv-ppg:hover::before,.pmv.pmv-ppg:focus-visible::before,.pmv-host:hover .pmv.pmv-ppg::before,.pmv-host:focus-visible .pmv.pmv-ppg::before{--pmv-k:pmv-ppg-b}
+.pmv.pmv-ppg:hover::after,.pmv.pmv-ppg:focus-visible::after,.pmv-host:hover .pmv.pmv-ppg::after,.pmv-host:focus-visible .pmv.pmv-ppg::after{--pmv-k:pmv-ppg-b2}
+@keyframes pmv-ppg-a{0%{transform:translateX(-42%)}50%{transform:translateX(4%)}58%,100%{transform:none}}@keyframes pmv-ppg-b{0%{transform:translateX(-42%)}50%{transform:translateX(4%)}58%,100%{transform:none}}
+@keyframes pmv-ppg-a2{0%{transform:scaleX(0)}50%,100%{transform:none}}@keyframes pmv-ppg-b2{0%{transform:scaleX(0)}50%,100%{transform:none}}
+/* Any store: brush paints a stroke */
+.pmv.pmv-other{--pmv-m:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='10.6' y='1.5' width='2.8' height='8.5' rx='1.2'/%3E%3Crect x='8.3' y='9.6' width='7.4' height='3.4' rx='.6'/%3E%3Cpath d='M8.3 13.3h7.4v3.2c0 1.7-1.2 2.8-2.4 3.2l-1.3.5-1.3-.5c-1.2-.4-2.4-1.5-2.4-3.2z'/%3E%3C/svg%3E")}
+.pmv.pmv-other::before{transform-origin:50% 85%;--pmv-k:pmv-other-a}
+.pmv.pmv-other::after{display:block;--pmv-ac:var(--pmv-ico2);z-index:-1;transform-origin:0 50%;-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M1 20.6c3.6-1.9 7.2 1 11-.8s7.3-.9 11-2v2.9c-3.7 1-7.2.4-11 2.1S4.5 23.6 1 23.4z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M1 20.6c3.6-1.9 7.2 1 11-.8s7.3-.9 11-2v2.9c-3.7 1-7.2.4-11 2.1S4.5 23.6 1 23.4z'/%3E%3C/svg%3E");--pmv-k:pmv-other-a2}
+.pmv.pmv-other:hover::before,.pmv.pmv-other:focus-visible::before,.pmv-host:hover .pmv.pmv-other::before,.pmv-host:focus-visible .pmv.pmv-other::before{--pmv-k:pmv-other-b}
+.pmv.pmv-other:hover::after,.pmv.pmv-other:focus-visible::after,.pmv-host:hover .pmv.pmv-other::after,.pmv-host:focus-visible .pmv.pmv-other::after{--pmv-k:pmv-other-b2}
+@keyframes pmv-other-a{0%{transform:translate(-38%,-6%) rotate(-28deg)}50%{transform:translate(6%,0) rotate(9deg)}60%,100%{transform:none}}@keyframes pmv-other-b{0%{transform:translate(-38%,-6%) rotate(-28deg)}50%{transform:translate(6%,0) rotate(9deg)}60%,100%{transform:none}}
+@keyframes pmv-other-a2{0%,8%{transform:scaleX(0)}55%,100%{transform:none}}@keyframes pmv-other-b2{0%,8%{transform:scaleX(0)}55%,100%{transform:none}}
+/* Reduced motion: no movement at all, badges simply show. */
+@media (prefers-reduced-motion:reduce){.pmv::before,.pmv::after{animation:none!important}.pmv{transition:none}}
+/* Old browsers without CSS masks: show a plain dot instead of an icon. */
+@supports not ((mask-image:none) or (-webkit-mask-image:none)){.pmv::before{border-radius:50%;width:10px;height:10px}.pmv::after{display:none!important}}
