@@ -14,7 +14,7 @@ const GB = 1024 * MB;
 export const STORAGE_LIMIT: Record<Plan, number> = { free: Math.round(0.5 * GB), starter: 2 * GB, basic: 10 * GB, pro: 50 * GB };
 export const MAX_FILE_BYTES = 8 * MB;
 export const CUSTOMER_MAX_FILES = 12; // photos a customer may add to one job through their portal link
-export const KINDS = ["photo", "receipt", "document", "worker_photo", "w9"] as const;
+export const KINDS = ["photo", "receipt", "document", "worker_photo", "w9", "marketing"] as const;
 export type FileKind = (typeof KINDS)[number];
 const MIMES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
 
@@ -113,6 +113,12 @@ export async function handleFiles(request: Request, env: Env): Promise<Response>
       if (!row || !obj) return new Response(row && !row.r2_key ? "This file was removed from storage after you downloaded it." : "Not found.", { status: 404 });
       return new Response(obj.body, { headers: { "content-type": row.mime, "cache-control": "private, max-age=3600", "content-disposition": `inline; filename="${row.name.replace(/"/g, "")}"`, "x-content-type-options": "nosniff" } });
     }
+    // The painter's business file cabinet: designs from Canva or AI Studio, letterheads, business cards, fliers and so on.
+    if (u.searchParams.get("kind") === "marketing") {
+      const rows = (await env.DB.prepare("SELECT id, name, mime, bytes, note, created_at AS at FROM job_files WHERE company_id = ? AND kind = 'marketing' AND r2_key != '' ORDER BY id DESC LIMIT 200").bind(c).all()).results ?? [];
+      const plan = await companyPlan(env, c);
+      return json({ files: rows, storage: storageNotice(await storageUsed(env, c), storageLimitFor(plan), plan), enabled: !!env.FILES });
+    }
     const jobId = Number(u.searchParams.get("jobId"));
     const plan = await companyPlan(env, c);
     const files = Number.isInteger(jobId)
@@ -130,7 +136,7 @@ export async function handleFiles(request: Request, env: Env): Promise<Response>
     if (!(file instanceof File)) return json({ error: "Choose a file." }, 400);
     if (!(KINDS as readonly string[]).includes(kind)) return json({ error: "Unknown file type." }, 400);
     // Receipts, worker photos and W-9 files may belong to the company or a worker instead of a job.
-    const companyLevel = ["receipt", "worker_photo", "w9"].includes(kind) && !fd.get("jobId");
+    const companyLevel = ["receipt", "worker_photo", "w9", "marketing"].includes(kind) && !fd.get("jobId");
     const workerId = Number(fd.get("workerId")) || null;
     if (workerId && !(await env.DB.prepare("SELECT id FROM workers WHERE id = ? AND company_id = ?").bind(workerId, c).first())) return json({ error: "Worker not found." }, 404);
     if ((kind === "worker_photo" || kind === "w9") && !workerId) return json({ error: "Choose a worker." }, 400);
@@ -145,6 +151,11 @@ export async function handleFiles(request: Request, env: Env): Promise<Response>
     b = await request.json();
   } catch {
     return json({ error: "Invalid JSON." }, 400);
+  }
+  if (b?.action === "describe") {
+    // Rename a file in the cabinet and say what it is (business card, letterhead, flier...).
+    const r = await env.DB.prepare("UPDATE job_files SET name = ?, note = ? WHERE id = ? AND company_id = ? AND kind = 'marketing'").bind(cleanName(b.name), String(b.note ?? "").slice(0, 40) || null, Number(b.id), c).run();
+    return r.meta.changes ? json({ ok: true }) : json({ error: "Not found." }, 404);
   }
   if (b?.action === "delete") {
     const ok = await deleteFile(env, c, Number(b.id));

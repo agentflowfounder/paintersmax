@@ -145,7 +145,7 @@ export async function handleVendors(request: Request, env: Env): Promise<Respons
     case "addPrice":
     case "savePrices": {
       if (!(await owned(b.vendorId))) return json({ error: "Not found." }, 404);
-      const raw = b.action === "addPrice" ? [b.price] : Array.isArray(b.lines) ? b.lines.slice(0, 300) : [];
+      const raw = b.action === "addPrice" ? [b.price] : Array.isArray(b.lines) ? b.lines.slice(0, 1000) : [];
       const lines = raw.map(cleanPrice).filter(Boolean) as PriceIn[];
       if (!lines.length) return json({ error: "Add a product and a price." }, 400);
       const src = b.action === "addPrice" ? "manual" : "sheet";
