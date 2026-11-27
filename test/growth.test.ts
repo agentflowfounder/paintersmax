@@ -38,9 +38,9 @@ test("room from steps raises the limits and the city cap, and only for the door 
   assert.equal(activeGrow("grow", rec.grow), null);
   assert.equal(readGrow({ to: "grow", steps: 5, paidCents: 1 }), null);
   assert.equal(readGrow({ to: "launch", steps: 2, paidCents: 1 }), null);
-  const p = sanitizeProfile({ cities: ["A, TX", "B, TX", "C, TX", "D, TX", "E, TX"] }, "starter", 2);
-  assert.equal(p.cities.length, 5);
-  assert.equal(sanitizeProfile({ cities: ["A, TX", "B, TX", "C, TX", "D, TX"] }, "starter").cities.length, 3);
+  // Cities can be picked past the plan; the plan limits how many city pages go live.
+  assert.equal(sanitizeProfile({ cities: ["A, TX", "B, TX", "C, TX", "D, TX", "E, TX"] }, "starter", 2).cities.length, 5);
+  assert.equal(sanitizeProfile({ cities: ["A, TX", "B, TX", "C, TX", "D, TX"] }, "starter").cities.length, 4);
 });
 
 test("the offer shows the next step, and the one-time upgrade is cheaper by what was paid", () => {

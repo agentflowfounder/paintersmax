@@ -36,6 +36,11 @@ export const TRADE_LABELS: Record<string, string> = {
   remodeling: "Remodeling",
   epoxy_floors: "Epoxy floors",
   industrial: "Industrial coatings",
+  accent_walls: "Accent walls",
+  decorative_painting: "Decorative painting",
+  decorative_texture: "Decorative texture",
+  parking_lot_striping: "Parking lot striping",
+  glow_paint: "Glow-in-the-dark paint",
 };
 
 /** What the brand form starts with, taken from the painter's own setup. Nothing here is saved until they press Save. */

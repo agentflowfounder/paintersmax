@@ -1,7 +1,7 @@
 import { coiLink, coverageFor, loadSummary } from "./insurance.ts";
 import { getSessionUser } from "./auth.ts";
 import { extraCitiesFor } from "./sitebuilder.ts";
-import { isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData } from "./profile.ts";
+import { CITY_SELECT_MAX, isTrade, METHODS, PROFILE_CAPS, sanitizeProfile, sanitizeRateData, TRADES } from "./profile.ts";
 import { consume, normalizePlan, refund } from "./usage.ts";
 import { ask, askAnything, askStream, buildJobContext, completeEx, draftCoverNote, sanitizeHistory } from "./assistant.ts";
 import type { Env } from "./types.ts";
@@ -65,6 +65,8 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
     )
       .bind(company.id, JSON.stringify(profile), step, body?.completed === true ? 1 : 0)
       .run();
+    // The name typed in Your business is the name the painter works under, so the top of every page shows it too.
+    if (profile.company.legalName) await env.DB.prepare("UPDATE companies SET name = ? WHERE id = ?").bind(profile.company.legalName.slice(0, 100), company.id).run();
     return json({ ok: true });
   }
 
@@ -78,7 +80,8 @@ export async function handleProfile(request: Request, env: Env): Promise<Respons
   return json({
     company: company.name,
     plan,
-    caps: { ...PROFILE_CAPS[plan], cities: PROFILE_CAPS[plan].cities + (await extraCitiesFor(env, company.id, company.plan)) },
+    // Services and cities are open to every plan. pageCities is how many city pages the plan publishes.
+    caps: { services: TRADES.length, includedServices: PROFILE_CAPS[plan].services, cities: CITY_SELECT_MAX, pageCities: PROFILE_CAPS[plan].cities + (await extraCitiesFor(env, company.id, company.plan)) },
     profile: parse(row?.data),
     setupStep: row?.setup_step ?? "start",
     completed: row?.completed === 1,

@@ -326,6 +326,11 @@ export const TRADE_NAMES: Record<string, { en: string; es: string }> = {
   remodeling: { en: "Remodeling", es: "Remodelación" },
   epoxy_floors: { en: "Epoxy floors", es: "Pisos epóxicos" },
   industrial: { en: "Industrial coatings", es: "Recubrimientos industriales" },
+  accent_walls: { en: "Accent walls", es: "Paredes de acento" },
+  decorative_painting: { en: "Decorative painting", es: "Pintura decorativa" },
+  decorative_texture: { en: "Decorative texture", es: "Textura decorativa" },
+  parking_lot_striping: { en: "Parking lot striping", es: "Rayado de estacionamientos" },
+  glow_paint: { en: "Glow-in-the-dark paint", es: "Pintura que brilla en la oscuridad" },
 };
 
 /** Plain words about what each service covers. Facts about the work, never claims about the painter. */
@@ -342,6 +347,11 @@ const TRADE_SCOPE: Record<string, { en: string; es: string }> = {
   remodeling: { en: "Small remodels and repairs that go with the painting job.", es: "Remodelaciones pequeñas y reparaciones que acompañan el trabajo de pintura." },
   epoxy_floors: { en: "Garage and shop floors prepared and coated with epoxy.", es: "Pisos de garaje y taller preparados y cubiertos con epóxico." },
   industrial: { en: "Coatings for metal, tanks, warehouses and plants.", es: "Recubrimientos para metal, tanques, bodegas y plantas." },
+  accent_walls: { en: "One or more feature walls in a bold color or pattern, with clean edges and a smooth finish.", es: "Una o más paredes de acento en un color o diseño llamativo, con bordes limpios y acabado liso." },
+  decorative_painting: { en: "Decorative finishes applied by hand, such as color washing and stenciling.", es: "Acabados decorativos aplicados a mano, como veladuras y plantillas." },
+  decorative_texture: { en: "Textured wall and ceiling finishes, applied and finished by hand.", es: "Acabados texturizados en paredes y techos, aplicados y terminados a mano." },
+  parking_lot_striping: { en: "Parking lot lines, arrows, curbs and markings, laid out and painted.", es: "Líneas, flechas, bordillos y marcas de estacionamientos, trazados y pintados." },
+  glow_paint: { en: "Glow-in-the-dark paint for walls, ceilings, floors and signs.", es: "Pintura que brilla en la oscuridad para paredes, techos, pisos y letreros." },
 };
 
 /** Text the painter must replace before publishing. The publish check looks for the square brackets. */

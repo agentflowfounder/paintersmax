@@ -1,6 +1,9 @@
 import { getSessionUser } from "./auth.ts";
 import { cityWithFacts, citySlug, type CityFacts } from "./cities.ts";
 import { escapeHtml, readSettings, type CompanySettings } from "./settings.ts";
+import { PROFILE_CAPS } from "./profile.ts";
+import { extraCitiesFor } from "./sitebuilder.ts";
+import { normalizePlan } from "./usage.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -15,6 +18,7 @@ export const TRADE_LABELS: Record<string, string> = {
   interior: "Interior painting", exterior: "Exterior painting", commercial: "Commercial painting", new_construction: "New construction painting",
   power_washing: "Power washing", drywall: "Drywall repair", cabinets: "Cabinet painting", decks_fences: "Deck and fence staining",
   fencing: "Fence installation", remodeling: "Remodeling", epoxy_floors: "Epoxy floors", industrial: "Industrial coatings",
+  accent_walls: "Accent walls", decorative_painting: "Decorative painting", decorative_texture: "Decorative texture", parking_lot_striping: "Parking lot striping", glow_paint: "Glow-in-the-dark paint",
 };
 
 export interface CityPageData {
@@ -289,6 +293,11 @@ export async function handleCityPagesApi(request: Request, env: Env): Promise<Re
     if (wantPublish) {
       const why = publishBlocker(data);
       if (why) return json({ error: why }, 400);
+      // Picking cities is open to everyone; publishing city pages follows the plan.
+      const plan = (await env.DB.prepare("SELECT plan FROM companies WHERE id = ?").bind(user.companyId).first<{ plan: string }>())?.plan ?? "free";
+      const allowed = PROFILE_CAPS[normalizePlan(plan)].cities + (await extraCitiesFor(env, user.companyId, plan));
+      const live = (await env.DB.prepare("SELECT COUNT(*) AS n FROM city_pages WHERE company_id = ? AND published = 1 AND city_key != ?").bind(user.companyId, key).first<{ n: number }>())?.n ?? 0;
+      if (live >= allowed) return json({ error: `Your plan publishes up to ${allowed} city page${allowed === 1 ? "" : "s"}, and ${live} ${live === 1 ? "is" : "are"} already live. Unpublish one, or add more city pages from the Website upgrade window.` }, 403);
     }
     const slug = citySlug(city.name, city.state);
     await env.DB.prepare(

@@ -14,6 +14,11 @@ export const TRADES = [
   "remodeling",
   "epoxy_floors",
   "industrial",
+  "accent_walls",
+  "decorative_painting",
+  "decorative_texture",
+  "parking_lot_striping",
+  "glow_paint",
 ] as const;
 export type Trade = (typeof TRADES)[number];
 
@@ -25,6 +30,9 @@ export const PROFILE_CAPS: Record<Plan, { services: number; cities: number }> = 
   pro: { services: 15, cities: 30 },
 };
 
+/** Cities a painter may pick on any plan. Published city pages still follow the plan (PROFILE_CAPS.cities). */
+export const CITY_SELECT_MAX = 30;
+
 /** Service radius in miles by plan (Pro can go further by request). Used by the Cities page. */
 export const RADIUS_MILES: Record<Plan, number> = { free: 15, starter: 25, basic: 50, pro: 100 };
 
@@ -35,6 +43,12 @@ const num = (v: unknown, min: number, max: number): number | undefined => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
   return Number.isFinite(n) && n >= min && n <= max ? n : undefined;
 };
+
+export const BUSINESS_TYPES = ["sole", "llc", "corp", "unsure"];
+export const LEAD_SOURCES = ["referrals", "repeat", "google", "facebook", "nextdoor", "yard_signs", "door_knocking", "builders", "paint_store", "other"];
+export const PAY_METHODS = ["check", "cash", "card", "zelle", "ach"];
+export const ACCOUNTING = ["none", "spreadsheet", "quickbooks", "other"];
+const pick = (v: unknown, allowed: string[]): string[] | undefined => (Array.isArray(v) ? Array.from(new Set(v.map((x) => str(x, 20)).filter((x) => allowed.includes(x)))) : undefined);
 
 export interface Profile {
   company: { legalName?: string; phone?: string; email?: string; address?: string; city?: string; state?: string; zip?: string; license?: string; website?: string };
@@ -52,6 +66,8 @@ export interface Profile {
   /** Home market for starting rates, and what shows on printed rate cards. */
   market: { tier?: "high" | "average" | "low" };
   ratecard: { hidePreparedWith?: boolean };
+  /** How the business runs. Saved to the profile; used for tips and reports. */
+  business: { type?: string; yearsIn?: number; monthlyGoal?: number; jobsGoal?: number; leadSources?: string[]; payMethods?: string[]; accounting?: string; payFrequency?: string };
 }
 
 /** Keeps only valid, size-limited values. Anything unexpected is dropped, never stored. */
@@ -66,10 +82,10 @@ export function sanitizeProfile(input: any, plan: string, extraCities = 0): Prof
   const m = input?.materials ?? {};
   const lang = input?.language ?? {};
   const trades = Array.isArray(input?.trades)
-    ? Array.from(new Set(input.trades.filter((t: unknown): t is Trade => (TRADES as readonly string[]).includes(String(t))))).slice(0, caps.services) as Trade[]
+    ? Array.from(new Set(input.trades.filter((t: unknown): t is Trade => (TRADES as readonly string[]).includes(String(t))))) as Trade[]
     : [];
   const cities = Array.isArray(input?.cities)
-    ? Array.from(new Set(input.cities.map((x: unknown) => str(x, 60)).filter(Boolean))).slice(0, caps.cities) as string[]
+    ? Array.from(new Set(input.cities.map((x: unknown) => str(x, 60)).filter(Boolean))).slice(0, CITY_SELECT_MAX) as string[]
     : [];
   const out: Profile = {
     company: {
@@ -85,7 +101,7 @@ export function sanitizeProfile(input: any, plan: string, extraCities = 0): Prof
     },
     trades,
     cities,
-    cityKeys: Array.isArray(input?.cityKeys) ? Array.from(new Set(input.cityKeys.map((x: unknown) => str(x, 70)).filter((k: string) => /^[a-z]{2}-[a-z0-9-]{1,60}$/.test(k)))).slice(0, caps.cities) as string[] : [],
+    cityKeys: Array.isArray(input?.cityKeys) ? Array.from(new Set(input.cityKeys.map((x: unknown) => str(x, 70)).filter((k: string) => /^[a-z]{2}-[a-z0-9-]{1,60}$/.test(k)))).slice(0, CITY_SELECT_MAX) as string[] : [],
     insurance: {
       carrier: str(ins.carrier, 120) || undefined,
       coverage: str(ins.coverage, 200) || undefined,
@@ -118,6 +134,16 @@ export function sanitizeProfile(input: any, plan: string, extraCities = 0): Prof
     setup: { noResume: input?.setup?.noResume === true ? true : undefined },
     market: { tier: ["high", "average", "low"].includes(input?.market?.tier) ? input.market.tier : undefined },
     ratecard: { hidePreparedWith: input?.ratecard?.hidePreparedWith === true ? true : undefined },
+    business: {
+      type: BUSINESS_TYPES.includes(str(input?.business?.type, 20)) ? str(input?.business?.type, 20) : undefined,
+      yearsIn: num(input?.business?.yearsIn, 0, 100),
+      monthlyGoal: num(input?.business?.monthlyGoal, 0, 10000000),
+      jobsGoal: num(input?.business?.jobsGoal, 0, 10000),
+      leadSources: pick(input?.business?.leadSources, LEAD_SOURCES),
+      payMethods: pick(input?.business?.payMethods, PAY_METHODS),
+      accounting: ACCOUNTING.includes(str(input?.business?.accounting, 20)) ? str(input?.business?.accounting, 20) : undefined,
+      payFrequency: ["weekly", "biweekly", "monthly"].includes(str(input?.business?.payFrequency, 10)) ? str(input?.business?.payFrequency, 10) : undefined,
+    },
   };
   return out;
 }
