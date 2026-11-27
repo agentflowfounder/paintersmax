@@ -1,4 +1,5 @@
 import { getSessionUser, randomToken } from "./auth.ts";
+import { sendCustomerEmail } from "./email.ts";
 import { effectivePlan, normalizePlan, type Plan } from "./usage.ts";
 import type { Env } from "./types.ts";
 
@@ -45,6 +46,12 @@ export function storageNotice(used: number, limit: number, plan: Plan): StorageN
   return { used, limit, percent, level, message, upgrade: level !== "ok" && plan !== "pro" };
 }
 
+/** Base64 for an email attachment, in chunks so a big file does not overflow the call stack. */
+export function toBase64(bytes: Uint8Array): string {
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
 export const extFor = (mime: string) => MIMES[mime] ?? null;
 export const cleanName = (n: unknown) => String(n ?? "file").replace(/[^\w.\- ]+/g, "_").slice(0, 80) || "file";
 
@@ -156,6 +163,19 @@ export async function handleFiles(request: Request, env: Env): Promise<Response>
     // Rename a file in the cabinet and say what it is (business card, letterhead, flier...).
     const r = await env.DB.prepare("UPDATE job_files SET name = ?, note = ? WHERE id = ? AND company_id = ? AND kind = 'marketing'").bind(cleanName(b.name), String(b.note ?? "").slice(0, 40) || null, Number(b.id), c).run();
     return r.meta.changes ? json({ ok: true }) : json({ error: "Not found." }, 404);
+  }
+  if (b?.action === "email") {
+    // One tap: email a file from the cabinet (a business card, flier...) to the painter, or to a customer they type.
+    const row = await env.DB.prepare("SELECT r2_key, mime, name FROM job_files WHERE id = ? AND company_id = ? AND kind = 'marketing' AND r2_key != ''").bind(Number(b.id), c).first<{ r2_key: string; mime: string; name: string }>();
+    const obj = row && env.FILES ? await env.FILES.get(row.r2_key) : null;
+    if (!row || !obj) return json({ error: "Not found." }, 404);
+    const to = String(b.to ?? "").trim() || user.email;
+    if (!/^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/.test(to) || to.length > 120) return json({ error: "Type a valid email address." }, 400);
+    const content = toBase64(new Uint8Array(await obj.arrayBuffer()));
+    const mine = to.toLowerCase() === user.email.toLowerCase();
+    const text = mine ? `Here is your file "${row.name}" from My files.` : `Hello,\n\nPlease find ${row.name} attached.\n\n${user.companyName}`;
+    const res = await sendCustomerEmail(env, to, user.companyName, user.email, mine ? `Your file: ${row.name}` : `${user.companyName}: ${row.name}`, text, [{ filename: row.name, content }]);
+    return res === "sent" ? json({ ok: true, to }) : json({ error: "The email could not be sent right now. Try again in a few minutes." }, 502);
   }
   if (b?.action === "delete") {
     const ok = await deleteFile(env, c, Number(b.id));

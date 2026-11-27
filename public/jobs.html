@@ -1023,6 +1023,7 @@ async function detail(id){
   ${acc('sched','Schedule','',mid,'<div id="m_sched"></div>')}
   ${acc('mat','Materials list','',false,'<div id="m_mat"></div>')}
   ${acc('crew','Crew instructions','',false,'<div id="m_crew"></div>')}
+  ${acc('day','Crew day card','',false,'<div id="m_day"></div>')}
   ${acc('wo','Work orders and change orders','',st==='in_progress',woCard())}
   ${acc('portal','Customer portal link','',false,portalCard(d))}
 
@@ -1074,6 +1075,7 @@ const DOCS=[
  {k:'materials',n:4,t:'Materials list',h:'What to buy for this job. Fill in the quantities, then print it for the supply store.',crew:1,cols:1},
  {k:'schedule',n:5,t:'Schedule',h:'Day-by-day plan. Pick the start date and the days fill in (Sundays skipped). You can email it to the customer.',cust:1,start:1},
  {k:'instructions',n:6,t:'Crew instructions',h:'Step-by-step instructions for your crew, in English or Spanish.',crew:1},
+ {k:'daycard',n:6,t:'Crew day card',h:'A one-page checklist for each work day: safety, protect, do the work, photos, clean up. Print it or open it on the phone.',crew:1},
  {k:'punch',n:7,t:'Punch list',h:'The final walkthrough checklist. The customer signs at the bottom.'},
  {k:'warranty',n:9,t:'Warranty letter',h:'Give this to the customer when the job is finished.',cust:1,done:1}
 ];
@@ -1106,9 +1108,9 @@ function drawMore(d){
  docs={};for(const m of DOCS){if(d.docs[m.k]&&d.docs[m.k].doc)docs[m.k]=JSON.parse(JSON.stringify(d.docs[m.k].doc));}
  inv=d.docs.invoice&&d.docs.invoice.invoice?{...d.docs.invoice.invoice,paid:(d.docs.invoice.invoice.paidCents||0)/100}:{};
  const put=(id,h)=>{const el=$(id);if(el)el.innerHTML=h;};
- put('m_sched',docCard(DOCS[1],d));put('m_mat',docCard(DOCS[0],d));put('m_crew',docCard(DOCS[2],d));put('m_punch',docCard(DOCS[3],d));put('m_inv',invCard(d));put('m_warr','<b>Warranty letter</b>'+docCard(DOCS[4],d));
+ put('m_sched',docCard(DOCS[1],d));put('m_mat',docCard(DOCS[0],d));put('m_crew',docCard(DOCS[2],d));put('m_punch',docCard(DOCS[4],d));put('m_day',docCard(DOCS[3],d));put('m_inv',invCard(d));put('m_warr','<b>Warranty letter</b>'+docCard(DOCS[5],d));
  const ST={draft:'Saved as a draft',sent:'Sent to the customer',paid:'Paid',signed:'Signed',approved:'Approved'};
- [['schedule','sched'],['materials','mat'],['instructions','crew'],['punch','punch'],['invoice','inv'],['warranty','warr']].forEach(([k,a])=>{const x=d.docs[k];const el=$('accs_'+a);if(el)el.textContent=x?(ST[x.status]||x.status||'Saved'):'Not started';});
+ [['schedule','sched'],['materials','mat'],['instructions','crew'],['daycard','day'],['punch','punch'],['invoice','inv'],['warranty','warr']].forEach(([k,a])=>{const x=d.docs[k];const el=$('accs_'+a);if(el)el.textContent=x?(ST[x.status]||x.status||'Saved'):'Not started';});
  DOCS.forEach(m=>wDraw(m.k));msOpts=((d.estimate&&d.estimate.estimate&&d.estimate.estimate.schedule)||[]).map((m,i,a)=>({label:m.label,pct:m.pct,amountCents:Math.round(((d.estimate.totals||{}).totalCents||0)*m.pct/100)}));if(d.docs.invoice&&d.docs.invoice.invoice)ivFill();
 }
 async function jd(body){try{msg('');return await api('/api/jobdoc',{jobId:J.job.id,...body});}catch(x){if(x)msg(x.message);}}

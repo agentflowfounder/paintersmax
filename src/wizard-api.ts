@@ -472,7 +472,7 @@ export async function handleJob(request: Request, env: Env): Promise<Response> {
     env.DB.prepare("SELECT id, status, body FROM documents WHERE job_id = ? AND company_id = ? AND kind = 'contract' ORDER BY id DESC LIMIT 1").bind(id, user.companyId).first<{ id: number; status: string; body: string }>(),
     env.DB.prepare(
       `SELECT d.kind, d.id, d.status, d.body FROM documents d
-        WHERE d.job_id = ? AND d.company_id = ? AND d.kind IN ('materials','schedule','instructions','punch','warranty','invoice')
+        WHERE d.job_id = ? AND d.company_id = ? AND d.kind IN ('materials','schedule','instructions','daycard','punch','warranty','invoice')
           AND d.id = (SELECT MAX(id) FROM documents WHERE job_id = d.job_id AND kind = d.kind)`,
     ).bind(id, user.companyId).all(),
   ]);
@@ -927,7 +927,7 @@ export async function handleContract(request: Request, env: Env): Promise<Respon
 
 /** Renders a saved estimate, contract or job document as a full page. Used by the printout and by e-signature. */
 export async function renderDocPage(env: Env, companyId: number, id: number): Promise<{ page: string; jobId: number; kind: string; language: string; title: string } | null> {
-  const doc = await env.DB.prepare("SELECT job_id, kind, body, language, title FROM documents WHERE id = ? AND company_id = ? AND kind IN ('estimate','contract','materials','schedule','instructions','punch','warranty','invoice')").bind(id, companyId).first<{ job_id: number; kind: string; body: string; language: string; title: string }>();
+  const doc = await env.DB.prepare("SELECT job_id, kind, body, language, title FROM documents WHERE id = ? AND company_id = ? AND kind IN ('estimate','contract','materials','schedule','instructions','daycard','punch','warranty','invoice')").bind(id, companyId).first<{ job_id: number; kind: string; body: string; language: string; title: string }>();
   if (!doc) return null;
   const stored = parse(doc.body);
   let page: string | null;

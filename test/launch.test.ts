@@ -34,7 +34,8 @@ test("checklist counts auto and hand-ticked items, and only known manual items c
   const e = env({ STRIPE_SECRET_KEY: "sk_test_x", STRIPE_WEBHOOK_SECRET: "whsec_x" });
   e.db.exec("INSERT INTO app_settings (key, value) VALUES ('tierdemos:sig', '{\"sig\":\"x\"}')");
   const a = await launchChecklist(e, "2026-11-23", { endpointsOk: true, lastEventAt: "2026-11-22 23:30:54" });
-  assert.equal(a.total, 8 + MANUAL_ITEMS.length);
+  assert.equal(a.total, 11 + MANUAL_ITEMS.length);
+  assert.equal(a.items.find((i) => i.id === "email_key")!.done, false, "no email key in this test");
   assert.equal(a.items.find((i) => i.id === "demos")!.done, true);
   assert.deepEqual(await tickLaunch(e, "two_factor", true), { ok: true });
   assert.equal((await tickLaunch(e, "live_key", true)).ok, false);

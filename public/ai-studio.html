@@ -51,10 +51,19 @@ a{color:#0F1B2D}
   <p class="cost" id="c_img">Checking your website...</p>
   <a class="btn s" href="/site">Open Website</a>
  </div>
+<div class="card" style="grid-column:1/-1">
+  <h2>Save a design to My files</h2>
+  <p class="muted">Made a design in Canva or anywhere else? Keep it here with your other business files. Then send it to yourself or a customer in one tap.</p>
+  <input type="file" id="sv_file" accept="image/png,image/jpeg,image/webp,application/pdf" aria-label="Choose a file">
+  <select id="sv_kind" aria-label="What is it?"><option>Business card</option><option>Letterhead header</option><option>Door hanger</option><option>Flier</option><option>T-shirt</option><option>Logo</option><option>Other</option></select>
+  <div><button id="sv_go">Save to My files</button> <a class="btn s" href="/brand">Open My files</a></div>
+  <p class="muted" id="sv_msg" role="status"></p>
+ </div>
 </div>
 <div class="note" style="margin-top:14px" id="note">It is a preview or a draft, not a color match or a finished photo. Test paint samples on the wall and check colors with the paint store.</div>
 </main>
 <script>
+document.getElementById('sv_go').onclick=function(){var f=$('sv_file').files[0],m=$('sv_msg');if(!f){m.textContent=T('Choose a file first.');return;}var fd=new FormData();fd.append('file',f);fd.append('kind','marketing');fd.append('note',$('sv_kind').value);m.textContent=T('Saving...');fetch('/api/files',{method:'POST',body:fd}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Could not save.');m.textContent=T('Saved to My files.');$('sv_file').value='';});}).catch(function(e){m.textContent=e.message;});};
 var $=function(i){return document.getElementById(i)};
 var T=window.pmT||function(s){return s};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
