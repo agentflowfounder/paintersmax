@@ -8,3 +8,4 @@ One entry per template version: date, slug, version, doors, inspiration, license
 | 2026-11-16 | sunset-sand | 1.0.0 | Sunset Sand | Launch, Grow, Signature (Free previews) | Interior design studio site, full-page screenshot; layout ideas only | Original code, text, icons and layout. Fonts Marcellus and Jost (OFL). No third-party photos or video. |
 
 Note 2026-11-17: dfw-pro-painters (Sunset) was removed from this branch at the owner's request and archived by the owner. Sunset Sand is now the default template for new sites.
+

@@ -34,7 +34,7 @@ input,select,textarea{width:100%;padding:11px;border:1px solid #cfd5dc;border-ra
 .line input{padding:8px}.line button{border:0;background:none;font-size:18px;cursor:pointer;color:#b42318}
 .head{font-size:12px;color:#4A5568;font-weight:600}
 .tot{text-align:right;font-size:15px;margin-top:10px;line-height:1.7}.tot b{font-size:19px}
-small,.muted{color:#4A5568}#msg{font-size:14px;margin:8px 0;min-height:20px}.ok{color:#0a7a3d}.bad{color:#b42318}
+small,.muted{color:#4A5568}#msg{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;width:calc(100% - 24px);max-width:560px;margin:0;padding:12px 14px;border-radius:10px;background:#fff;border:2px solid #b42318;box-shadow:0 6px 24px rgba(15,27,45,.22);z-index:60;font-size:15px;font-weight:600;cursor:pointer}#msg:empty{display:none}#msg.ok{border-color:#0a7a3d}.ok{color:#0a7a3d}.bad{color:#b42318}
 .ev{font-size:13px;padding:4px 0;border-bottom:1px solid #f0eee9}
 .fab{position:fixed;right:14px;bottom:16px;z-index:30;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.28);padding:13px 20px;font-size:16px}@media print{.fab{display:none}}
 .bub{padding:10px 12px;border-radius:10px;margin:8px 0;white-space:pre-wrap;line-height:1.45}.bub.u{background:#eceae4;margin-left:24px}.bub.a{background:#fff8e8;border:1px solid #f0d9a0;margin-right:12px}.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.chip{border:1px solid #cfd5dc;background:#fff;border-radius:99px;padding:6px 12px;font-size:13px;cursor:pointer}.mini{border:0;background:none;color:#0F1B2D;text-decoration:underline;font-size:12px;cursor:pointer;padding:2px 0}
@@ -123,6 +123,12 @@ details.acc[open]>summary{border-bottom:1px solid #eee}
 .cpbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cpimg{width:100%;max-height:280px;object-fit:cover;border-radius:10px;display:block;margin-top:10px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cap{font-size:12px;font-weight:600;color:#4A5568;margin:6px 0 2px}
 .nsteps label{display:flex;gap:8px;align-items:flex-start;font-weight:400}.nsteps input{width:auto;margin-top:4px}
+
+.savedbar{background:#e6f4ea;border:2px solid #0a7a3d;border-radius:10px;padding:12px 14px;margin:12px 0;display:grid;gap:4px}.savedbar b{font-size:17px;color:#0a7a3d}
+.future{background:#eaf2fd;border-color:#a9c4ea}
+.sentp{position:fixed;inset:0;background:rgba(15,27,45,.55);z-index:80;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px}.sentc{background:#fff;border-radius:14px;max-width:520px;width:100%;padding:20px 18px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.sentok{width:56px;height:56px;border-radius:50%;background:#0a7a3d;color:#fff;font-size:34px;display:flex;align-items:center;justify-content:center}
+.sentstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.sentstats div{background:#f7f5f1;border-radius:10px;padding:10px;text-align:center}.sentstats small{display:block;font-size:12px}.sentstats b{font-size:19px}.sentl{margin:12px 0 0;padding-left:18px}.sentl li{margin:6px 0}
 </style><link rel="stylesheet" href="/colorcode.css"></head><body>
 <header><div><b>PaintersMax</b> Jobs</div><div><a href="/app">Estimating Setup</a><a href="/calendar">Calendar</a><a href="/records">Records</a><a href="/crew">Crew</a><a href="/lessons">Lessons</a><a href="/analysis">Analysis</a><a href="/builders">Builder rates</a><a href="/import">Import customers</a><a href="/materials">Materials</a><a href="/insurance">Insurance</a><a href="/dashboard">Settings and leads</a></div></header>
 <main><div id="view">Loading...</div><div id="msg"></div></main>
@@ -134,7 +140,8 @@ const QL={small:'Small rooms',medium:'Medium rooms',large:'Large rooms',custom_m
 const BASE={sqft_floor:[['sqft','Square feet of floor area']],sqft_wall:[['sqft','Square feet of wall']],per_linear_ft:[['linear_ft','Linear feet']],lump_sum:[['cost','Your cost for the whole job ($)']]};
 const STAGE={lead:'Lead',bid:'Estimate',contract:'Contract',scheduled:'Scheduled',in_progress:'In progress',punch:'Punch list',invoiced:'Invoiced',closed:'Closed',lost:'Lost'};
 let J=null,lines=[],clauses=[],docs={},inv={},chat=[],chatJob=undefined,sched=[],cost={items:[],markupPct:0},msOpts=[];
-function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
+function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';clearTimeout(window._mt);if(t&&ok)window._mt=setTimeout(()=>{m.textContent='';},9000);}
+document.addEventListener('click',e=>{if(e.target&&e.target.id==='msg')msg('');});
 async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok){const er=new Error(j.error||'Something went wrong.');er.detail=j.detail;er.allowance=j.allowance;er.code=j.code;throw er;}return j;}
 
 
@@ -531,11 +538,13 @@ document.addEventListener('click',async e=>{const t=e.target,ds=t.dataset||{};if
 
 // ---- Steps across the top of a bid ----
 const BSTEPS=[['req','Request'],['type','Details'],['colors','Colors'],['sum','Summary'],['est','Estimate'],['visit','Visit'],['close','Close']];
+const BSTEPS4=[['req','Scope and photos'],['est:lines','Lines and add-ons'],['est:tot','Review and edit'],['est:send','Present and sign']];
 function stepBar(d){d=d||{};const e=d.estimate,hasEst=!!(e&&e.estimate),notes=(d.fieldNotes||[]).length,st=(d.job||{}).stage;
- const done=[true,notes>0||!!d.brief,((d.colors||(J&&J.colors)||[]).length>0),hasEst,hasEst,!!(d.visit&&(d.visit.status==='booked'||d.visit.status==='done')),!['lead','bid'].includes(st)];
- let cur=done.findIndex(x=>!x);if(cur<0)cur=done.length-1;const n=done.filter(Boolean).length;
- return `<nav class="pbar" aria-label="Estimate progress"><div class="pbt" role="progressbar" aria-valuemin="0" aria-valuemax="${BSTEPS.length}" aria-valuenow="${n}"><i style="width:${Math.round(n/BSTEPS.length*100)}%"></i></div><div class="pbl"><span>Step ${cur+1} of ${BSTEPS.length}: <b>${esc(BSTEPS[cur][1])}</b></span><small>${n} of ${BSTEPS.length} done</small></div><div class="pbs">${BSTEPS.map(([k,nm],i)=>`<button type="button" class="${done[i]?'done':''} ${i===cur?'cur':''}" data-stepgo="${k}" aria-label="${esc(nm)}${done[i]?' (done)':''}"><i></i></button>`).join('')}</div><ol class="pbn">${BSTEPS.map(([k,nm],i)=>`<li><button type="button" class="${done[i]?'done':''} ${i===cur?'cur':''}" data-stepgo="${k}"><b>${done[i]?'&#10003;':i+1}</b>${esc(nm)}${done[i]?' <small class="muted">done</small>':''}</button></li>`).join('')}</ol></nav>`;}
-document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-stepgo]');if(!b)return;openAcc(b.dataset.stepgo);const a=$('acc_'+b.dataset.stepgo);if(a)a.scrollIntoView({behavior:'smooth',block:'start'});});
+ const sent=!!(e&&['sent','signed','accepted'].includes(e.status))||!['lead','bid'].includes(st);
+ const done=[notes>0||!!d.brief||!!d.request||hasEst,hasEst||(typeof lines!=='undefined'&&lines.length>0),hasEst,sent];
+ let cur=done.findIndex(x=>!x);if(cur<0)cur=done.length-1;const n=done.filter(Boolean).length,N=BSTEPS4.length;
+ return `<nav class="pbar" aria-label="Estimate progress"><div class="pbt" role="progressbar" aria-valuemin="0" aria-valuemax="${N}" aria-valuenow="${n}"><i style="width:${Math.round(n/N*100)}%"></i></div><div class="pbl"><span>Step ${cur+1} of ${N}: <b>${esc(BSTEPS4[cur][1])}</b></span><small>${n} of ${N} done</small></div><ol class="pbn">${BSTEPS4.map(([k,nm],i)=>`<li><button type="button" class="${done[i]?'done':''} ${i===cur?'cur':''}" data-stepgo="${k}"><b>${done[i]?'&#10003;':i+1}</b>${esc(nm)}${done[i]?' <small class="muted">done</small>':''}</button></li>`).join('')}</ol></nav>`;}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-stepgo]');if(!b)return;const [acc_,el_]=b.dataset.stepgo.split(':');openAcc(acc_);const a=$(el_||('acc_'+acc_))||$('acc_'+acc_);if(a)a.scrollIntoView({behavior:'smooth',block:el_?'center':'start'});});
 
 const GROUPS=[['New leads',['lead'],'Customers who asked for a quote. Build an estimate to bid on them.'],['Estimate approved',['bid:signed'],'The customer signed the estimate. Build and send the contract next.'],['Waiting on the customer',['bid','contract'],'Estimates and contracts you sent. Waiting for the customer to approve or sign.'],['In progress',['scheduled','in_progress','punch'],'Approved jobs that are scheduled or underway.'],['Completed',['invoiced','closed'],'Finished and invoiced jobs.'],['Lost',['lost'],'']];
 const COVC={likely_covered:['#e6f4ea','#0a7a3d','Insured: appears covered'],check_with_agent:['#fff3d6','#8a5a00','Check your insurance'],likely_excluded:['#fdecea','#b42318','Insurance: may not cover'],expired:['#fdecea','#b42318','Policy expired']};
@@ -599,8 +608,13 @@ function qtyFields(rc){
   return out;
 }
 let OPTS=[];
-const SECN={paint:'Paint',drywall:'Drywall',trim:'Trim',other:'Other'};
-function secOf(l){return l.section&&SECN[l.section]?l.section:'paint';}
+const SECALL={floorprep:'Floor prep',epoxy:'Epoxy',cold_water:'Cold water wash',hot_water:'Hot water wash',chemicals:'Chemicals',drywall:'Drywall',fence:'Fence',stain:'Stain and seal',paint:'Paint',trim:'Trim',other:'Other'};
+let SECN={paint:'Paint',drywall:'Drywall',trim:'Trim',other:'Other'};
+function setSections(d){const m={};(d.sections||[]).forEach(x=>{m[x.id]=x.label;});if(Object.keys(m).length)SECN=m;}
+const secDef=()=>SECN.paint?'paint':Object.keys(SECN)[0];
+const secName=k=>SECN[k]||SECALL[k]||k;
+const secKeys=l=>Object.keys(SECN).concat(l&&l.section&&!SECN[l.section]&&SECALL[l.section]?[l.section]:[]);
+function secOf(l){return l.section&&(SECN[l.section]||SECALL[l.section])?l.section:secDef();}
 function totals(){
   const sub=lines.filter(l=>!OPTS.includes(secOf(l))).reduce((s,l)=>s+Math.round((+l.qty||0)*(+l.unitPrice||0)*100),0);
   const disc=Math.min(Math.round((+$('discount').value||0)*100),sub);
@@ -609,13 +623,14 @@ function totals(){
 }
 const $$=c=>'$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 function drawLines(){
-  $('lines').innerHTML=lines.length?lines.map((l,i)=>`<div class="lrow"><input data-i="${i}" data-f="description" value="${esc(l.description)}" placeholder="Description" aria-label="Description"><div class="l2"><input data-i="${i}" data-f="qty" inputmode="decimal" value="${esc(l.qty)}" aria-label="Quantity" placeholder="Qty"><input data-i="${i}" data-f="unit" value="${esc(l.unit)}" aria-label="Unit" placeholder="Unit"><input data-i="${i}" data-f="unitPrice" inputmode="decimal" class="${l.needsPrice&&!(+l.unitPrice>0)?'np':''}" value="${esc(l.unitPrice)}" aria-label="Price in dollars" placeholder="Price $"><select data-i="${i}" data-f="section" aria-label="Section">${Object.entries(SECN).map(([k,v])=>`<option value="${k}" ${secOf(l)===k?'selected':''}>${esc(v)}</option>`).join('')}</select><button data-del="${i}" title="Remove" aria-label="Remove line">&times;</button></div></div>`).join('')+optDraw():'<p class="muted">No lines yet. Build the estimate from your notes, fill the lines from your prices, or add a line by hand.</p>';
+  $('lines').innerHTML=lines.length?lines.map((l,i)=>`<div class="lrow"><input data-i="${i}" data-f="description" value="${esc(l.description)}" placeholder="Description" aria-label="Description"><div class="l2"><input data-i="${i}" data-f="qty" inputmode="decimal" value="${esc(l.qty)}" aria-label="Quantity" placeholder="Qty"><input data-i="${i}" data-f="unit" value="${esc(l.unit)}" aria-label="Unit" placeholder="Unit"><input data-i="${i}" data-f="unitPrice" inputmode="decimal" class="${l.needsPrice&&!(+l.unitPrice>0)?'np':''}" value="${esc(l.unitPrice)}" aria-label="Price in dollars" placeholder="Price $"><select data-i="${i}" data-f="section" aria-label="Type of work" title="Type of work">${secKeys(l).map(k=>`<option value="${k}" ${secOf(l)===k?'selected':''}>${esc(secName(k))}</option>`).join('')}</select><button data-del="${i}" title="Remove" aria-label="Remove line">&times;</button></div></div>`).join('')+optDraw():'<p class="muted">No lines yet. Build the estimate from your notes, fill the lines from your prices, or add a line by hand.</p>';
   drawTotals();
 }
-function optDraw(){const used=Object.keys(SECN).filter(k=>lines.some(l=>secOf(l)===k));if(used.length<2&&!OPTS.length)return '<small class="muted" style="display:block;margin-top:6px">Use the section box on each line to split the estimate into drywall, painting and trim. Each section can then be made optional.</small>';
- return `<div style="margin-top:10px"><b style="font-size:14px">Optional sections</b><small class="muted" style="display:block">Ticked sections print with their own price as an add-on the customer can choose, and are not counted in the total.</small>${used.map(k=>`<label class="optck"><input type="checkbox" data-optsec="${k}" ${OPTS.includes(k)?'checked':''}> ${esc(SECN[k])}</label>`).join('')}</div>`;}
+function optDraw(){const allk=Object.keys(SECN).concat(lines.map(secOf).filter(k=>!SECN[k]));const used=allk.filter((k,i)=>allk.indexOf(k)===i&&lines.some(l=>secOf(l)===k));if(used.length<2&&!OPTS.length)return '<small class="muted" style="display:block;margin-top:6px">Use the type box on each line to group the estimate. Each group can then be made optional, for example an add-on the customer can choose.</small>';
+ return `<div style="margin-top:10px"><b style="font-size:14px">Optional sections</b><small class="muted" style="display:block">Ticked sections print with their own price as an add-on the customer can choose, and are not counted in the total.</small>${used.map(k=>`<label class="optck"><input type="checkbox" data-optsec="${k}" ${OPTS.includes(k)?'checked':''}> ${esc(secName(k))}</label>`).join('')}</div>`;}
 document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.optsec){OPTS=t.checked?OPTS.concat([t.dataset.optsec]):OPTS.filter(x=>x!==t.dataset.optsec);drawTotals();}else if(t.dataset&&t.dataset.f==='section'){lines[+t.dataset.i].section=t.value;drawLines();}});
-function drawTotals(){if($('sched'))drawSched();const t=totals();const ot=OPTS.map(k=>[k,lines.filter(l=>secOf(l)===k).reduce((s,l)=>s+Math.round((+l.qty||0)*(+l.unitPrice||0)*100),0)]).filter(x=>x[1]>0);$('tot').innerHTML=`${ot.map(([k,c])=>`<small class="muted">Optional: ${esc(SECN[k])} ${$$(c)}</small><br>`).join('')}Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;bidDraw();}
+function drawTotals(){if($('sched'))drawSched();const t=totals();const ot=OPTS.map(k=>[k,lines.filter(l=>secOf(l)===k).reduce((s,l)=>s+Math.round((+l.qty||0)*(+l.unitPrice||0)*100),0)]).filter(x=>x[1]>0);const th=$('e_terms_hint');if(th)th.innerHTML=t.total>999900?'<span class="cc t-warn">Contract suggested</span> This job is over $9,999. A contract is suggested for larger jobs. You decide: tick the box to print the terms with this estimate.':'The estimate is what your customer signs. Small and medium jobs usually do not need contract terms. Tick the box only if you want them printed too.';
+$('tot').innerHTML=`${ot.map(([k,c])=>`<small class="muted">Optional: ${esc(secName(k))} ${$$(c)}</small><br>`).join('')}Subtotal ${$$(t.sub)}<br>${t.disc?`Discount -${$$(t.disc)}<br>`:''}${t.tax?`Tax ${$$(t.tax)}<br>`:''}<b>Total ${$$(t.total)}</b><br><small>Your minimum job and deposit are applied when you save.</small>`;bidDraw();}
 /* Bid check: this bid next to the painter's last 10 finished jobs, a warning under their target margin, and a word of encouragement. */
 let BID=null;
 async function bidLoad(){try{BID=await api('/api/bidcheck');}catch(x){BID=null;}bidDraw();vpLoad();}
@@ -631,7 +646,7 @@ function vpDraw(){const el=$('vprice');if(!el)return;if(!VP||(!VP.ask&&!VP.myVen
 document.addEventListener('click',async e=>{const t=e.target.closest?e.target.closest('[data-vown],[data-vfind],[data-vadd]'):null;if(!t)return;const ds=t.dataset;
  if(ds.vown){VOWN=ds.vown;vpDraw();return;}
  if(ds.vfind){const q=($('vp_q')||{}).value||'';if(!q.trim())return;try{const r=await api('/api/vendors?find='+encodeURIComponent(q)+'&owner='+VOWN);window._vpr=r.prices;$('vp_res').innerHTML=r.prices.length?r.prices.map((p,i)=>`<div class="ev">${esc(p.product)} ${esc(p.size)} &middot; ${esc(p.vendor)} <b>${$$(p.priceCents)}</b> <button class="btn sec" style="padding:2px 10px" data-vadd="${i}">Add line</button></div>`).join(''):'<small class="muted">No match in '+(VOWN==='customer'?"customers'":'your')+' price lists.</small>';}catch(x){if(x)msg(x.message);}return;}
- if(ds.vadd!==undefined){const p=(window._vpr||[])[+ds.vadd];if(!p)return;lines.push({description:p.product+(p.size?' ('+p.size+')':'')+' - '+p.vendor+(VOWN==='customer'?' (customer price)':''),qty:1,unit:p.size||'each',unitPrice:p.priceCents/100,section:'paint'});drawLines();msg('Line added. Set the quantity.',true);}
+ if(ds.vadd!==undefined){const p=(window._vpr||[])[+ds.vadd];if(!p)return;lines.push({description:p.product+(p.size?' ('+p.size+')':'')+' - '+p.vendor+(VOWN==='customer'?' (customer price)':''),qty:1,unit:p.size||'each',unitPrice:p.priceCents/100,section:secDef()});drawLines();msg('Line added. Set the quantity.',true);}
 });
 function bidHours(){return lines.filter(l=>/^(h|hr|hrs|hour|hours)$/i.test(String(l.unit||'').trim())).reduce((s,l)=>s+(+l.qty||0),0);}
 function bidDraw(){const el=$('bidchk');if(!el)return;if(!BID){el.innerHTML='';return;}
@@ -650,7 +665,7 @@ function bidDraw(){const el=$('bidchk');if(!el)return;if(!BID){el.innerHTML='';r
  o+=`<label style="display:inline-flex;gap:6px;align-items:center;font-size:14px;margin-top:4px">My target margin <input id="bid_tg" inputmode="numeric" value="${tg}" style="width:64px"> %</label>`;
  el.innerHTML=o;}
 document.addEventListener('change',async e=>{if(!e.target||e.target.id!=='bid_tg')return;try{const j=await api('/api/bidcheck',{target:Number(e.target.value)});BID.target=j.target;bidDraw();msg('Target saved.',true);}catch(x){if(x)msg(x.message);}});
-function readEstimate(){const L=id=>($(id)||{value:''}).value;return{optionalSections:OPTS,revisionLabel:L('e_rev'),includeTerms:!!($('e_terms')||{}).checked,colors:(J&&J.colors)||[],inclusions:L('e_incl'),exclusions:L('e_excl'),assumptions:L('e_assume'),allowances:L('e_allow'),options:L('e_opts'),schedule:sched,costBuild:cost,lines,scope:$('scope').value,notes:$('notes').value,taxPct:$('tax').value,discount:$('discount').value,validDays:$('valid').value,language:$('lang').value};}
+function readEstimate(){const L=id=>($(id)||{value:''}).value;return{optionalSections:OPTS,revisionLabel:L('e_rev'),includeTerms:!!($('e_terms')||{}).checked,colors:(J&&J.colors)||[],inclusions:L('e_incl'),exclusions:L('e_excl'),assumptions:L('e_assume'),allowances:L('e_allow'),options:L('e_opts'),schedule:sched,costBuild:cost,lines:lines.map(l=>({...l,section:secOf(l)})),scope:$('scope').value,notes:$('notes').value,taxPct:$('tax').value,discount:$('discount').value,validDays:$('valid').value,language:$('lang').value};}
 
 function drawClauses(){const c=$('clauses');if(!c)return;c.innerHTML=clauses.map((cl,i)=>`<label>${i+1}. Title</label><input data-ci="${i}" data-cf="title" value="${esc(cl.title)}"><textarea data-ci="${i}" data-cf="body" rows="4" style="margin-top:6px">${esc(cl.body)}</textarea>`).join('');const b=$('c_btns');if(b)b.style.display=clauses.length?'flex':'none';}
 
@@ -679,6 +694,38 @@ document.addEventListener('click',e=>{const t=e.target,ds=t.dataset||{};
  else if(ds.cuse){const x=costTotal();if(x.total<=0){msg('Add your costs first.');return;}lines=lines.filter(l=>l.description!=='Project total');lines.push({description:'Project total',qty:1,unit:'lump sum',unitPrice:x.total});drawLines();msg('Added a Project total line.',true);}
 });
 
+/* Saved bar, sent page, versions, polish: the estimate steps the painter sees on a phone. */
+function savedFlow(j,r,text){detail(j.id).then(()=>{msg(text+' Total '+$$(r.totals.totalCents)+'.',true);openAcc('est');const st2=$('st2');if(st2){st2.insertAdjacentHTML('beforebegin',`<div class="savedbar" role="status"><b>&#10003; Saved: ${$$(r.totals.totalCents)}</b><span>Next, preview it the way your customer will see it, then send it.</span><div class="btns"><button class="btn" data-gocheck="1">Next: preview and send</button></div></div>`);st2.scrollIntoView({behavior:'smooth',block:'center'});}});}
+function futureCard(){return `<div class="card future"><b>After the customer signs</b><p class="muted" style="margin:4px 0 0">The steps for doing the job appear here once the estimate is signed: deposit, schedule, crew instructions, materials, change orders, punch list, invoice and warranty. For now, finish and send the estimate.</p></div>`;}
+async function sentPage(j,r){
+ let uses=0,bal=null,leads=0,waiting=0;
+ try{const v=await api('/api/estimate',{action:'versions',jobId:j.id});uses=v.aiUses||0;}catch(x){}
+ try{const c=await api('/api/credits');bal=c.balance;}catch(x){}
+ try{const l=await api('/api/jobs');(l.jobs||[]).forEach(q=>{if(q.archived)return;if(q.stage==='lead')leads++;else if(q.stage==='bid'||q.stage==='contract')waiting++;});}catch(x){}
+ const old=$('sentp');if(old)old.remove();
+ document.body.insertAdjacentHTML('beforeend',`<div class="sentp" id="sentp" role="dialog" aria-modal="true" aria-label="Estimate sent"><div class="sentc"><div class="sentok">&#10003;</div><h2 style="margin:6px 0">Estimate sent</h2><p style="margin:0 0 10px">${esc(j.customerName||'Your customer')} will get it at <b>${esc(j.customerEmail||'their email')}</b>. You can open it again from this job.</p>
+  <div class="sentstats"><div><small>Estimate total</small><b>${$$(r.totals.totalCents)}</b></div><div><small>AI helpers used on this estimate</small><b>${uses}</b></div><div><small>AI credits left</small><b>${bal===null?'-':bal}</b></div></div>
+  <h3 style="margin:14px 0 6px">What next?</h3>
+  <div class="btns"><a class="btn" href="/jobs">Back to my jobs</a><button class="btn sec" data-sentclose="1">Stay on this estimate</button></div>
+  <ul class="sentl"><li>Open leads waiting for a bid: <b>${leads}</b></li><li>Estimates waiting on a customer: <b>${waiting}</b></li><li>Check back in 2 days. A short call or text often wins the job.</li></ul></div></div>`);
+ const b=document.querySelector('#sentp .btn');if(b)b.focus();}
+function jprice(c){return $$(c);}
+async function versLoad(){const el=$('vers');if(!el||!J)return;
+ try{const r=await api('/api/estimate',{action:'versions',jobId:J.job.id});
+  el.innerHTML=(r.versions.length?r.versions.map(v=>`<div class="ev"><b>${v.current?'Current':'Earlier'}</b> &middot; ${$$(v.totalCents)} &middot; ${v.lines} ${v.lines===1?'line':'lines'} &middot; ${esc(v.status)}${v.label?' &middot; '+esc(v.label):''} &middot; ${esc(dtf(String(v.at||'').slice(0,10)))} ${v.current?'':`<button class="btn sec" style="padding:2px 10px" data-vrestore="${v.id}">Bring this back</button>`}</div>`).join(''):'<small class="muted">Nothing saved yet.</small>')+(r.aiDraft?`<div class="btns" style="margin-top:8px"><button class="btn sec" data-aiorig="1">Load the AI's first draft on screen</button></div><small class="muted">Nothing is saved until you tap Update.</small>`:'');
+ }catch(x){el.innerHTML='<small class="bad">'+esc(x&&x.message||'Could not load.')+'</small>';}}
+document.addEventListener('toggle',e=>{if(e.target&&e.target.id==='vdet'&&e.target.open)versLoad();},true);
+document.addEventListener('click',async e=>{const t=e.target.closest?e.target.closest('[data-gocheck],[data-sentclose],[data-vrestore],[data-aiorig],[data-newver],[data-improve],[data-undoscope]'):null;if(!t)return;const ds=t.dataset;
+ try{
+  if(ds.gocheck){const b=$('view_doc');if(b&&b.scrollIntoView)b.scrollIntoView({behavior:'smooth',block:'center'});return;}
+  if(ds.sentclose){const s_=$('sentp');if(s_)s_.remove();return;}
+  if(ds.vrestore){msg('');await api('/api/estimate',{action:'restore',jobId:J.job.id,docId:+ds.vrestore});await detail(J.job.id);openAcc('est');msg('Brought back as a new draft. Check it, then update or send.',true);return;}
+  if(ds.aiorig){const r=await api('/api/estimate',{action:'aiOriginal',jobId:J.job.id});const d=r.draft;$('scope').value=d.scope||'';lines=(d.lines||[]).map(l=>({description:l.description,qty:l.qty,unit:l.unit,unitPrice:l.unitPrice,section:l.section,needsPrice:!(+l.unitPrice>0)}));if($('e_incl'))$('e_incl').value=(d.inclusions||[]).join('\n');if($('e_excl'))$('e_excl').value=(d.exclusions||[]).join('\n');if($('e_assume'))$('e_assume').value=(d.assumptions||[]).join('\n');drawLines();msg("The AI's first draft is on screen. Nothing is saved until you tap Update.",true);return;}
+  if(ds.newver){const r=await api('/api/estimate',{action:'saveVersion',jobId:J.job.id,estimate:readEstimate()});savedFlow(J.job,r,'Saved as a new version. The old one is kept.');return;}
+  if(ds.improve){const txt=$('scope').value;window._scopeBefore=txt;t.disabled=true;try{const r=await api('/api/estimate',{action:'improve',jobId:J.job.id,text:txt});$('scope').value=r.text;const u=document.querySelector('[data-undoscope]');if(u)u.hidden=false;msg('Polished. Read it, change anything you like, then tap Update. Undo is next to the button.',true);}finally{t.disabled=false;}return;}
+  if(ds.undoscope){if(window._scopeBefore!==undefined)$('scope').value=window._scopeBefore;t.hidden=true;msg('Your own text is back.',true);return;}
+ }catch(x){if(x)msg(x.message);}
+});
 const SIGST={pending:'Waiting for signature',signed:'Signed',void:'Cancelled',expired:'Expired'};
 async function sigLoad(jobId,est,ctr){
  let reqs=[];try{reqs=(await api('/api/esign?jobId='+jobId)).requests;}catch(x){return;}
@@ -893,7 +940,7 @@ document.addEventListener('click',async e=>{const t=e.target.closest?e.target.cl
  catch(x){t.disabled=false;if(x)msg(x.message);}});
 async function detail(id){
   const mn=document.querySelector('main');if(mn)mn.classList.add('wide');
-  const sy=window.scrollY;const d=await api('/api/job?id='+id);J=d;window.J=d;const j=d.job,e=d.estimate;
+  const sy=window.scrollY;const d=await api('/api/job?id='+id);J=d;window.J=d;const j=d.job,e=d.estimate;setSections(d);
   lines=e&&e.estimate?e.estimate.lines.map(l=>({description:l.description,qty:l.qty,unit:l.unit,unitPrice:l.unitCents/100,section:l.section})):[];OPTS=e&&e.estimate&&e.estimate.optionalSections?e.estimate.optionalSections.slice():[];COL=(d.colors||[]).map(c=>({...c}));
   const qf=qtyFields(d.rateCard);const est=e&&e.estimate?e.estimate:{};const ct=d.contract&&d.contract.contract?d.contract.contract:{};sched=(est.schedule||[]).map(m=>({...m}));cost=est.costBuild?{items:(est.costBuild.items||[]).map(c=>({...c})),markupPct:est.costBuild.markupPct||0}:{items:[],markupPct:0};clauses=ct.clauses?ct.clauses.map(c=>({...c})):[];
   BF=d.brief?{...d.brief,answers:{...(d.brief.answers||{})}}:{type:guessType(j.trade),details:'',answers:{},photoNote:''};
@@ -912,12 +959,13 @@ async function detail(id){
   <h3 class="grp">${early?'Bid':'Estimate'}</h3>
   ${early?bidLink(d):''}
   ${nextSteps(d)}
-  ${acc('req','1. Customer request',reqSub(d),early&&!e&&!(d.fieldNotes||[]).length,reqCard(d))}
-  ${acc('type','2. Job details and photos','',early&&!e,briefCard())}
-  ${acc('colors','3. Colors','',false,colorsCard())}
-  ${acc('sum','4. Project summary','',false,sumCard())}
-  ${acc('est','5. Estimate',estSub,early&&(!!e||lines.length>0),`<div class="card">
-   <label style="margin-top:0">Scope of work (what the customer gets)</label><textarea id="scope" rows="4" placeholder="Tap Create estimate above and I will write this for you, or type your own.">${esc(est.scope||'')}</textarea>
+  ${acc('req','Customer request',reqSub(d),early&&!e&&!(d.fieldNotes||[]).length,reqCard(d))}
+  ${acc('type','Job details and photos','',early&&!e,briefCard())}
+  ${acc('colors','Colors','',false,colorsCard())}
+  ${acc('sum','Project summary','',false,sumCard())}
+  ${acc('est','Estimate: lines, review and send',estSub,early&&(!!e||lines.length>0),`<div class="card">
+   <label style="margin-top:0">Scope of work (what the customer gets)</label><textarea id="scope" rows="5" placeholder="Tap Create estimate above and I will write this for you, or type your own.">${esc(est.scope||'')}</textarea>
+   <div class="btns" style="margin-top:6px"><button class="btn sec" data-improve="1">Improve this text</button><button class="btn sec" data-undoscope="1" hidden>Undo</button></div><small class="muted" style="display:block">You are in control. Edit the scope and every line. Improve this text only polishes the wording and never adds work or prices.</small>
    <div id="lines" style="margin-top:12px"></div>
    <div class="btns"><button class="btn sec" id="addline">+ Add a line</button></div>
    <div id="bf_coach"></div>
@@ -928,17 +976,18 @@ async function detail(id){
    <div id="bidchk" class="bidchk"></div>
    <div id="vprice" class="bidchk"></div>
    <div class="stp"><span class="n">1</span><div><b>Create the final estimate</b><small class="muted" style="display:block">Adds up your lines and saves the customer's copy. You can come back and update it.</small></div></div>
-   <div class="btns"><button class="btn" id="save">${e?'Update final estimate':'Create final estimate'}</button></div>
-   <div class="stp ${e?'':'off'}"><span class="n">2</span><div><b>Check it, then send it</b><small class="muted" style="display:block">${!e?'Create the final estimate first. Then you can preview it and send it.':!j.customerEmail?'Add an email address in Edit details above to send it from here, or download the PDF.':e.status==='sent'?'Sent. If you change anything, update the estimate and send it again.':'Preview it the way '+esc(String(j.customerName||'the customer').split(/\s+/)[0])+' will see it, then send it.'}</small></div></div>
+   <div class="btns"><button class="btn" id="save">${e?'Update final estimate':'Create final estimate'}</button><button class="btn sec" data-newver="1" ${e?'':'disabled'}>Save as new version</button></div><small class="muted" style="display:block">${e?'Update changes this version. Save as new version keeps the old one so you can bring it back.':'You will see a green bar here when it is saved, and the next step.'}</small>
+   <div class="stp ${e?'':'off'}" id="st2"><span class="n">2</span><div><b>Check it, then send it</b><small class="muted" style="display:block">${!e?'Create the final estimate first. Then you can preview it and send it.':!j.customerEmail?'Add an email address in Edit details above to send it from here, or download the PDF.':e.status==='sent'?'Sent. If you change anything, update the estimate and send it again.':'Preview it the way '+esc(String(j.customerName||'the customer').split(/\s+/)[0])+' will see it, then send it.'}</small></div></div>
    <div class="btns"><button class="btn sec" id="view_doc" ${e?'':'disabled'}>Preview customer's copy</button><button class="btn sec" id="pdf_doc" ${e?'':'disabled'}>Download PDF</button></div>
    <div class="btns"><button class="btn${e?'':' sec'}" id="send" ${e&&j.customerEmail?'':'disabled'}>Send estimate to ${esc(String(j.customerName||'customer').split(/\s+/)[0])}</button></div>
    <div class="btns" style="margin-top:6px"><button class="btn sec" id="bf_opinion">Get a second opinion on my price</button></div>
    <small>${e?`Status: ${esc(e.status)}`:'Not saved yet'}</small><div id="sig_estimate"></div>
+   <details class="g" id="vdet"><summary>Earlier versions and the AI's first draft</summary><div class="inner" id="vers"><small class="muted">Open to see them.</small></div></details>
    <details class="g"><summary>More estimate options (what is included, payment schedule, discount, tax)</summary><div class="inner">
     <div class="row"><div><label>Discount ($)</label><input id="discount" inputmode="decimal" value="${esc((est.discountCents||0)/100||'')}"></div><div><label>Sales tax (%)</label><input id="tax" inputmode="decimal" value="${esc(est.taxPct||'')}"></div></div>
     <div class="row"><div><label>Valid for (days)</label><input id="valid" inputmode="numeric" value="${esc(est.validDays||30)}"></div><div><label>Language</label><select id="lang"><option value="en">English</option><option value="es" ${est.language==='es'?'selected':''}>Español</option></select></div></div>
     ${e?`<label>Revision words on the estimate</label><input id="e_rev" value="${esc(est.revisionLabel||'')}" placeholder="Leave empty to print none"><small class="muted">When you change an estimate the customer already has, I save it as a new revision (Revision 2, 3...) and the old signing link stops working. You can change these words or clear them.</small>`:''}
-    <label class="optck" style="margin-top:12px"><input type="checkbox" id="e_terms" ${(e?est.includeTerms===true:true)?'checked':''}> Print the contract terms on the estimate, so one signature covers both</label>
+    <label class="optck" style="margin-top:12px"><input type="checkbox" id="e_terms" ${(e?est.includeTerms===true:false)?'checked':''}> Print the contract terms on the estimate, so one signature covers both</label><small class="muted" id="e_terms_hint" style="display:block"></small>
     <h3 style="margin-top:14px">What is included and not included</h3>
     <small>One item per line. These print on the estimate. The included, not included and assumptions lists also carry into the contract.</small>
     <label>Included</label><textarea id="e_incl" rows="3">${esc((est.inclusions||[]).join('\n'))}</textarea>
@@ -955,11 +1004,12 @@ async function detail(id){
     <div id="cost"></div>
     <label>Notes for the customer</label><textarea id="notes" rows="3">${esc(est.notes||'')}</textarea>
    </div></details></div>`)}
-  ${early||d.visit?acc('visit','6. Site visit',visitSub(d),!!(d.visit&&d.visit.status==='booked')&&early,visitCard(d)+'<h4 style="margin:14px 0 4px">Visit notes</h4>'+notesCard()):acc('visit','Visit notes',(d.fieldNotes||[]).length?(d.fieldNotes.length+' notes'):'',false,notesCard())}
-  ${(early||st==='contract')?acc('close','7. Close the sale',d.followUp?'Follow up '+dtf(d.followUp.due):st==='contract'?'Deposit and dates':e?'Yes, think, or follow up':'After the estimate',early&&!!e&&e.status==='sent'||st==='contract',closeCard(d)):''}
+  ${early||d.visit?acc('visit','Site visit',visitSub(d),!!(d.visit&&d.visit.status==='booked')&&early,visitCard(d)+'<h4 style="margin:14px 0 4px">Visit notes</h4>'+notesCard()):acc('visit','Visit notes',(d.fieldNotes||[]).length?(d.fieldNotes.length+' notes'):'',false,notesCard())}
+  ${(early||st==='contract')?acc('close','Close the sale',d.followUp?'Follow up '+dtf(d.followUp.due):st==='contract'?'Deposit and dates':e?'Yes, think, or follow up':'After the estimate',early&&!!e&&e.status==='sent'||st==='contract',closeCard(d)):''}
 
   ${acc('help','Ask about this job','Photo questions, paint and prep advice, a second opinion on your price',false,assistantCard(j.id))}
 
+  ${early?futureCard():`
   <h3 class="grp">After the customer says yes</h3>
   <p class="muted grpn">Deposit, contract, schedule, crew, and changes the customer asks for.</p>
   ${acc('pay','Deposit and payments','',mid,payCard())}
@@ -973,6 +1023,7 @@ async function detail(id){
   ${acc('sched','Schedule','',mid,'<div id="m_sched"></div>')}
   ${acc('mat','Materials list','',false,'<div id="m_mat"></div>')}
   ${acc('crew','Crew instructions','',false,'<div id="m_crew"></div>')}
+  ${acc('day','Crew day card','',false,'<div id="m_day"></div>')}
   ${acc('wo','Work orders and change orders','',st==='in_progress',woCard())}
   ${acc('portal','Customer portal link','',false,portalCard(d))}
 
@@ -985,21 +1036,26 @@ async function detail(id){
   ${acc('report','Job results and analysis','Profit, time and records',st==='closed','<div class="rp" id="m_report"><small class="muted">Open to see the numbers for this job.</small></div>')}
   ${acc('jsum','Job summary for the customer','Colors, products, warranties and care',false,'<div id="m_jsum"><small class="muted">Open to write the summary.</small></div>')}
 
+  `}
   <h3 class="grp">Keep on record</h3>
   ${acc('prot','Insurance and protecting this job','',false,covBanner(d.coverage)+protectCard(d))}
   ${acc('ls','Lessons learned','',false,lsCard())}
   ${st!=='lost'&&st!=='closed'?acc('lost','Lost this job?','',false,lostCard(d)):''}
   ${acc('manage','Archive or delete this job','',false,mgCard(d))}
   ${acc('hist','Job history','',false,`<div class="card">${d.events.map(v=>`<div class="ev"><b>${esc(v.kind)}</b> &middot; ${esc(dtf((v.at||'').slice(0,10)))}<br>${esc(v.text).slice(0,600)}</div>`).join('')||'<small>Nothing yet.</small>'}</div>`)}
-  <div class="card"><small class="muted">Everything about this job is saved here, under <b>${esc(j.title)}</b>: notes, photos, the estimate and every document. Expenses, mileage and receipts are in <a href="/records?job=${j.id}">Records</a>, where you can also download the whole job file in one go.</small></div>
+  <div class="card savedall"><b>&#10003; Everything is saved automatically.</b><small class="muted" style="display:block;margin:4px 0 8px">Notes, photos, the estimate and every document stay with <b>${esc(j.title)}</b>.</small><div class="btns"><a class="btn" href="/jobs">Back to open jobs</a><a class="btn sec" href="/records?job=${j.id}">Receipts and records</a></div></div>
   </div></div>`;
   bfDraw();
   drawLines();sigLoad(j.id,e,d.contract);bidLoad();
   const f=$('fill');if(f)f.onclick=async()=>{try{msg('');const quantities={};document.querySelectorAll('[data-q]').forEach(i=>{if(i.value!=='')quantities[i.dataset.q]=Number(i.value);});const r=await api('/api/estimate',{action:'draft',jobId:j.id,quantities});if(!r.lines.length)throw new Error('Enter at least one quantity first.');lines=r.lines;drawLines();msg('Lines filled. Review and change anything you like.',true);}catch(e){if(e)msg(e.message);}};
-  $('addline').onclick=()=>{lines.push({description:'',qty:1,unit:'ea',unitPrice:0});drawLines();};
+  $('addline').onclick=()=>{lines.push({description:'',qty:1,unit:'ea',unitPrice:0,section:secDef()});drawLines();};
   const act=async(action)=>{try{msg('');const r=await api('/api/estimate',{action,jobId:j.id,estimate:readEstimate()});msg(action==='send'?'Estimate emailed.':'Saved. Total '+$$(r.totals.totalCents)+(r.totals.depositCents?', deposit '+$$(r.totals.depositCents):''),true);return r;}catch(e){if(e)msg(e.message);}};
-  $('save').onclick=async()=>{const r=await act('save');if(r)detail(j.id).then(()=>{msg('Final estimate ready. Total '+$$(r.totals.totalCents)+'. Preview it, then send it.',true);const sd=$('send');if(sd&&!sd.disabled&&sd.scrollIntoView)sd.scrollIntoView({behavior:'smooth',block:'center'});});};
-  $('send').onclick=async()=>{if(!await checkInfo('Send this estimate',[['Estimate total',$$(totals().total)]],'Looks right, send it'))return;const r=await act('send');if(r)detail(j.id).then(()=>msg('Estimate emailed.',true));};
+  $('save').onclick=async()=>{const r=await act('save');if(r)savedFlow(j,r,'Estimate saved.');};
+  $('send').onclick=async()=>{
+   const np=lines.filter(l=>!(+l.unitPrice>0));if(np.length){msg(np.length+(np.length===1?' line has':' lines have')+' no price yet (marked in orange). Add a price or remove the line, then send.');const f=document.querySelector('#lines .np');if(f&&f.scrollIntoView)f.scrollIntoView({behavior:'smooth',block:'center'});return;}
+   let tc=null,dep=0;try{const q=await api('/api/estimate',{action:'totals',jobId:j.id,estimate:readEstimate()});tc=q.totals.totalCents;dep=q.totals.depositCents;}catch(x){if(x)msg(x.message);return;}
+   if(!await checkInfo('Send this estimate',[['To',(j.customerName||'')+' ('+(j.customerEmail||'')+')'],['Estimate total',$$(tc)],...(dep?[['Deposit to schedule',$$(dep)]]:[])],'Looks right, send it'))return;
+   const r=await act('send');if(r){await detail(j.id);sentPage(j,r);}};
   if(ACC.report||st==='closed')reportLoad();if(ACC.jsum)jsumLoad();
   drawSched();drawCost();drawClauses();drawMore(d);micInit();chatDraw();loadJobChat();filesLoad().then(sumDraw);findingsLoad();woLoad();payLoad();wcLoad();lsLoad();
   if(!$('note_fab'))document.body.insertAdjacentHTML('beforeend',fabHtml());notesDraw();colorsDraw();sumDraw();nqFlush();
@@ -1019,6 +1075,7 @@ const DOCS=[
  {k:'materials',n:4,t:'Materials list',h:'What to buy for this job. Fill in the quantities, then print it for the supply store.',crew:1,cols:1},
  {k:'schedule',n:5,t:'Schedule',h:'Day-by-day plan. Pick the start date and the days fill in (Sundays skipped). You can email it to the customer.',cust:1,start:1},
  {k:'instructions',n:6,t:'Crew instructions',h:'Step-by-step instructions for your crew, in English or Spanish.',crew:1},
+ {k:'daycard',n:6,t:'Crew day card',h:'A one-page checklist for each work day: safety, protect, do the work, photos, clean up. Print it or open it on the phone.',crew:1},
  {k:'punch',n:7,t:'Punch list',h:'The final walkthrough checklist. The customer signs at the bottom.'},
  {k:'warranty',n:9,t:'Warranty letter',h:'Give this to the customer when the job is finished.',cust:1,done:1}
 ];
@@ -1051,9 +1108,9 @@ function drawMore(d){
  docs={};for(const m of DOCS){if(d.docs[m.k]&&d.docs[m.k].doc)docs[m.k]=JSON.parse(JSON.stringify(d.docs[m.k].doc));}
  inv=d.docs.invoice&&d.docs.invoice.invoice?{...d.docs.invoice.invoice,paid:(d.docs.invoice.invoice.paidCents||0)/100}:{};
  const put=(id,h)=>{const el=$(id);if(el)el.innerHTML=h;};
- put('m_sched',docCard(DOCS[1],d));put('m_mat',docCard(DOCS[0],d));put('m_crew',docCard(DOCS[2],d));put('m_punch',docCard(DOCS[3],d));put('m_inv',invCard(d));put('m_warr','<b>Warranty letter</b>'+docCard(DOCS[4],d));
+ put('m_sched',docCard(DOCS[1],d));put('m_mat',docCard(DOCS[0],d));put('m_crew',docCard(DOCS[2],d));put('m_punch',docCard(DOCS[4],d));put('m_day',docCard(DOCS[3],d));put('m_inv',invCard(d));put('m_warr','<b>Warranty letter</b>'+docCard(DOCS[5],d));
  const ST={draft:'Saved as a draft',sent:'Sent to the customer',paid:'Paid',signed:'Signed',approved:'Approved'};
- [['schedule','sched'],['materials','mat'],['instructions','crew'],['punch','punch'],['invoice','inv'],['warranty','warr']].forEach(([k,a])=>{const x=d.docs[k];const el=$('accs_'+a);if(el)el.textContent=x?(ST[x.status]||x.status||'Saved'):'Not started';});
+ [['schedule','sched'],['materials','mat'],['instructions','crew'],['daycard','day'],['punch','punch'],['invoice','inv'],['warranty','warr']].forEach(([k,a])=>{const x=d.docs[k];const el=$('accs_'+a);if(el)el.textContent=x?(ST[x.status]||x.status||'Saved'):'Not started';});
  DOCS.forEach(m=>wDraw(m.k));msOpts=((d.estimate&&d.estimate.estimate&&d.estimate.estimate.schedule)||[]).map((m,i,a)=>({label:m.label,pct:m.pct,amountCents:Math.round(((d.estimate.totals||{}).totalCents||0)*m.pct/100)}));if(d.docs.invoice&&d.docs.invoice.invoice)ivFill();
 }
 async function jd(body){try{msg('');return await api('/api/jobdoc',{jobId:J.job.id,...body});}catch(x){if(x)msg(x.message);}}

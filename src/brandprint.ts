@@ -30,6 +30,8 @@ export interface Brand {
   language: "en" | "es";
   /** Words for fliers and door hangers. Blank fields use a plain starting line. */
   flyer: { headline: string; sub: string; offer: string; points: string[]; street: string };
+  /** How the painter's estimates are dressed. Used only when "on" is true, so existing estimates look the same until they turn it on. */
+  letterhead: { on: boolean; style: "classic" | "band" | "center" | "image"; headerFileId: number; footer: string; extra: string[] };
 }
 
 const str = (v: unknown, n: number) => (typeof v === "string" ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim().slice(0, n) : "");
@@ -69,6 +71,13 @@ export function cleanBrand(i: any): Brand {
       offer: str(i?.flyer?.offer, 140),
       points: (Array.isArray(i?.flyer?.points) ? i.flyer.points : typeof i?.flyer?.points === "string" ? i.flyer.points.split("\n") : []).map((x: unknown) => str(x, 60)).filter(Boolean).slice(0, 4),
       street: str(i?.flyer?.street, 60),
+    },
+    letterhead: {
+      on: i?.letterhead?.on === true,
+      style: ["classic", "band", "center", "image"].includes(i?.letterhead?.style) ? i.letterhead.style : "classic",
+      headerFileId: Number.isInteger(Number(i?.letterhead?.headerFileId)) && Number(i?.letterhead?.headerFileId) > 0 ? Number(i.letterhead.headerFileId) : 0,
+      footer: str(i?.letterhead?.footer, 200),
+      extra: (Array.isArray(i?.letterhead?.extra) ? i.letterhead.extra : typeof i?.letterhead?.extra === "string" ? i.letterhead.extra.split("\n") : []).map((x: unknown) => str(x, 90)).filter(Boolean).slice(0, 3),
     },
   };
 }

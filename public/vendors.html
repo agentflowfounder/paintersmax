@@ -67,19 +67,44 @@ function openV(id){api('/api/vendors?id='+id).then(function(j){CUR=j;SHEET=null;
 function drawV(){var v=CUR.vendor,p=CUR.prices;
  var h='<div class="btns" style="margin:0 0 10px"><button class="btn sec" data-back="1">&larr; '+T('All vendors')+'</button></div><div class="card"><div class="vh">'+badge(v)+'<div><b style="font-size:18px">'+esc(v.name)+'</b><br><span class="muted">'+esc(D.kinds[v.kind]||'')+(v.customer_name?' &middot; '+T('Price list of')+' '+esc(v.customer_name):'')+'</span></div></div>'+
  (v.rep_name||v.rep_phone?'<p class="muted">'+T('Rep')+': '+esc(v.rep_name)+' '+(v.rep_phone?'<a href="tel:'+esc(v.rep_phone)+'">'+esc(v.rep_phone)+'</a>':'')+'</p>':'')+'<div class="btns"><button class="btn sec" data-edit="1">'+T('Edit details')+'</button></div></div>';
- h+='<div class="card"><h3>'+T('Upload a price sheet')+'</h3><p class="muted" style="margin-top:0">'+T('A PDF or a clear photo of the price sheet or quote. I read it into lines you check before saving. The file is not kept.')+'</p><div class="btns"><label class="btn sec" style="margin:0">'+T('Take a photo')+'<input type="file" accept="image/*" capture="environment" data-sheet="1" style="display:none"></label><label class="btn sec" style="margin:0">'+T('Choose a PDF or photo')+'<input type="file" accept="application/pdf,image/*" data-sheet="1" style="display:none"></label></div><div id="sheet"></div></div>';
+ h+='<div class="card"><h3>'+T('Upload a price sheet')+'</h3><p class="muted" style="margin-top:0">'+T('A PDF or a clear photo of the price sheet or quote, or a CSV or Excel file. I turn it into lines you check before saving. The file is not kept.')+'</p><div class="btns"><label class="btn sec" style="margin:0">'+T('Take a photo')+'<input type="file" accept="image/*" capture="environment" data-sheet="1" style="display:none"></label><label class="btn sec" style="margin:0">'+T('Choose a PDF or photo')+'<input type="file" accept="application/pdf,image/*,.csv,.xlsx,.xls,text/csv" data-sheet="1" style="display:none"></label></div><div id="sheet"></div></div>';
  h+='<div class="card"><h3>'+T('Prices')+' <span class="muted">('+p.length+')</span></h3><div class="row" style="grid-template-columns:2fr 1fr 1fr auto;align-items:end"><div><label>'+T('Product')+'</label><input id="p_prod" placeholder="Duration Interior Satin"></div><div><label>'+T('Size')+'</label><input id="p_size" placeholder="gallon"></div><div><label>'+T('Price ($)')+'</label><input id="p_price" inputmode="decimal"></div><button class="btn" data-addp="1">'+T('Add')+'</button></div>'+
  (p.length?'<div style="overflow-x:auto;margin-top:10px"><table><thead><tr><th>'+T('Product')+'</th><th>'+T('Size')+'</th><th class="r">'+T('Price')+'</th><th>'+T('Date')+'</th><th></th></tr></thead><tbody>'+p.map(function(x){return '<tr><td>'+esc(x.product)+(x.sku?'<br><span class="muted">'+esc(x.sku)+'</span>':'')+'</td><td>'+esc(x.size)+'</td><td class="r">'+$$(x.priceCents)+'</td><td>'+esc(x.effectiveOn||'')+'</td><td><button class="btn sec" style="padding:4px 10px;min-height:0" data-delp="'+x.id+'">&times;</button></td></tr>'}).join('')+'</tbody></table></div>':'<p class="muted">'+T('No prices yet.')+'</p>')+'</div>';
  $('body').innerHTML=h;}
 function drawSheet(){var s=$('sheet');if(!s||!SHEET)return;
  s.innerHTML='<p><b>'+SHEET.lines.length+' '+T('lines found')+'</b>'+(SHEET.effectiveOn?' &middot; '+T('dated')+' '+esc(SHEET.effectiveOn):'')+'. '+T('Check them, untick anything wrong, then save.')+'</p><div style="overflow-x:auto;max-height:420px"><table><tbody>'+SHEET.lines.map(function(l,i){return '<tr><td><input type="checkbox" data-sl="'+i+'" checked style="width:auto"></td><td>'+esc(l.product)+'</td><td>'+esc(l.size)+'</td><td class="r">'+$$(l.priceCents)+'</td></tr>'}).join('')+'</tbody></table></div>'+
  '<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="s_repl" style="width:auto"> '+T('Replace the prices from my last sheet')+'</label><div class="btns"><button class="btn" data-ssave="1">'+T('Save these prices')+'</button><button class="btn sec" data-scancel="1">'+T('Cancel')+'</button></div>';}
+/* CSV and Excel price lists are read right here in the browser. Nothing is uploaded until the painter checks the lines and saves. */
+function csvRows(text){var rows=[],row=[],cell='',q=false;for(var i=0;i<text.length;i++){var ch=text[i];
+ if(q){if(ch==='"'){if(text[i+1]==='"'){cell+='"';i++;}else q=false;}else cell+=ch;}
+ else if(ch==='"')q=true;else if(ch===','||ch==='\t'||ch===';'){row.push(cell);cell='';}
+ else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(cell);cell='';if(row.some(function(x){return String(x).trim()}))rows.push(row);row=[];}
+ else cell+=ch;}
+ row.push(cell);if(row.some(function(x){return String(x).trim()}))rows.push(row);return rows;}
+function tableToLines(rows){if(!rows.length)return [];
+ var head=rows[0].map(function(x){return String(x==null?'':x).toLowerCase().trim()});
+ var find=function(re){for(var i=0;i<head.length;i++)if(re.test(head[i]))return i;return -1;};
+ var ip=find(/product|item name|description|^item$|^name$|paint/),is=find(/size|unit|pack|container/),ic=find(/price|cost|amount|net|contractor|pro\b/),ik=find(/sku|item #|item no|part|code|upc/);
+ var hasHead=ip>=0&&ic>=0;var body=hasHead?rows.slice(1):rows;
+ if(!hasHead){ip=0;ic=rows[0].length>2?2:1;is=rows[0].length>2?1:-1;ik=-1;}
+ var out=[];body.slice(0,1000).forEach(function(r){var name=String(r[ip]==null?'':r[ip]).trim();var raw=String(r[ic]==null?'':r[ic]).replace(/[$,\s]/g,'');var price=Number(raw);
+  if(!name||!isFinite(price)||price<=0||price>100000)return;
+  out.push({product:name.slice(0,120),size:is>=0?String(r[is]==null?'':r[is]).trim().slice(0,40):'',sku:ik>=0?String(r[ik]==null?'':r[ik]).trim().slice(0,40):'',priceCents:Math.round(price*100)});});
+ return out;}
+function loadXlsx(){return new Promise(function(res,rej){if(window.XLSX)return res();var sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=res;sc.onerror=function(){rej(new Error('Could not load the Excel reader. Save the sheet as CSV and try again.'));};document.head.appendChild(sc);});}
+function readTable(file){var s=$('sheet');if(file.size>4*1024*1024){toast('That file is too large. Use a file under 4 MB.');return;}
+ s.innerHTML='<p class="muted">'+T('Reading the file...')+'</p>';
+ var done=function(rows){var lines=tableToLines(rows);if(!lines.length){s.innerHTML='<p class="cc t-bad">'+esc(T('I could not find product and price columns. Use one column for the product, one for the size and one for the price, with a header row.'))+'</p>';return;}SHEET={lines:lines,effectiveOn:''};drawSheet();};
+ var fail=function(e){s.innerHTML='<p class="cc t-bad">'+esc(T(e&&e.message||'Could not read it.'))+'</p>';};
+ var fr=new FileReader();
+ if(/\.csv$/i.test(file.name||'')){fr.onload=function(){try{done(csvRows(String(fr.result)));}catch(e){fail(e);}};fr.readAsText(file);}
+ else{fr.onload=function(){loadXlsx().then(function(){var wb=XLSX.read(fr.result,{type:'array'});var ws=wb.Sheets[wb.SheetNames[0]];done(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}));}).catch(fail);};fr.readAsArrayBuffer(file);}}
 function readSheet(file){if(!file)return;if(file.size>4*1024*1024){toast('That file is too large. Use a file under 4 MB.');return;}
  var s=$('sheet');s.innerHTML='<p class="muted">'+T('Reading the price sheet. This can take up to a minute...')+'</p>';
  var fr=new FileReader();fr.onload=function(){var data=String(fr.result).split(',')[1];api('/api/vendors',{action:'readSheet',mime:file.type||'application/pdf',data:data}).then(function(j){SHEET=j;drawSheet();}).catch(function(e){s.innerHTML='<p class="cc t-bad">'+esc(T(e&&e.message||'Could not read it.'))+'</p>';});};fr.readAsDataURL(file);}
 document.addEventListener('change',function(e){var t=e.target;
  if(t.id==='optout')api('/api/vendors',{action:'prefs',optOut:t.checked}).then(function(){toast('Saved.')});
- if(t.getAttribute&&t.getAttribute('data-sheet'))readSheet(t.files&&t.files[0]);});
+ if(t.getAttribute&&t.getAttribute('data-sheet')){var f=t.files&&t.files[0];if(f&&/\.(csv|xlsx|xls)$/i.test(f.name||''))readTable(f);else readSheet(f);}});
 document.addEventListener('click',function(e){var t=e.target.closest?e.target.closest('button'):null;if(!t)return;var a=function(k){return t.getAttribute('data-'+k)};
  if(a('open'))return openV(a('open'));
  if(a('new')){$('body').innerHTML=form(null,a('new'));return;}

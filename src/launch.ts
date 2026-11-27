@@ -25,6 +25,8 @@ export const MANUAL_ITEMS: { id: string; group: LaunchItem["group"]; label: stri
   { id: "pricing_pages", group: "Content", label: "Pricing and tier pages show Local Pro, Contractor and Commercial", how: "Open /pricing and the Website upgrade window and read every price once." },
   { id: "broadcast_address", group: "Customers", label: "Real business address in the broadcast email footer", how: "Replace the placeholder Dallas address after your Texas LLC is registered." },
   { id: "broadcast_on", group: "Customers", label: "Broadcast emails switched on", how: "Marketing > Broadcasts > Email settings." },
+  { id: "preview_tested", group: "Safety", label: "You tried the estimate flow on the preview link and it works", how: "Open the preview from the latest pull request, make a bid, create an estimate, save a version, download the PDF." },
+  { id: "print_partners", group: "Content", label: "Print partner research read, and affiliate wording approved by you", how: "Read the print partner research. No page may name a partner or promise a price until you approve the wording." },
   { id: "campaign_dates", group: "Customers", label: "Christmas campaign and Applies-by-itself are set", how: "Admin > Starter campaign and Promotions." },
 ];
 
@@ -35,7 +37,7 @@ export const readTicks = (raw: unknown): Record<string, boolean> => {
 };
 
 /** The checks the app can make from what it already knows. Pure, so it can be tested. */
-export function autoItems(f: { keyMode: string; webhookSecret: boolean; endpointsOk: boolean | null; lastEventAt: string | null; backupOn: string; today: string; demosBuilt: boolean; samplesOn: boolean; welcomeOn: boolean; stripeKeyIsLiveNote?: string }): LaunchItem[] {
+export function autoItems(f: { keyMode: string; webhookSecret: boolean; endpointsOk: boolean | null; lastEventAt: string | null; backupOn: string; today: string; demosBuilt: boolean; samplesOn: boolean; welcomeOn: boolean; emailOn?: boolean; aiOn?: boolean; filesOn?: boolean; stripeKeyIsLiveNote?: string }): LaunchItem[] {
   const days = f.backupOn ? Math.round((Date.parse(f.today) - Date.parse(f.backupOn)) / 86400000) : null;
   const it = (id: string, group: LaunchItem["group"], label: string, how: string, done: boolean, note?: string): LaunchItem => ({ id, group, label, how, auto: true, done, note });
   return [
@@ -46,6 +48,9 @@ export function autoItems(f: { keyMode: string; webhookSecret: boolean; endpoint
     it("backup", "Safety", "A database backup was downloaded in the last 7 days", "Admin > Team and audit log > Download backup (owner only).", days !== null && days <= 7, days === null ? "No backup yet." : `Last backup ${days} days ago.`),
     it("demos", "Content", "Tier example sites are built", "Admin > Websites > Build tier example sites.", f.demosBuilt),
     it("samples", "Content", "Sample content for new accounts is on", "Admin > Settings > Sample content for new accounts.", f.samplesOn),
+    ...(f.emailOn === undefined ? [] : [it("email_key", "Customers", "Email service key is set (estimates, invoices and reminders can send)", "Cloudflare > paintersmax-site > Settings > Variables and Secrets > RESEND_API_KEY.", f.emailOn)]),
+    ...(f.aiOn === undefined ? [] : [it("ai_key", "Content", "AI key is set (estimate help, Ask and Talk can answer)", "Cloudflare > paintersmax-site > Settings > Variables and Secrets > GEMINI_API_KEY.", f.aiOn)]),
+    ...(f.filesOn === undefined ? [] : [it("files_bucket", "Safety", "File storage is connected (photos, My files, letterheads)", "Cloudflare > R2 bucket paintersmax-files must be bound as FILES on the Worker.", f.filesOn)]),
     it("welcome", "Customers", "Welcome credits are on", "Admin > Starter campaign.", f.welcomeOn),
   ];
 }
@@ -58,7 +63,7 @@ export async function launchChecklist(env: Env, today: string, stripe: { endpoin
     readBlob(env, SAMPLES_KEY, readSamplesSetting),
     loadStarter(env),
   ]);
-  const auto = autoItems({ keyMode: keyMode(env.STRIPE_SECRET_KEY), webhookSecret: !!env.STRIPE_WEBHOOK_SECRET, endpointsOk: stripe.endpointsOk, lastEventAt: stripe.lastEventAt, backupOn: backup, today, demosBuilt: demos, samplesOn: samples.on, welcomeOn: starter.on });
+  const auto = autoItems({ keyMode: keyMode(env.STRIPE_SECRET_KEY), webhookSecret: !!env.STRIPE_WEBHOOK_SECRET, endpointsOk: stripe.endpointsOk, lastEventAt: stripe.lastEventAt, backupOn: backup, today, demosBuilt: demos, samplesOn: samples.on, welcomeOn: starter.on, emailOn: !!env.RESEND_API_KEY, aiOn: !!env.GEMINI_API_KEY, filesOn: !!env.FILES });
   const manual: LaunchItem[] = MANUAL_ITEMS.map((m) => ({ ...m, auto: false, done: !!ticks[m.id] }));
   const items = [...auto, ...manual];
   return { items, done: items.filter((i) => i.done).length, total: items.length };

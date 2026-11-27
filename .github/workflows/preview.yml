@@ -6,7 +6,7 @@
 # Needs two GitHub secrets (Settings > Secrets and variables > Actions):
 #   CLOUDFLARE_API_TOKEN  - a Cloudflare API token (template "Edit Cloudflare Workers")
 #   CLOUDFLARE_ACCOUNT_ID - the account id shown on the Cloudflare dashboard
-# Until both exist, this job skips itself and does nothing.
+# Until both exist, this job skips itself and does nothing. (Both were added 2026-11-25.)
 name: Branch preview
 
 on:
