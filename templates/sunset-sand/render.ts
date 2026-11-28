@@ -4,6 +4,7 @@ import { MAX_WEATHER_PLACES, pathOf, type Block, type Page } from "../../src/sit
 import { videoBlock, weatherBlock } from "../../src/mediahtml.ts";
 import { heroVideoHtml } from "../../src/ytcore.ts";
 import { richText, structuredData } from "../../src/siterender.ts";
+import { BADGES_LINK, siteUsesBadges, storesStripHtml } from "../../src/storebadges.ts";
 import { fontsHref, resolveFonts, resolveSections, tokenCss } from "../../src/sitetheme.ts";
 import {
   baFigure, businessInfo, gate, chatHelper, cityList, colorStudio, colorStudioAi, estimateRequest, ic, instantQuote, leadForm, map, pagePhoto, photo,
@@ -162,6 +163,10 @@ function contentBlock(x: X, b: Block, i: number): string {
     return `<section class="${band.trim()}"><div class="wrap reveal">${videoBlock(b, x.uiLang, x.company.name)}</div></section>`;
   }
   if (b.type === "weather") return b.place ? `<section class="${band.trim()}"><div class="wrap reveal">${weatherBlock(b.place, b.heading, x.uiLang)}</div></section>` : "";
+  if (b.type === "stores") {
+    const strip = storesStripHtml(b.stores, b.heading, x.uiLang);
+    return strip ? `<section class="${band.trim()}"><div class="wrap reveal">${strip}</div></section>` : "";
+  }
   if (b.type === "reviews") {
     const list = x.reviews ?? [];
     if (!list.length) return "";
@@ -266,7 +271,7 @@ ${x.preview ? "" : `<link rel="alternate" hreflang="${x.uiLang}" href="${e(canon
 <meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${e(canonical)}">${ogPhoto ? `<meta property="og:image" content="${e(x.origin.replace(/\/$/, "") + x.photoSrc(ogPhoto))}">` : ""}
 <meta name="theme-color" content="${e(brand)}">
 ${fh ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${e(fh)}">` : ""}
-<link rel="stylesheet" href="${e(x.assetBase)}site.css"><link rel="stylesheet" href="${e(x.platformBase)}blocks.css">
+<link rel="stylesheet" href="${e(x.assetBase)}site.css"><link rel="stylesheet" href="${e(x.platformBase)}blocks.css">${siteUsesBadges(site.pages) ? BADGES_LINK : ""}
 <style>${tokenCss(cfg, x.theme)}</style>
 ${ld.map((j) => `<script type="application/ld+json">${JSON.stringify(j).replace(/</g, "\\u003c")}</script>`).join("\n")}
 </head><body id="top">${sprite(usedIcons)}

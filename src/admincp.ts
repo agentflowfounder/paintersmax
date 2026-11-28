@@ -11,6 +11,8 @@ import { BLIND_KEY, BLIND_TOOLS, readBlind, runBlindTest, scoreBlindTest } from 
 import { aiScorecard, aiToday } from "./ailog.ts";
 import { exceptionList } from "./exceptions.ts";
 import { launchChecklist, tickLaunch } from "./launch.ts";
+import { cleanEntry, LOGOPERM_KEY, permView, readPermBook } from "./logoperm.ts";
+import { STORES } from "./storebadges.ts";
 import { planLimitsView } from "./planlimits.ts";
 import { stripeFacts } from "./stripecheck.ts";
 import { readSamplesSetting, SAMPLES_KEY, saveSamplesSetting } from "./samples.ts";
@@ -196,6 +198,7 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
   }
   if (q.get("exceptions") === "1") return { area: "clients", data: { items: await exceptionList(env, today) } };
   if (q.get("launch") === "1") return { area: "settings", data: await launchChecklist(env, today, await stripeFacts(env, url.hostname)) };
+  if (q.get("logoperm") === "1") return { area: "settings", data: permView(await readBlob(env, LOGOPERM_KEY, readPermBook)) };
   if (q.get("samples") === "1") return { area: "settings", data: await readBlob(env, SAMPLES_KEY, readSamplesSetting) };
   if (q.get("credits") === "1") return { area: "credits", data: await creditsOverview(env, q.get("month") ?? "") };
   if (q.get("limits") === "1") return { area: "settings", data: await planLimitsView(env, today) };
@@ -255,7 +258,7 @@ export const ACT_AREAS: Record<string, Area> = {
   feedback_reply: "feedback",
   quickreply_save: "feedback",
   held_save: "domains", held_decide: "domains",
-  team_set: "security", samples_set: "settings", launch_tick: "settings",
+  team_set: "security", samples_set: "settings", logoperm_set: "settings", launch_tick: "settings",
   ai_alert_set: "credits", blind_run: "credits", blind_pick: "credits",
 };
 
@@ -322,6 +325,16 @@ export async function adminAct(env: Env, actor: AdminActor, b: any, today: strin
     case "launch_tick": {
       const r = await tickLaunch(env, String(b.id ?? ""), b.done === true);
       return r.ok ? { ok: true, detail: `launch checklist ${String(b.id).slice(0, 30)} ${b.done === true ? "ticked" : "unticked"}` } : fail(r.error);
+    }
+    case "logoperm_set": {
+      const slug = String(b.slug ?? "");
+      const st = STORES.find((x) => x.slug === slug);
+      if (!st) return fail("Choose a store from the list.");
+      const entry = cleanEntry(b.entry);
+      if (entry.status === "sent" && !entry.sentOn) entry.sentOn = today;
+      const r = await updateBlob(env, LOGOPERM_KEY, readPermBook, (cur) => ({ value: { ...cur, [slug]: entry } }));
+      if (!r.ok) return fail(r.error);
+      return { ok: true, data: permView(r.value), detail: `logo permission ${st.name}: ${entry.status}` };
     }
     case "samples_set": {
       await saveSamplesSetting(env, b.on !== false, b.text);

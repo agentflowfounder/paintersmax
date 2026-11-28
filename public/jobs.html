@@ -636,6 +636,8 @@ let BID=null;
 async function bidLoad(){try{BID=await api('/api/bidcheck');}catch(x){BID=null;}bidDraw();vpLoad();}
 /* Vendor prices on the estimate. The "whose prices" question only shows on jobs where it fits (a business, builder or agency customer, or commercial work). */
 let VP=null,VOWN='mine';
+// A saved vendor price is a reference, not a store quote. Show how old it is so the painter knows to check old ones.
+function vpFresh(p){const cls=p.state==='fresh'?'t-ok':p.state==='aging'?'t-warn':'t-bad';const t=p.state==='expired'?'Deal ended '+esc((p.deal&&p.deal.expiresOn)||''):p.state==='fresh'?(p.ageDays<=0?'Checked today':'Checked '+p.ageDays+' days ago'):(p.state==='aging'?'Check soon':'Check again')+' &middot; '+p.ageDays+' days old';return '<span class="cc '+cls+'">'+t+'</span>';}
 async function vpLoad(){const el=$('vprice');if(!el||!J)return;try{VP=await api('/api/vendors?job='+J.job.id);}catch(x){VP=null;}vpDraw();}
 function vpDraw(){const el=$('vprice');if(!el)return;if(!VP||(!VP.ask&&!VP.myVendors)){el.innerHTML='';return;}
  let o='<h4 style="margin:12px 0 6px">Use a vendor price</h4>';
@@ -645,8 +647,8 @@ function vpDraw(){const el=$('vprice');if(!el)return;if(!VP||(!VP.ask&&!VP.myVen
  el.innerHTML=o;}
 document.addEventListener('click',async e=>{const t=e.target.closest?e.target.closest('[data-vown],[data-vfind],[data-vadd]'):null;if(!t)return;const ds=t.dataset;
  if(ds.vown){VOWN=ds.vown;vpDraw();return;}
- if(ds.vfind){const q=($('vp_q')||{}).value||'';if(!q.trim())return;try{const r=await api('/api/vendors?find='+encodeURIComponent(q)+'&owner='+VOWN);window._vpr=r.prices;$('vp_res').innerHTML=r.prices.length?r.prices.map((p,i)=>`<div class="ev">${esc(p.product)} ${esc(p.size)} &middot; ${esc(p.vendor)} <b>${$$(p.priceCents)}</b> <button class="btn sec" style="padding:2px 10px" data-vadd="${i}">Add line</button></div>`).join(''):'<small class="muted">No match in '+(VOWN==='customer'?"customers'":'your')+' price lists.</small>';}catch(x){if(x)msg(x.message);}return;}
- if(ds.vadd!==undefined){const p=(window._vpr||[])[+ds.vadd];if(!p)return;lines.push({description:p.product+(p.size?' ('+p.size+')':'')+' - '+p.vendor+(VOWN==='customer'?' (customer price)':''),qty:1,unit:p.size||'each',unitPrice:p.priceCents/100,section:secDef()});drawLines();msg('Line added. Set the quantity.',true);}
+ if(ds.vfind){const q=($('vp_q')||{}).value||'';if(!q.trim())return;try{const r=await api('/api/vendors?find='+encodeURIComponent(q)+'&owner='+VOWN);window._vpr=r.prices;$('vp_res').innerHTML=r.prices.length?r.prices.map((p,i)=>`<div class="ev">${esc(p.product)} ${esc(p.size)} &middot; ${esc(p.vendor)} <b>${$$(p.priceCents)}</b> ${vpFresh(p)} <button class="btn sec" style="padding:2px 10px" data-vadd="${i}">Add line</button></div>`).join(''):'<small class="muted">No match in '+(VOWN==='customer'?"customers'":'your')+' price lists.</small>';}catch(x){if(x)msg(x.message);}return;}
+ if(ds.vadd!==undefined){const p=(window._vpr||[])[+ds.vadd];if(!p)return;lines.push({description:p.product+(p.size?' ('+p.size+')':'')+' - '+p.vendor+(VOWN==='customer'?' (customer price)':''),qty:1,unit:p.size||'each',unitPrice:p.priceCents/100,section:secDef()});drawLines();msg(p.state==='fresh'?'Line added. Set the quantity. This price is your own note, so confirm it with the store.':'Line added, but this price is '+(p.state==='expired'?'from a deal that ended':p.ageDays+' days old')+'. Check it with the store before you rely on it.',true);}
 });
 function bidHours(){return lines.filter(l=>/^(h|hr|hrs|hour|hours)$/i.test(String(l.unit||'').trim())).reduce((s,l)=>s+(+l.qty||0),0);}
 function bidDraw(){const el=$('bidchk');if(!el)return;if(!BID){el.innerHTML='';return;}

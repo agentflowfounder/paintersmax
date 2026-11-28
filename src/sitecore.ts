@@ -2,6 +2,7 @@ import { configOf, TEMPLATE_IDS } from "../templates/configs.ts";
 import { activeGrow, extraRoom, readGrow, type GrowRec } from "./growth.ts";
 import { cleanSocial, cleanTheme, SITE_SCHEMA, upgradeSite, type SocialLink, type Theme } from "./sitetheme.ts";
 import type { Plan } from "./usage.ts";
+import { STORE_CAP, STORE_NAME_MAX } from "./storebadges.ts";
 import { cleanOrient, parseYouTube, type Orient } from "./ytcore.ts";
 
 /**
@@ -109,7 +110,8 @@ export type Block =
   | { id: string; type: "cta"; heading: string; body: string; action: "quote" | "call" }
   | { id: string; type: "reviews"; heading: string }
   | { id: string; type: "video"; heading: string; yt: string; orient: Orient; kind: VideoKind; caption: string }
-  | { id: string; type: "weather"; heading: string; place: string };
+  | { id: string; type: "weather"; heading: string; place: string }
+  | { id: string; type: "stores"; heading: string; stores: string[] };
 
 /** What a video is for. Only changes the label the editor and the page use; any kind can be wide or tall. */
 export type VideoKind = "intro" | "testimonial" | "message" | "how";
@@ -192,6 +194,11 @@ function cleanBlock(b: any, photoIds: Set<string>): Block | null {
     }
     case "weather":
       return { id, type: "weather", heading, place: s(b?.place, 80) };
+    case "stores": {
+      // "Where I buy": store names the painter picked. Names only, never HTML or links.
+      const list = (Array.isArray(b?.stores) ? b.stores : []).map((x: unknown) => s(x, STORE_NAME_MAX)).filter(Boolean);
+      return { id, type: "stores", heading, stores: Array.from(new Set(list as string[])).slice(0, STORE_CAP) };
+    }
     default:
       return null;
   }
