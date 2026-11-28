@@ -294,3 +294,22 @@ test("library: videos and weather draw on Sunset Sand; videos obey the switch; h
   const noBlock = draft();
   assert.equal((draw(noBlock, { door: "grow", tpl: "sunset-sand" }).match(/data-weather=/g) ?? []).length, 1); // the template's own spot uses the painter's city
 });
+
+test("store badges: a Where I buy section and [store:...] tokens draw in the template and load the badge stylesheet", () => {
+  const s = draft();
+  const home = s.pages.find((p) => p.kind === "home")!;
+  home.blocks.push({ id: "t1", type: "text", heading: "Our paint", body: "We trust [store:sherwin-williams] and [store:Behr]." } as any);
+  home.blocks.push({ id: "s1", type: "stores", heading: "", stores: ["Home Depot", "Valspar", "Joe's Paint"] } as any);
+  const r = cleanSite(s, DOOR_LIMITS.launch, "launch");
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  for (const tpl of ["sunset-sand", "classic"]) {
+    const h = draw(r.site, { tpl });
+    assert.match(h, /pm-badges\.css/, tpl);
+    assert.match(h, /pmv-sherwin-williams/, tpl);
+    assert.match(h, /pmv-home-depot/, tpl);
+    assert.match(h, /pmv-valspar/, tpl);
+    assert.match(h, /do not sponsor or endorse us/, tpl);
+  }
+  assert.doesNotMatch(draw(draft(), { tpl: "sunset-sand" }), /pm-badges\.css/);
+});
