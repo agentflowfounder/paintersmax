@@ -1,4 +1,5 @@
 import { getSessionUser } from "./auth.ts";
+import { logAiCall } from "./ailog.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -56,18 +57,22 @@ export async function handleAddress(request: Request, env: Env): Promise<Respons
   try {
     if (place) {
       if (!/^[A-Za-z0-9_-]{10,300}$/.test(place)) return json({ error: "Unknown place." }, 400);
+      const t0 = Date.now();
       const r = await fetch(`${base}/v1/places/${place}${s ? `?sessionToken=${s}` : ""}`, { headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": "addressComponents" } });
+      await logAiCall(env, { tool: "address", model: "google-places-details", ms: Date.now() - t0, tokensIn: 0, tokensOut: 0, ok: r.ok });
       if (!r.ok) return json({ error: "Could not look up that address." }, 502);
       const j = (await r.json()) as any;
       return json(partsFromComponents(j.addressComponents));
     }
     const q = (url.searchParams.get("q") ?? "").trim().slice(0, 120);
     if (q.length < 4) return json({ configured: true, suggestions: [] });
+    const t1 = Date.now();
     const r = await fetch(`${base}/v1/places:autocomplete`, {
       method: "POST",
       headers: { "content-type": "application/json", "X-Goog-Api-Key": key },
       body: JSON.stringify({ input: q, includedRegionCodes: ["us"], ...(s ? { sessionToken: s } : {}) }),
     });
+    await logAiCall(env, { tool: "address", model: "google-places-autocomplete", ms: Date.now() - t1, tokensIn: 0, tokensOut: 0, ok: r.ok });
     if (!r.ok) return json({ configured: true, suggestions: [], error: "lookup failed" });
     const j = (await r.json()) as any;
     const suggestions = (Array.isArray(j.suggestions) ? j.suggestions : [])
