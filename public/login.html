@@ -22,6 +22,9 @@ button{margin-top:16px;width:100%;padding:12px;border:0;border-radius:6px;backgr
 <script>
 const MSG={no_account:'That Google account is not linked to a PaintersMax account. Use the email you signed up with, or contact us.',google_failed:'Google sign-in did not work. Please try again, or use an email link.',google_cancelled:'Google sign-in was cancelled.',google_off:'Google sign-in is not available yet. Use an email link.'};
 const q=new URLSearchParams(location.search).get('error');if(q&&MSG[q]){const e=document.getElementById('err');e.textContent=MSG[q];e.style.display='block';}
+// Remember the page the painter was trying to open, so signing in takes them back there instead of Home.
+try{var nx=new URLSearchParams(location.search).get('next');if(!nx&&document.referrer){var ru=new URL(document.referrer);if(ru.origin===location.origin)nx=ru.pathname+ru.search;}
+if(nx&&/^\/[a-z0-9\-\/_.?=&%#]*$/i.test(nx)&&nx.indexOf('//')<0&&!/^\/(login|api|start|welcome)(\/|$|\?)/.test(nx)&&nx!=='/dashboard')localStorage.setItem('pm_next',JSON.stringify({p:nx,t:Date.now()}));}catch(e){}
 fetch('/api/auth/config').then(r=>r.json()).then(c=>{if(c.google)document.getElementById('g').style.display='block';}).catch(()=>{});
 document.getElementById('f').addEventListener('submit',async e=>{
   e.preventDefault();

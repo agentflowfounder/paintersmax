@@ -53,7 +53,7 @@ details.acc .in{padding:0 12px 12px}
 <label>Link</label><code id="lnk"></code>
 <label>Embed code</label><textarea id="emb" rows="2" readonly></textarea>
 <label>Quote button for your own website</label><div class="hint">Paste this one line before the closing body tag on any website. It adds a floating "Get a free quote" button that opens your quote form. Add data-inline="#some-id" to show the form on the page instead.</div><textarea id="emb2" rows="2" readonly></textarea></div>
-<h2>Settings</h2>
+<h2 id="settings">Settings</h2>
 <div class="card"><form id="sf">
 <div id="billing" style="margin-bottom:14px"><label>Plan and billing</label><div class="hint">Update your card, see invoices or cancel on Stripe's secure page.</div><button type="button" class="btn" id="bill_btn" style="margin-top:6px">Manage my plan and card</button></div>
 <label for="s_lang">App language</label><div class="hint">Show every page in English or Spanish. This is saved to your account.</div>
@@ -82,6 +82,8 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
 (async()=>{
   const r=await fetch('/api/leads');
   if(r.status===401){location.href='/login';return;}
+  // Right after sign-in: go back to the page the painter first asked for (saved on the sign-in page, good for one hour).
+  try{const nx=JSON.parse(localStorage.getItem('pm_next')||'null');localStorage.removeItem('pm_next');if(nx&&nx.p&&Date.now()-nx.t<3600000&&location.pathname==='/dashboard'&&!location.hash&&document.referrer.indexOf('/login')<0){location.replace(nx.p);return;}}catch(e){}
   const j=await r.json();
   document.getElementById('co').textContent=j.company;
   const me=await (await fetch('/api/me')).json(); document.getElementById('me').textContent=me.email;

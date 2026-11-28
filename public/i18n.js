@@ -174,7 +174,24 @@
   window.pmI18n = {
     add: function (d, p) { for (var k in d) D[k] = d[k]; if (p) P = P.concat(p); }, x: x, start: start, dict: D,
   };
-  document.addEventListener('DOMContentLoaded', function () { mount(); sync(); });
+  // A visitor whose browser lists Spanish first, and who has not picked a language yet, is offered Spanish once.
+  // Nothing switches by itself: the page stays in English until they tap the button.
+  function hint() {
+    try { if (localStorage.getItem(KEY) || localStorage.getItem('pm_langhint')) return; } catch (e) { return; }
+    var n = (navigator.languages && navigator.languages[0]) || navigator.language || '';
+    if (!/^es(-|$)/i.test(n) || lang === 'es' || document.getElementById('pm_hint')) return;
+    var b = document.createElement('div');
+    b.id = 'pm_hint'; b.className = 'notranslate'; b.setAttribute('translate', 'no'); b.setAttribute('role', 'region'); b.setAttribute('aria-label', 'Idioma');
+    b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2000;background:#0F1B2D;color:#fff;font:600 15px/1.4 system-ui,sans-serif;padding:12px 14px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;text-align:center';
+    b.innerHTML = '<span>\u00bfPrefiere ver esta p\u00e1gina en espa\u00f1ol?</span><button type="button" data-y style="font:inherit;border:0;border-radius:8px;padding:9px 14px;background:#E8A33D;color:#0F1B2D;cursor:pointer">S\u00ed, en espa\u00f1ol</button><button type="button" data-n style="font:inherit;border:1px solid #fff;border-radius:8px;padding:8px 13px;background:transparent;color:#fff;cursor:pointer">No, gracias</button>';
+    b.onclick = function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('[data-y]')) { b.remove(); setLang('es'); }
+      else if (t.closest('[data-n]')) { try { localStorage.setItem('pm_langhint', '1'); } catch (x) {} b.remove(); }
+    };
+    document.body.appendChild(b);
+  }
+  document.addEventListener('DOMContentLoaded', function () { mount(); sync(); hint(); });
   if (lang === 'es') document.documentElement.lang = 'es';
 
   /* ---- Part 1: navigation, sign in, plans, Home and settings ---- */
@@ -567,6 +584,13 @@
   pmI18n.add({
     'Your business': 'Su negocio', 'What you sell': 'Lo que vende', 'Where you work': 'Dónde trabaja', 'How you price jobs': 'Cómo cobra', 'Crew and money': 'Equipo y dinero', 'Promises and protection': 'Promesas y protección', 'Check and finish': 'Revisar y terminar',
     'Your business details': 'Los datos de su negocio', 'How you price your work': 'Cómo cobra su trabajo', 'How you run your crew and get paid': 'Cómo dirige su equipo y cobra', 'Your promises and protection': 'Sus promesas y protección',
+    'Checked today': 'Revisado hoy', 'Checked 1 day ago': 'Revisado hace 1 día', 'Checked': 'Revisado hace', 'days ago': 'días', 'Check soon': 'Revise pronto', 'Check again': 'Revise otra vez', 'days old': 'días de antigüedad', 'Deal ended': 'La oferta terminó', 'ends': 'termina', 'to check again': 'por revisar otra vez',
+    'Last checked': 'Última revisión', 'Still good': 'Sigue vigente', 'Deal': 'Oferta', 'Who gave you this price? (rep)': '¿Quién le dio este precio? (representante)', 'Deal (for example volume pricing)': 'Oferta (por ejemplo, precio por volumen)',
+    'Deal ends on (YYYY-MM-DD, optional)': 'La oferta termina el (AAAA-MM-DD, opcional)', 'Save deal note': 'Guardar nota de la oferta', 'I checked them all with the store: all still good': 'Los revisé todos con la tienda: todos siguen vigentes',
+    'Rep and deal notes': 'Notas del representante y las ofertas', 'Write down who promised what, and when. Next time, you will know which rep and which deal to trust.': 'Anote quién prometió qué, y cuándo. La próxima vez sabrá en qué representante y en qué oferta confiar.',
+    'No notes yet.': 'Todavía no hay notas.', 'New note': 'Nueva nota', 'Save note': 'Guardar nota', 'Example: Mike at Main St. gave 15% on Duration until Dec 31. Said the price lock is in writing.': 'Ejemplo: Mike, de la tienda de Main St., dio 15% en Duration hasta el 31 de dic. Dijo que el precio fijo es por escrito.',
+    'Prices here are your own notes, not store quotes.': 'Los precios aquí son sus propias notas, no cotizaciones de la tienda.',
+    'Stores and reps change prices and give different deals, so every number is a suggestion until you confirm it. Each price shows how old it is.': 'Las tiendas y los representantes cambian los precios y dan ofertas distintas, así que cada número es una sugerencia hasta que usted lo confirme. Cada precio muestra qué tan antiguo es.',
     'Select all': 'Seleccionar todo', 'Clear all': 'Quitar todo', 'Everyday services': 'Servicios del día a día', 'Specialty add-on pages': 'Páginas adicionales especializadas',
     'Accent walls': 'Paredes de acento', 'Decorative painting': 'Pintura decorativa', 'Decorative texture': 'Textura decorativa', 'Parking lot striping': 'Rayado de estacionamientos', 'Glow-in-the-dark paint': 'Pintura que brilla en la oscuridad',
     'Tap to close': 'Toque para cerrar',
@@ -2404,6 +2428,15 @@
     "Show the customer a color on a photo of their own room or house. Keep the colors they like: they print on the estimate.": "Muestre al cliente un color en una foto de su propio cuarto o casa. Guarde los colores que le gusten: se imprimen en el presupuesto.",
     "Show the customer a color on their own photo before you start.": "Muestre al cliente un color en su propia foto antes de empezar.",
     "Show the menu": "Mostrar el menú",
+    "This month": "Este mes", "Job results": "Resultados de trabajos", "My policy": "Mi póliza", "Insurance guide": "Guía de seguros", "Contractor": "Contractor",
+    "See it on iPhone, Android, iPad or desktop": "Véalo en iPhone, Android, iPad o computadora",
+    "Menu": "Menú", "Work": "Trabajo", "Estimates and prices": "Presupuestos y precios", "Money": "Dinero", "Marketing": "Mercadeo", "Studio": "Estudio", "My business": "Mi negocio", "Help corner": "Rincón de ayuda",
+    "Leads, signatures and what needs you today": "Clientes potenciales, firmas y lo que requiere su atención hoy", "Jobs, crew and trucks": "Trabajos, equipo y camionetas",
+    "Your prices, rate sheets and paint costs": "Sus precios, hojas de tarifas y costos de pintura", "Expenses, mileage and how the business is doing": "Gastos, millaje y cómo va el negocio",
+    "Get found and win more work": "Que lo encuentren y gane más trabajo", "AI tools for colors, logos and pictures": "Herramientas de IA para colores, logotipos e imágenes", "Your profile, insurance and plan": "Su perfil, seguro y plan",
+    "Trucks and vehicles": "Camionetas y vehículos", "My prices": "Mis precios", "Materials and tools": "Materiales y herramientas", "Paint stores and prices": "Tiendas de pintura y precios",
+    "Business health": "Salud del negocio", "My website": "Mi sitio web", "Brand kit and campaigns": "Kit de marca y campañas", "Business profile": "Perfil del negocio", "Plan and AI credits": "Plan y créditos de IA",
+    "Device preview": "Vista previa en dispositivos", "Vendors and prices": "Proveedores y precios", "Grow your business": "Haga crecer su negocio",
     "Siding": "Revestimiento",
     "Small patches": "Parches pequeños",
     "Soffits": "Plafones exteriores",
