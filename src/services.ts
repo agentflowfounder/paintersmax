@@ -145,13 +145,15 @@ export function layoutsFor(prefs: Record<string, Record<string, boolean>>): Serv
 export interface BidState {
   picks: string[];
   tools: string[];
+  myPriceCents?: number; // the painter's own number, typed on the bid screen
 }
 
 export function cleanBid(raw: any, trade: string): BidState {
   const s = serviceFor(trade);
   const picks = Array.isArray(raw?.picks) ? [...new Set(raw.picks.filter((p: unknown) => typeof p === "string" && s.picks.includes(p)))] as string[] : [];
   const tools = Array.isArray(raw?.tools) ? [...new Set(raw.tools.filter((t: unknown) => typeof t === "string" && s.tools.some((x) => x.id === t)))] as string[] : [];
-  return { picks, tools };
+  const mp = Math.round(Number(raw?.myPriceCents));
+  return mp > 0 && mp < 100_000_000_00 ? { picks, tools, myPriceCents: mp } : { picks, tools };
 }
 
 /** Phone numbers shown the US way: (214) 555-0123. Anything that is not 10 digits (or 11 starting with 1) is left as typed. */

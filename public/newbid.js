@@ -240,6 +240,9 @@ async function quickPrice() {
   catch (x) { if (x) msg(x.message); }
   b.disabled = false; b.textContent = tt('Get a quick price again');
 }
+async function nbsaveMine(cents) {
+  try { const bid = J.bid || { picks: [], tools: [] }; const r = await api('/api/job', { action: 'bid', jobId: J.job.id, bid: { ...bid, myPriceCents: cents } }); J.bid = r.bid; } catch (x) {}
+}
 async function myPriceCheck() {
   const o = $('nb_myout'), b = $('nb_mychk'); if (!o || !J) return;
   const mine = Math.round(parseFloat(String($('nb_my').value).replace(/[^0-9.]/g, '')) * 100);
@@ -253,7 +256,9 @@ async function myPriceCheck() {
     else if (mine > q.highCents) { const pct = Math.round((mine / q.highCents - 1) * 100); head = 'Your price is about ' + pct + '% over our range.'; cls = 'high'; }
     else { head = 'Your price is inside our range.'; cls = 'fair'; }
     const why = cls === 'low' ? 'Check that labor, paint, prep and your profit are all in it. If you know something we do not, keep it.' : cls === 'high' ? 'That can be fair for a premium finish, hard access or a busy season. Make sure the customer sees why.' : 'It sits where your notes, photos and prices point.';
-    o.innerHTML = '<div class="qp"><div class="qpr">' + m(mine) + ' <span>vs</span> ' + m(q.lowCents) + ' to ' + m(q.highCents) + '</div><p style="margin:6px 0"><b>' + esc(tt(head)) + '</b> ' + esc(tt(why)) + '</p><small class="muted">A second opinion, not an order. You decide the price. The full estimate is what the customer signs.</small></div>';
+    nbsaveMine(mine);
+    o.innerHTML = '<div class="qp"><div class="qpr">' + m(mine) + ' <span>vs</span> ' + m(q.lowCents) + ' to ' + m(q.highCents) + '</div><p style="margin:6px 0"><b>' + esc(tt(head)) + '</b> ' + esc(tt(why)) + '</p><small class="muted">A second opinion, not an order. You decide the price. The full estimate is what the customer signs.</small><div class="btns" style="margin-top:8px"><button type="button" class="btn" id="nb_fast">Make the estimate with my number</button></div><small class="muted" style="display:block">One line at your price, no steps and no AI credit. Add detail after if you want.</small></div>';
+    $('nb_fast').onclick = () => { location.href = '/jobs?id=' + J.job.id + '&mine=1'; };
   } catch (x) { o.innerHTML = ''; if (x) msg(x.message); }
   b.disabled = false;
 }
@@ -275,7 +280,7 @@ document.addEventListener('change', async (e) => {
   const L = J.layout || nbSvc(J.job.trade), bid = J.bid || { picks: [], tools: [] };
   const cur = bid.tools && bid.tools.length ? bid.tools.slice() : L.tools.filter((x) => x.on).map((x) => x.id);
   const next = t.checked ? [...new Set(cur.concat([t.dataset.tool]))] : cur.filter((x) => x !== t.dataset.tool);
-  try { const r = await api('/api/job', { action: 'bid', jobId: J.job.id, bid: { picks: bid.picks || [], tools: next } }); J.bid = r.bid; } catch (x) { if (x) msg(x.message); }
+  try { const r = await api('/api/job', { action: 'bid', jobId: J.job.id, bid: { ...bid, picks: bid.picks || [], tools: next } }); J.bid = r.bid; } catch (x) { if (x) msg(x.message); }
 });
 
 // ---- Screen 3: service layouts, with each suggested tool on or off ----

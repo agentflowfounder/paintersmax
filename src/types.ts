@@ -3,6 +3,7 @@ export interface Env {
   DB: D1Database;
   BROWSER?: Fetcher;
   FILES?: R2Bucket; // optional: where painters keep the original of their insurance policy
+  PLACES_DAILY_LIMIT?: string; // Google address lookups per company per day (default 150)
   PLACES_API_BASE?: string; // tests only: a mock for Google Places
   GEMINI_API_BASE?: string; // tests only: points the document reader at a mock server
   // Secrets (set in Cloudflare: Settings -> Variables and Secrets). All optional: missing = demo mode.

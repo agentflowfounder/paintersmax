@@ -1,5 +1,7 @@
 import { getSessionUser } from "./auth.ts";
 import { logAiCall } from "./ailog.ts";
+import { companyPlan } from "./files.ts";
+import { dayKey } from "./usage.ts";
 import type { Env } from "./types.ts";
 
 /**
@@ -43,6 +45,13 @@ export function splitOneLine(line: string): AddressParts | null {
   return { address: m[1].trim().slice(0, 160), city: m[2].trim().slice(0, 60), state: m[3].toUpperCase(), zip: m[4] };
 }
 
+/** Google address lookup is for paid plans, and each company has a daily allowance. Over it, the screen quietly uses our own city list. */
+export const PLACES_DAILY_DEFAULT = 150;
+export function placesAllowed(plan: string, usedToday: number, limit: number): "ok" | "plan" | "limit" {
+  if (plan === "free") return "plan";
+  return usedToday >= limit ? "limit" : "ok";
+}
+
 const token = (s: string | null) => (s && /^[A-Za-z0-9-]{8,64}$/.test(s) ? s : undefined);
 
 export async function handleAddress(request: Request, env: Env): Promise<Response> {
@@ -50,6 +59,13 @@ export async function handleAddress(request: Request, env: Env): Promise<Respons
   if (!user) return json({ error: "Not signed in." }, 401);
   const key = env.GOOGLE_MAPS_SERVER_KEY;
   if (!key) return json({ configured: false, suggestions: [] });
+  const plan = await companyPlan(env, user.companyId);
+  const limit = Number(env.PLACES_DAILY_LIMIT) > 0 ? Number(env.PLACES_DAILY_LIMIT) : PLACES_DAILY_DEFAULT;
+  const day = dayKey();
+  const used = (await env.DB.prepare("SELECT count FROM usage_counters WHERE company_id = ? AND feature = 'places' AND period = ?").bind(user.companyId, day).first<{ count: number }>())?.count ?? 0;
+  const gate = placesAllowed(plan, Number(used), limit);
+  if (gate !== "ok") return json({ configured: false, suggestions: [], reason: gate });
+  await env.DB.prepare("INSERT INTO usage_counters (company_id, feature, period, count) VALUES (?, 'places', ?, 1) ON CONFLICT(company_id, feature, period) DO UPDATE SET count = count + 1").bind(user.companyId, day).run();
   const url = new URL(request.url);
   const base = env.PLACES_API_BASE ?? "https://places.googleapis.com";
   const s = token(url.searchParams.get("s"));
