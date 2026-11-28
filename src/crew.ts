@@ -214,7 +214,7 @@ export async function handleCrew(request: Request, env: Env): Promise<Response> 
   if (!user) return json({ error: "Not signed in." }, 401);
   const c = user.companyId;
   const plan = await companyPlan(env, c);
-  if (plan !== "basic" && plan !== "pro") return json({ locked: true, plan, message: "Crew pay, time sheets and the 1099 list are in Basic and Pro." });
+  if (plan !== "basic" && plan !== "pro") return json({ locked: true, plan, message: "Crew pay, time sheets and the 1099 list are in Contractor and Commercial." });
   const u = new URL(request.url);
   const jobOwned = async (id: number | null) => id === null || !!(await env.DB.prepare("SELECT id FROM jobs WHERE id = ? AND company_id = ?").bind(id, c).first());
   const workerOwned = async (id: number) => (Number.isInteger(id) && id > 0 ? await env.DB.prepare("SELECT id FROM workers WHERE id = ? AND company_id = ?").bind(id, c).first() : null);
