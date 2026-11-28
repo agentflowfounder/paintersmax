@@ -312,6 +312,7 @@ function reviewHtml(){
     <div class="act"><span>${pmIcon('builder',34)}</span><div><b>Builder rate sheets</b><small style="display:block">${bOk?'A private price sheet for each home builder.':'On the Basic and Pro plans.'}</small></div>${bOk?'<a class="abtn" href="/builders">Open</a>':''}</div>
    </div>
    <div id="prev"></div>
+   <div class="card"><b>Your plan: ${esc(PLAN_NAMES[S.plan]||S.plan)}</b><p style="margin:6px 0">You picked ${p.trades.length} service${p.trades.length===1?'':'s'} and ${(p.cities||[]).length} cit${(p.cities||[]).length===1?'y':'ies'}. Your plan publishes ${S.caps.pageCities} city page${S.caps.pageCities===1?'':'s'}. AI help runs on credits: see what you have and what each tool costs, or look at the plans to add more.</p><a class="abtn" href="/credits">See my AI credits</a> <a class="abtn" style="background:#E8A33D;color:#0F1B2D" href="/site">See plans and upgrades</a></div>
    <div class="card"><b>What happens next</b><p style="margin:6px 0">${S.completed?'Your setup is saved. Tap the button below to go to your dashboard, or go straight to <a href="/jobs">Jobs</a> to build your first estimate.':'When you finish, you go to your dashboard. Your prices fill in your estimates, and you can build your first job from Jobs.'}</p></div>`;
 }
 
