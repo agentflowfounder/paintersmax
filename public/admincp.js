@@ -544,6 +544,33 @@
     }).catch(function (x) { box.textContent = x ? x.message : ''; });
   }
 
+  // Store logo permissions: the request letter and a record of who we asked. Until a store says yes in writing we show our own badge, never its logo.
+  function logoPermLoad() {
+    var box = $('lp_box'); if (!box) return;
+    var LABEL = { not_asked: 'Not asked yet', sent: 'Letter sent', approved: 'Approved in writing', declined: 'Declined' };
+    api('/api/admin?logoperm=1').then(function (v) {
+      var h = '<p style="margin:0 0 8px">Until a store says yes in writing, we show it with our own badge, never its logo. Keep the written reply (email or letter) in your own files and note here where it is. Do not put passwords or account numbers in notes.</p>';
+      h += v.stores.map(function (s) {
+        return '<div class="row" style="align-items:end;border-top:1px solid #eee;padding:8px 0" data-lp="' + esc(s.slug) + '"><div><b>' + esc(s.name) + '</b><br><span class="pmv pmv-' + esc(s.slug) + ' pmv-sm">' + esc(s.name) + '</span></div>' +
+          '<div><label>Status</label><select data-f="status">' + v.statuses.map(function (k) { return '<option value="' + k + '"' + (s.status === k ? ' selected' : '') + '>' + esc(LABEL[k]) + '</option>'; }).join('') + '</select></div>' +
+          '<div><label>Sent on (YYYY-MM-DD)</label><input data-f="sentOn" placeholder="2026-12-01" maxlength="10" value="' + esc(s.sentOn) + '"></div>' +
+          '<div><label>Note (who replied, where the written reply is kept)</label><input data-f="note" maxlength="500" value="' + esc(s.note) + '"></div>' +
+          '<div><button class="btn" data-lpsave="' + esc(s.slug) + '">Save</button></div></div>';
+      }).join('');
+      h += '<h3 style="margin:16px 0 6px">Request letter</h3><label>Store</label><select id="lp_store">' + v.stores.map(function (s) { return '<option value="' + esc(s.name) + '">' + esc(s.name) + '</option>'; }).join('') + '</select>' +
+        '<textarea id="lp_letter" rows="18" style="width:100%;font:inherit"></textarea><div class="btns"><button class="btn" id="lp_copy">Copy the letter</button></div><p><small>This is a plain request, written as a draft. Fill in the [brackets] and have it reviewed before you send it. It is not legal advice.</small></p>';
+      box.innerHTML = h;
+      var fill = function () { $('lp_letter').value = v.letter.replace(/\{\{STORE\}\}/g, $('lp_store').value); };
+      fill(); $('lp_store').onchange = fill;
+      $('lp_copy').onclick = function () { var t = $('lp_letter'); t.select(); (navigator.clipboard ? navigator.clipboard.writeText(t.value) : Promise.reject()).then(function () { ok('Copied.'); }, function () { ok('Select the text and copy it.'); }); };
+      box.onclick = function (e) {
+        var slug = e.target && e.target.dataset && e.target.dataset.lpsave; if (!slug) return;
+        var row = box.querySelector('[data-lp="' + slug + '"]'), g = function (k) { return row.querySelector('[data-f="' + k + '"]').value; };
+        post({ action: 'logoperm_set', slug: slug, entry: { status: g('status'), sentOn: g('sentOn'), note: g('note') } }).then(function () { ok('Saved.'); logoPermLoad(); }).catch(bad);
+      };
+    }).catch(function (x) { box.textContent = x ? x.message : ''; });
+  }
+
   // Launch checklist: items the app can check show a green tick by themselves; the rest the owner ticks.
   function launchLoad() {
     var box = $('lc_box'); if (!box) return;
@@ -573,7 +600,7 @@
     domains: function () { heldLoad(); if (typeof load === 'function') load(); },
     content: function () { if (typeof hLoad === 'function') hLoad(); },
     launch: launchLoad,
-    settings: function () { samplesLoad(); ['tkLoad', 'mkLoad', 'mLoad', 'ntLoad', 'amLoad'].forEach(function (f) { if (typeof window[f] === 'function') window[f](); }); },
+    settings: function () { logoPermLoad(); samplesLoad(); ['tkLoad', 'mkLoad', 'mLoad', 'ntLoad', 'amLoad'].forEach(function (f) { if (typeof window[f] === 'function') window[f](); }); },
     security: securityLoad,
   };
 

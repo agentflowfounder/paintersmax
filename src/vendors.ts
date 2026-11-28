@@ -18,7 +18,7 @@ import type { Env } from "./types.ts";
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 const txt = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
 
-export const KINDS: Record<string, string> = { sherwin_williams: "Sherwin-Williams", home_depot: "Home Depot", lowes: "Lowe's", benjamin_moore: "Benjamin Moore", ppg: "PPG", other: "Other" };
+export const KINDS: Record<string, string> = { sherwin_williams: "Sherwin-Williams", home_depot: "Home Depot", lowes: "Lowe's", benjamin_moore: "Benjamin Moore", ppg: "PPG", kelly_moore: "Kelly-Moore", dunn_edwards: "Dunn-Edwards", valspar: "Valspar", behr: "Behr", other: "Other" };
 
 /** Plain tips for getting better material prices, shown on the Vendors page and in job reports. */
 export const TIPS = [

@@ -43,7 +43,7 @@ function $$(c){return '$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:
 function toast(t){var m=$('msg');m.textContent=T(t);m.style.display='block';clearTimeout(m._t);m._t=setTimeout(function(){m.style.display='none'},2600);}
 function api(path,body){return fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}:{credentials:'same-origin'}).then(function(r){if(r.status===401){location.href='/login';throw 0;}return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;});});}
 // Our own animated badges from /pm-badges.css (loaded by colorcode.css), not store logos: logos are trademarks and are not used without permission.
-var BADGE={sherwin_williams:1,home_depot:1,lowes:1,benjamin_moore:1,ppg:1,other:1};
+var BADGE={sherwin_williams:1,home_depot:1,lowes:1,benjamin_moore:1,ppg:1,kelly_moore:1,dunn_edwards:1,valspar:1,behr:1,other:1};
 function badge(v,big){var k=BADGE[v.kind]?v.kind:'other';return '<span class="pmv pmv-tile'+(big?' pmv-lg':'')+' pmv-'+k.replace(/_/g,'-')+'" aria-hidden="true">'+esc(v.name||'')+'</span>';}
 var D=null,CUR=null,SHEET=null;
 function load(){api('/api/vendors').then(function(j){D=j;draw();}).catch(function(e){if(e)$('body').textContent=T(e.message);});}

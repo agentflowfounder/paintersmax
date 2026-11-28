@@ -48,6 +48,10 @@ ul.rules li{margin:6px 0}
     <span class="pmv pmv-lowes" tabindex="0">Lowe's</span>
     <span class="pmv pmv-benjamin-moore" tabindex="0">Benjamin Moore</span>
     <span class="pmv pmv-ppg" tabindex="0">PPG</span>
+    <span class="pmv pmv-kelly-moore" tabindex="0">Kelly-Moore</span>
+    <span class="pmv pmv-dunn-edwards" tabindex="0">Dunn-Edwards</span>
+    <span class="pmv pmv-valspar" tabindex="0">Valspar</span>
+    <span class="pmv pmv-behr" tabindex="0">Behr</span>
     <span class="pmv pmv-other" tabindex="0">Any store</span>
   </div>
   <button class="btn" id="replay">Play all again</button>
@@ -104,6 +108,10 @@ ul.rules li{margin:6px 0}
     <tr><td><code>pmv-lowes</code></td><td>Tape measure rolls in and the blade slides out</td></tr>
     <tr><td><code>pmv-benjamin-moore</code></td><td>Color swatch cards fan open</td></tr>
     <tr><td><code>pmv-ppg</code></td><td>Paint roller rolls on a fresh stripe</td></tr>
+    <tr><td><code>pmv-kelly-moore</code></td><td>Paint drop falls and splats</td></tr>
+    <tr><td><code>pmv-dunn-edwards</code></td><td>Sun spins in</td></tr>
+    <tr><td><code>pmv-valspar</code></td><td>Paint tray slides in</td></tr>
+    <tr><td><code>pmv-behr</code></td><td>Ladder rocks into place</td></tr>
     <tr><td><code>pmv-other</code></td><td>Brush paints a stroke. Use for any other store or supplier, with its name inside.</td></tr>
     <tr><td><code>pmv-light</code>, <code>pmv-gold</code></td><td>Light or gold look, for light backgrounds</td></tr>
     <tr><td><code>pmv-sm</code>, <code>pmv-lg</code></td><td>Smaller or larger</td></tr>
@@ -113,11 +121,18 @@ ul.rules li{margin:6px 0}
   </table></div>
 </div>
 
+<div class="card" id="editor">
+  <h2>In your website editor</h2>
+  <p><b>Insert a badge with a button.</b> In a Text section or a tab, open the <i>Insert store badge</i> list and pick a store. A short code like <code>[store:home-depot]</code> is added where your cursor is. On your site it shows as the animated badge. You can also type the code yourself, for example <code>[store:Home Depot]</code>. A store we have no badge for, like <code>[store:Joe's Paint Supply]</code>, shows with the brush badge and that name.</p>
+  <p><b>Where I buy.</b> Add the <i>Where I buy</i> section to any page, tick your stores, and type any others. <i>Add the stores from my Vendors page</i> fills it from your list. The section shows a short note that the stores do not sponsor or endorse you.</p>
+</div>
+
 <div class="card" id="rules">
   <h2>Rules that keep us safe</h2>
   <ul class="rules">
     <li><b>No store logos.</b> Company logos, colors used as branding, and slogans are trademarks. We use a real logo only after that company gives us written permission. Until then, these badges are the way to show a store.</li>
     <li><b>Name the store accurately.</b> Write its real name, spelled the way the store spells it. Do not suggest the store sponsors or endorses us or the painter unless it has agreed in writing.</li>
+    <li><b>Real logos need permission.</b> Admin &rarr; Settings &rarr; Store logo permissions has a request letter and a record of who we asked and what they said.</li>
     <li><b>Keep the PaintersMax colors.</b> Do not recolor a badge to look like a store's own branding.</li>
     <li><b>Calm motion.</b> Badges move only with transform and fade, stop moving for people whose device asks for reduced motion, and still show fully if scripts are off.</li>
   </ul>
@@ -126,7 +141,7 @@ ul.rules li{margin:6px 0}
 <div class="msg" id="msg" role="status"></div>
 <script>
 (function(){
-var S=[['Sherwin-Williams','sherwin-williams'],['Home Depot','home-depot'],["Lowe's",'lowes'],['Benjamin Moore','benjamin-moore'],['PPG','ppg'],['Your store name','other']];
+var S=[['Sherwin-Williams','sherwin-williams'],['Home Depot','home-depot'],["Lowe's",'lowes'],['Benjamin Moore','benjamin-moore'],['PPG','ppg'],['Kelly-Moore','kelly-moore'],['Dunn-Edwards','dunn-edwards'],['Valspar','valspar'],['Behr','behr'],['Your store name','other']];
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 var box=document.getElementById('snips'),h='';
 S.forEach(function(s,i){var code='<span class="pmv pmv-'+s[1]+'">'+s[0]+'</span>';
