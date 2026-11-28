@@ -128,7 +128,7 @@ async function bidScreen(id) {
   const j = d.job, L = d.layout || nbSvc(j.trade), bid = d.bid || { picks: [], tools: [] };
   const c = { name: j.customerName, phone: j.customerPhone, email: j.customerEmail, address: j.address, city: j.city, state: j.state, zip: j.zip };
   const reqText = d.request && d.request.description;
-  $('view').innerHTML = `<p class="crumb"><a href="/jobs">&larr; Jobs</a> &middot; <a href="/jobs?id=${j.id}">Full job page</a></p>
+  $('view').innerHTML = `<p class="crumb"><a href="/jobs">&larr; Jobs</a> &middot; <a class="btn sec mini" href="/jobs?id=${j.id}" style="display:inline-block;text-decoration:none">Full job page</a></p>
   <div class="svch"><h2 id="nb_title">${esc(L.label)}</h2><button class="mini" id="nb_svcch">Change</button></div>
   <div id="nb_svcbox" style="display:none"><select id="nb_trade">${NBS.map((s) => `<option value="${s.trade}" ${s.trade === j.trade ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</select></div>
   <details class="acc" id="nb_cust"><summary><span class="at">${esc(j.customerName)}</span><span class="asub">${esc(custLine({ ...c, name: '' }) || 'Tap to add phone, email and address')}</span></summary><div class="accin">
@@ -138,11 +138,18 @@ async function bidScreen(id) {
    <label for="nb_txt" style="margin-top:0">Describe the job</label>
    <textarea id="nb_txt" rows="6" placeholder="${esc(L.describe)}"></textarea>
    <div class="nbbtns"><button type="button" class="btn bigmic" id="nb_mic">${window.pmVoice ? pmVoice.MIC : ''}<span>Tap to talk</span></button><button type="button" class="btn sec" id="nb_add">Save as a note</button></div>
+   <div class="nbbtns" style="margin-top:8px"><label class="btn sec cam" style="width:100%;text-align:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="4"/></svg><span>Take a photo</span><input type="file" accept="image/*" capture="environment" id="nb_cam" style="display:none"></label><label class="btn sec cam" style="width:100%;text-align:center"><span>From the gallery</span><input type="file" accept="image/*" multiple id="nb_gal" style="display:none"></label></div>
    <small class="muted">Talk like you would to your crew: the rooms, what needs fixing, colors, and anything special. Each time you tap Talk, a new note starts, so you can do one room at a time.</small>
   </div>
   <div class="card"><b>What does the work cover?</b><small class="muted" style="display:block">Tap all that fit. It helps the price and the estimate.</small>
    <div class="picks" id="nb_picks">${L.picks.map((p) => `<button type="button" class="pk ${bid.picks.includes(p) ? 'on' : ''}" data-pick="${esc(p)}" aria-pressed="${bid.picks.includes(p)}">${esc(tt(p))}</button>`).join('')}</div></div>
   <h3>Notes and photos</h3><div id="nb_notes"></div>
+  <div class="card nbprice" id="nb_mine">
+   <b>Already have your own number?</b>
+   <small class="muted" style="display:block;margin:4px 0 8px">Type the price you have in mind. I check it against your notes, photos and your own price list, and tell you if it looks low, fair or high, and why. The price stays yours.</small>
+   <div style="display:flex;gap:8px"><input id="nb_my" inputmode="decimal" placeholder="Your price, like 4,500" aria-label="Your price" style="flex:1"><button type="button" class="btn" id="nb_mychk">Check my price</button></div>
+   <div id="nb_myout"></div>
+  </div>
   <div class="card nbprice">
    <button class="btn big" id="nb_quick">Get a quick price</button>
    <small class="muted" style="display:block;margin-top:6px">A ballpark range from your notes and photos in a few seconds, to tell the customer on the spot. Uses one assistant question.</small>
@@ -175,6 +182,26 @@ async function bidScreen(id) {
     pmVoice.listen({ title: 'Describe the job', sub: 'Talk about the job. Your words show up as you speak. Tap Done when you finish, and it saves as a note.', onDone: (x) => { const typed = t.value.trim(); t.value = ''; noteAdd((typed ? typed + ' ' : '') + x); } });
   };
   $('nb_quick').onclick = quickPrice;
+  $('nb_mychk').onclick = myPriceCheck;
+  const camGo = async (files) => {
+    files = [...files].slice(0, 12); if (!files.length) return;
+    const typed = $('nb_txt').value.trim(); $('nb_txt').value = '';
+    try {
+      msg('Adding photo...', true);
+      const nid = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const r0 = await api('/api/job', { action: 'note', jobId: j.id, notes: [{ id: nid, at: new Date().toISOString(), text: typed || 'Photo' }] });
+      J.fieldNotes = r0.notes;
+      for (const f of files) {
+        const bl = await shrinkImg(f), fd = new FormData(); fd.append('file', bl); fd.append('jobId', j.id); fd.append('kind', 'photo');
+        const r = await fetch('/api/files', { method: 'POST', body: fd }); const jj = await r.json().catch(() => ({}));
+        if (!r.ok) { msg(jj.error || 'Could not add the photo.'); break; }
+        const n = await api('/api/job', { action: 'notePhoto', jobId: j.id, id: nid, fileId: jj.id }); J.fieldNotes = n.notes;
+      }
+      nbNotesDraw(); msg('');
+    } catch (x) { if (x) msg(x.message || 'Could not add the photo.'); }
+  };
+  $('nb_cam').onchange = (e) => { const f = e.target.files; camGo(f); e.target.value = ''; };
+  $('nb_gal').onchange = (e) => { const f = e.target.files; camGo(f); e.target.value = ''; };
   $('nb_full').onclick = () => { location.href = '/jobs?id=' + j.id + '&draft=1'; };
   nbNotesDraw();
   if (typeof nqFlush === 'function') nqFlush();
@@ -213,6 +240,28 @@ async function quickPrice() {
   catch (x) { if (x) msg(x.message); }
   b.disabled = false; b.textContent = tt('Get a quick price again');
 }
+async function nbsaveMine(cents) {
+  try { const bid = J.bid || { picks: [], tools: [] }; const r = await api('/api/job', { action: 'bid', jobId: J.job.id, bid: { ...bid, myPriceCents: cents } }); J.bid = r.bid; } catch (x) {}
+}
+async function myPriceCheck() {
+  const o = $('nb_myout'), b = $('nb_mychk'); if (!o || !J) return;
+  const mine = Math.round(parseFloat(String($('nb_my').value).replace(/[^0-9.]/g, '')) * 100);
+  if (!mine || mine < 1) { msg('Type your price first, like 4500.'); $('nb_my').focus(); return; }
+  b.disabled = true; o.innerHTML = '<small class="muted">Checking...</small>';
+  try {
+    if (!NBQ || NBQ.jobId !== J.job.id) { if (typeof nqFlush === 'function') await nqFlush(); const r = await api('/api/estimate', { action: 'quickPrice', jobId: J.job.id }); NBQ = { ...r, jobId: J.job.id }; qpDraw(NBQ); }
+    const q = NBQ, m = (c) => '$' + Math.round(c / 100).toLocaleString('en-US');
+    let head, cls;
+    if (mine < q.lowCents) { const pct = Math.round((1 - mine / q.lowCents) * 100); head = 'Your price is about ' + pct + '% under our range.'; cls = 'low'; }
+    else if (mine > q.highCents) { const pct = Math.round((mine / q.highCents - 1) * 100); head = 'Your price is about ' + pct + '% over our range.'; cls = 'high'; }
+    else { head = 'Your price is inside our range.'; cls = 'fair'; }
+    const why = cls === 'low' ? 'Check that labor, paint, prep and your profit are all in it. If you know something we do not, keep it.' : cls === 'high' ? 'That can be fair for a premium finish, hard access or a busy season. Make sure the customer sees why.' : 'It sits where your notes, photos and prices point.';
+    nbsaveMine(mine);
+    o.innerHTML = '<div class="qp"><div class="qpr">' + m(mine) + ' <span>vs</span> ' + m(q.lowCents) + ' to ' + m(q.highCents) + '</div><p style="margin:6px 0"><b>' + esc(tt(head)) + '</b> ' + esc(tt(why)) + '</p><small class="muted">A second opinion, not an order. You decide the price. The full estimate is what the customer signs.</small><div class="btns" style="margin-top:8px"><button type="button" class="btn" id="nb_fast">Make the estimate with my number</button></div><small class="muted" style="display:block">One line at your price, no steps and no AI credit. Add detail after if you want.</small></div>';
+    $('nb_fast').onclick = () => { location.href = '/jobs?id=' + J.job.id + '&mine=1'; };
+  } catch (x) { o.innerHTML = ''; if (x) msg(x.message); }
+  b.disabled = false;
+}
 function qpDraw(r) {
   const o = $('nb_qout'); if (!o || !J) return;
   const L = J.layout || nbSvc(J.job.trade), bid = J.bid || { tools: [] };
@@ -231,7 +280,7 @@ document.addEventListener('change', async (e) => {
   const L = J.layout || nbSvc(J.job.trade), bid = J.bid || { picks: [], tools: [] };
   const cur = bid.tools && bid.tools.length ? bid.tools.slice() : L.tools.filter((x) => x.on).map((x) => x.id);
   const next = t.checked ? [...new Set(cur.concat([t.dataset.tool]))] : cur.filter((x) => x !== t.dataset.tool);
-  try { const r = await api('/api/job', { action: 'bid', jobId: J.job.id, bid: { picks: bid.picks || [], tools: next } }); J.bid = r.bid; } catch (x) { if (x) msg(x.message); }
+  try { const r = await api('/api/job', { action: 'bid', jobId: J.job.id, bid: { ...bid, picks: bid.picks || [], tools: next } }); J.bid = r.bid; } catch (x) { if (x) msg(x.message); }
 });
 
 // ---- Screen 3: service layouts, with each suggested tool on or off ----
