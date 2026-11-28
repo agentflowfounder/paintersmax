@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en"><head><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Vendor badges - PaintersMax</title>
+<link rel="stylesheet" href="/pm-badges.css">
+<style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F2ECDD;color:#0B0B0B;margin:0;line-height:1.5}
+header{background:#0B0B0B;color:#F2ECDD;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+header a{color:#F5CB5C;font-weight:600;text-decoration:none;font-size:14px}
+main{max-width:980px;margin:0 auto;padding:16px 16px 80px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:30px;margin:8px 0 6px}
+h2{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:22px;margin:0 0 10px}
+.lead{color:#333533;max-width:62ch;margin:0 0 16px}
+.card{background:#fff;border:1px solid rgba(11,11,11,.1);border-radius:12px;padding:16px;margin:0 0 16px}
+.dark{background:#0B0B0B;color:#F2ECDD;border-color:#0B0B0B}
+.dark .muted{color:#cfc8b7}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:8px 0 14px}
+.muted{color:#4b4d4b;font-size:14px}
+.btn{font:inherit;font-weight:700;border:0;border-radius:8px;padding:10px 14px;background:#F5CB5C;color:#0B0B0B;cursor:pointer;min-height:44px}
+.btn.sec{background:#eae3d2}
+.snip{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border-top:1px solid rgba(11,11,11,.08);padding:10px 0}
+.snip:first-of-type{border-top:0}
+.snip .l{display:flex;flex-direction:column;gap:6px;min-width:0}
+code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+.snip code{background:#f6f2e8;border-radius:6px;padding:4px 8px;overflow-x:auto;white-space:nowrap;display:block}
+pre{background:#f6f2e8;border-radius:8px;padding:10px 12px;overflow-x:auto;margin:6px 0 12px}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 6px;border-bottom:1px solid #ece6d6;text-align:left;font-size:14px;vertical-align:top}
+th{font-weight:700}
+td code{background:#f6f2e8;border-radius:5px;padding:2px 6px;white-space:nowrap}
+.tablewrap{overflow-x:auto}
+ul.rules li{margin:6px 0}
+.msg{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#0B0B0B;color:#F2ECDD;padding:10px 16px;border-radius:10px;display:none;z-index:50}
+.copy{min-height:40px;padding:8px 12px;font-size:14px}
+</style></head><body>
+<header><div><b>PaintersMax</b> Vendor badges</div><a href="/vendors">Open Vendors &rarr;</a></header>
+<main>
+<h1>Vendor badges</h1>
+<p class="lead">Small animated badges for paint stores and suppliers. Use them in posts, pages, help articles and settings. They are our own designs: the store's name in our font next to a painting icon, in the PaintersMax colors. They are not the stores' logos.</p>
+
+<div class="card dark" id="gallery">
+  <h2>All badges</h2>
+  <p class="muted">Each badge plays once when it appears. Point at one, or tab to it with the keyboard, to play it again.</p>
+  <div class="row">
+    <span class="pmv pmv-sherwin-williams" tabindex="0">Sherwin-Williams</span>
+    <span class="pmv pmv-home-depot" tabindex="0">Home Depot</span>
+    <span class="pmv pmv-lowes" tabindex="0">Lowe's</span>
+    <span class="pmv pmv-benjamin-moore" tabindex="0">Benjamin Moore</span>
+    <span class="pmv pmv-ppg" tabindex="0">PPG</span>
+    <span class="pmv pmv-other" tabindex="0">Any store</span>
+  </div>
+  <button class="btn" id="replay">Play all again</button>
+</div>
+
+<div class="card" id="looks">
+  <h2>Looks and sizes</h2>
+  <p class="muted">Light (<code>pmv-light</code>) and gold (<code>pmv-gold</code>) for light pages. Dark is the default.</p>
+  <div class="row">
+    <span class="pmv pmv-light pmv-sherwin-williams">Sherwin-Williams</span>
+    <span class="pmv pmv-light pmv-home-depot">Home Depot</span>
+    <span class="pmv pmv-light pmv-lowes">Lowe's</span>
+    <span class="pmv pmv-gold pmv-benjamin-moore">Benjamin Moore</span>
+    <span class="pmv pmv-gold pmv-ppg">PPG</span>
+    <span class="pmv pmv-gold pmv-other">Any store</span>
+  </div>
+  <p class="muted">Small (<code>pmv-sm</code>), normal, and large (<code>pmv-lg</code>).</p>
+  <div class="row">
+    <span class="pmv pmv-sm pmv-ppg">PPG</span>
+    <span class="pmv pmv-ppg">PPG</span>
+    <span class="pmv pmv-lg pmv-ppg">PPG</span>
+  </div>
+  <p class="muted">Icon-only tiles (<code>pmv-tile</code>), like the ones on the Vendors page. The name stays in the page for screen readers.</p>
+  <div class="row">
+    <span class="pmv pmv-tile pmv-sherwin-williams">Sherwin-Williams</span>
+    <span class="pmv pmv-tile pmv-home-depot">Home Depot</span>
+    <span class="pmv pmv-tile pmv-lowes">Lowe's</span>
+    <span class="pmv pmv-tile pmv-light pmv-benjamin-moore">Benjamin Moore</span>
+    <span class="pmv pmv-tile pmv-light pmv-ppg">PPG</span>
+    <span class="pmv pmv-tile pmv-gold pmv-other">Any store</span>
+    <span class="pmv pmv-tile pmv-lg pmv-sherwin-williams">Sherwin-Williams</span>
+  </div>
+  <p class="muted">Repeating (<code>pmv-loop</code>). Use one per screen at most so the page stays calm.</p>
+  <div class="row"><span class="pmv pmv-loop pmv-benjamin-moore">Benjamin Moore</span></div>
+</div>
+
+<div class="card" id="copy">
+  <h2>Copy a badge</h2>
+  <p class="muted">Paste into any HTML box: a post, a page, a help article or a setting.</p>
+  <div id="snips"></div>
+</div>
+
+<div class="card" id="how">
+  <h2>How to use them</h2>
+  <p><b>1. The stylesheet.</b> Every PaintersMax app page already has it. On any other page, add this line inside <code>&lt;head&gt;</code>:</p>
+  <pre>&lt;link rel="stylesheet" href="https://paintersmax.app/pm-badges.css"&gt;</pre>
+  <p><b>2. The badge.</b> Write the store's name inside a <code>span</code> with two classes: <code>pmv</code> and the store's class.</p>
+  <pre>&lt;span class="pmv pmv-home-depot"&gt;Home Depot&lt;/span&gt;</pre>
+  <p><b>3. Options.</b> Add more classes in the same quotes, in any order.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Class</th><th>What it does</th></tr>
+    <tr><td><code>pmv-sherwin-williams</code></td><td>Paint can, the lid pops and settles</td></tr>
+    <tr><td><code>pmv-home-depot</code></td><td>Price tag swings on its string</td></tr>
+    <tr><td><code>pmv-lowes</code></td><td>Tape measure rolls in and the blade slides out</td></tr>
+    <tr><td><code>pmv-benjamin-moore</code></td><td>Color swatch cards fan open</td></tr>
+    <tr><td><code>pmv-ppg</code></td><td>Paint roller rolls on a fresh stripe</td></tr>
+    <tr><td><code>pmv-other</code></td><td>Brush paints a stroke. Use for any other store or supplier, with its name inside.</td></tr>
+    <tr><td><code>pmv-light</code>, <code>pmv-gold</code></td><td>Light or gold look, for light backgrounds</td></tr>
+    <tr><td><code>pmv-sm</code>, <code>pmv-lg</code></td><td>Smaller or larger</td></tr>
+    <tr><td><code>pmv-tile</code></td><td>Square icon only, 44 by 44, easy to tap on a phone</td></tr>
+    <tr><td><code>pmv-loop</code></td><td>Repeats the motion. One per screen at most.</td></tr>
+    <tr><td><code>pmv-host</code></td><td>Put on a card or link around a badge so hovering the whole card plays it again</td></tr>
+  </table></div>
+</div>
+
+<div class="card" id="rules">
+  <h2>Rules that keep us safe</h2>
+  <ul class="rules">
+    <li><b>No store logos.</b> Company logos, colors used as branding, and slogans are trademarks. We use a real logo only after that company gives us written permission. Until then, these badges are the way to show a store.</li>
+    <li><b>Name the store accurately.</b> Write its real name, spelled the way the store spells it. Do not suggest the store sponsors or endorses us or the painter unless it has agreed in writing.</li>
+    <li><b>Keep the PaintersMax colors.</b> Do not recolor a badge to look like a store's own branding.</li>
+    <li><b>Calm motion.</b> Badges move only with transform and fade, stop moving for people whose device asks for reduced motion, and still show fully if scripts are off.</li>
+  </ul>
+</div>
+</main>
+<div class="msg" id="msg" role="status"></div>
+<script>
+(function(){
+var S=[['Sherwin-Williams','sherwin-williams'],['Home Depot','home-depot'],["Lowe's",'lowes'],['Benjamin Moore','benjamin-moore'],['PPG','ppg'],['Your store name','other']];
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+var box=document.getElementById('snips'),h='';
+S.forEach(function(s,i){var code='<span class="pmv pmv-'+s[1]+'">'+s[0]+'</span>';
+  h+='<div class="snip"><div class="l"><span>'+code.replace('pmv pmv','pmv pmv-light pmv')+'</span><code>'+esc(code)+'</code></div><button class="btn sec copy" data-i="'+i+'">Copy</button></div>';});
+box.innerHTML=h;
+function toast(t){var m=document.getElementById('msg');m.textContent=t;m.style.display='block';clearTimeout(m._t);m._t=setTimeout(function(){m.style.display='none'},2200);}
+box.addEventListener('click',function(e){var b=e.target.closest('[data-i]');if(!b)return;var s=S[+b.getAttribute('data-i')];var code='<span class="pmv pmv-'+s[1]+'">'+s[0]+'</span>';
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(code).then(function(){toast('Copied. Paste it into your page.')},function(){toast('Select the code and copy it.')});}else toast('Select the code and copy it.');});
+// Replaying: swap each badge for a fresh copy, which restarts its animation.
+document.getElementById('replay').addEventListener('click',function(){document.querySelectorAll('.pmv').forEach(function(el){var c=el.cloneNode(true);el.parentNode.replaceChild(c,el);});});
+})();
+</script>
+</body></html>
