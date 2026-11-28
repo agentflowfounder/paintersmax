@@ -62,8 +62,13 @@ jobs:
           set -o pipefail
           npx wrangler preview --name "pr-${{ github.event.pull_request.number }}" \
             --message "PR #${{ github.event.pull_request.number }}" 2>&1 | tee preview.log
-          URL=$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev[^ ]*' preview.log | tail -1)
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          # The log has two addresses. "Preview URL" is stable for this pull request and always shows the newest push.
+          # "Unique Deployment URL" is frozen to this one push (it is what old links point to). Post the stable one.
+          STABLE=$(grep -Eo 'Preview URL: https://[A-Za-z0-9.-]+\.workers\.dev[^ ]*' preview.log | tail -1 | sed 's/^Preview URL: //')
+          UNIQUE=$(grep -Eo 'Unique Deployment URL: https://[A-Za-z0-9.-]+\.workers\.dev[^ ]*' preview.log | tail -1 | sed 's/^Unique Deployment URL: //')
+          ANY=$(grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev[^ ]*' preview.log | tail -1)
+          echo "url=${STABLE:-$ANY}" >> "$GITHUB_OUTPUT"
+          echo "unique=${UNIQUE:-$ANY}" >> "$GITHUB_OUTPUT"
 
       - name: Post the link on the pull request
         if: steps.gate.outputs.ok == '1' && steps.preview.outputs.url != ''
@@ -71,8 +76,11 @@ jobs:
         with:
           script: |
             const url = '${{ steps.preview.outputs.url }}';
+            const unique = '${{ steps.preview.outputs.unique }}';
+            const sha = context.payload.pull_request.head.sha.slice(0, 7);
+            const when = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'medium', timeStyle: 'short' });
             const marker = '<!-- paintersmax-preview -->';
-            const body = `${marker}\n**Preview ready (test database):** ${url}\n\nSign in there with a test account. Nothing here touches the live site.`;
+            const body = `${marker}\n**Preview ready (test database):** ${url}\n\nThis address always shows the newest version of this pull request. Built from commit ${sha} on ${when} (Texas time). If it looks old, hard-refresh the page. Older links from earlier messages stay frozen on their old version, so ignore them.\n\nThis exact build only: ${unique}\n\nSign in there with a test account. Nothing here touches the live site.`;
             const { owner, repo } = context.repo;
             const issue_number = context.payload.pull_request.number;
             const list = await github.rest.issues.listComments({ owner, repo, issue_number });
