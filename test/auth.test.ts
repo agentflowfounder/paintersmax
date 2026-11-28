@@ -27,18 +27,42 @@ test("opening a sign-in link shows a Sign in button and never uses the link", as
   const html = await r.text();
   assert.match(html, /method="post" action="\/api\/auth\/verify"/);
   assert.match(html, new RegExp(`value="${t}"`));
-  assert.match(html, /Entrar/);
+  assert.match(html, />Sign in</);
+  assert.doesNotMatch(html, /Entrar/);
   assert.equal(r.headers.get("cache-control"), "no-store");
 });
 
-test("a bad or used sign-in link explains itself in both languages and links to a new one", async () => {
+test("the sign-in page shows one language at a time, with a switch to the other", async () => {
+  const t = "a".repeat(64);
+  const es = await signInLinkPage(t, "ready", "es").text();
+  assert.match(es, />Entrar</);
+  assert.doesNotMatch(es, /Sign in/);
+  assert.match(es, new RegExp(`token=${t}&amp;lang=en`));
+  const en = await signInLinkPage(t, "ready", "en").text();
+  assert.match(en, /lang=es/);
+  assert.doesNotMatch(en, /Entrar/);
+});
+
+import { pickLang } from "../src/auth.ts";
+
+test("the page language follows the link, then the browser's first language, and defaults to English", () => {
+  assert.equal(pickLang("es", "en-US,en;q=0.9"), "es");
+  assert.equal(pickLang(null, "es-MX,es;q=0.9,en;q=0.8"), "es");
+  assert.equal(pickLang(null, "en-US,es;q=0.8"), "en");
+  assert.equal(pickLang(null, null), "en");
+  assert.equal(pickLang("fr", "pt-BR"), "en");
+});
+
+test("a bad or used sign-in link explains itself in one language and links to a new one", async () => {
   for (const r of [signInLinkPage("<script>", "ready"), signInLinkPage(null, "bad")]) {
     assert.equal(r.status, 400);
     const html = await r.text();
     assert.match(html, /href="\/login"/);
-    assert.match(html, /Pida uno nuevo/);
+    assert.match(html, /Get a new link/);
+    assert.doesNotMatch(html, /Pida uno nuevo/);
     assert.doesNotMatch(html, /<script>/);
   }
+  assert.match(await signInLinkPage(null, "bad", "es").text(), /Pida uno nuevo/);
 });
 
 import { loginEmail } from "../src/auth.ts";

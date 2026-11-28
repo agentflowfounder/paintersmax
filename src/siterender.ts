@@ -1,5 +1,6 @@
 import { escapeHtml as e } from "./settings.ts";
 import { reviewsHtml, type PublicReview } from "./reviews.ts";
+import { BADGES_LINK, siteUsesBadges, storesStripHtml, withBadges } from "./storebadges.ts";
 import { pathOf, type Block, type Page, type Site } from "./sitecore.ts";
 
 /**
@@ -34,6 +35,9 @@ const L = {
 
 /** Paragraphs, and lines starting with "- " as a bulleted list. Everything escaped. */
 export function richText(t: string): string {
+  return withBadges(richTextPlain(t));
+}
+function richTextPlain(t: string): string {
   return t
     .split(/\n{2,}/)
     .map((para) => {
@@ -64,6 +68,7 @@ function blockHtml(b: Block, x: RenderCtx, T: (typeof L)["en"]): string {
     return `<section class="blk">${h}<div class="vid vid-${b.orient}"><iframe src="https://www.youtube-nocookie.com/embed/${b.yt}?rel=0&modestbranding=1&playsinline=1" title="${e(b.heading || x.company.name)}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>${b.caption ? `<p>${e(b.caption)}</p>` : ""}</section>`;
   }
   if (b.type === "weather") return "";
+  if (b.type === "stores") { const strip = storesStripHtml(b.stores, b.heading, x.site.lang); return strip ? `<section class="blk">${strip}</section>` : ""; }
   if (b.type === "reviews") return reviewsHtml(x.reviews ?? [], x.company.name, x.site.lang, b.heading);
   const phone = x.site.business.phone;
   const btn = b.action === "call" && phone ? `<a class="btn" href="tel:${e(tel(phone))}">${e(T.call)} ${e(phone)}</a>` : `<a class="btn" href="${e(x.quoteHref)}">${e(T.quote)}</a>`;
@@ -130,7 +135,7 @@ ${contact}
   const ld = structuredData(x);
   return `<!doctype html><html lang="${site.lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${e(title)}</title><meta name="description" content="${e(desc)}">
-<link rel="canonical" href="${e(canonical)}">${x.preview ? '<meta name="robots" content="noindex">' : ""}
+<link rel="canonical" href="${e(canonical)}">${siteUsesBadges(site.pages) ? BADGES_LINK : ""}${x.preview ? '<meta name="robots" content="noindex">' : ""}
 ${p.kind === "home" && site.gscToken ? `<meta name="google-site-verification" content="${e(site.gscToken)}">` : ""}
 <meta property="og:title" content="${e(title)}"><meta property="og:description" content="${e(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${e(canonical)}">
 ${site.photos[0] ? `<meta property="og:image" content="${e(x.origin.replace(/\/$/, "") + x.photoSrc((p.blocks.find((q) => q.type === "photos" && q.photos.length) as any)?.photos?.[0] ?? site.photos[0].id))}">` : ""}

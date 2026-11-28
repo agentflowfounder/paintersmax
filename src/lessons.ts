@@ -81,7 +81,7 @@ export async function handleLessons(request: Request, env: Env): Promise<Respons
   if (!user) return json({ error: "Not signed in." }, 401);
   const c = user.companyId;
   const plan = await companyPlan(env, c);
-  if (plan !== "basic" && plan !== "pro") return json({ locked: true, plan, message: "The lessons library is in Basic and Pro." });
+  if (plan !== "basic" && plan !== "pro") return json({ locked: true, plan, message: "The lessons library is in Contractor and Commercial." });
   const u = new URL(request.url);
   if (request.method === "GET") {
     const rows = ((await env.DB.prepare("SELECT l.id, l.job_id AS jobId, j.title AS jobTitle, l.title, l.body, l.tags, l.created_at AS at FROM lessons l LEFT JOIN jobs j ON j.id = l.job_id WHERE l.company_id = ? ORDER BY l.id DESC LIMIT 500").bind(c).all<any>()).results ?? []) as any[];

@@ -71,7 +71,7 @@ export function readLog(raw: unknown): LogBook {
 const dealsKey = (c: number) => `vdeal:${c}`;
 const logKey = (c: number) => `vlog:${c}`;
 
-export const KINDS: Record<string, string> = { sherwin_williams: "Sherwin-Williams", home_depot: "Home Depot", lowes: "Lowe's", benjamin_moore: "Benjamin Moore", ppg: "PPG", other: "Other" };
+export const KINDS: Record<string, string> = { sherwin_williams: "Sherwin-Williams", home_depot: "Home Depot", lowes: "Lowe's", benjamin_moore: "Benjamin Moore", ppg: "PPG", kelly_moore: "Kelly-Moore", dunn_edwards: "Dunn-Edwards", valspar: "Valspar", behr: "Behr", other: "Other" };
 
 /** Plain tips for getting better material prices, shown on the Vendors page and in job reports. */
 export const TIPS = [
