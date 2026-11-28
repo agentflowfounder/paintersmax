@@ -565,6 +565,11 @@
 
   /* ---- Part 9: setup flow redesign ---- */
   pmI18n.add({
+    'Your business': 'Su negocio', 'What you sell': 'Lo que vende', 'Where you work': 'Dónde trabaja', 'How you price jobs': 'Cómo cobra', 'Crew and money': 'Equipo y dinero', 'Promises and protection': 'Promesas y protección', 'Check and finish': 'Revisar y terminar',
+    'Your business details': 'Los datos de su negocio', 'How you price your work': 'Cómo cobra su trabajo', 'How you run your crew and get paid': 'Cómo dirige su equipo y cobra', 'Your promises and protection': 'Sus promesas y protección',
+    'Select all': 'Seleccionar todo', 'Clear all': 'Quitar todo', 'Everyday services': 'Servicios del día a día', 'Specialty add-on pages': 'Páginas adicionales especializadas',
+    'Accent walls': 'Paredes de acento', 'Decorative painting': 'Pintura decorativa', 'Decorative texture': 'Textura decorativa', 'Parking lot striping': 'Rayado de estacionamientos', 'Glow-in-the-dark paint': 'Pintura que brilla en la oscuridad',
+    'Tap to close': 'Toque para cerrar',
     'Your company info': 'Datos de su empresa', 'Services you offer': 'Servicios que ofrece', 'Cities you serve': 'Ciudades que atiende', 'Your prices': 'Sus precios', 'Labor and money': 'Mano de obra y dinero', 'Warranty and insurance': 'Garantía y seguro', 'Review': 'Revisión',
     'Save and go to dashboard': 'Guardar e ir al panel', 'What services do you offer?': '¿Qué servicios ofrece?',
     'Choose the work you do.': 'Elija el trabajo que hace.', 'Services': 'Servicios',

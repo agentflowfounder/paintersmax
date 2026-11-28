@@ -189,7 +189,7 @@ export const DRAFT_SYSTEM = [
   "Write the way an experienced painter would write a scope for a customer: short, plain sentences, no jargon, nothing that promises a result you cannot back up.",
 ].join("\n");
 
-export function draftPrompt(brief: Brief, options: QtyOption[], city: string, findings: string[], language: "en" | "es" = "en", siteNotes = ""): string {
+export function draftPrompt(brief: Brief, options: QtyOption[], city: string, findings: string[], language: "en" | "es" = "en", siteNotes = "", sections: { id: string; label: string }[] = []): string {
   return [
     briefText(brief),
     siteNotes ? `Notes from the site visit and the customer's request:\n${siteNotes}` : "",
@@ -199,7 +199,7 @@ export function draftPrompt(brief: Brief, options: QtyOption[], city: string, fi
     options.length
       ? `Items on the contractor's price list. Use these keys in "quantities" (a number for each item that applies to this job):\n${options.map((o) => `- ${o.key}: ${o.label} (${o.unit})`).join("\n")}`
       : "The contractor has no price list for this type of work, so put every item in extraLines instead of quantities.",
-    'Return ONLY a JSON object with these keys: "scope" (a short paragraph of the work, written for the customer), "quantities" (object: price-list key to number), "extraLines" (array of {description, qty, unit, section} for work that has no matching price-list item; no prices; section is one of "drywall", "paint", "trim", "other"), "inclusions" (array of short strings), "exclusions" (array of short strings), "assumptions" (array of short strings), "questions" (array of things to confirm with the customer or measure on site). No markdown.',
+    `Return ONLY a JSON object with these keys: "scope" (a short paragraph of the work, written for the customer), "quantities" (object: price-list key to number), "extraLines" (array of {description, qty, unit, section} for work that has no matching price-list item; no prices; section is one of ${sections.length ? sections.map((x) => `"${x.id}" (${x.label})`).join(", ") : '"paint", "drywall", "trim", "other"'}; choose the one that fits the line and use "other" only when none fits), "inclusions" (array of short strings), "exclusions" (array of short strings), "assumptions" (array of short strings), "questions" (array of things to confirm with the customer or measure on site). No markdown.`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -208,7 +208,7 @@ export function draftPrompt(brief: Brief, options: QtyOption[], city: string, fi
 const list = (v: unknown, n: number, len: number) => (Array.isArray(v) ? v.map((x) => clip(x, len)).filter(Boolean).slice(0, n) : []);
 
 /** Safe version of the AI reply: only valid price-list keys, sensible numbers, bounded text. */
-export function cleanDraftAI(raw: any, options: QtyOption[]): EstimateDraftAI {
+export function cleanDraftAI(raw: any, options: QtyOption[], allowedSections: string[] = ["drywall", "paint", "trim", "other"]): EstimateDraftAI {
   const valid = new Set(options.map((o) => o.key));
   const quantities: Record<string, number> = {};
   if (raw?.quantities && typeof raw.quantities === "object")
@@ -218,7 +218,7 @@ export function cleanDraftAI(raw: any, options: QtyOption[]): EstimateDraftAI {
     }
   const extraLines = (Array.isArray(raw?.extraLines) ? raw.extraLines : [])
     .slice(0, 12)
-    .map((l: any) => ({ description: clip(l?.description, 120), qty: Math.max(0, Math.min(1_000_000, Number(l?.qty) || 1)), unit: clip(l?.unit, 12) || "ea", section: ["drywall", "paint", "trim", "other"].includes(l?.section) ? (l.section as string) : "" }))
+    .map((l: any) => ({ description: clip(l?.description, 120), qty: Math.max(0, Math.min(1_000_000, Number(l?.qty) || 1)), unit: clip(l?.unit, 12) || "ea", section: allowedSections.includes(l?.section) ? (l.section as string) : "" }))
     .filter((l: { description: string }) => l.description);
   return { scope: typeof raw?.scope === "string" ? raw.scope.trim().slice(0, 1500) : "", quantities, extraLines, inclusions: list(raw?.inclusions, 12, 160), exclusions: list(raw?.exclusions, 12, 160), assumptions: list(raw?.assumptions, 12, 200), questions: list(raw?.questions, 10, 200) };
 }

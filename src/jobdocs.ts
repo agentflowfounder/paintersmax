@@ -2,7 +2,7 @@ import { escapeHtml } from "./settings.ts";
 import { milestoneAmounts, money, type EstimateInput, type Totals } from "./estimate.ts";
 
 /** Documents that are simple lists. Invoices are separate because they carry money. */
-export const LIST_KINDS = ["materials", "schedule", "instructions", "punch", "warranty"] as const;
+export const LIST_KINDS = ["materials", "schedule", "instructions", "daycard", "punch", "warranty"] as const;
 export type ListKind = (typeof LIST_KINDS)[number];
 export const isListKind = (v: unknown): v is ListKind => typeof v === "string" && (LIST_KINDS as readonly string[]).includes(v);
 
@@ -110,6 +110,19 @@ const PUNCH: Record<Group, Pair[]> = {
   remodel: [["Work matches the agreed scope", "El trabajo coincide con el alcance acordado"], ["Surfaces are smooth and painted", "Superficies lisas y pintadas"], ["Trim and fittings are tight and level", "Molduras y accesorios firmes y a nivel"], ["Debris removed and the area is clean", "Escombros retirados y el área limpia"]],
 };
 
+/** One page the foreman prints or opens each morning: tick each line, then keep it with the job. Same for every service. */
+const DAYCARD: Pair[] = [
+  ["Arrive and walk the work area with the lead. Say today's goal out loud.", "Llegue y recorra el área con el líder. Diga en voz alta la meta del día."],
+  ["Check today's line in the schedule. Check the materials are on site and enough for the day.", "Revise la línea de hoy en el calendario. Confirme que hay suficientes materiales en el sitio."],
+  ["Safety first: ladders set and footed, gloves, eye protection and a mask for sanding or chemicals.", "Primero la seguridad: escaleras firmes, guantes, protección para los ojos y mascarilla para lijar o usar químicos."],
+  ["Protect floors, furniture, plants and anything the customer asked you to avoid.", "Proteja pisos, muebles, plantas y todo lo que el cliente pidió cuidar."],
+  ["Do today's work from the crew instructions. Do not change the scope. Anything extra goes on a change order.", "Haga el trabajo de hoy según las instrucciones. No cambie el alcance. Lo extra va en una orden de cambio."],
+  ["Take 3 photos of progress: before the work, during, and when you finish for the day.", "Tome 3 fotos del avance: antes, durante y al terminar el día."],
+  ["Clean up: close paint cans, wash tools, remove trash, leave the area safe for the family.", "Limpie: cierre los botes, lave herramientas, saque la basura y deje el área segura."],
+  ["Tell the customer what was done today and what comes next. Lock up and turn off lights.", "Cuéntele al cliente lo hecho hoy y lo que sigue. Cierre y apague las luces."],
+  ["Problem or injury? Call the owner first. In an emergency call 911.", "¿Problema o lesión? Llame primero al dueño. En una emergencia llame al 911."],
+];
+
 const SCHEDULE: Record<Group, Pair[]> = {
   paint: [["Prep and protect the work area", "Preparar y proteger el área de trabajo"], ["Patch, sand, caulk and prime", "Reparar, lijar, sellar e imprimar"], ["First coat", "Primera mano"], ["Second coat and trim", "Segunda mano y molduras"], ["Touch-ups, cleanup and walkthrough", "Retoques, limpieza y recorrido final"]],
   fencing: [["Mark the line, call 811, dig post holes", "Marcar la línea, llamar al 811, excavar hoyos"], ["Set posts in concrete", "Colocar postes en concreto"], ["Hang rails", "Colocar travesaños"], ["Install pickets and gates", "Instalar tablas y puertas"], ["Stain or seal, cleanup and walkthrough", "Teñir o sellar, limpieza y recorrido final"]],
@@ -155,6 +168,7 @@ export function starterDoc(kind: ListKind, c: StarterContext, lang: "en" | "es")
   }
   if (kind === "instructions") return { language: lang, intro: lang === "es" ? "Instrucciones para el equipo, paso a paso." : "Step-by-step instructions for the crew.", items: STEPS[g].map((s) => mk(s[i])), footer: "" };
   if (kind === "punch") return { language: lang, intro: lang === "es" ? "Marque cada punto con el cliente durante el recorrido final." : "Check each item with the customer during the final walkthrough.", items: PUNCH[g].map((s) => mk(s[i])), footer: "" };
+  if (kind === "daycard") return { language: lang, intro: lang === "es" ? "Marque cada línea durante el día." : "Tick each line through the day.", items: DAYCARD.map((s) => mk(s[i])), footer: "" };
   if (kind === "schedule") {
     const rows = SCHEDULE[g];
     const dates = workDates(c.startDate ?? "", rows.length);
@@ -197,6 +211,7 @@ const TITLES: Record<string, Record<"en" | "es", string>> = {
   materials: { en: "Materials List", es: "Lista de Materiales" },
   schedule: { en: "Job Schedule", es: "Calendario del Trabajo" },
   instructions: { en: "Crew Instructions", es: "Instrucciones para el Equipo" },
+  daycard: { en: "Crew Day Card", es: "Tarjeta del Día para el Equipo" },
   punch: { en: "Punch List", es: "Lista de Pendientes" },
   warranty: { en: "Warranty Letter", es: "Carta de Garantía" },
   invoice: { en: "Invoice", es: "Factura" },
@@ -254,6 +269,9 @@ export function renderListDocHtml(kind: ListKind, ctx: DocContext, d: ListDoc): 
     body = `<table><thead><tr><th>${es ? "Día" : "When"}</th><th>${es ? "Trabajo" : "Work"}</th></tr></thead><tbody>${d.items.map((i, n) => `<tr><td style="white-space:nowrap">${x(i.detail || (es ? "Día " : "Day ") + (n + 1))}</td><td>${x(i.text)}</td></tr>`).join("")}</tbody></table>`;
   } else if (kind === "instructions") {
     body = `<ol>${d.items.map((i) => `<li>${x(i.text)}${i.detail ? `<br><span class="muted">${x(i.detail)}</span>` : ""}</li>`).join("")}</ol>`;
+  } else if (kind === "daycard") {
+    body = `<table><thead><tr><th>${es ? "Hacer" : "To do"}</th><th>${es ? "Notas" : "Notes"}</th></tr></thead><tbody>${d.items.map((i) => `<tr><td><span class="box"></span>${x(i.text)}</td><td>${x(i.detail) || "&nbsp;"}</td></tr>`).join("")}</tbody></table>
+<div class="sigs" style="margin-top:24px;display:flex;gap:30px;flex-wrap:wrap"><div style="flex:1;min-width:200px"><div class="line"></div><small>${es ? "Líder del equipo" : "Crew lead"}</small></div><div style="flex:1;min-width:140px"><div class="line"></div><small>${es ? "Fecha" : "Date"}</small></div></div>`;
   } else if (kind === "punch") {
     body = `<table><thead><tr><th>${es ? "Punto" : "Item"}</th><th>${es ? "Notas" : "Notes"}</th></tr></thead><tbody>${d.items.map((i) => `<tr><td><span class="box"></span>${x(i.text)}</td><td>${x(i.detail) || "&nbsp;"}</td></tr>`).join("")}</tbody></table>
 <div class="sigs" style="margin-top:28px;display:flex;gap:30px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div class="line"></div><small>${es ? "Firma del cliente" : "Customer signature"}</small></div><div style="flex:1;min-width:140px"><div class="line"></div><small>${es ? "Fecha" : "Date"}</small></div></div>`;

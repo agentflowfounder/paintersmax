@@ -6,7 +6,7 @@
   var T = window.pmT || function (s) { return s; };
   var ME = null, CACHE = {};
   var TABS = [
-    ['clients', 'Clients', 'clients'], ['subs', 'Subscriptions', 'subscriptions'], ['credits', 'Credits', 'credits'], ['starter', 'Starter campaign', 'credits'], ['aihealth', 'AI health', 'credits'], ['promos', 'Promotions', 'promos'],
+    ['clients', 'Clients', 'clients'], ['subs', 'Subscriptions', 'subscriptions'], ['credits', 'Credits', 'credits'], ['starter', 'Starter campaign', 'credits'], ['aihealth', 'AI health', 'credits'], ['limits', 'Plan limits', 'settings'], ['promos', 'Promotions', 'promos'],
     ['research', 'Research', 'research'], ['feedback', 'Feedback', 'feedback'], ['domains', 'Domains', 'domains'], ['sites', 'Websites', 'sites'],
     ['content', 'Help guide', 'content'], ['launch', 'Launch checklist', 'settings'], ['settings', 'Settings', 'settings'], ['security', 'Team and audit log', 'security'],
   ];
@@ -241,6 +241,18 @@
 
   // ------------------------------------------------------------- AI health and model scorecard
   var secs = function (ms) { return (ms / 1000).toFixed(1) + 's'; };
+  function limitsLoad() {
+    var box = $('lm_box'); if (!box) return;
+    api('/api/admin?limits=1').then(function (v) {
+      var d = v.data || v;
+      var rows = d.rows.map(function (r) { return '<tr><td><b>' + esc(r.name) + '</b></td><td>' + esc(r.free) + '</td><td>' + esc(r.starter) + '</td><td>' + esc(r.basic) + '</td><td>' + esc(r.pro) + '</td><td>' + esc(r.protects) + '</td><td>' + esc(r.safeguard) + '</td></tr>'; }).join('');
+      var p = d.places, pct = p.limit ? Math.min(100, Math.round((p.today.peak / p.limit) * 100)) : 0;
+      box.innerHTML = '<div class="scroll"><table class="t"><thead><tr><th>Limit</th><th>Free</th><th>Local Pro</th><th>Contractor</th><th>Commercial</th><th>Protects</th><th>Safeguard</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        '<h3>Google address lookups</h3><p>Daily allowance per company: <b>' + p.limit + '</b>. Today (' + esc(d.today) + '): <b>' + p.today.total + '</b> lookups across <b>' + p.today.companies + '</b> companies. Busiest company today: <b>' + p.today.peak + '</b> of ' + p.limit + '.</p>' +
+        '<div style="background:#e8e4da;border-radius:6px;height:12px;max-width:420px"><div style="background:#E8A23C;height:12px;border-radius:6px;width:' + pct + '%"></div></div>' +
+        '<p><small>Last 30 days: ' + p.last30 + ' lookups. ' + esc(d.aiAlert) + '</small></p>';
+    }).catch(function (x) { box.textContent = (x && x.message) || 'Could not load.'; });
+  }
   function aiHealthLoad() {
     var box = $('ah_box');
     var cents = function (c) { return c === null || c === undefined ? 'n/a' : '$' + (c / 100).toFixed(c >= 100 ? 2 : 3); };
@@ -554,6 +566,7 @@
     credits: function () { creditsLoad(); if (typeof load === 'function') load(); },
     starter: starterLoad,
     aihealth: aiHealthLoad,
+    limits: limitsLoad,
     promos: promosLoad,
     research: researchLoad,
     feedback: feedbackLoad,

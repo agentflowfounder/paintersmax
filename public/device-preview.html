@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<title>Device preview - PaintersMax</title><script src="/i18n.js" data-app></script>
+<link rel="stylesheet" href="/colorcode.css"><style>
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
+header{background:#0F1B2D;color:#fff;padding:14px 16px}
+header b{font-family:Newsreader,Georgia,serif;font-size:19px;font-weight:500}
+main{max-width:1200px;margin:0 auto;padding:14px 12px 40px}
+h1{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:26px;margin:6px 0}
+.muted{color:#4A5568;font-size:14px;margin:0 0 10px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.bar button,.bar a.q{font:inherit;font-weight:700;border:2px solid #0F1B2D;border-radius:999px;padding:8px 14px;background:#fff;color:#0F1B2D;cursor:pointer;text-decoration:none;font-size:14px}
+.bar button.on{background:#0F1B2D;color:#fff}
+.bar input{font:inherit;padding:9px 10px;border:1px solid #cfcac0;border-radius:8px;min-width:200px;flex:1}
+.stage{display:flex;justify-content:center;padding:12px 0}
+.frame{background:#111;border-radius:34px;padding:14px;box-shadow:0 10px 30px rgba(15,27,45,.3);transform-origin:top center}
+.frame.desktop{border-radius:12px;padding:10px 10px 22px}
+.frame iframe{display:block;border:0;background:#fff;border-radius:22px}
+.frame.desktop iframe{border-radius:4px}
+.size{font-size:13px;color:#4A5568;text-align:center;margin:4px 0}
+</style></head><body>
+<header><b>PaintersMax</b> Device preview</header>
+<main>
+<h1>See a page on a phone, tablet or computer</h1>
+<p class="muted">Pick a device. The page loads in a frame the size of that screen, so you can see how it looks. You stay signed in. This is a preview, so some buttons may behave differently than on a real phone.</p>
+<div class="bar" id="devs" role="group" aria-label="Device"></div>
+<div class="bar"><input id="u" aria-label="Page address" placeholder="/dashboard"><button id="go" type="button">Show this page</button><button id="rot" type="button">Rotate</button></div>
+<div class="bar" id="quick"></div>
+<div class="size" id="size"></div>
+<div class="stage"><div class="frame" id="frame"><iframe id="f" title="Preview"></iframe></div></div>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+var DEVICES=[['iphone','iPhone',390,844],['android','Android',412,915],['ipad','iPad',820,1180],['desktop','Desktop',1280,800]];
+var QUICK=[['/dashboard','Home'],['/jobs','Jobs'],['/app','Estimating Setup'],['/site','Website'],['/brand','Brand kit'],['/quote','My quote page'],['/ai-studio','AI Studio']];
+var cur='iphone',rotated=false,path='/dashboard';
+function clean(p){p=String(p||'').trim();if(!p)return '/dashboard';if(p.charAt(0)!=='/'||p.indexOf('//')===0||/[\s<>"']/.test(p))return '/dashboard';return p.slice(0,300);}
+function draw(){
+  $('devs').innerHTML=DEVICES.map(function(d){return '<button type="button" data-d="'+d[0]+'" class="'+(d[0]===cur?'on':'')+'">'+d[1]+'</button>';}).join('');
+  $('quick').innerHTML='<span class="muted" style="margin:0">Quick pages:</span>'+QUICK.map(function(q){return '<a class="q" href="#" data-p="'+q[0]+'">'+q[1]+'</a>';}).join('');
+  var d=DEVICES.filter(function(x){return x[0]===cur;})[0],w=d[2],h=d[3];if(rotated&&cur!=='desktop'){var t=w;w=h;h=t;}
+  var f=$('f');f.style.width=w+'px';f.style.height=h+'px';
+  var fr=$('frame');fr.className='frame'+(cur==='desktop'?' desktop':'');
+  var avail=Math.min(window.innerWidth-40,1180),pad=cur==='desktop'?20:28,scale=Math.min(1,avail/(w+pad));
+  fr.style.transform='scale('+scale+')';fr.style.marginBottom=(-(h+pad+12)*(1-scale))+'px';
+  $('size').textContent=d[1]+' screen, '+w+' by '+h+(scale<1?' (shown smaller to fit your window)':'');
+  $('u').value=path;
+  if(f.getAttribute('data-src')!==path){f.setAttribute('data-src',path);f.src=path;}
+}
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-d]');if(b){cur=b.getAttribute('data-d');draw();return;}
+  var q=e.target.closest('[data-p]');if(q){e.preventDefault();path=clean(q.getAttribute('data-p'));draw();return;}
+  if(e.target.id==='go'){path=clean($('u').value);draw();return;}
+  if(e.target.id==='rot'){rotated=!rotated;draw();}
+});
+$('u').addEventListener('keydown',function(e){if(e.key==='Enter'){path=clean($('u').value);draw();}});
+window.addEventListener('resize',draw);
+try{var qs=new URLSearchParams(location.search);if(qs.get('url'))path=clean(qs.get('url'));var dv=qs.get('device');if(dv&&DEVICES.some(function(x){return x[0]===dv;}))cur=dv;}catch(e){}
+draw();
+</script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>

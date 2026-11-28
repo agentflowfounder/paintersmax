@@ -3,6 +3,11 @@ export interface Env {
   DB: D1Database;
   BROWSER?: Fetcher;
   FILES?: R2Bucket; // optional: where painters keep the original of their insurance policy
+  TEXTS_ON?: string; // "1" turns customer texts on (off by default)
+  TWILIO_ACCOUNT_SID?: string;
+  TWILIO_AUTH_TOKEN?: string;
+  TWILIO_FROM?: string;
+  PLACES_DAILY_LIMIT?: string; // Google address lookups per company per day (default 150)
   PLACES_API_BASE?: string; // tests only: a mock for Google Places
   GEMINI_API_BASE?: string; // tests only: points the document reader at a mock server
   // Secrets (set in Cloudflare: Settings -> Variables and Secrets). All optional: missing = demo mode.
@@ -35,6 +40,7 @@ export interface Env {
   GOOGLE_REDIRECT_BASE?: string; // canonical site address, default https://paintersmax.app
   GOOGLE_TOKEN_URL?: string; // local testing only
   DEV_LOG_LINKS?: string; // local development only
+  PREVIEW_SIGNIN?: string; // "1" on branch previews only: show the sign-in link on the page because previews send no email
 }
 
 export type JobType = "interior" | "exterior" | "both" | "commercial" | "multifamily";

@@ -1,3 +1,4 @@
+import { computeTotals, renderEstimateHtml, sanitizeEstimate, type Letterhead } from "./estimate.ts";
 import { getSessionUser } from "./auth.ts";
 import { listDomains } from "./domains.ts";
 import { readSettings } from "./settings.ts";
@@ -35,6 +36,11 @@ export const TRADE_LABELS: Record<string, string> = {
   remodeling: "Remodeling",
   epoxy_floors: "Epoxy floors",
   industrial: "Industrial coatings",
+  accent_walls: "Accent walls",
+  decorative_painting: "Decorative painting",
+  decorative_texture: "Decorative texture",
+  parking_lot_striping: "Parking lot striping",
+  glow_paint: "Glow-in-the-dark paint",
 };
 
 /** What the brand form starts with, taken from the painter's own setup. Nothing here is saved until they press Save. */
@@ -111,6 +117,7 @@ export async function handleBrand(request: Request, env: Env): Promise<Response>
     const brand = cleanBrand(b.brand);
     if (!brand.company) return json({ error: "Add your company name first." }, 400);
     const fallbackUrl = (await suggestBrand(env, c)).quoteUrl;
+    if (b.kind === "letterhead") return json({ html: await letterheadPreview(env, c, brand) });
     if (b.kind === "cards") return json({ html: renderCards(brand, { design: b.design, mode: b.mode, guides: b.guides !== false, fallbackUrl }) });
     if (b.kind === "flyer") return json({ html: renderFlyer(brand, { design: b.design, mode: b.mode, fallbackUrl }) });
     if (b.kind === "hanger") return json({ html: renderHangers(brand, { design: b.design, mode: b.mode, guides: b.guides !== false, fallbackUrl }) });
@@ -124,4 +131,55 @@ export async function handleBrand(request: Request, env: Env): Promise<Response>
     return json({ error: "Unknown kind." }, 400);
   }
   return json({ error: "Unknown action." }, 400);
+}
+
+/**
+ * The painter's letterhead for estimates, or undefined when they have not turned it on.
+ * The header picture is read from their file cabinet and embedded, so the PDF and the emailed page show it without any sign-in.
+ */
+export async function letterheadFor(env: Env, companyId: number): Promise<{ letterhead: Letterhead; color: string; logoUrl: string } | undefined> {
+  const saved = parse(await getSetting(env, key(companyId)));
+  if (!saved) return undefined;
+  const brand = cleanBrand(saved);
+  if (!brand.letterhead.on) return undefined;
+  const headerImage = brand.letterhead.style === "image" ? await headerDataUri(env, companyId, brand.letterhead.headerFileId) : "";
+  return { letterhead: { style: brand.letterhead.style, headerImage, footer: brand.letterhead.footer, extra: brand.letterhead.extra }, color: brand.color, logoUrl: brand.logoUrl };
+}
+
+/** A picture from the painter's file cabinet as a data: URL, or "" when it is missing, too large or not a picture. */
+export async function headerDataUri(env: Env, companyId: number, fileId: number): Promise<string> {
+  if (!fileId || !env.FILES) return "";
+  const row = await env.DB.prepare("SELECT r2_key, mime, bytes FROM job_files WHERE id = ? AND company_id = ? AND kind = 'marketing'").bind(fileId, companyId).first<{ r2_key: string; mime: string; bytes: number }>();
+  if (!row?.r2_key || !/^image\/(png|jpeg|webp)$/.test(row.mime) || row.bytes > 1_200_000) return "";
+  const obj = await env.FILES.get(row.r2_key);
+  if (!obj) return "";
+  const buf = new Uint8Array(await obj.arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return `data:${row.mime};base64,${btoa(bin)}`;
+}
+
+/** A sample estimate on the painter's letterhead, for the preview in Brand kit. */
+export async function letterheadPreview(env: Env, companyId: number, brand: Brand): Promise<string> {
+  const lines = [
+    { description: "Wash and rinse the exterior walls", qty: 1, unit: "flat", unitCents: 45000, section: "cold_water" as const },
+    { description: "Paint two coats on the front door", qty: 1, unit: "each", unitCents: 18000 },
+  ];
+  const est = sanitizeEstimate({ lines: lines.map((l) => ({ ...l, unitPrice: l.unitCents / 100 })), scope: "This is a sample so you can see your letterhead. Your real estimates fill this in for you.", inclusions: ["Cleanup every day"], validDays: 30 });
+  const totals = computeTotals(est, {});
+  const headerImage = brand.letterhead.style === "image" ? await headerDataUri(env, companyId, brand.letterhead.headerFileId) : "";
+  return renderEstimateHtml(
+    {
+      company: { name: brand.company, phone: brand.phone, email: brand.email, website: brand.website, license: brand.license },
+      brandColor: brand.color,
+      logoUrl: brand.logoUrl,
+      letterhead: { style: brand.letterhead.style, headerImage, footer: brand.letterhead.footer, extra: brand.letterhead.extra },
+      customer: { name: "Sample Customer", email: "customer@example.com" },
+      property: "123 Main St, Your City",
+      jobTitle: "Sample job",
+      date: new Date().toISOString().slice(0, 10),
+    },
+    est,
+    totals,
+  );
 }

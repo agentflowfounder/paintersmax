@@ -47,6 +47,7 @@ const json = (data: unknown, status = 200) => new Response(JSON.stringify(data),
 const TITLES: Record<string, string> = {
   interior: "Interior painting", exterior: "Exterior painting", commercial: "Commercial painting", power_washing: "Power washing",
   cabinets: "Cabinet painting", decks_fences: "Deck and fence staining", epoxy_floors: "Epoxy floors",
+  accent_walls: "Accent walls", decorative_painting: "Decorative painting", decorative_texture: "Decorative texture", parking_lot_striping: "Parking lot striping", glow_paint: "Glow-in-the-dark paint",
 };
 
 /** GET /api/estimate-preview: one sample estimate for each service that has a saved price list. */

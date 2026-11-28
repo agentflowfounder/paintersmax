@@ -2,7 +2,7 @@
 <html lang="en"><head><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Brand kit - PaintersMax</title><script src="/i18n.js" data-app></script>
-<style>
+<link rel="stylesheet" href="/colorcode.css"><style>
 *{box-sizing:border-box}
 body{font-family:Inter,system-ui,sans-serif;background:#F7F5F1;color:#0F1B2D;margin:0}
 header{background:#0F1B2D;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
@@ -31,7 +31,9 @@ iframe{width:100%;border:1px solid rgba(15,27,45,.12);border-radius:10px;backgro
 .fitbox{width:100%;overflow:hidden;border-radius:10px}.fitbox iframe{border:0;transform-origin:0 0;display:block}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}
 .row label{margin:0;display:flex;gap:8px;align-items:center;font-weight:500}.row input[type=radio],.row input[type=checkbox]{width:auto}
-#msg{min-height:20px;font-size:14px;margin:6px 0}.ok{color:#0a7a3d}.bad{color:#b42318}
+#msg{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;width:calc(100% - 24px);max-width:560px;margin:0;padding:12px 14px;border-radius:10px;background:#fff;border:2px solid #b42318;box-shadow:0 6px 24px rgba(15,27,45,.22);z-index:60;font-size:15px;font-weight:600;cursor:pointer}#msg:empty{display:none}#msg.ok{border-color:#0a7a3d}.ok{color:#0a7a3d}.bad{color:#b42318}
+.fitem{display:flex;gap:12px;align-items:flex-start;border-top:1px solid #eee;padding:12px 0}.fth{width:96px;height:72px;flex:none;border:1px solid #e2ded6;border-radius:8px;background:#f7f5f1;display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:700;color:#4A5568}.fth img{width:100%;height:100%;object-fit:contain}.fmeta{flex:1;min-width:0}.fmeta input,.fmeta select{margin:0 0 6px}
+@media(max-width:560px){.g{grid-template-columns:1fr}}
 @media(max-width:560px){.g{grid-template-columns:1fr}}
 </style></head><body>
 <header><div><b>PaintersMax</b> Brand kit</div><div><a href="/jobs">Jobs</a><a href="/dashboard">Home</a></div></header>
@@ -66,6 +68,37 @@ iframe{width:100%;border:1px solid rgba(15,27,45,.12);border-radius:10px;backgro
 </details></div>
 
 <div class="tabs" id="tabs" role="tablist"></div>
+
+<div id="p_letterhead" class="card" hidden>
+<h2>Letterhead</h2>
+<p class="muted" style="margin:0">Your estimates print on this letterhead. Your logo, color and contact lines come from Your details above. Pick a look and check the preview.</p>
+<div class="row"><label><input type="checkbox" id="lh_on"> Use this letterhead on my estimates</label></div>
+<div class="dz" id="lh_styles"></div>
+<div id="lh_imgbox" hidden>
+<label for="lh_img">Header picture (from My files)</label><select id="lh_img"></select>
+<div class="hint">Design a wide banner in Canva (about 2400 x 600 px), download it as PNG or JPG, then upload it in My files with the type "Letterhead header". Pictures up to 1 MB print best.</div>
+</div>
+<label for="lh_extra">Extra lines under your name (up to 3, one per line, optional)</label><textarea id="lh_extra" rows="3" maxlength="300" placeholder="Example: Serving Tyler since 2008"></textarea>
+<label for="lh_footer">Footer line (optional)</label><input id="lh_footer" maxlength="200" placeholder="Example: Thank you for choosing us.">
+<div class="row"><button class="btn" id="lh_save">Save my letterhead</button></div>
+<label>Preview (a sample estimate)</label>
+<iframe id="lh_pv" title="Letterhead preview" style="height:780px"></iframe>
+</div>
+
+<div id="p_files" class="card" hidden>
+<h2>My files</h2>
+<p class="muted" style="margin:0">Your business file cabinet. Keep your Canva designs, letterheads, business cards, fliers and shirt designs here and use them whenever you need them.</p>
+<div class="g">
+<div><label for="fl_up">Choose a file (PNG, JPG, WebP or PDF, up to 8 MB)</label><input type="file" id="fl_up" accept="image/png,image/jpeg,image/webp,application/pdf"></div>
+<div><label for="fl_kind">What is it?</label><select id="fl_kind"></select></div>
+</div>
+<div class="row"><button class="btn" id="fl_go">Upload</button><a class="btn sec" href="/ai-studio" style="text-decoration:none;display:inline-block">Design in AI Studio</a></div>
+<div class="hint" id="fl_note"></div>
+<div id="fl_list"></div>
+<details style="margin-top:12px"><summary>How to bring a design from Canva</summary>
+<ol class="muted"><li>Design it in Canva. Use the size you need (business card, letter page, door hanger).</li><li>Tap Share, then Download. Pick PNG or JPG for a picture, or PDF Print for a print shop.</li><li>Come back here, choose the file, pick what it is, and tap Upload.</li></ol>
+<p class="muted">Soon you will be able to order printed business cards, shirts and door hangers from our print partners straight from here.</p></details>
+</div>
 
 <div id="p_cards" class="card" hidden>
 <h2>Business cards</h2>
@@ -130,13 +163,32 @@ const T=window.pmT||(s=>s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(p,b){const r=await fetch(p,b?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong.');return j;}
 function msg(t,ok){$('msg').textContent=t||'';$('msg').className=ok?'ok':'bad';}
-const TABS=[['cards','Business cards'],['emails','Emails'],['fliers','Fliers'],['hangers','Door hangers']];
+const TABS=[['letterhead','Letterhead'],['files','My files'],['cards','Business cards'],['emails','Emails'],['fliers','Fliers'],['hangers','Door hangers']];
 let TAB=localStorage.getItem('brand_tab')||'cards',DESIGN=localStorage.getItem('brand_design')||'classic',CARDS=[],ETPL=[],FD=[],HD=[],FDES=localStorage.getItem('brand_flyer')||'bold',HDES=localStorage.getItem('brand_hanger')||'neighbors',ETYPE=localStorage.getItem('brand_email')||'estimate',LASTHTML='';
-function read(){return{company:$('f_company').value,person:$('f_person').value,title:$('f_title').value,phone:$('f_phone').value,email:$('f_email').value,website:$('f_website').value,license:$('f_license').value,tagline:$('f_tag').value,color:$('f_color').value,logoUrl:$('f_logo').value,qrUrl:$('f_qr').value,services:$('f_services').value.split('\n'),area:$('f_area').value,insured:$('f_ins').checked,freeEstimates:$('f_free').checked,reviewUrl:$('f_review').value,language:$('f_lang').value,flyer:{headline:$('w_head').value,sub:$('w_sub').value,offer:$('w_offer').value,points:$('w_points').value.split('\n'),street:$('w_street').value}};}
-function fill(b){$('f_company').value=b.company;$('f_person').value=b.person;$('f_title').value=b.title;$('f_phone').value=b.phone;$('f_email').value=b.email;$('f_website').value=b.website;$('f_license').value=b.license;$('f_tag').value=b.tagline;$('f_color').value=b.color;$('f_logo').value=b.logoUrl;$('f_qr').value=b.qrUrl;$('f_services').value=b.services.join('\n');$('f_area').value=b.area;$('f_ins').checked=!!b.insured;$('f_free').checked=b.freeEstimates!==false;$('f_review').value=b.reviewUrl;$('f_lang').value=b.language;const w=b.flyer||{};$('w_head').value=w.headline||'';$('w_sub').value=w.sub||'';$('w_offer').value=w.offer||'';$('w_points').value=(w.points||[]).join('\n');$('w_street').value=w.street||'';}
+function read(){return{letterhead:{on:$('lh_on').checked,style:LHS,headerFileId:+($('lh_img').value||0),footer:$('lh_footer').value,extra:$('lh_extra').value.split('\n')},company:$('f_company').value,person:$('f_person').value,title:$('f_title').value,phone:$('f_phone').value,email:$('f_email').value,website:$('f_website').value,license:$('f_license').value,tagline:$('f_tag').value,color:$('f_color').value,logoUrl:$('f_logo').value,qrUrl:$('f_qr').value,services:$('f_services').value.split('\n'),area:$('f_area').value,insured:$('f_ins').checked,freeEstimates:$('f_free').checked,reviewUrl:$('f_review').value,language:$('f_lang').value,flyer:{headline:$('w_head').value,sub:$('w_sub').value,offer:$('w_offer').value,points:$('w_points').value.split('\n'),street:$('w_street').value}};}
+function fill(b){const lh=b.letterhead||{};$('lh_on').checked=!!lh.on;LHS=lh.style||'classic';LHID=lh.headerFileId||0;$('lh_footer').value=lh.footer||'';$('lh_extra').value=(lh.extra||[]).join('\n');lhStyles();lhImgs();$('f_company').value=b.company;$('f_person').value=b.person;$('f_title').value=b.title;$('f_phone').value=b.phone;$('f_email').value=b.email;$('f_website').value=b.website;$('f_license').value=b.license;$('f_tag').value=b.tagline;$('f_color').value=b.color;$('f_logo').value=b.logoUrl;$('f_qr').value=b.qrUrl;$('f_services').value=b.services.join('\n');$('f_area').value=b.area;$('f_ins').checked=!!b.insured;$('f_free').checked=b.freeEstimates!==false;$('f_review').value=b.reviewUrl;$('f_lang').value=b.language;const w=b.flyer||{};$('w_head').value=w.headline||'';$('w_sub').value=w.sub||'';$('w_offer').value=w.offer||'';$('w_points').value=(w.points||[]).join('\n');$('w_street').value=w.street||'';}
+let LHS='classic',LHID=0,FILES=[],FLOADED=false;
+const LHST=[['classic','Classic'],['band','Color band'],['center','Centered'],['image','Picture header']];
+const FKINDS=['Letterhead header','Letterhead','Business card','Door hanger','Flier','T-shirt','Logo','Other'];
+function lhStyles(){$('lh_styles').innerHTML=LHST.map(x=>`<button data-lhs="${x[0]}" class="${x[0]===LHS?'on':''}">${esc(T(x[1]))}</button>`).join('');$('lh_imgbox').hidden=LHS!=='image';}
+function lhImgs(){const imgs=FILES.filter(f=>/^image\//.test(f.mime));$('lh_img').innerHTML='<option value="0">Choose a picture</option>'+imgs.map(f=>`<option value="${f.id}" ${f.id===LHID?'selected':''}>${esc(f.name)}</option>`).join('');}
+async function filesLoad(){try{const r=await api('/api/files?kind=marketing');FILES=r.files||[];$('fl_note').textContent=(r.storage&&r.storage.message)||(r.enabled===false?'File storage is not switched on yet.':'');filesDraw();lhImgs();}catch(e){if(e)msg(e.message);}}
+function filesDraw(){$('fl_list').innerHTML=FILES.length?FILES.map(f=>{const img=/^image\//.test(f.mime);return `<div class="fitem"><div class="fth">${img?`<img src="/api/files?id=${f.id}" alt="">`:'PDF'}</div><div class="fmeta"><input data-fname="${f.id}" value="${esc(f.name)}" aria-label="File name" maxlength="80"><select data-fkind="${f.id}" aria-label="What is it?">${FKINDS.map(k=>`<option ${f.note===k?'selected':''}>${esc(k)}</option>`).join('')}</select><div class="row"><a href="/api/files?id=${f.id}" target="_blank" rel="noopener">Open</a>${img?`<button class="btn sec" data-usehdr="${f.id}">Use as my estimate header</button>`:''}<button class="btn sec" data-femail="${f.id}">Email it</button><button class="btn sec" data-fdel="${f.id}">Delete</button></div></div></div>`;}).join(''):'<p class="muted">No files yet. Upload your first design above.</p>';}
+$('fl_kind').innerHTML=FKINDS.map(k=>`<option>${esc(k)}</option>`).join('');
+$('fl_go').onclick=async()=>{const f=$('fl_up').files[0];if(!f){msg('Choose a file first.');return;}const fd=new FormData();fd.append('file',f);fd.append('kind','marketing');fd.append('note',$('fl_kind').value);$('fl_go').disabled=true;try{const r=await fetch('/api/files',{method:'POST',body:fd});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'The upload did not work.');$('fl_up').value='';msg('Uploaded.',true);await filesLoad();if(/^Letterhead header/.test($('fl_kind').value)&&/^image\//.test(f.type)){LHID=j.id;LHS='image';$('lh_on').checked=true;lhStyles();lhImgs();$('lh_img').value=String(LHID);msg('Uploaded. Open Letterhead to see it on your estimates.',true);}}catch(e){if(e)msg(e.message);}finally{$('fl_go').disabled=false;}};
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-lhs],[data-usehdr],[data-fdel],[data-femail]');if(!t)return;const d=t.dataset;
+ try{
+  if(d.lhs){LHS=d.lhs;lhStyles();refresh();return;}
+  if(d.usehdr){LHID=+d.usehdr;LHS='image';$('lh_on').checked=true;lhStyles();lhImgs();$('lh_img').value=String(LHID);await api('/api/brand',{action:'save',brand:read()});msg('Saved. Your estimates now use this picture as the header.',true);return;}
+  if(d.femail){const to=prompt('Email this file to whom? Leave empty to send it to yourself.','');if(to===null)return;const r=await api('/api/files',{action:'email',id:+d.femail,to:to});msg('Sent to '+r.to+'.',true);return;}
+  if(d.fdel){if(!confirm('Delete this file? This cannot be undone.'))return;await api('/api/files',{action:'delete',id:+d.fdel});await filesLoad();msg('Deleted.',true);return;}
+ }catch(x){if(x)msg(x.message);}});
+document.addEventListener('change',async e=>{const t=e.target;if(t.dataset&&(t.dataset.fname||t.dataset.fkind)){const id=+(t.dataset.fname||t.dataset.fkind);const row=t.closest('.fmeta');try{await api('/api/files',{action:'describe',id,name:row.querySelector('[data-fname]').value,note:row.querySelector('[data-fkind]').value});msg('Saved.',true);}catch(x){if(x)msg(x.message);}}else if(t.id==='lh_img'){LHID=+t.value||0;refresh();}});
+['lh_on','lh_footer','lh_extra'].forEach(id=>$(id).addEventListener('input',()=>refresh()));
+$('lh_save').onclick=async()=>{try{const r=await api('/api/brand',{action:'save',brand:read()});fill(r.brand);msg($('lh_on').checked?'Saved. Your estimates use this letterhead.':'Saved. Turn on "Use this letterhead" to print it on estimates.',true);refresh();}catch(e){if(e)msg(e.message);}};
 function tabs(){$('tabs').innerHTML=TABS.map(t=>`<button class="tab${t[0]===TAB?' on':''}" role="tab" data-tab="${t[0]}">${esc(T(t[1]))}</button>`).join('');TABS.forEach(t=>{const p=$('p_'+t[0]);if(p)p.hidden=t[0]!==TAB;});$('p_words').hidden=!(TAB==='fliers'||TAB==='hangers');}
 let timer=null;
-function refresh(freshEmail){clearTimeout(timer);timer=setTimeout(async()=>{try{if(TAB==='emails'){await emailRender(freshEmail===true||!$('e_text').value);}if(TAB==='fliers'){await pageRender('flyer',FDES,'fl_pv','fl_box',816,1056);}if(TAB==='hangers'){await pageRender('hanger',HDES,'hg_pv','hg_box',760,900);}if(TAB==='cards'){const r=await api('/api/brand',{action:'render',kind:'cards',design:DESIGN,mode:'preview',brand:read()});$('pv').srcdoc=r.html;}}catch(e){if(e)msg(e.message);}},250);}
+function refresh(freshEmail){clearTimeout(timer);timer=setTimeout(async()=>{try{if(TAB==='emails'){await emailRender(freshEmail===true||!$('e_text').value);}if(TAB==='fliers'){await pageRender('flyer',FDES,'fl_pv','fl_box',816,1056);}if(TAB==='hangers'){await pageRender('hanger',HDES,'hg_pv','hg_box',760,900);}if(TAB==='letterhead'){const r=await api('/api/brand',{action:'render',kind:'letterhead',brand:read()});$('lh_pv').srcdoc=r.html;}if(TAB==='files'&&!FLOADED){FLOADED=true;await filesLoad();}if(TAB==='cards'){const r=await api('/api/brand',{action:'render',kind:'cards',design:DESIGN,mode:'preview',brand:read()});$('pv').srcdoc=r.html;}}catch(e){if(e)msg(e.message);}},250);}
 function designs(){$('cd').innerHTML=CARDS.map(d=>`<button data-d="${d.id}" class="${d.id===DESIGN?'on':''}">${esc(T(d.label))}</button>`).join('');}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-tab],[data-d]');if(!t)return;if(t.dataset.tab){TAB=t.dataset.tab;localStorage.setItem('brand_tab',TAB);tabs();refresh();}else{DESIGN=t.dataset.d;localStorage.setItem('brand_design',DESIGN);designs();refresh();}});
 document.querySelectorAll('#det input,#det select,#det textarea').forEach(el=>el.addEventListener('input',()=>refresh(true)));
@@ -170,6 +222,6 @@ async function openPrint(body){const w=window.open('','_blank');try{const r=awai
 $('printCards').onclick=async()=>{const mode=document.querySelector('input[name=cm]:checked').value;try{await api('/api/brand',{action:'save',brand:read()});}catch(e){}openPrint({action:'render',kind:'cards',design:DESIGN,mode,guides:$('guides').checked,brand:read()});};
 document.querySelectorAll('input[name=cm]').forEach(r=>r.addEventListener('change',()=>{$('guideRow').hidden=document.querySelector('input[name=cm]:checked').value!=='sheet';}));
 (async()=>{try{const v=await api('/api/brand');CARDS=v.cardDesigns;ETPL=v.emailTemplates;FD=v.flyerDesigns;HD=v.hangerDesigns;if(!FD.some(x=>x.id===FDES))FDES=FD[0].id;if(!HD.some(x=>x.id===HDES))HDES=HD[0].id;chips('fd',FD,FDES,'data-fd');chips('hd',HD,HDES,'data-hd');if(!ETPL.some(x=>x.id===ETYPE))ETYPE='estimate';etabs();fill(v.brand||v.suggested);$('insHint').hidden=!v.hasInsurance||!!(v.brand&&v.brand.insured);$('det').open=!v.brand;
- if(!TABS.some(t=>t[0]===TAB))TAB=TABS[0][0];if(!CARDS.some(d=>d.id===DESIGN))DESIGN='classic';tabs();designs();refresh();}
+ if(!TABS.some(t=>t[0]===TAB))TAB=TABS[0][0];if(!CARDS.some(d=>d.id===DESIGN))DESIGN='classic';tabs();designs();if(!FLOADED){FLOADED=true;filesLoad();}refresh();}
 catch(e){if(e)msg(e.message);}})();
 </script><script src="/nav.js"></script><script src="/logo-apply.js"></script></body></html>

@@ -1,6 +1,6 @@
 import { getSessionUser } from "./auth.ts";
 import { extraCitiesFor } from "./sitebuilder.ts";
-import { PROFILE_CAPS, RADIUS_MILES, sanitizeProfile } from "./profile.ts";
+import { CITY_SELECT_MAX, PROFILE_CAPS, RADIUS_MILES, sanitizeProfile } from "./profile.ts";
 import { normalizePlan } from "./usage.ts";
 import type { Env } from "./types.ts";
 
@@ -357,7 +357,8 @@ export async function handleCities(request: Request, env: Env): Promise<Response
   const profRow = await env.DB.prepare("SELECT data FROM company_profiles WHERE company_id = ?").bind(user.companyId).first<{ data: string }>();
   const profile = parse(profRow?.data);
   const radius = RADIUS_MILES[plan];
-  const cap = PROFILE_CAPS[plan].cities + (await extraCitiesFor(env, user.companyId, plan));
+  const cap = CITY_SELECT_MAX;
+  const pageCap = PROFILE_CAPS[plan].cities + (await extraCitiesFor(env, user.companyId, plan));
   const u = new URL(request.url);
 
   if (request.method === "GET") {
@@ -374,7 +375,7 @@ export async function handleCities(request: Request, env: Env): Promise<Response
     const keys: string[] = Array.isArray(profile.cityKeys) ? profile.cityKeys : [];
     const chosen = keys.length ? (await env.DB.prepare(`SELECT key, name, state, lat, lng FROM cities WHERE key IN (${keys.map(() => "?").join(",")})`).bind(...keys).all<any>()).results : [];
     return json({
-      configured, browserKey: env.GOOGLE_MAPS_BROWSER_KEY ?? null, plan, radius, cap, zipSearch: plan === "pro",
+      configured, browserKey: env.GOOGLE_MAPS_BROWSER_KEY ?? null, plan, radius, cap, pageCap, zipSearch: plan === "pro",
       base: base ? { lat: base.lat, lng: base.lng, name: base.name, state: base.state } : null,
       nearby: nearby.map((c) => ({ key: c.key, name: c.name, state: c.state, lat: c.lat, lng: c.lng, miles: Math.round(c.miles), pop: c.pop })),
       chosen,
@@ -404,10 +405,10 @@ export async function handleCities(request: Request, env: Env): Promise<Response
   }
   if (b?.action === "save") {
     const keys: string[] = Array.isArray(b.keys) ? Array.from(new Set(b.keys.filter((k: unknown): k is string => typeof k === "string" && /^[a-z]{2}-[a-z0-9-]{1,60}$/.test(k)))) as string[] : [];
-    if (keys.length > cap) return json({ error: `Your plan includes up to ${cap} cities.` }, 400);
+    if (keys.length > cap) return json({ error: `You can pick up to ${cap} cities.` }, 400);
     const rows = keys.length ? (await env.DB.prepare(`SELECT key, name, state FROM cities WHERE key IN (${keys.map(() => "?").join(",")})`).bind(...keys).all<{ key: string; name: string; state: string }>()).results : [];
     const ordered = keys.map((k) => rows.find((r) => r.key === k)).filter((r): r is { key: string; name: string; state: string } => !!r);
-    const next = sanitizeProfile({ ...profile, cityKeys: ordered.map((r) => r.key), cities: ordered.map((r) => `${r.name}, ${r.state}`) }, plan, cap - PROFILE_CAPS[plan].cities);
+    const next = sanitizeProfile({ ...profile, cityKeys: ordered.map((r) => r.key), cities: ordered.map((r) => `${r.name}, ${r.state}`) }, plan);
     await env.DB.prepare(
       `INSERT INTO company_profiles (company_id, data, setup_step, completed, updated_at) VALUES (?, ?, 'cities', 0, datetime('now'))
        ON CONFLICT(company_id) DO UPDATE SET data = excluded.data, updated_at = datetime('now')`,

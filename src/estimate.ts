@@ -1,4 +1,5 @@
 import { escapeHtml } from "./settings.ts";
+import { onColor } from "./brandprint.ts";
 
 /** One priced row on an estimate. Money is kept in whole cents so totals never drift. */
 export interface EstimateLine {
@@ -10,13 +11,28 @@ export interface EstimateLine {
   section?: Section;
 }
 
-/** Estimate sections, printed in this order. "paint" is the default for a line without one. */
-export const SECTIONS = ["drywall", "paint", "trim", "other"] as const;
+/** Estimate sections, printed in this order. "paint" is the default for a line without one. Each service offers its own short list (see tradeSections). */
+export const SECTIONS = ["floorprep", "epoxy", "cold_water", "hot_water", "chemicals", "drywall", "fence", "stain", "paint", "trim", "other"] as const;
 export type Section = (typeof SECTIONS)[number];
 export const SECTION_NAMES: Record<"en" | "es", Record<Section, string>> = {
-  en: { drywall: "Drywall installation, repair and texture", paint: "Surface prep, priming and painting", trim: "Trim, doors and cabinets", other: "Other work" },
-  es: { drywall: "Instalación, reparación y textura de tablaroca", paint: "Preparación, imprimación y pintura", trim: "Molduras, puertas y gabinetes", other: "Otros trabajos" },
+  en: { floorprep: "Floor prep and grinding", epoxy: "Epoxy and coatings", cold_water: "Cold water pressure washing", hot_water: "Hot water pressure washing", chemicals: "Cleaning chemicals and treatments", drywall: "Drywall installation, repair and texture", fence: "Fence installation", stain: "Staining and sealing", paint: "Surface prep, priming and painting", trim: "Trim, doors and cabinets", other: "Other work" },
+  es: { floorprep: "Preparación y esmerilado del piso", epoxy: "Epóxico y recubrimientos", cold_water: "Lavado a presión con agua fría", hot_water: "Lavado a presión con agua caliente", chemicals: "Químicos y tratamientos de limpieza", drywall: "Instalación, reparación y textura de tablaroca", fence: "Instalación de cercas", stain: "Teñido y sellado", paint: "Preparación, imprimación y pintura", trim: "Molduras, puertas y gabinetes", other: "Otros trabajos" },
 };
+/** The short names shown in the line "type" box. */
+export const SECTION_SHORT: Record<Section, string> = { floorprep: "Floor prep", epoxy: "Epoxy", cold_water: "Cold water wash", hot_water: "Hot water wash", chemicals: "Chemicals", drywall: "Drywall", fence: "Fence", stain: "Stain and seal", paint: "Paint", trim: "Trim", other: "Other" };
+/** Which types make sense for each service, in the order shown. Every list ends with "other". */
+const TRADE_SECTIONS: Record<string, Section[]> = {
+  power_washing: ["cold_water", "hot_water", "chemicals", "paint", "other"],
+  decks_fences: ["cold_water", "stain", "paint", "trim", "other"],
+  fencing: ["fence", "stain", "paint", "other"],
+  drywall: ["drywall", "paint", "trim", "other"],
+  cabinets: ["trim", "paint", "other"],
+  epoxy_floors: ["floorprep", "epoxy", "other"],
+  exterior: ["cold_water", "paint", "trim", "other"],
+};
+const DEFAULT_SECTIONS: Section[] = ["paint", "drywall", "trim", "other"];
+export const tradeSections = (trade: string): Section[] => TRADE_SECTIONS[trade] ?? DEFAULT_SECTIONS;
+export const sectionChoices = (trade: string): { id: Section; label: string }[] => tradeSections(trade).map((id) => ({ id, label: SECTION_SHORT[id] }));
 const isSection = (v: unknown): v is Section => typeof v === "string" && (SECTIONS as readonly string[]).includes(v);
 
 export interface EstimateInput {
@@ -64,7 +80,8 @@ export interface Totals {
 
 const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
 const num = (v: unknown, min: number, max: number, fallback = 0): number => {
-  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  // "2,000" and "$2,000" are what people type; read them as 2000 instead of dropping the number.
+  const n = typeof v === "number" ? v : typeof v === "string" && v.replace(/[$,\s]/g, "") !== "" ? Number(v.replace(/[$,\s]/g, "")) : NaN;
   return Number.isFinite(n) && n >= min && n <= max ? n : fallback;
 };
 
@@ -123,11 +140,20 @@ export function sanitizeEstimate(input: any): EstimateInput {
 }
 
 /** A sensible section for a line from its words, for lines the painter or the helper did not place. */
-export function guessSection(description: string): Section {
+export function guessSection(description: string, trade = ""): Section {
   const d = description.toLowerCase();
-  if (/drywall|sheetrock|texture|tape and mud|mud and tape|tablaroca|textura/.test(d)) return "drywall";
-  if (/\btrim\b|baseboard|door|cabinet|crown|casing|molding|moulding|shutter|moldura|puerta|gabinete|z[oó]calo/.test(d)) return "trim";
-  return "paint";
+  const allowed = tradeSections(trade);
+  const pick = (s: Section): Section => (allowed.includes(s) ? s : allowed.includes("other") ? "other" : "paint");
+  if (/hot water|agua caliente/.test(d)) return pick("hot_water");
+  if (/chemical|detergent|degreas|bleach|mildew|algae|rust remov|treatment|qu[ií]mic/.test(d)) return pick("chemicals");
+  if (/cold water|pressure wash|power wash|soft wash|agua fr[ií]a|lavado/.test(d)) return pick("cold_water");
+  if (/drywall|sheetrock|texture|tape and mud|mud and tape|tablaroca|textura/.test(d)) return pick("drywall");
+  if (/grind|shot blast|crack fill|esmeril/.test(d)) return pick("floorprep");
+  if (/epoxy|polyaspartic|flake|ep[oó]xic/.test(d)) return pick("epoxy");
+  if (/\bfence\b|\bgate\b|picket|cerca/.test(d)) return pick("fence");
+  if (/\bstain\b|\bseal(er|ing)?\b|te[ñn]ido|sellad/.test(d)) return pick("stain");
+  if (/\btrim\b|baseboard|door|cabinet|crown|casing|molding|moulding|shutter|moldura|puerta|gabinete|z[oó]calo/.test(d)) return pick("trim");
+  return trade && !allowed.includes("paint") ? "other" : "paint";
 }
 
 export const sectionOf = (l: EstimateLine): Section => l.section ?? "paint";
@@ -261,8 +287,8 @@ export function draftLines(method: string, data: Record<string, any>, qty: Recor
 }
 
 const T = {
-  en: { estimate: "Estimate", prepared: "Prepared for", property: "Property", date: "Date", valid: "Valid for", days: "days", scope: "Scope of work", desc: "Description", qty: "Qty", unit: "Unit price", amount: "Amount", subtotal: "Subtotal", minimum: "Minimum job adjustment", discount: "Discount", tax: "Tax", total: "Total", deposit: "Deposit to schedule", notes: "Notes", license: "License", insurance: "Insurance", proof: "View proof of insurance", warranty: "Warranty", accept: "To accept, reply to the email or call us.", incl: "Included", excl: "Not included", assume: "Assumptions", allow: "Allowances (adjusted to actual cost)", opts: "Options, priced on request", pay: "Payment schedule", milestone: "Milestone", percent: "%", acceptedBy: "Accepted by the owner", nameTitle: "Name and title", signature: "Signature", on: "Date", months: "months of labor", draft: "ESTIMATE ONLY. Final price may change if the scope changes.", optional: "Optional", optionalSum: "Optional add-on, not in the total", sectionSum: "Section subtotal", optionalNote: "Optional add-ons are priced on their own and are not in the total. Tell us which ones you want and we will add them.", colors: "Colors", terms: "Contract terms", termsNote: "Signing this estimate also accepts these terms." },
-  es: { estimate: "Presupuesto", prepared: "Preparado para", property: "Propiedad", date: "Fecha", valid: "Válido por", days: "días", scope: "Alcance del trabajo", desc: "Descripción", qty: "Cant.", unit: "Precio unitario", amount: "Importe", subtotal: "Subtotal", minimum: "Ajuste por trabajo mínimo", discount: "Descuento", tax: "Impuesto", total: "Total", deposit: "Depósito para programar", notes: "Notas", license: "Licencia", insurance: "Seguro", proof: "Ver comprobante de seguro", warranty: "Garantía", accept: "Para aceptar, responda al correo o llámenos.", incl: "Incluido", excl: "No incluido", assume: "Supuestos", allow: "Asignaciones (se ajustan al costo real)", opts: "Opciones, precio a solicitud", pay: "Calendario de pagos", milestone: "Hito", percent: "%", acceptedBy: "Aceptado por el propietario", nameTitle: "Nombre y cargo", signature: "Firma", on: "Fecha", months: "meses de garantía en mano de obra", draft: "SOLO PRESUPUESTO. El precio final puede cambiar si cambia el alcance.", optional: "Opcional", optionalSum: "Adicional opcional, no incluido en el total", sectionSum: "Subtotal de la sección", optionalNote: "Los adicionales opcionales tienen su propio precio y no están en el total. Díganos cuáles quiere y los agregamos.", colors: "Colores", terms: "Términos del contrato", termsNote: "Al firmar este presupuesto también acepta estos términos." },
+  en: { estimate: "Estimate", prepared: "Prepared for", property: "Property", date: "Date", valid: "Valid for", days: "days", scope: "Scope of work", desc: "Description", qty: "Qty", unit: "Unit price", amount: "Amount", subtotal: "Subtotal", minimum: "Minimum job adjustment", discount: "Discount", tax: "Tax", total: "Total", deposit: "Deposit to schedule", notes: "Notes", license: "License", insurance: "Insurance", proof: "View proof of insurance", warranty: "Warranty", accept: "To accept, reply to the email or call us.", incl: "Included", excl: "Not included", assume: "Assumptions", allow: "Allowances (adjusted to actual cost)", opts: "Options, priced on request", pay: "Payment schedule", milestone: "Milestone", percent: "%", acceptedBy: "Customer approval", approveLine: "By signing, I accept the work and the price in this estimate.", nameTitle: "Printed name", signature: "Signature", on: "Date", months: "months of labor", draft: "ESTIMATE ONLY. Final price may change if the scope changes.", optional: "Optional", optionalSum: "Optional add-on, not in the total", sectionSum: "Section subtotal", optionalNote: "Optional add-ons are priced on their own and are not in the total. Tell us which ones you want and we will add them.", colors: "Colors", terms: "Contract terms", termsNote: "Signing this estimate also accepts these terms." },
+  es: { estimate: "Presupuesto", prepared: "Preparado para", property: "Propiedad", date: "Fecha", valid: "Válido por", days: "días", scope: "Alcance del trabajo", desc: "Descripción", qty: "Cant.", unit: "Precio unitario", amount: "Importe", subtotal: "Subtotal", minimum: "Ajuste por trabajo mínimo", discount: "Descuento", tax: "Impuesto", total: "Total", deposit: "Depósito para programar", notes: "Notas", license: "Licencia", insurance: "Seguro", proof: "Ver comprobante de seguro", warranty: "Garantía", accept: "Para aceptar, responda al correo o llámenos.", incl: "Incluido", excl: "No incluido", assume: "Supuestos", allow: "Asignaciones (se ajustan al costo real)", opts: "Opciones, precio a solicitud", pay: "Calendario de pagos", milestone: "Hito", percent: "%", acceptedBy: "Aprobación del cliente", approveLine: "Al firmar, acepto el trabajo y el precio de este presupuesto.", nameTitle: "Nombre", signature: "Firma", on: "Fecha", months: "meses de garantía en mano de obra", draft: "SOLO PRESUPUESTO. El precio final puede cambiar si cambia el alcance.", optional: "Opcional", optionalSum: "Adicional opcional, no incluido en el total", sectionSum: "Subtotal de la sección", optionalNote: "Los adicionales opcionales tienen su propio precio y no están en el total. Díganos cuáles quiere y los agregamos.", colors: "Colores", terms: "Términos del contrato", termsNote: "Al firmar este presupuesto también acepta estos términos." },
 };
 
 export const money = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -280,7 +306,17 @@ export interface EstimateDocContext {
   date: string;
   /** Contract clauses, printed when the estimate says includeTerms. */
   terms?: { title: string; body: string }[];
+  /** The painter's letterhead (Brand kit). headerImage is a data: URL so it prints and emails without a sign-in. */
+  letterhead?: Letterhead;
 }
+
+export interface Letterhead {
+  style: "classic" | "band" | "center" | "image";
+  headerImage?: string;
+  footer?: string;
+  extra?: string[];
+}
+const DATA_IMG = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 
 /** A clean, printable page. The browser's Print dialog saves it as a PDF. Every value is escaped. */
 export function renderEstimateHtml(ctx: EstimateDocContext, e: EstimateInput, t: Totals): string {
@@ -318,6 +354,22 @@ export function renderEstimateHtml(ctx: EstimateDocContext, e: EstimateInput, t:
   const scheduleTable = e.schedule.length
     ? `<b style="display:block;margin-top:16px">${x(L.pay)}</b><table><thead><tr><th>${x(L.milestone)}</th><th class="r">${x(L.percent)}</th><th class="r">${x(L.amount)}</th></tr></thead><tbody>${e.schedule.map((m, n) => `<tr><td>${n + 1}. ${x(m.label)}</td><td class="r">${x(String(m.pct))}%</td><td class="r">${money(amounts[n])}</td></tr>`).join("")}</tbody></table>`
     : "";
+  const lh = ctx.letterhead;
+  const style = lh?.style ?? "classic";
+  const extra = (lh?.extra ?? []).filter(Boolean).map((v) => x(v)).join("<br>");
+  const dateBox = `<div class="muted" style="text-align:right">${x(L.date)}: ${x(ctx.date)}<br>${x(L.valid)} ${e.validDays} ${x(L.days)}</div>`;
+  const nameBlock = `<div class="muted">${x(ctx.company.name)}${contact ? "<br>" + contact : ""}${ctx.company.license ? `<br>${x(L.license)}: ${x(ctx.company.license)}` : ""}${extra ? "<br>" + extra : ""}</div>`;
+  const titleBlock = `<h1>${x(L.estimate)}${rev}</h1>`;
+  const headerImg = lh?.headerImage && DATA_IMG.test(lh.headerImage) ? `<img src="${lh.headerImage}" alt="" style="display:block;width:100%;max-height:150px;object-fit:contain">` : "";
+  const headerHtml =
+    style === "image" && headerImg
+      ? `<div class="head2">${headerImg}<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px">${titleBlock}${dateBox}</div></div>`
+      : style === "band"
+        ? `<div class="band">${logo ? logo.replace("max-height:56px", "max-height:56px;background:#fff;border-radius:6px;padding:4px") : ""}<div><div style="font-size:21px;font-weight:700">${x(ctx.company.name)}</div><div style="font-size:13px;opacity:.92">${[ctx.company.phone, ctx.company.email, ctx.company.website].filter(Boolean).map((v) => x(String(v))).join(" &middot; ")}${ctx.company.address ? "<br>" + x(ctx.company.address) : ""}${ctx.company.license ? `<br>${x(L.license)}: ${x(ctx.company.license)}` : ""}${extra ? "<br>" + extra : ""}</div></div></div><div class="head2" style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">${titleBlock}${dateBox}</div>`
+        : style === "center"
+          ? `<div class="head2" style="text-align:center">${logo}<div style="font-size:21px;font-weight:700;margin-top:4px">${x(ctx.company.name)}</div>${nameBlock.replace(`${x(ctx.company.name)}`, "")}<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:12px;text-align:left">${titleBlock}${dateBox}</div></div>`
+          : `<div class="head"><div>${logo}${titleBlock}${nameBlock}</div>${dateBox}</div>`;
+  const footerHtml = lh?.footer ? `<div class="lhfoot">${x(lh.footer)}</div>` : "";
   return `<!doctype html><html lang="${e.language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${x(L.estimate)} - ${x(ctx.company.name)}</title>
 <style>
 body{font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1c1c1c;margin:0;background:#f4f4f2}
@@ -330,6 +382,7 @@ table{width:100%;border-collapse:collapse;margin-top:10px}th{background:${color}
 td{padding:8px;border-bottom:1px solid #e5e5e5;vertical-align:top}.r{text-align:right;white-space:nowrap}
 .tot td{font-weight:700;font-size:17px;border-top:2px solid ${color}}
 tr.sec td{font-weight:700;background:#f4f4f2;border-bottom:2px solid ${color}}tr.secsum td{color:#555;font-size:14px}.opt{font-weight:600;font-size:12px;background:#fff3d6;color:#8a5a00;border-radius:99px;padding:2px 8px;margin-left:6px}
+.band{background:${color};color:${onColor(color)};margin:-40px -44px 18px;padding:20px 44px;display:flex;gap:16px;align-items:center}.head2{border-bottom:3px solid ${color};padding-bottom:12px}.lhfoot{margin-top:24px;padding-top:8px;border-top:1px solid #ddd;text-align:center;font-size:12px;color:#666;white-space:pre-wrap}
 .rev{font-size:14px;font-weight:600;color:#555;vertical-align:middle;margin-left:8px}
 .box{background:#f7f7f5;border-radius:8px;padding:12px 14px;margin-top:16px;white-space:pre-wrap}
 .line{border-bottom:1px solid #333;height:22px;margin-top:22px}
@@ -339,8 +392,7 @@ ul{padding-left:20px;margin:4px 0}
 </style></head><body>
 <div class="bar"><button onclick="window.print()">Print or save as PDF</button></div>
 <div class="page">
-<div class="head"><div>${logo}<h1>${x(L.estimate)}${rev}</h1><div class="muted">${x(ctx.company.name)}${contact ? "<br>" + contact : ""}${ctx.company.license ? `<br>${x(L.license)}: ${x(ctx.company.license)}` : ""}</div></div>
-<div class="muted" style="text-align:right">${x(L.date)}: ${x(ctx.date)}<br>${x(L.valid)} ${e.validDays} ${x(L.days)}</div></div>
+${headerHtml}
 <div class="grid"><div><b>${x(L.prepared)}</b><br>${x(ctx.customer.name)}${ctx.customer.email ? "<br>" + x(ctx.customer.email) : ""}${ctx.customer.phone ? "<br>" + x(ctx.customer.phone) : ""}</div>
 <div><b>${x(L.property)}</b><br>${x(ctx.property || "-")}<br><span class="muted">${x(ctx.jobTitle)}</span></div></div>
 ${e.scope ? `<b>${x(L.scope)}</b><div class="box">${x(e.scope)}</div>` : ""}
@@ -351,7 +403,7 @@ ${optionalTotals(e).length ? `<p class="muted">${x(L.optionalNote)}</p>` : ""}${
 ${bullets(L.incl, e.inclusions)}${bullets(L.excl, e.exclusions)}${bullets(L.assume, e.assumptions)}${bullets(L.allow, e.allowances)}${bullets(L.opts, e.options)}${scheduleTable}
 ${e.notes ? `<b style="display:block;margin-top:16px">${x(L.notes)}</b><div class="box">${x(e.notes)}</div>` : ""}
 ${terms}
-${e.schedule.length || terms ? `<div style="margin-top:26px;break-inside:avoid"><b>${x(L.acceptedBy)}</b><div style="display:flex;gap:24px;flex-wrap:wrap"><div style="flex:2;min-width:200px"><div class="line"></div><small>${x(L.nameTitle)}</small></div><div style="flex:2;min-width:200px"><div class="line"></div><small>${x(L.signature)}</small></div><div style="flex:1;min-width:120px"><div class="line"></div><small>${x(L.on)}</small></div></div></div>` : ""}
+<div style="margin-top:26px;break-inside:avoid"><b>${x(L.acceptedBy)}</b><p class="muted" style="margin:2px 0 0">${x(L.approveLine)}</p><div style="display:flex;gap:24px;flex-wrap:wrap"><div style="flex:2;min-width:200px"><div class="line"></div><small>${x(L.nameTitle)}</small></div><div style="flex:2;min-width:200px"><div class="line"></div><small>${x(L.signature)}</small></div><div style="flex:1;min-width:120px"><div class="line"></div><small>${x(L.on)}</small></div></div></div>
 <p class="muted" style="margin-top:20px">${ctx.insuranceLine || ctx.insuranceUrl ? `${x(L.insurance)}: ${x(ctx.insuranceLine ?? "")}${ctx.insuranceUrl ? ` <a href="${x(ctx.insuranceUrl)}">${x(L.proof)}</a>` : ""}<br>` : ""}${ctx.warrantyMonths ? `${x(L.warranty)}: ${ctx.warrantyMonths} ${x(L.months)}<br>` : ""}${x(L.accept)}<br>${x(L.draft)}</p>
-</div></body></html>`;
+${footerHtml}</div></body></html>`;
 }

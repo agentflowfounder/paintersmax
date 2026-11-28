@@ -257,7 +257,7 @@ export async function handleHome(request: Request, env: Env): Promise<Response> 
   // Gentle nudges: at most two, each from a real fact, each snoozable.
   const cardTrades = new Set(((await env.DB.prepare("SELECT DISTINCT trade FROM rate_cards WHERE company_id = ? AND audience = 'retail'").bind(c).all<{ trade: string }>().catch(() => ({ results: [] }))).results ?? []).map((r) => r.trade));
   const chosen: string[] = Array.isArray(pdata.trades) ? pdata.trades : [];
-  const LBL: Record<string, string> = { interior: "interior painting", exterior: "exterior painting", commercial: "commercial work", power_washing: "power washing", cabinets: "cabinet painting", decks_fences: "deck and fence staining", epoxy_floors: "epoxy floors" };
+  const LBL: Record<string, string> = { interior: "interior painting", exterior: "exterior painting", commercial: "commercial work", power_washing: "power washing", cabinets: "cabinet painting", decks_fences: "deck and fence staining", epoxy_floors: "epoxy floors" , accent_walls: "accent walls", decorative_painting: "decorative painting", decorative_texture: "decorative texture", parking_lot_striping: "parking lot striping", glow_paint: "glow-in-the-dark paint"};
   const [staleDr, cityDr, commUsed, snz] = await Promise.all([
     one("SELECT COUNT(*) AS n FROM documents d JOIN jobs j ON j.id = d.job_id WHERE d.company_id = ? AND d.kind = 'estimate' AND d.status = 'draft' AND d.updated_at < datetime('now','-2 days') AND j.stage IN ('lead','bid')", c).catch(() => ({ n: 0 })),
     one("SELECT COUNT(*) AS n FROM city_pages WHERE company_id = ? AND published = 0", c).catch(() => ({ n: 0 })),
