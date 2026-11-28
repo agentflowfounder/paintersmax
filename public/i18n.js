@@ -2404,6 +2404,8 @@
     "Show the customer a color on a photo of their own room or house. Keep the colors they like: they print on the estimate.": "Muestre al cliente un color en una foto de su propio cuarto o casa. Guarde los colores que le gusten: se imprimen en el presupuesto.",
     "Show the customer a color on their own photo before you start.": "Muestre al cliente un color en su propia foto antes de empezar.",
     "Show the menu": "Mostrar el menú",
+    "This month": "Este mes", "Job results": "Resultados de trabajos", "My policy": "Mi póliza", "Insurance guide": "Guía de seguros", "Contractor": "Contractor",
+    "See it on iPhone, Android, iPad or desktop": "Véalo en iPhone, Android, iPad o computadora",
     "Menu": "Menú", "Work": "Trabajo", "Estimates and prices": "Presupuestos y precios", "Money": "Dinero", "Marketing": "Mercadeo", "Studio": "Estudio", "My business": "Mi negocio", "Help corner": "Rincón de ayuda",
     "Leads, signatures and what needs you today": "Clientes potenciales, firmas y lo que requiere su atención hoy", "Jobs, crew and trucks": "Trabajos, equipo y camionetas",
     "Your prices, rate sheets and paint costs": "Sus precios, hojas de tarifas y costos de pintura", "Expenses, mileage and how the business is doing": "Gastos, millaje y cómo va el negocio",

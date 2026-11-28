@@ -62,7 +62,7 @@ import { checkAiSpend } from "./aialert.ts";
 import { handleStarterPublic, releaseHeldWelcome } from "./starter.ts";
 import { handleBrand } from "./brand.ts";
 import { visionAsk } from "./vision.ts";
-import { handleFiles } from "./files.ts";
+import { handleFiles, companyPlan } from "./files.ts";
 import { handleJobLost } from "./joblost.ts";
 import { handleJobChat } from "./jobchat.ts";
 import { handleEstimatePreview } from "./estimate-preview.ts";
@@ -662,7 +662,7 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     }
     if (pathname === "/api/me") {
       const user = await getSessionUser(env, request);
-      return user ? json({ email: user.email, company: user.companyName, admin: !!(await adminActor(env, request).catch(() => null)) }) : json({ error: "Not signed in." }, 401);
+      return user ? json({ email: user.email, company: user.companyName, admin: !!(await adminActor(env, request).catch(() => null)), plan: await companyPlan(env, user.companyId).catch(() => "free") }) : json({ error: "Not signed in." }, 401);
     }
     if (pathname === "/api/usage/consume" && request.method === "POST") {
       try {

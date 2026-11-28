@@ -572,7 +572,7 @@ async function rDir(){
 function rPreview(){
   const p=page();
   $('body').innerHTML=`<div class="card"><div class="pv"><button class="btn sm" type="button" data-w="desk">${T('Computer')}</button><button class="btn sec sm" type="button" data-w="phone">${T('Phone')}</button><select id="pvPage" style="width:auto">${S.site.pages.map(x=>`<option value="${x.id}"${x.id===p.id?' selected':''}>${esc(x.nav)}</option>`).join('')}</select></div>
-<p class="muted">${dirty?T('Save your draft to see the newest changes here.'):T('This is your draft. Visitors see it after you publish.')}</p><iframe class="frame" id="pv" title="${T('Preview')}"></iframe></div>`;
+<p class="muted">${dirty?T('Save your draft to see the newest changes here.'):T('This is your draft. Visitors see it after you publish.')}</p><p class="muted"><a class="btn sec sm" style="text-decoration:none;display:inline-block" href="/device-preview?url=${encodeURIComponent('/api/site/preview?path=/'+(AS?'&as='+encodeURIComponent(AS):''))}">${T('See it on iPhone, Android, iPad or desktop')}</a></p><iframe class="frame" id="pv" title="${T('Preview')}"></iframe></div>`;
   const path=x=>x.kind==='home'?'/':x.kind==='service'?'/services/'+x.slug:x.kind==='custom'?'/info/'+x.slug:'/'+x.slug;
   const go=()=>{const x=S.site.pages.find(q=>q.id===$('pvPage').value);$('pv').src='/api/site/preview?path='+encodeURIComponent(path(x))+(AS?'&as='+encodeURIComponent(AS):'');};
   $('pvPage').onchange=go;go();
