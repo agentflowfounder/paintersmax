@@ -598,7 +598,7 @@ document.addEventListener('change',e=>{
     Object.assign(S.profile,j.profile||{});S.profile.company=S.profile.company||{};S.profile.trades=S.profile.trades||[];S.profile.cities=S.profile.cities||[];
     S.profile.labor=S.profile.labor||{};S.profile.warranty=S.profile.warranty||{laborMonths:12};S.profile.insurance=S.profile.insurance||{};S.profile.materials=S.profile.materials||{brands:[]};S.profile.language=S.profile.language||{};S.profile.market=S.profile.market||{};S.profile.ratecard=S.profile.ratecard||{};
     (j.rateCards||[]).forEach(r=>{S.rateCards[rcKey(r.trade,r.audience)]={method:r.method,data:r.data};});
-    const i=STEPS.indexOf(j.setupStep);S.step=S.completed?STEPS.length-1:(i>0?i:nextOpen());
+    const i=STEPS.indexOf(j.setupStep),hs=STEPS.indexOf((location.hash||'').slice(1));S.step=hs>=0?hs:(S.completed?STEPS.length-1:(i>0?i:nextOpen()));
     try{history.replaceState({step:S.step},'','#'+STEPS[S.step]);}catch(e){}
     view();
   }catch(e){}
