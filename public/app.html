@@ -331,11 +331,11 @@ function view(){
    <div class="row"><div><label>ZIP</label><input id="zip" value="${val(c,'zip')}"></div><div><label>License number (if you have one)</label><input id="license" value="${val(c,'license')}"></div></div>
    <label>Website (https://...)</label><input id="website" value="${val(c,'website')}"></div>`;
   if(k==='services'){const chk=t=>`<label class="chk"><input type="checkbox" class="trade" value="${t}" ${p.trades.includes(t)?'checked':''}> ${esc(TRADE_LABELS[t])}</label>`;
-   h=`<h2>What you sell</h2><p class="lead">Pick every kind of work you do. Each one gets its own price list and can get its own page on your website. You are on the <b>${esc(PLAN_NAMES[S.plan]||S.plan)}</b> plan. Pick as many as you like.</p><div class="card"><div class="row" style="gap:12px;margin-bottom:6px"><button type="button" class="link" id="svcAll">Select all</button><button type="button" class="link" id="svcNone">Clear all</button></div><b>Everyday services</b>
+   h=`<h2>What you sell</h2><p class="lead">Pick every kind of work you do. Each one gets its own price list and can get its own page on your website. You are on the <b>${esc(PLAN_NAMES[S.plan]||S.plan)}</b> plan. Pick as many as you like.</p><div class="card"><b>Everyday services</b>
    ${SVC_CORE.map(chk).join('')}
    <b style="display:block;margin-top:14px">Specialty add-on pages</b><small>Each add-on gets its own website page and tools to promote it. The price is shown before you add it.</small>
-   ${SVC_ADDON.map(chk).join('')}</div>`;}
-  if(k==='cities')h=`<h2>Cities you serve</h2><p class="lead">Pick up to <b>${S.caps.cities}</b> cities. Your <b>${esc(PLAN_NAMES[S.plan]||S.plan)}</b> plan publishes <b>${S.caps.pageCities}</b> city page${S.caps.pageCities===1?'':'s'} on your website. The rest stay saved, and you can add more pages later. Cities show on your quote page and help us set rates for your market.</p><p class="muted">Each city gets its own page on your website. After you finish setup, write them on <a href="/citypages">City pages</a>.</p><div id="cityBox"><div class="card"><label>Cities you serve (separate with commas)</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div></div>`;
+   ${SVC_ADDON.map(chk).join('')}<div class="row" style="gap:12px;margin-top:12px"><button type="button" class="link" id="svcAll">Select all everyday services</button><button type="button" class="link" id="svcNone">Clear all</button></div><small class="muted">Select all picks only the everyday services. Specialty add-ons stay off until you tick them, so one tap never adds a paid page.</small></div>`;}
+  if(k==='cities')h=`<h2>Cities you serve</h2><p class="lead">Pick the towns you work in, up to <b>${S.caps.cities}</b>. Your <b>${esc(PLAN_NAMES[S.plan]||S.plan)}</b> plan puts <b>${S.caps.pageCities}</b> of them on your website now. The others stay saved, and you can add pages later.</p><p class="muted">Each town you pick can get its own page. You set those up on <a href="/citypages">City pages</a> after setup.</p><div id="cityBox"><div class="card"><label>Type the towns you work in, separated by commas</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div></div>`;
   if(k==='pricing'){
     const mk=curTier(),pw=!((p.ratecard||{}).hidePreparedWith);
     h=`<h2>How you price your work</h2><p class="lead">Your rate card is your price list. We fill in starting rates for you, so you can keep them or change any number. PaintersMax uses them for every estimate, and you can adjust any job.</p>
@@ -492,14 +492,17 @@ document.addEventListener('change',e=>{
   if(CM.mk[c.value])CM.mk[c.value].setOpacity(c.checked?1:.45);
   cmCount();msg('');
 });
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target&&e.target.id==='cadd'){e.preventDefault();const b=$('caddbtn');if(b)b.click();}});
 document.addEventListener('click',async e=>{
   if(e.target.id!=='caddbtn')return;
   const q=$('cadd').value.trim();if(!q)return;
   try{
+    msg('Looking up '+q+'...',true);
     const j=await api('/api/cities',{action:'add',query:q});
+    if(!j||!j.city){msg('Could not find "'+q+'". Try the town name and state, like Plano, TX.');return;}
     if(!CM.list.some(x=>x.key===j.city.key))CM.list.unshift(j.city);
     if(!cmSel(j.city.key)){if(CM.sel.length>=CM.data.cap){msg('You can pick up to '+CM.data.cap+' cities. Untick one first.');cmDraw();return;}CM.sel.push(j.city);}
-    cmDraw();msg('');
+    cmDraw();msg('Added '+j.city.name+'.',true);$('cadd').value='';
   }catch(x){if(x)msg(x.message||'Could not add that city.');}
 });
 
@@ -557,7 +560,8 @@ async function finish(){
     setTimeout(()=>{location.href='/dashboard';},900);
   }catch(e){if(e)msg(e.message||'Could not save.');}
 }
-document.addEventListener('click',e=>{const a=e.target.id==='svcAll',n=e.target.id==='svcNone';if(!a&&!n)return;document.querySelectorAll('.trade').forEach(c=>{c.checked=a;});updateCoach();});
+const SVC_EVERYDAY_ONLY=()=>document.querySelectorAll('.trade').forEach(c=>{c.checked=!SVC_ADDON.includes(c.value);});
+document.addEventListener('click',e=>{if(e.target.id==='svcAll'){SVC_EVERYDAY_ONLY();updateCoach();return;}const n=e.target.id==='svcNone';if(!n)return;document.querySelectorAll('.trade').forEach(c=>{c.checked=false;});updateCoach();});
 document.addEventListener('change',e=>{if(e.target.classList&&e.target.classList.contains('trade'))updateCoach();});
 document.addEventListener('click',async e=>{
   const st=e.target.closest('#steps [data-step]');if(st){await jump(Number(st.dataset.step));return;}
