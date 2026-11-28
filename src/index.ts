@@ -24,7 +24,7 @@ import { handleWordList } from "./wordlist.ts";
 import { handleSamples } from "./samples.ts";
 import { syncTierDemos } from "./tierdemos.ts";
 import { adminActor } from "./adminroles.ts";
-import { endSession, getSessionUser, hasSessionCookie, requestLoginLink, signInLinkPage, verifyLoginLink } from "./auth.ts";
+import { endSession, getSessionUser, hasSessionCookie, pickLang, requestLoginLink, signInLinkPage, verifyLoginLink } from "./auth.ts";
 import { crossSiteWrite, visitorKey } from "./guard.ts";
 import { sendCustomerEmail, sendLeadEmail } from "./email.ts";
 import { priceRange } from "./pricing.ts";
@@ -629,14 +629,21 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
     }
     if (pathname === "/api/auth/verify") {
       // Opening the link shows a "Sign in" button; only pressing it (a POST) uses the link. See signInLinkPage.
-      if (request.method !== "POST") return signInLinkPage(new URL(request.url).searchParams.get("token"), "ready");
+      const accept = request.headers.get("accept-language");
+      if (request.method !== "POST") {
+        const q = new URL(request.url).searchParams;
+        return signInLinkPage(q.get("token"), "ready", pickLang(q.get("lang"), accept));
+      }
       let token: string | null = null;
+      let formLang: unknown = null;
       try {
-        const v = (await request.formData()).get("token");
+        const fd = await request.formData();
+        const v = fd.get("token");
         token = typeof v === "string" ? v : null;
+        formLang = fd.get("lang");
       } catch {}
       const result = await verifyLoginLink(env, token);
-      if (!result) return signInLinkPage(null, "bad");
+      if (!result) return signInLinkPage(null, "bad", pickLang(formLang, accept));
       return new Response(null, { status: 303, headers: { location: "/dashboard", "set-cookie": result.cookie } });
     }
     if (pathname === "/api/auth/logout" && request.method === "POST") {

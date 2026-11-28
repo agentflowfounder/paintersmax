@@ -174,7 +174,24 @@
   window.pmI18n = {
     add: function (d, p) { for (var k in d) D[k] = d[k]; if (p) P = P.concat(p); }, x: x, start: start, dict: D,
   };
-  document.addEventListener('DOMContentLoaded', function () { mount(); sync(); });
+  // A visitor whose browser lists Spanish first, and who has not picked a language yet, is offered Spanish once.
+  // Nothing switches by itself: the page stays in English until they tap the button.
+  function hint() {
+    try { if (localStorage.getItem(KEY) || localStorage.getItem('pm_langhint')) return; } catch (e) { return; }
+    var n = (navigator.languages && navigator.languages[0]) || navigator.language || '';
+    if (!/^es(-|$)/i.test(n) || lang === 'es' || document.getElementById('pm_hint')) return;
+    var b = document.createElement('div');
+    b.id = 'pm_hint'; b.className = 'notranslate'; b.setAttribute('translate', 'no'); b.setAttribute('role', 'region'); b.setAttribute('aria-label', 'Idioma');
+    b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2000;background:#0F1B2D;color:#fff;font:600 15px/1.4 system-ui,sans-serif;padding:12px 14px calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;text-align:center';
+    b.innerHTML = '<span>\u00bfPrefiere ver esta p\u00e1gina en espa\u00f1ol?</span><button type="button" data-y style="font:inherit;border:0;border-radius:8px;padding:9px 14px;background:#E8A33D;color:#0F1B2D;cursor:pointer">S\u00ed, en espa\u00f1ol</button><button type="button" data-n style="font:inherit;border:1px solid #fff;border-radius:8px;padding:8px 13px;background:transparent;color:#fff;cursor:pointer">No, gracias</button>';
+    b.onclick = function (e) {
+      var t = e.target; if (!t || !t.closest) return;
+      if (t.closest('[data-y]')) { b.remove(); setLang('es'); }
+      else if (t.closest('[data-n]')) { try { localStorage.setItem('pm_langhint', '1'); } catch (x) {} b.remove(); }
+    };
+    document.body.appendChild(b);
+  }
+  document.addEventListener('DOMContentLoaded', function () { mount(); sync(); hint(); });
   if (lang === 'es') document.documentElement.lang = 'es';
 
   /* ---- Part 1: navigation, sign in, plans, Home and settings ---- */
