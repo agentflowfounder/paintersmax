@@ -46,7 +46,7 @@ input,select,textarea{width:100%;padding:12px;border:1px solid #cfd5dc;border-ra
 .nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid rgba(15,27,45,.12);padding:10px 16px;display:flex;gap:10px;justify-content:center}
 .nav button{flex:1;max-width:300px;padding:14px;border-radius:8px;border:0;font-weight:700;font-size:16px;cursor:pointer}
 .nav .next{background:#E8A33D;color:#0F1B2D}.nav .back{background:#eceae4;color:#0F1B2D}
-small{color:#4A5568}#msg{font-size:13px;margin-top:8px;min-height:18px}
+small{color:#4A5568}#msg{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;width:calc(100% - 24px);max-width:560px;padding:14px 16px;border-radius:12px;background:#fff;border:3px solid #b42318;box-shadow:0 8px 28px rgba(15,27,45,.28);z-index:80;font-size:16px;font-weight:700;line-height:1.4;color:#7a1410;cursor:pointer}#msg:empty{display:none}#msg.ok{border-color:#0a7a3d;color:#0a5a2e}
 .ok{color:#0a7a3d}.bad{color:#b42318}
 ul.sum{padding-left:18px;margin:6px 0}
 .seg button{font-size:14px;padding:10px 4px;min-width:0}
@@ -72,8 +72,11 @@ ul.sum{padding-left:18px;margin:6px 0}
 <div class="nav"><button class="back" id="back">Back</button><button class="next" id="next">Save and continue</button></div>
 <script>
 const STEPS=['company','services','cities','pricing','labor','extras','review'];
-const STEP_LABELS={company:'Your company info',services:'Services you offer',cities:'Cities you serve',pricing:'Your prices',labor:'Labor and money',extras:'Warranty and insurance',review:'Review'};
-const TRADE_LABELS={interior:'Interior painting',exterior:'Exterior painting',commercial:'Commercial',new_construction:'New construction (builders)',power_washing:'Power washing',drywall:'Drywall repair',cabinets:'Cabinet painting',decks_fences:'Decks and fence staining',fencing:'Fence installation',remodeling:'Remodeling',epoxy_floors:'Epoxy floors',industrial:'Industrial coatings'};
+const STEP_LABELS={company:'Your business',services:'What you sell',cities:'Where you work',pricing:'How you price jobs',labor:'Crew and money',extras:'Promises and protection',review:'Check and finish'};
+const PLAN_NAMES={free:'Free',starter:'Local Pro',basic:'Contractor',pro:'Commercial'};
+const SVC_CORE=['interior','exterior','power_washing','drywall','decks_fences','cabinets','commercial','new_construction','fencing','accent_walls','decorative_painting','decorative_texture'];
+const SVC_ADDON=['epoxy_floors','industrial','remodeling','parking_lot_striping','glow_paint'];
+const TRADE_LABELS={interior:'Interior painting',exterior:'Exterior painting',commercial:'Commercial',new_construction:'New construction (builders)',power_washing:'Power washing',drywall:'Drywall repair',cabinets:'Cabinet painting',decks_fences:'Decks and fence staining',fencing:'Fence installation',remodeling:'Remodeling',epoxy_floors:'Epoxy floors',industrial:'Industrial coatings',accent_walls:'Accent walls',decorative_painting:'Decorative painting',decorative_texture:'Decorative texture',parking_lot_striping:'Parking lot striping',glow_paint:'Glow-in-the-dark paint'};
 const HELP={
  floor:'Floor area: length x width of each room, added together. Example: a 12 ft x 15 ft bedroom is 180 sq ft. Most repaints are quoted from the whole home floor area.',
  wall:'Paintable wall area: add up the length of every wall, multiply by the height, then subtract about 20 sq ft for each door and 15 sq ft for each window. Example: 4 walls totaling 54 ft x 8 ft = 432 sq ft, minus 1 door and 1 window = about 397 sq ft.',
@@ -128,7 +131,8 @@ const val=(o,k)=>o&&o[k]!=null?esc(o[k]):'';
 const help=k=>`<button type="button" class="help" data-help="${k}" aria-label="Help">?</button><div class="tip" id="tip_${k}">${esc(HELP[k])}</div>`;
 document.addEventListener('click',e=>{const tg=e.target.closest('[data-tog]');if(tg){const t=tg.nextElementSibling;t.style.display=t.style.display==='block'?'none':'block';return;}const b=e.target.closest('[data-help]');if(b){const t=$('tip_'+b.dataset.help);t.style.display=t.style.display==='block'?'none':'block';}});
 
-function msg(t,ok){const m=$('msg');m.textContent=t||'';m.className=ok?'ok':'bad';}
+let MSGT=0;function msg(t,ok){const m=$('msg');clearTimeout(MSGT);m.textContent=t?(ok?t:'Please fix this, then tap Save and continue again. '+t):'';m.className=ok?'ok':'bad';m.title='Tap to close';if(t&&ok)MSGT=setTimeout(()=>{m.textContent='';},8000);}
+$('msg').addEventListener('click',()=>{$('msg').textContent='';});
 async function api(path,body){const r=await fetch(path,body?{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}:undefined);if(r.status===401){location.href='/login';throw 0;}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Could not save.');return j;}
 
 function rcKey(trade,aud){return trade+'|'+(aud||'retail');}
@@ -298,7 +302,7 @@ function reviewHtml(){
   const cities=(p.cities||[]).length?`<div class="pills">${p.cities.map(x=>`<span class="pill">${pmIcon('pin',16)} ${esc(x)}</span>`).join('')}</div>`:`<a href="#" class="stat todo" data-go="2"><span>${pmIcon('pin',28)}</span><div><small>Cities</small><b>Not set. Tap to add.</b></div></a>`;
   const bOk=['basic','pro'].includes(S.plan);
   const money=v=>v?'$'+v:'';
-  return `<h2>Review</h2><p class="lead">Everything you set up, on one page. Tap any box to change it. You can come back any time.</p>
+  return `<h2>Check and finish</h2><p class="lead">Everything you set up, on one page. Tap any box to change it. You can come back any time.</p>
    <div class="card hero"><div><b class="cn">${esc(c.legalName||'Add your company name')}</b><small style="display:block;margin-top:2px">${esc([c.phone,c.email].filter(Boolean).join('  |  ')||'No phone or email yet')}</small></div><a href="#" class="edit" data-go="0">Edit</a></div>
    ${sh('Your services',1)}<div class="tiles">${tiles}</div>
    ${sh('Cities you serve',2)}${cities}
@@ -308,6 +312,7 @@ function reviewHtml(){
     <div class="act"><span>${pmIcon('builder',34)}</span><div><b>Builder rate sheets</b><small style="display:block">${bOk?'A private price sheet for each home builder.':'On the Basic and Pro plans.'}</small></div>${bOk?'<a class="abtn" href="/builders">Open</a>':''}</div>
    </div>
    <div id="prev"></div>
+   <div class="card"><b>Your plan: ${esc(PLAN_NAMES[S.plan]||S.plan)}</b><p style="margin:6px 0">You picked ${p.trades.length} service${p.trades.length===1?'':'s'} and ${(p.cities||[]).length} cit${(p.cities||[]).length===1?'y':'ies'}. Your plan publishes ${S.caps.pageCities} city page${S.caps.pageCities===1?'':'s'}. AI help runs on credits: see what you have and what each tool costs, or look at the plans to add more.</p><a class="abtn" href="/credits">See my AI credits</a> <a class="abtn" style="background:#E8A33D;color:#0F1B2D" href="/site">See plans and upgrades</a></div>
    <div class="card"><b>What happens next</b><p style="margin:6px 0">${S.completed?'Your setup is saved. Tap the button below to go to your dashboard, or go straight to <a href="/jobs">Jobs</a> to build your first estimate.':'When you finish, you go to your dashboard. Your prices fill in your estimates, and you can build your first job from Jobs.'}</p></div>`;
 }
 
@@ -318,32 +323,47 @@ function view(){
   $('next').textContent=k==='review'?(S.completed?'Save and go to dashboard':'Finish setup'):'Save and continue';
   const p=S.profile,c=p.company||{};
   let h='';
-  if(k==='company')h=`<h2>Your company info</h2><p class="lead">We save this once and use it on every estimate and contract.</p><div class="card">
+  if(k==='company')h=`<h2>Your business details</h2><p class="lead">Customers see this on every estimate, contract and invoice. You type it once.</p><div class="card">
    <label>Company name</label><input id="legalName" value="${val(c,'legalName')}">
    <div class="row"><div><label>Phone</label><input id="phone" type="tel" value="${val(c,'phone')}"></div><div><label>Email</label><input id="email" type="email" value="${val(c,'email')}"></div></div>
    <label>Address</label><input id="address" value="${val(c,'address')}">
    <div class="row"><div><label>City</label><input id="city" value="${val(c,'city')}"></div><div><label>State</label><input id="state" value="${val(c,'state')}"></div></div>
    <div class="row"><div><label>ZIP</label><input id="zip" value="${val(c,'zip')}"></div><div><label>License number (if you have one)</label><input id="license" value="${val(c,'license')}"></div></div>
    <label>Website (https://...)</label><input id="website" value="${val(c,'website')}"></div>`;
-  if(k==='services')h=`<h2>What services do you offer?</h2><p class="lead">Choose the work you do. Your plan (${esc(S.plan)}) includes up to <b>${S.caps.services}</b> services. You can change this any time.</p><div class="card"><b>Services</b>
-   ${Object.keys(TRADE_LABELS).map(t=>`<label class="chk"><input type="checkbox" class="trade" value="${t}" ${p.trades.includes(t)?'checked':''}> ${esc(TRADE_LABELS[t])}</label>`).join('')}</div>`;
-  if(k==='cities')h=`<h2>Cities you serve</h2><p class="lead">Your plan (${esc(S.plan)}) includes up to <b>${S.caps.cities}</b> cities. These show on your quote page, become your city pages, and help us set rates for your market.</p><p class="muted">Each city gets its own page on your website. After you finish setup, write them on <a href="/citypages">City pages</a>.</p><div id="cityBox"><div class="card"><label>Cities you serve (separate with commas)</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div></div>`;
+  if(k==='services'){const chk=t=>`<label class="chk"><input type="checkbox" class="trade" value="${t}" ${p.trades.includes(t)?'checked':''}> ${esc(TRADE_LABELS[t])}</label>`;
+   h=`<h2>What you sell</h2><p class="lead">Pick every kind of work you do. Each one gets its own price list and can get its own page on your website. You are on the <b>${esc(PLAN_NAMES[S.plan]||S.plan)}</b> plan. Pick as many as you like.</p><div class="card"><div class="row" style="gap:12px;margin-bottom:6px"><button type="button" class="link" id="svcAll">Select all</button><button type="button" class="link" id="svcNone">Clear all</button></div><b>Everyday services</b>
+   ${SVC_CORE.map(chk).join('')}
+   <b style="display:block;margin-top:14px">Specialty add-on pages</b><small>Each add-on gets its own website page and tools to promote it. The price is shown before you add it.</small>
+   ${SVC_ADDON.map(chk).join('')}</div>`;}
+  if(k==='cities')h=`<h2>Cities you serve</h2><p class="lead">Pick up to <b>${S.caps.cities}</b> cities. Your <b>${esc(PLAN_NAMES[S.plan]||S.plan)}</b> plan publishes <b>${S.caps.pageCities}</b> city page${S.caps.pageCities===1?'':'s'} on your website. The rest stay saved, and you can add more pages later. Cities show on your quote page and help us set rates for your market.</p><p class="muted">Each city gets its own page on your website. After you finish setup, write them on <a href="/citypages">City pages</a>.</p><div id="cityBox"><div class="card"><label>Cities you serve (separate with commas)</label><input id="cities" value="${esc((p.cities||[]).join(', '))}"></div></div>`;
   if(k==='pricing'){
     const mk=curTier(),pw=!((p.ratecard||{}).hidePreparedWith);
-    h=`<h2>Your prices</h2><p class="lead">Your rate card is your price list. We fill in starting rates for you, so you can keep them or change any number. PaintersMax uses them for every estimate, and you can adjust any job.</p>
+    h=`<h2>How you price your work</h2><p class="lead">Your rate card is your price list. We fill in starting rates for you, so you can keep them or change any number. PaintersMax uses them for every estimate, and you can adjust any job.</p>
     <div class="card"><b>Your market</b>${help2('Prices follow what customers in your area pay. Pick the one that sounds most like where you work. You can change it any time.')}<select id="mk" style="margin-top:6px">${TIERS.map(t=>`<option value="${t}" ${t===mk?'selected':''}>${TIER_NAMES[t]}</option>`).join('')}</select><div class="poshelp" id="mkhelp" style="margin-top:6px">${esc(TIER_HELP[mk])}</div><small>Starting rates are PaintersMax benchmark ranges, not guarantees. Adjust them to your own costs and quality of work.</small></div>`;
     if(!p.trades.length)h+='<div class="card">Pick your services first. <a href="#" data-go="1">Choose services</a></div>';
     p.trades.forEach(t=>{if(t!=='new_construction')h+=renderCard(t,'retail');});
-    if(p.trades.includes('new_construction'))h+=['basic','pro'].includes(S.plan)?renderCard('interior','builder')+'<div class="card"><b>Share your builder rates</b><p style="margin:6px 0">Give each builder their own private rate sheet, with its own discount and level of detail. <a href="/builders">Open builder rate sheets</a> (save your prices first).</p></div>':'<div class="card"><b>Builder rates</b><p>Builder rate cards are on the Basic and Pro plans.</p></div>';
-    if(p.trades.length&&CAT)h+=`<div class="card"><b>Your rate card</b><p style="margin:6px 0">Download a branded copy of your rates to share with customers or builders.</p><label class="chk"><input type="checkbox" id="pw" ${pw?'checked':''}> Add "Prepared with PaintersMax" at the bottom</label><div style="margin-top:8px"><button type="button" class="link" data-pdf="retail">Download my rate card (PDF)</button></div><small>Uses your logo from Settings. Prices are saved when you tap Download.</small></div>`;
+    if(p.trades.includes('new_construction'))h+=['basic','pro'].includes(S.plan)?renderCard('interior','builder')+'<div class="card"><b>Share your builder rates</b><p style="margin:6px 0">Give each builder their own private rate sheet, with its own discount and level of detail. <a href="/builders">Open builder rate sheets</a> (save your prices first).</p></div>':'';
   }
-  if(k==='labor'){const l=p.labor||{};h=`<h2>Labor and money</h2><p class="lead">Used for estimates, contracts and invoices.</p><div class="card">
-   <div class="row"><div><label>Crew size</label><input id="crewSize" inputmode="numeric" value="${val(l,'crewSize')}"></div><div><label>Your hourly rate ($)</label><input id="hourlyRate" inputmode="decimal" value="${val(l,'hourlyRate')}"></div></div>
-   <div class="row"><div><label>Helper hourly rate ($)</label><input id="helperRate" inputmode="decimal" value="${val(l,'helperRate')}"></div><div><label>Minimum job ($)</label><input id="minimumJob" inputmode="decimal" value="${val(l,'minimumJob')}"></div></div>
-   <div class="row"><div><label>Material markup (%)</label><input id="markupPct" inputmode="decimal" value="${val(l,'markupPct')}"></div><div><label>Overhead (%)</label><input id="overheadPct" inputmode="decimal" value="${val(l,'overheadPct')}"></div></div>
-   <label>Deposit (% of the job)</label><input id="depositPct" inputmode="decimal" value="${val(l,'depositPct')}">
-   <label>Payment terms</label><textarea id="paymentTerms" rows="2">${val(l,'paymentTerms')}</textarea></div>`;}
-  if(k==='extras'){const w=p.warranty||{},ins=p.insurance||{},m=p.materials||{},lg=p.language||{};h=`<h2>Warranty, insurance and materials</h2><div class="card">
+  if(k==='labor'){const l=p.labor||{},b=p.business||{},has=(a,v)=>(a||[]).includes(v);
+   const ck=(cls,arr,list)=>list.map(x=>`<label class="chk"><input type="checkbox" class="${cls}" value="${x[0]}" ${has(arr,x[0])?'checked':''}> ${esc(x[1])}</label>`).join('');
+   h=`<h2>How you run your crew and get paid</h2><p class="lead">These answers turn into your estimate math, your deposits and your reports. Every box is optional, and you can change any answer later.</p>
+   <div class="card"><b>Your crew and labor rates</b><small style="display:block">Used to price labor on estimates and to cost your jobs.</small>
+   <div class="row"><div><label>People on your crew</label><input id="crewSize" inputmode="numeric" value="${val(l,'crewSize')}"></div><div><label>Your hourly rate ($)</label><input id="hourlyRate" inputmode="decimal" value="${val(l,'hourlyRate')}"></div></div>
+   <label>Helper hourly rate ($)</label><input id="helperRate" inputmode="decimal" value="${val(l,'helperRate')}">
+   <label>How often you pay your crew</label><select id="payFrequency"><option value="">Choose one</option>${[['weekly','Every week'],['biweekly','Every two weeks'],['monthly','Once a month']].map(x=>`<option value="${x[0]}" ${b.payFrequency===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select><small>Sets the week and pay period on your Crew and Records pages.</small></div>
+   <div class="card"><b>Extra costs and deposit</b>
+   <div class="row"><div><label>Material markup (%)</label><input id="markupPct" inputmode="decimal" value="${val(l,'markupPct')}"><small>What you add on top of what the paint costs you.</small></div><div><label>Overhead (%)</label><input id="overheadPct" inputmode="decimal" value="${val(l,'overheadPct')}"><small>Your share of insurance, truck and tools.</small></div></div>
+   <label>Deposit (% of the job)</label><input id="depositPct" inputmode="decimal" value="${val(l,'depositPct')}"><small>The amount a customer pays up front. It fills in your estimates and contracts.</small>
+   <label>Payment terms</label><textarea id="paymentTerms" rows="2">${val(l,'paymentTerms')}</textarea><small>These words print on your contracts and invoices.</small></div>
+   <div class="card"><b>How customers pay you</b><small style="display:block">Pick all that you accept. Printed on your invoices.</small>${ck('pm',b.payMethods,[['check','Check'],['cash','Cash'],['card','Credit or debit card'],['zelle','Zelle or Venmo'],['ach','Bank transfer']])}</div>
+   <div class="card"><b>About your business</b><small style="display:block">Helps PaintersMax give you tips that fit a business your size.</small>
+   <label>How is your business set up?</label><select id="bType"><option value="">Choose one</option>${[['sole','Just me (sole proprietor)'],['llc','LLC'],['corp','Corporation'],['unsure','Not sure']].map(x=>`<option value="${x[0]}" ${b.type===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select>
+   <div class="row"><div><label>Years in business</label><input id="bYears" inputmode="numeric" value="${val(b,'yearsIn')}"></div><div><label>How do you keep your books?</label><select id="bAcct"><option value="">Choose one</option>${[['none','I do not yet'],['spreadsheet','A spreadsheet'],['quickbooks','QuickBooks'],['other','Something else']].map(x=>`<option value="${x[0]}" ${b.accounting===x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div></div>
+   <small>Your records page can export for your accountant.</small></div>
+   <div class="card"><b>Your goals</b><small style="display:block">What do you want to earn? Saved to your profile so we can show your progress.</small>
+   <div class="row"><div><label>Money you want to bring in each month ($)</label><input id="bGoal" inputmode="decimal" value="${val(b,'monthlyGoal')}"></div><div><label>Jobs you want each month</label><input id="bJobs" inputmode="numeric" value="${val(b,'jobsGoal')}"></div></div></div>
+   <div class="card"><b>Where your customers come from</b><small style="display:block">Pick all that bring you work.</small>${ck('ls',b.leadSources,[['referrals','Referrals'],['repeat','Repeat customers'],['google','Google'],['facebook','Facebook'],['nextdoor','Nextdoor'],['yard_signs','Yard signs'],['door_knocking','Door knocking'],['builders','Builders and contractors'],['paint_store','Paint store'],['other','Somewhere else']])}</div>`;}
+  if(k==='extras'){const w=p.warranty||{},ins=p.insurance||{},m=p.materials||{},lg=p.language||{};h=`<h2>Your promises and protection</h2><p class="lead">Your warranty, your insurance and the products you use. Customers read this before they say yes.</p><div class="card">
    <label>Labor warranty (months)</label><input id="laborMonths" inputmode="numeric" value="${val(w,'laborMonths')}">
    <label>Warranty details (we add the paint maker's warranty and the customer-keeps-receipts note for you)</label><textarea id="wtext" rows="3">${val(w,'text')}</textarea>
    <label>Exclusions</label><textarea id="exclusions" rows="2">${val(w,'exclusions')}</textarea></div>
@@ -374,17 +394,17 @@ function coachText(k){
     return 'Looks good. You only type this once and we use it everywhere.';
   }
   if(k==='services'){
-    const t=[...document.querySelectorAll('.trade:checked')].map(e=>e.value),cap=S.caps.services;
+    const t=[...document.querySelectorAll('.trade:checked')].map(e=>e.value);
     if(!t.length)return 'Choose the work you do. You can change this any time.';
-    if(t.length>=cap)return 'You have used all '+cap+' service'+(cap===1?'':'s')+' on your plan.';
+    if(t.some(x=>SVC_ADDON.includes(x)))return t.length+' chosen. Specialty add-ons get their own pages. The price is shown before you add one.';
     if(t.includes('exterior')&&!t.includes('power_washing'))return 'Exterior jobs usually start with washing the surface, so power washing is a natural one to add.';
     return 'Each service gets its own price list on the Your prices step.';
   }
   if(k==='cities'){
     const n=CM.on?CM.sel.length:v('cities').split(',').filter(s=>s.trim()).length,cap=S.caps.cities;
     if(!n)return 'Pick the cities you work in. Each one can get its own page on your website.';
-    if(n>=cap)return 'You have used all '+cap+' cit'+(cap===1?'y':'ies')+' on your plan.';
-    return n+' of '+cap+' chosen. Each city can get its own page on your website.';
+    if(n>=cap)return 'That is the most you can pick ('+cap+' cities).';
+    return n+' of '+cap+' chosen. Your plan publishes '+S.caps.pageCities+' city page'+(S.caps.pageCities===1?'':'s')+'.';
   }
   if(k==='pricing'){
     const all=[...document.querySelectorAll('input[data-k]')],pr=all.filter(i=>Number(i.value)>0).length;
@@ -467,7 +487,7 @@ async function loadCities(){
 document.addEventListener('change',e=>{
   const c=e.target.closest('.cityck');if(!c)return;
   const city=CM.list.find(x=>x.key===c.value);if(!city)return;
-  if(c.checked){if(CM.sel.length>=CM.data.cap){c.checked=false;msg('Your plan includes up to '+CM.data.cap+' cities.');return;}CM.sel.push(city);}
+  if(c.checked){if(CM.sel.length>=CM.data.cap){c.checked=false;msg('You can pick up to '+CM.data.cap+' cities. Untick one to add another.');return;}CM.sel.push(city);}
   else CM.sel=CM.sel.filter(x=>x.key!==c.value);
   if(CM.mk[c.value])CM.mk[c.value].setOpacity(c.checked?1:.45);
   cmCount();msg('');
@@ -478,7 +498,7 @@ document.addEventListener('click',async e=>{
   try{
     const j=await api('/api/cities',{action:'add',query:q});
     if(!CM.list.some(x=>x.key===j.city.key))CM.list.unshift(j.city);
-    if(!cmSel(j.city.key)){if(CM.sel.length>=CM.data.cap){msg('Your plan includes up to '+CM.data.cap+' cities. Untick one first.');cmDraw();return;}CM.sel.push(j.city);}
+    if(!cmSel(j.city.key)){if(CM.sel.length>=CM.data.cap){msg('You can pick up to '+CM.data.cap+' cities. Untick one first.');cmDraw();return;}CM.sel.push(j.city);}
     cmDraw();msg('');
   }catch(x){if(x)msg(x.message||'Could not add that city.');}
 });
@@ -486,15 +506,17 @@ document.addEventListener('click',async e=>{
 // ---- collect and save ----
 function collect(){
   const k=STEPS[S.step],p=S.profile,g=id=>{const e=$(id);return e?e.value.trim():undefined;};
+  if(k==='company'&&g('legalName'))$('co').textContent=g('legalName');
   if(k==='company')p.company={legalName:g('legalName'),phone:g('phone'),email:g('email'),address:g('address'),city:g('city'),state:g('state'),zip:g('zip'),license:g('license'),website:g('website')};
   if(k==='services'){p.trades=[...document.querySelectorAll('.trade:checked')].map(e=>e.value);
-    if(p.trades.length>S.caps.services)throw new Error('Your plan includes up to '+S.caps.services+' services.');}
+}
   if(k==='cities'){
     if(CM.on){p.cityKeys=CM.sel.map(c=>c.key);p.cities=CM.sel.map(c=>c.name+', '+c.state);}
     else{p.cities=g('cities').split(',').map(s=>s.trim()).filter(Boolean);}
-    if(p.cities.length>S.caps.cities)throw new Error('Your plan includes up to '+S.caps.cities+' cities.');}
+    if(p.cities.length>S.caps.cities)throw new Error('You can pick up to '+S.caps.cities+' cities.');}
   if(k==='pricing'){p.market={tier:g('mk')||curTier()};p.ratecard={hidePreparedWith:$('pw')?!$('pw').checked:(p.ratecard||{}).hidePreparedWith};}
-  if(k==='labor')p.labor={crewSize:g('crewSize'),hourlyRate:g('hourlyRate'),helperRate:g('helperRate'),minimumJob:g('minimumJob'),markupPct:g('markupPct'),overheadPct:g('overheadPct'),depositPct:g('depositPct'),paymentTerms:g('paymentTerms')};
+  if(k==='labor'){p.labor={crewSize:g('crewSize'),hourlyRate:g('hourlyRate'),helperRate:g('helperRate'),minimumJob:(p.labor||{}).minimumJob,markupPct:g('markupPct'),overheadPct:g('overheadPct'),depositPct:g('depositPct'),paymentTerms:g('paymentTerms')};
+    p.business={type:g('bType'),yearsIn:g('bYears'),monthlyGoal:(g('bGoal')||'').replace(/[$,\s]/g,''),jobsGoal:g('bJobs'),accounting:g('bAcct'),payFrequency:g('payFrequency'),payMethods:[...document.querySelectorAll('.pm:checked')].map(e=>e.value),leadSources:[...document.querySelectorAll('.ls:checked')].map(e=>e.value)};}
   if(k==='extras'){p.warranty={laborMonths:g('laborMonths'),text:g('wtext'),exclusions:g('exclusions')};p.insurance={carrier:g('carrier'),expires:g('expires'),coverage:g('coverage'),shareSummary:$('shareSummary').checked};
     p.materials={brands:[...document.querySelectorAll('.brand:checked')].map(e=>e.value),notes:g('mnotes')};p.language={ui:window.PM_LANG||'en',crewDocs:g('crewDocs')};}
 }
@@ -518,9 +540,11 @@ async function jump(target){
   try{
     target=Math.max(0,Math.min(STEPS.length-1,target));
     await save(target,false);
-    S.step=target;view();window.scrollTo(0,0);
+    S.step=target;pushStep();view();window.scrollTo(0,0);
   }catch(e){if(e)msg(e.message||'Could not save.');}
 }
+function pushStep(){try{const u='#'+STEPS[S.step];if(location.hash!==u)history.pushState({step:S.step},'',u);}catch(e){}}
+window.addEventListener('popstate',async()=>{const i=STEPS.indexOf((location.hash||'').slice(1));if(i<0||i===S.step)return;try{await save(i,false);S.step=i;view();window.scrollTo(0,0);}catch(e){if(e)msg(e.message||'Could not save.');pushStep();}});
 async function go(delta){
   if(STEPS[S.step]==='review'&&delta>0)return finish();
   return jump(S.step+delta);
@@ -533,6 +557,8 @@ async function finish(){
     setTimeout(()=>{location.href='/dashboard';},900);
   }catch(e){if(e)msg(e.message||'Could not save.');}
 }
+document.addEventListener('click',e=>{const a=e.target.id==='svcAll',n=e.target.id==='svcNone';if(!a&&!n)return;document.querySelectorAll('.trade').forEach(c=>{c.checked=a;});updateCoach();});
+document.addEventListener('change',e=>{if(e.target.classList&&e.target.classList.contains('trade'))updateCoach();});
 document.addEventListener('click',async e=>{
   const st=e.target.closest('#steps [data-step]');if(st){await jump(Number(st.dataset.step));return;}
   const gt=e.target.closest('[data-go]');if(gt){e.preventDefault();await jump(Number(gt.dataset.go));return;}
@@ -568,11 +594,12 @@ document.addEventListener('change',e=>{
 
 (async()=>{
   try{CAT=await api('/api/catalog').catch(()=>null);const j=await api('/api/profile');
-    $('co').textContent=j.company;S.plan=j.plan;S.caps=j.caps;S.completed=j.completed;
+    $('co').textContent=(j.profile&&j.profile.company&&j.profile.company.legalName)||j.company;S.plan=j.plan;S.caps=j.caps;S.completed=j.completed;
     Object.assign(S.profile,j.profile||{});S.profile.company=S.profile.company||{};S.profile.trades=S.profile.trades||[];S.profile.cities=S.profile.cities||[];
     S.profile.labor=S.profile.labor||{};S.profile.warranty=S.profile.warranty||{laborMonths:12};S.profile.insurance=S.profile.insurance||{};S.profile.materials=S.profile.materials||{brands:[]};S.profile.language=S.profile.language||{};S.profile.market=S.profile.market||{};S.profile.ratecard=S.profile.ratecard||{};
     (j.rateCards||[]).forEach(r=>{S.rateCards[rcKey(r.trade,r.audience)]={method:r.method,data:r.data};});
-    const i=STEPS.indexOf(j.setupStep);S.step=S.completed?STEPS.length-1:(i>0?i:nextOpen());
+    const i=STEPS.indexOf(j.setupStep),hs=STEPS.indexOf((location.hash||'').slice(1));S.step=hs>=0?hs:(S.completed?STEPS.length-1:(i>0?i:nextOpen()));
+    try{history.replaceState({step:S.step},'','#'+STEPS[S.step]);}catch(e){}
     view();
   }catch(e){}
 })();

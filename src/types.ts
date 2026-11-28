@@ -35,6 +35,7 @@ export interface Env {
   GOOGLE_REDIRECT_BASE?: string; // canonical site address, default https://paintersmax.app
   GOOGLE_TOKEN_URL?: string; // local testing only
   DEV_LOG_LINKS?: string; // local development only
+  PREVIEW_SIGNIN?: string; // "1" on branch previews only: show the sign-in link on the page because previews send no email
 }
 
 export type JobType = "interior" | "exterior" | "both" | "commercial" | "multifamily";

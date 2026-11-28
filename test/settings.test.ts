@@ -46,8 +46,10 @@ test("profile respects plan caps and drops bad values", () => {
     },
     "starter",
   );
-  assert.equal(p.trades.length, PROFILE_CAPS.starter.services);
-  assert.equal(p.cities.length, PROFILE_CAPS.starter.cities);
+  // Picking services and cities is open to every plan; published city pages follow the plan.
+  assert.equal(p.trades.length, 3);
+  assert.equal(p.cities.length, 3);
+  assert.ok(PROFILE_CAPS.starter.cities >= 1);
   assert.equal(p.company.email, undefined);
   assert.equal(p.company.website, undefined);
   assert.equal(p.company.phone, "903");

@@ -602,12 +602,13 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext): Promis
       try {
         body = await request.json();
       } catch {}
+      let testLink: string | undefined;
       try {
-        await requestLoginLink(env, new URL(request.url).origin, body?.email, { lang: body?.lang });
+        testLink = await requestLoginLink(env, new URL(request.url).origin, body?.email, { lang: body?.lang });
       } catch (err) {
         console.error("login link failed", String(err));
       }
-      return json({ ok: true }); // same answer whether or not the email exists
+      return json(testLink ? { ok: true, testLink } : { ok: true }); // same answer whether or not the email exists
     }
     if (pathname === "/api/auth/config") return handleAuthConfig(env);
     if (pathname === "/api/auth/google") {

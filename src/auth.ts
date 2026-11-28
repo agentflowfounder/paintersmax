@@ -64,18 +64,18 @@ async function userLang(env: Env, companyId: number): Promise<"en" | "es"> {
  * Step 1: user types their email. Always answers the same way so nobody can probe which emails exist.
  * `lang` wins when given (the sign-up form or the sign-in page language); otherwise the painter's saved language.
  */
-export async function requestLoginLink(env: Env, origin: string, rawEmail: unknown, o: { lang?: unknown; welcome?: { company: string; credits: number } | null } = {}): Promise<void> {
+export async function requestLoginLink(env: Env, origin: string, rawEmail: unknown, o: { lang?: unknown; welcome?: { company: string; credits: number } | null } = {}): Promise<string | undefined> {
   const email = typeof rawEmail === "string" ? rawEmail.trim().toLowerCase().slice(0, 200) : "";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return undefined;
   const user = await env.DB.prepare("SELECT id, company_id AS companyId FROM users WHERE email = ?").bind(email).first<{ id: number; companyId: number }>();
-  if (!user) return;
+  if (!user) return undefined;
 
   const recent = await env.DB.prepare(
     "SELECT COUNT(*) AS n FROM login_tokens WHERE user_id = ? AND created_at > datetime('now', '-1 hour')",
   )
     .bind(user.id)
     .first<{ n: number }>();
-  if ((recent?.n ?? 0) >= MAX_LINKS_PER_HOUR) return;
+  if ((recent?.n ?? 0) >= MAX_LINKS_PER_HOUR) return undefined;
 
   const token = randomToken();
   await env.DB.prepare("INSERT INTO login_tokens (token_hash, user_id, expires_at) VALUES (?, ?, ?)")
@@ -88,6 +88,8 @@ export async function requestLoginLink(env: Env, origin: string, rawEmail: unkno
   const result = await sendLeadEmail(env, email, m.subject, m.text);
   // Local development only: print the link when no email key is set.
   if (result === "skipped" && env.DEV_LOG_LINKS === "1") console.log("DEV LOGIN LINK:", link);
+  // Branch previews only (PREVIEW_SIGNIN is set in the previews block, never on the live site): the test link is shown on screen.
+  return env.PREVIEW_SIGNIN === "1" ? link : undefined;
 }
 
 /** Step 2: user clicks the link. Burns the token and starts a session. */
