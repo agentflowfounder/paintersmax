@@ -1,4 +1,5 @@
 import { getSessionUser } from "./auth.ts";
+import { readBlob, updateBlob } from "./kv.ts";
 import { consume, refund } from "./usage.ts";
 import { friendlyVisionError, parseJsonLoose, visionAsk } from "./vision.ts";
 import type { Env } from "./types.ts";
@@ -8,15 +9,67 @@ import type { Env } from "./types.ts";
  *  GET  /api/vendors                       -> { vendors, tips, prefs }
  *  GET  /api/vendors?id=                   -> { vendor, prices }
  *  GET  /api/vendors?find=<words>&owner=mine|customer  -> { prices } for the estimate's "Use a vendor price"
- *  POST /api/vendors {action: save|delete|addPrice|deletePrice|readSheet|savePrices|prefs|ask}
+ *  POST /api/vendors {action: save|delete|addPrice|deletePrice|readSheet|savePrices|prefs|setDeal|confirmPrice|addLog|deleteLog}
  *
  * A price sheet (PDF or photo) is read by AI into lines the painter checks before saving. The file itself is not kept.
  * Reading a sheet uses one "document read" from the receipt-reading allowance.
  * Only the last 4 characters of a store account number are kept, never bank, routing or card numbers.
- * Vendor names are shown as text badges. Store logos are trademarks and are not used without permission.
+ * Vendor names are shown as our own badges (see /vendor-badges). Store logos are trademarks and are not used without permission.
+ *
+ * Prices are REFERENCES, not facts (Rogelio, 2026-11-28): stores and reps change prices and give different deals, so every number
+ * here is a suggestion until the painter confirms it, and PaintersMax never says what a store will charge. Each price shows how
+ * old it is, can carry a deal note with an end date, and is marked "check again" when old or when its deal has ended.
+ * Deals and rep notes live in app_settings (no database change): vdeal:<company> and vlog:<company>.
  */
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 const txt = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+
+export const FRESH_DAYS = 30;
+export const OLD_DAYS = 60;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const today = () => new Date().toISOString().slice(0, 10);
+const dayNum = (d: string) => Math.floor(Date.parse(`${d}T00:00:00Z`) / 86_400_000);
+
+/** What a painter notes about one price: who gave it, what the deal is, when it ends, and when they last confirmed it. */
+export interface Deal { rep: string; deal: string; expiresOn: string; confirmedOn: string }
+export type DealBook = Record<string, Deal>;
+export function cleanDeal(i: any): Deal {
+  return { rep: txt(i?.rep, 80), deal: txt(i?.deal, 200), expiresOn: DATE.test(txt(i?.expiresOn, 10)) ? txt(i?.expiresOn, 10) : "", confirmedOn: DATE.test(txt(i?.confirmedOn, 10)) ? txt(i?.confirmedOn, 10) : "" };
+}
+export function readDeals(raw: unknown): DealBook {
+  const out: DealBook = {};
+  if (raw && typeof raw === "object") for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 5000)) if (/^\d+$/.test(k)) { const d = cleanDeal(v); if (d.rep || d.deal || d.expiresOn || d.confirmedOn) out[k] = d; }
+  return out;
+}
+
+export type FreshState = "fresh" | "aging" | "old" | "expired";
+export interface Fresh { checkedOn: string; ageDays: number; state: FreshState }
+/**
+ * How much to trust a saved price. The date it was last checked is the newest of: the date on the price sheet, the day it was added,
+ * and the day the painter pressed "Still good". Up to 30 days is fresh, up to 60 aging, older is old, and a deal past its end date is expired.
+ */
+export function priceFresh(p: { effectiveOn?: string; createdAt?: string }, deal: Deal | undefined, now = today()): Fresh {
+  const dates = [deal?.confirmedOn, p.effectiveOn, (p.createdAt ?? "").slice(0, 10)].filter((d): d is string => !!d && DATE.test(d));
+  const checkedOn = dates.sort().pop() ?? "";
+  const ageDays = checkedOn ? Math.max(0, dayNum(now) - dayNum(checkedOn)) : 9999;
+  const state: FreshState = deal?.expiresOn && deal.expiresOn < now ? "expired" : ageDays <= FRESH_DAYS ? "fresh" : ageDays <= OLD_DAYS ? "aging" : "old";
+  return { checkedOn, ageDays, state };
+}
+
+/** A rep or deal note kept per vendor, newest last. */
+export interface LogEntry { id: string; at: string; text: string }
+export type LogBook = Record<string, LogEntry[]>;
+export function readLog(raw: unknown): LogBook {
+  const out: LogBook = {};
+  if (raw && typeof raw === "object") for (const [k, v] of Object.entries(raw as Record<string, unknown>).slice(0, 200)) {
+    if (!/^\d+$/.test(k) || !Array.isArray(v)) continue;
+    const list = v.map((e: any) => ({ id: txt(e?.id, 20), at: DATE.test(txt(e?.at, 10)) ? txt(e.at, 10) : "", text: txt(e?.text, 500) })).filter((e) => e.id && e.text).slice(-60);
+    if (list.length) out[k] = list;
+  }
+  return out;
+}
+const dealsKey = (c: number) => `vdeal:${c}`;
+const logKey = (c: number) => `vlog:${c}`;
 
 export const KINDS: Record<string, string> = { sherwin_williams: "Sherwin-Williams", home_depot: "Home Depot", lowes: "Lowe's", benjamin_moore: "Benjamin Moore", ppg: "PPG", kelly_moore: "Kelly-Moore", dunn_edwards: "Dunn-Edwards", valspar: "Valspar", behr: "Behr", other: "Other" };
 
@@ -105,18 +158,26 @@ export async function handleVendors(request: Request, env: Env): Promise<Respons
       const owner = u.searchParams.get("owner") === "customer" ? "customer" : "mine";
       const words = find.toLowerCase().split(/\s+/).filter(Boolean).slice(0, 4);
       const where = words.map(() => "lower(p.product) LIKE ?").join(" AND ");
-      const rows = await env.DB.prepare(`SELECT p.id, p.product, p.size, p.sku, p.price_cents AS priceCents, p.effective_on AS effectiveOn, v.name AS vendor, v.discount_pct AS discountPct, v.customer_name AS customerName FROM vendor_prices p JOIN vendors v ON v.id = p.vendor_id WHERE p.company_id = ? AND v.owner = ? ${where ? "AND " + where : ""} ORDER BY p.price_cents LIMIT 20`)
-        .bind(c, owner, ...words.map((w) => `%${w}%`)).all();
-      return json({ prices: rows.results ?? [] });
+      const rows = await env.DB.prepare(`SELECT p.id, p.product, p.size, p.sku, p.price_cents AS priceCents, p.effective_on AS effectiveOn, p.created_at AS createdAt, v.name AS vendor, v.discount_pct AS discountPct, v.customer_name AS customerName FROM vendor_prices p JOIN vendors v ON v.id = p.vendor_id WHERE p.company_id = ? AND v.owner = ? ${where ? "AND " + where : ""} ORDER BY p.price_cents LIMIT 20`)
+        .bind(c, owner, ...words.map((w) => `%${w}%`)).all<any>();
+      const deals = await readBlob(env, dealsKey(c), readDeals);
+      return json({ prices: (rows.results ?? []).map((x) => ({ ...x, deal: deals[String(x.id)] ?? null, ...priceFresh(x, deals[String(x.id)]) })) });
     }
     if (Number.isInteger(id) && id > 0) {
       const v = await env.DB.prepare("SELECT * FROM vendors WHERE id = ? AND company_id = ?").bind(id, c).first();
       if (!v) return json({ error: "Not found." }, 404);
-      const p = await env.DB.prepare("SELECT id, product, size, sku, price_cents AS priceCents, effective_on AS effectiveOn, source FROM vendor_prices WHERE vendor_id = ? AND company_id = ? ORDER BY product LIMIT 1000").bind(id, c).all();
-      return json({ vendor: v, prices: p.results ?? [] });
+      const p = await env.DB.prepare("SELECT id, product, size, sku, price_cents AS priceCents, effective_on AS effectiveOn, created_at AS createdAt, source FROM vendor_prices WHERE vendor_id = ? AND company_id = ? ORDER BY product LIMIT 1000").bind(id, c).all<any>();
+      const deals = await readBlob(env, dealsKey(c), readDeals);
+      const log = (await readBlob(env, logKey(c), readLog))[String(id)] ?? [];
+      return json({ vendor: v, prices: (p.results ?? []).map((x) => ({ ...x, deal: deals[String(x.id)] ?? null, ...priceFresh(x, deals[String(x.id)]) })), log, rule: { freshDays: FRESH_DAYS, oldDays: OLD_DAYS } });
     }
-    const list = await env.DB.prepare("SELECT v.*, (SELECT COUNT(*) FROM vendor_prices p WHERE p.vendor_id = v.id) AS priceCount, (SELECT MAX(effective_on) FROM vendor_prices p WHERE p.vendor_id = v.id) AS latest FROM vendors v WHERE v.company_id = ? ORDER BY v.owner, v.name").bind(c).all();
-    return json({ vendors: list.results ?? [], kinds: KINDS, tips: TIPS, prefs: await prefs(env, c) });
+    const list = await env.DB.prepare("SELECT v.*, (SELECT COUNT(*) FROM vendor_prices p WHERE p.vendor_id = v.id) AS priceCount, (SELECT MAX(effective_on) FROM vendor_prices p WHERE p.vendor_id = v.id) AS latest FROM vendors v WHERE v.company_id = ? ORDER BY v.owner, v.name").bind(c).all<any>();
+    // How many prices in each vendor need another look (old, or a deal that ended).
+    const rows = await env.DB.prepare("SELECT id, vendor_id AS vendorId, effective_on AS effectiveOn, created_at AS createdAt FROM vendor_prices WHERE company_id = ? LIMIT 5000").bind(c).all<any>();
+    const deals = await readBlob(env, dealsKey(c), readDeals);
+    const need = new Map<number, number>();
+    for (const r of rows.results ?? []) if (priceFresh(r, deals[String(r.id)]).state !== "fresh") need.set(r.vendorId, (need.get(r.vendorId) ?? 0) + 1);
+    return json({ vendors: (list.results ?? []).map((v) => ({ ...v, needCheck: need.get(v.id) ?? 0 })), kinds: KINDS, tips: TIPS, prefs: await prefs(env, c), rule: { freshDays: FRESH_DAYS, oldDays: OLD_DAYS } });
   }
   let b: any;
   try { b = await request.json(); } catch { return json({ error: "Invalid JSON." }, 400); }
@@ -139,7 +200,10 @@ export async function handleVendors(request: Request, env: Env): Promise<Respons
     }
     case "delete": {
       if (!(await owned(b.id))) return json({ error: "Not found." }, 404);
+      const ids = ((await env.DB.prepare("SELECT id FROM vendor_prices WHERE vendor_id = ? AND company_id = ?").bind(Number(b.id), c).all<{ id: number }>()).results ?? []).map((x) => String(x.id));
       await env.DB.batch([env.DB.prepare("DELETE FROM vendor_prices WHERE vendor_id = ? AND company_id = ?").bind(Number(b.id), c), env.DB.prepare("DELETE FROM vendors WHERE id = ? AND company_id = ?").bind(Number(b.id), c)]);
+      await updateBlob(env, dealsKey(c), readDeals, (cur) => { const next = { ...cur }; for (const i of ids) delete next[i]; return { value: next }; });
+      await updateBlob(env, logKey(c), readLog, (cur) => { const next = { ...cur }; delete next[String(Number(b.id))]; return { value: next }; });
       return json({ ok: true });
     }
     case "addPrice":
@@ -157,7 +221,40 @@ export async function handleVendors(request: Request, env: Env): Promise<Respons
     }
     case "deletePrice": {
       await env.DB.prepare("DELETE FROM vendor_prices WHERE id = ? AND company_id = ?").bind(Number(b.id), c).run();
+      await updateBlob(env, dealsKey(c), readDeals, (cur) => { const next = { ...cur }; delete next[String(Number(b.id))]; return { value: next }; });
       return json({ ok: true });
+    }
+    case "setDeal": {
+      // Who gave this price, what the deal is and when it ends. Saving it does not change the price.
+      const row = await env.DB.prepare("SELECT id FROM vendor_prices WHERE id = ? AND company_id = ?").bind(Number(b.priceId), c).first();
+      if (!row) return json({ error: "Not found." }, 404);
+      const d = cleanDeal(b.deal);
+      const r = await updateBlob(env, dealsKey(c), readDeals, (cur) => { const next = { ...cur }; const old = next[String(Number(b.priceId))]; next[String(Number(b.priceId))] = { ...d, confirmedOn: old?.confirmedOn ?? "" }; return { value: readDeals(next) }; });
+      return r.ok ? json({ ok: true }) : json({ error: r.error }, 409);
+    }
+    case "confirmPrice": {
+      // "Still good": the painter checked this price with the store today.
+      const ids = b.all === true
+        ? ((await env.DB.prepare("SELECT id FROM vendor_prices WHERE vendor_id = ? AND company_id = ?").bind(Number(b.vendorId), c).all<{ id: number }>()).results ?? []).map((x) => String(x.id))
+        : ((await env.DB.prepare("SELECT id FROM vendor_prices WHERE id = ? AND company_id = ?").bind(Number(b.priceId), c).first<{ id: number }>()) ? [String(Number(b.priceId))] : []);
+      if (!ids.length) return json({ error: "Not found." }, 404);
+      const now = today();
+      const r = await updateBlob(env, dealsKey(c), readDeals, (cur) => { const next = { ...cur }; for (const i of ids) next[i] = { ...(next[i] ?? { rep: "", deal: "", expiresOn: "" }), confirmedOn: now }; return { value: readDeals(next) }; });
+      return r.ok ? json({ ok: true, confirmed: ids.length }) : json({ error: r.error }, 409);
+    }
+    case "addLog": {
+      if (!(await owned(b.vendorId))) return json({ error: "Not found." }, 404);
+      const text = txt(b.text, 500);
+      if (!text) return json({ error: "Write the note." }, 400);
+      const key = String(Number(b.vendorId));
+      const r = await updateBlob(env, logKey(c), readLog, (cur) => ({ value: { ...cur, [key]: [...(cur[key] ?? []), { id: Date.now().toString(36), at: today(), text }].slice(-60) } }));
+      return r.ok ? json({ ok: true, log: r.value[key] ?? [] }) : json({ error: r.error }, 409);
+    }
+    case "deleteLog": {
+      if (!(await owned(b.vendorId))) return json({ error: "Not found." }, 404);
+      const key = String(Number(b.vendorId));
+      const r = await updateBlob(env, logKey(c), readLog, (cur) => ({ value: { ...cur, [key]: (cur[key] ?? []).filter((e) => e.id !== String(b.id)) } }));
+      return r.ok ? json({ ok: true, log: r.value[key] ?? [] }) : json({ error: r.error }, 409);
     }
     case "readSheet": {
       const mime = txt(b.mime, 40);
