@@ -82,6 +82,8 @@ const usd=c=>c==null?'':'$'+Math.round(c/100).toLocaleString('en-US');
 (async()=>{
   const r=await fetch('/api/leads');
   if(r.status===401){location.href='/login';return;}
+  // Right after sign-in: go back to the page the painter first asked for (saved on the sign-in page, good for one hour).
+  try{const nx=JSON.parse(localStorage.getItem('pm_next')||'null');localStorage.removeItem('pm_next');if(nx&&nx.p&&Date.now()-nx.t<3600000&&location.pathname==='/dashboard'&&!location.hash&&document.referrer.indexOf('/login')<0){location.replace(nx.p);return;}}catch(e){}
   const j=await r.json();
   document.getElementById('co').textContent=j.company;
   const me=await (await fetch('/api/me')).json(); document.getElementById('me').textContent=me.email;

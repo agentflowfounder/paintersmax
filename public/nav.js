@@ -92,6 +92,10 @@
     // Admin logins get an Admin link in the Help corner (everyone else never sees it).
     fetch('/api/me', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
       if (u && u.admin) { var m = document.getElementById('pm_help'); if (m) m.insertAdjacentHTML('beforeend', a(['/admin', 'Admin'])); }
+      // Pages that open fully on Contractor and Commercial get a small plan tag for Free and Local Pro. They stay open to read about.
+      if (u && (u.plan === 'free' || u.plan === 'starter')) {
+        [].forEach.call(document.querySelectorAll('#pm_sheet a[href="/lessons"]'), function (el) { el.insertAdjacentHTML('beforeend', ' <span class="pmtag">' + T('Contractor') + '</span>'); });
+      }
     }).catch(function () {});
 
     var btn = document.getElementById('pm_mb');
