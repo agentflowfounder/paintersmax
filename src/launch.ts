@@ -18,6 +18,7 @@ export interface LaunchItem { id: string; group: "Money" | "Safety" | "Content" 
 export const MANUAL_ITEMS: { id: string; group: LaunchItem["group"]; label: string; how: string }[] = [
   { id: "live_purchase", group: "Money", label: "One real purchase made and refunded on the live site", how: "After the live keys are in, buy the cheapest door with a real card on /start, check Admin > Subscriptions shows it, then refund it in Stripe." },
   { id: "live_webhook_test", group: "Money", label: "Live webhook test passed", how: "In live mode, Stripe > Developers > Webhooks > your destination > Event deliveries shows 200 for the purchase above." },
+  { id: "limits_checked", group: "Money", label: "Plan limits and Google lookups checked", how: "Admin > Plan limits: confirm the limits per plan and today's Google address lookups look right, then tick this." },
   { id: "two_factor", group: "Safety", label: "Admin sign-in switched to an authenticator app with recovery codes", how: "Ask for the authenticator build, then give owner and staff 7 days to switch." },
   { id: "preview_builds_off", group: "Safety", label: "Cloudflare \"Builds for Preview branches\" is OFF", how: "Cloudflare > paintersmax-site > Settings > Builds. Previews build against the live database." },
   { id: "wildcard_dns", group: "Safety", label: "Wildcard DNS and route work (client sites open at their own address)", how: "Open demo-local-pro.paintersmax.app. It should show the example site." },

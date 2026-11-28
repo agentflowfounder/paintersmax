@@ -11,6 +11,7 @@ import { BLIND_KEY, BLIND_TOOLS, readBlind, runBlindTest, scoreBlindTest } from 
 import { aiScorecard, aiToday } from "./ailog.ts";
 import { exceptionList } from "./exceptions.ts";
 import { launchChecklist, tickLaunch } from "./launch.ts";
+import { planLimitsView } from "./planlimits.ts";
 import { stripeFacts } from "./stripecheck.ts";
 import { readSamplesSetting, SAMPLES_KEY, saveSamplesSetting } from "./samples.ts";
 import { databaseBackup, LAST_BACKUP_KEY } from "./backup.ts";
@@ -197,6 +198,7 @@ export async function adminView(env: Env, actor: AdminActor, url: URL, today: st
   if (q.get("launch") === "1") return { area: "settings", data: await launchChecklist(env, today, await stripeFacts(env, url.hostname)) };
   if (q.get("samples") === "1") return { area: "settings", data: await readBlob(env, SAMPLES_KEY, readSamplesSetting) };
   if (q.get("credits") === "1") return { area: "credits", data: await creditsOverview(env, q.get("month") ?? "") };
+  if (q.get("limits") === "1") return { area: "settings", data: await planLimitsView(env, today) };
   if (q.get("aihealth") === "1") {
     const back = (n: number) => new Date(Date.parse(`${today}T00:00:00Z`) - n * 86400000).toISOString().slice(0, 10);
     const [now, week, month] = await Promise.all([aiToday(env, today), aiScorecard(env, back(6)), aiScorecard(env, back(29))]);

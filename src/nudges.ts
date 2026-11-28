@@ -45,7 +45,7 @@ export function buildNudges(f: NudgeFacts, snoozed: Record<string, string>, now 
     all.push({ key: "warranty_ending", link: "/jobs", text: `${f.warrantiesEnding} ${plural(f.warrantiesEnding ?? 0, "warranty ends", "warranties end")} within 60 days. A friendly check-in call is a good way to earn a review or a repeat job.` });
   }
   if ((f.storagePercent ?? 0) >= 80) {
-    all.unshift({ key: "storage_high", link: "/jobs", text: `You are using ${Math.round(f.storagePercent!)}% of your photo and file storage. Open a finished job, download its file, and free up space. Nothing is removed unless you say so.` });
+    all.unshift({ key: "storage_high", link: "/jobs", text: `You are using ${Math.round(f.storagePercent!)}% of your photo and file storage. Open a finished job, download its file, and free up space. Nothing is removed unless you say so. Need more space? Ask us about the storage add-on.` });
   }
   const cadence = DOWNLOAD_REMINDER_DAYS[f.plan ?? "free"] ?? 90;
   if (f.month !== undefined && f.month >= 1 && f.month <= 4 && f.downloadedThisTaxYear === false) {
